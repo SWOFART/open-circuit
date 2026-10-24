@@ -89,6 +89,8 @@ circuit-sim/
 ├── tests/golden/               ← reference circuits (.json) + ngspice results
 ├── docs/
 │   ├── adr/                    ← architecture decision records
+│   ├── contracts/              ← versioned cross-layer contracts
+│   │   └── stage-1.md
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -141,7 +143,7 @@ motors spin up. A phasor/AC-analysis mode can be added separately later.
 
 - C and L: **companion models** (resistor + source), trapezoidal rule.
 - After an event (relay, switch), take one **backward Euler** step: otherwise the trapezoidal rule produces spurious ringing.
-- Fixed step (with sub-steps if needed). "Slow down 100x" is the ratio of model time to wall-clock time, not a different step.
+- Start with a fixed physics step of **1 ms** (`timeStepSeconds = 0.001`), with sub-steps only if needed. "Slow down 100x" is the ratio of model time to wall-clock time, not a different step.
 
 ### 3.5 Nonlinear elements
 
@@ -192,6 +194,7 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 
 - Simulation runs in a **separate thread**; the UI never blocks physics.
 - Only the **latest** snapshot is kept: a lagging UI skips frames instead of building a queue.
+- UI delivery is throttled independently to at most **60 frames per wall-clock second** (nominally 16.67 ms). It never changes the 1 ms physics step; a frame may contain a later simulation step than the previous frame.
 - A frame is a binary `f64` array with a fixed layout. When a schematic is compiled, the UI receives a "component → offset" map once. No JSON per frame.
 - Rust → TS types are generated automatically (`tauri-specta` or `ts-rs`). CI checks that `src/generated/` is up to date.
 - `set_param(id, value)`: a lightweight command that only rebuilds stamps.
@@ -216,9 +219,15 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 ## 6. File format
 
 JSON with `schemaVersion` and migration functions (`migrations/` in `engine`).
-Only what was drawn is stored: components, parameters, wires, positions.
+Only what was drawn is stored: components, parameters, wires, junction/reference markers,
+and positions.
 **Nodes, currents, and simulation state are not saved**; they are computed.
 Export to a SPICE netlist (for ngspice and interchange).
+
+The Stage 1 schematic, connectivity, Engine API, diagnostics, and result-layout
+contract is specified in [`docs/contracts/stage-1.md`](docs/contracts/stage-1.md).
+That document elaborates this architecture for the first end-to-end milestone;
+it must not override the layer boundaries or physics decisions above.
 
 ---
 
