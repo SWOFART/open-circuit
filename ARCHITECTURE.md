@@ -255,6 +255,12 @@ document store is separate from simulation snapshots and runtime state; an
 incomplete but structurally valid schematic remains editable when the Engine
 reports electrical diagnostics.
 
+`src/store/document.ts` owns the immutable editable schematic, its undo/redo
+patch history, and saved-state comparison. `src/store/simulation.ts` owns only
+catalog, run, diagnostics, snapshot, and frame-delivery state. UI parameter
+edits are committed to the document store first, then sent through the Engine
+adapter; an Engine rejection leaves the editable document intact.
+
 - **`EditorCore`** is a plain TS class using PixiJS, with no React. React handles panels only. Reasons: performance with thousands of objects, and editor logic can be tested in Vitest without a browser.
 - **Immutable document, history via `immer`** (patches and inverse patches): undo/redo works automatically for any change, with no hand-written do/undo pairs.
 - **Tools are finite state machines** (select, wire, place, pan) with explicit states. "Comfortable drawing mechanics" is hundreds of small behaviors; without state machines they become a tangle of flags.

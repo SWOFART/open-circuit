@@ -85,17 +85,12 @@ function adapterWithPendingUpdate() {
 }
 
 function controllerFor(adapter: PredeterminedEngineAdapter) {
-  return new SimulationController(
-    adapter,
-    dividerSchematic,
-    symbols,
-    revisions(),
-  );
+  return new SimulationController(adapter, symbols, revisions());
 }
 
 async function started(adapter = adapterWithPendingUpdate().adapter) {
   const controller = controllerFor(adapter);
-  await controller.start();
+  await controller.start(dividerSchematic);
   return { controller, adapter };
 }
 
@@ -114,7 +109,7 @@ describe("opening the frame stream", () => {
       setParameter: () => ({ status: "failure", diagnostics: [] }),
     });
 
-    await controllerFor(adapter).start();
+    await controllerFor(adapter).start(dividerSchematic);
 
     expect(adapter.startedRuns).toEqual([]);
   });
@@ -144,7 +139,7 @@ describe("opening the frame stream", () => {
       });
     const controller = controllerFor(adapter);
 
-    const starting = controller.start();
+    const starting = controller.start(dividerSchematic);
     await vi.waitFor(() => expect(finishOpening).toBeDefined());
     controller.dispose();
     finishOpening?.(stop);
@@ -162,7 +157,7 @@ describe("opening the frame stream", () => {
     adapter.startFrames = () => Promise.reject(new Error("channel failed"));
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const state = controller.getState();
 
     expect(state.status).toBe("ready");
@@ -260,9 +255,7 @@ describe("frames during a parameter update", () => {
     expect(state.updating).toBe(false);
     expect(state.error).toBeNull();
     expect(state.snapshot?.values).toEqual([22]);
-    expect(
-      state.schematic.components.find((component) => component.id === R1),
-    ).toMatchObject({ parameters: { resistanceOhms: 2000 } });
+    expect(state).not.toHaveProperty("schematic");
     expect(state.run?.documentRevision).toBe("rev-2");
   });
 
@@ -298,9 +291,7 @@ describe("frames during a parameter update", () => {
     const state = controller.getState();
     expect(state.error).toMatch(/unconfirmed/);
     expect(state.run?.documentRevision).toBe("rev-1");
-    expect(
-      state.schematic.components.find((component) => component.id === R1),
-    ).toMatchObject({ parameters: { resistanceOhms: 1000 } });
+    expect(state).not.toHaveProperty("schematic");
   });
 });
 

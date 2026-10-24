@@ -32,8 +32,6 @@ export interface ActiveRun {
 export interface SimulationState {
   readonly status: SimulationStatus;
   readonly catalog: ComponentCatalog | null;
-  /** The document as last accepted by the engine. */
-  readonly schematic: Schematic;
   readonly run: ActiveRun | null;
   readonly snapshot: ResultSnapshot | null;
   readonly diagnostics: readonly Diagnostic[];
@@ -45,11 +43,10 @@ export interface SimulationState {
   readonly discardedFrames: number;
 }
 
-export function initialSimulationState(schematic: Schematic): SimulationState {
+export function initialSimulationState(): SimulationState {
   return {
     status: "idle",
     catalog: null,
-    schematic,
     run: null,
     snapshot: null,
     diagnostics: [],
@@ -153,41 +150,6 @@ export function readSlot(
   return slot ? snapshot.values[slot.offset] : undefined;
 }
 
-function withParameter(
-  schematic: Schematic,
-  componentId: StableId,
-  parameterId: ParameterId,
-  value: number,
-): Schematic {
-  return {
-    ...schematic,
-    components: schematic.components.map((component) => {
-      if (component.id !== componentId) {
-        return component;
-      }
-
-      if (component.typeId === "resistor" && parameterId === "resistanceOhms") {
-        return { ...component, parameters: { resistanceOhms: value } };
-      }
-
-      if (
-        component.typeId === "dc_voltage_source" &&
-        (parameterId === "voltageVolts" ||
-          parameterId === "internalResistanceOhms")
-      ) {
-        return {
-          ...component,
-          parameters: { ...component.parameters, [parameterId]: value },
-        };
-      }
-
-      throw new Error(
-        `Component ${componentId} has no parameter ${parameterId}.`,
-      );
-    }),
-  };
-}
-
 let revisionCounter = 0;
 
 /** An opaque token; the engine only compares revisions for equality. */
@@ -210,7 +172,7 @@ interface ParameterUpdate {
 }
 
 /**
- * Owns the document, the active run, and the latest result. Plain TypeScript
+ * Owns the active run and the latest result. Plain TypeScript
  * with no React or Pixi: React subscribes through `subscribe`/`getState`.
  *
  * Parameter edits are sent one at a time and coalesced, so the engine's state
@@ -228,11 +190,10 @@ export class SimulationController {
 
   constructor(
     private readonly adapter: EngineAdapter,
-    schematic: Schematic,
     private readonly registry: SymbolRegistry = symbols,
     private readonly createRevision: () => string = createRevisionToken,
   ) {
-    this.state = initialSimulationState(schematic);
+    this.state = initialSimulationState();
   }
 
   readonly getState = (): SimulationState => this.state;
@@ -245,7 +206,7 @@ export class SimulationController {
   };
 
   /** Loads the catalog and compiles the document. Safe to call once. */
-  async start(): Promise<void> {
+  async start(schematic: Schematic): Promise<void> {
     if (this.started || this.disposed) {
       return;
     }
@@ -273,8 +234,8 @@ export class SimulationController {
 
     try {
       result = await this.adapter.compile({
-        schematic: this.state.schematic,
-        geometry: buildGeometryEnvelope(this.state.schematic, this.registry),
+        schematic,
+        geometry: buildGeometryEnvelope(schematic, this.registry),
         documentRevision,
       });
     } catch (error) {
@@ -441,20 +402,6 @@ export class SimulationController {
       return;
     }
 
-    let nextSchematic: Schematic;
-
-    try {
-      nextSchematic = withParameter(
-        this.state.schematic,
-        update.componentId,
-        update.parameterId,
-        update.value,
-      );
-    } catch (error) {
-      this.setState({ error: describeError(error) });
-      return;
-    }
-
     const revision = this.createRevision();
     const sentRun: ActiveRun = { ...run, documentRevision: revision };
     let result: SetParameterResult;
@@ -503,7 +450,6 @@ export class SimulationController {
         this.setState({
           updating: false,
           run: sentRun,
-          schematic: nextSchematic,
           diagnostics: result.diagnostics,
           error: null,
         });
@@ -525,7 +471,6 @@ export class SimulationController {
       this.setState({
         updating: false,
         run: sentRun,
-        schematic: nextSchematic,
         snapshot: result.snapshot,
         diagnostics: result.diagnostics,
         error: null,

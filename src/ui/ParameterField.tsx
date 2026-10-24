@@ -6,7 +6,7 @@ import { evaluateParameterDraft, formatSi, unitSymbols } from "./units";
 export interface ParameterFieldProps {
   readonly label: string;
   readonly definition: ParameterDefinition;
-  /** The value last accepted by the engine, in SI units. */
+  /** The value currently stored in the editable schematic, in SI units. */
   readonly committedValue: number;
   readonly disabled: boolean;
   /** Called with a validated SI number. Never called for an invalid field. */

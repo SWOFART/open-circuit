@@ -42,12 +42,7 @@ function revisions(): () => string {
 }
 
 function controllerFor(adapter: EngineAdapter): SimulationController {
-  return new SimulationController(
-    adapter,
-    dividerSchematic,
-    symbols,
-    revisions(),
-  );
+  return new SimulationController(adapter, symbols, revisions());
 }
 
 const rejection: Diagnostic = {
@@ -83,7 +78,7 @@ describe("compiling the divider through the adapter", () => {
     const adapter = createDividerFixtureAdapter();
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const state = controller.getState();
 
     expect(state.status).toBe("ready");
@@ -102,7 +97,7 @@ describe("compiling the divider through the adapter", () => {
   it("does not require every quantity to be present in the layout", async () => {
     const controller = controllerFor(createDividerFixtureAdapter());
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const { run, snapshot } = controller.getState();
 
     expect(readSlot(run, snapshot, R2, "current")).toBeUndefined();
@@ -114,7 +109,7 @@ describe("changing a resistance", () => {
     const adapter = createDividerFixtureAdapter();
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     await controller.setParameter(R1, "resistanceOhms", 3000);
 
     const expected: SetParameterRequest = {
@@ -133,7 +128,7 @@ describe("changing a resistance", () => {
     const adapter = createDividerFixtureAdapter();
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     await controller.setParameter(R1, "resistanceOhms", 3000);
     await controller.setParameter(R1, "resistanceOhms", 1000);
 
@@ -152,7 +147,7 @@ describe("changing a resistance", () => {
     });
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     await controller.setParameter(R1, "resistanceOhms", 3000);
     await controller.setParameter(R1, "resistanceOhms", 4000);
 
@@ -164,7 +159,7 @@ describe("changing a resistance", () => {
   it("shows the new result and restores the original when changed back", async () => {
     const controller = controllerFor(createDividerFixtureAdapter());
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     await controller.setParameter(R1, "resistanceOhms", 3000);
 
     let state = controller.getState();
@@ -184,17 +179,13 @@ describe("changing a resistance", () => {
     expect(state.status).toBe("ready");
   });
 
-  it("keeps the committed resistance in the document", async () => {
+  it("keeps schematic documents outside simulation state", async () => {
     const controller = controllerFor(createDividerFixtureAdapter());
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     await controller.setParameter(R1, "resistanceOhms", 3000);
 
-    const r1 = controller
-      .getState()
-      .schematic.components.find((component) => component.id === R1);
-
-    expect(r1).toMatchObject({ parameters: { resistanceOhms: 3000 } });
+    expect(controller.getState()).not.toHaveProperty("schematic");
     expect(dividerSchematic.components[1]).toMatchObject({
       parameters: { resistanceOhms: 1000 },
     });
@@ -203,7 +194,7 @@ describe("changing a resistance", () => {
   it("reports an unknown value as unavailable data, never as a reading", async () => {
     const controller = controllerFor(createDividerFixtureAdapter());
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const before = controller.getState().snapshot;
     await controller.setParameter(R1, "resistanceOhms", 4700);
     const state = controller.getState();
@@ -213,19 +204,6 @@ describe("changing a resistance", () => {
     );
     expect(state.snapshot).toBe(before);
     expect(state.status).toBe("ready");
-  });
-
-  it("refuses a parameter the component does not have, without calling the engine", async () => {
-    const adapter = createDividerFixtureAdapter();
-    const controller = controllerFor(adapter);
-
-    await controller.start();
-    await controller.setParameter(R1, "voltageVolts", 9);
-
-    expect(adapter.parameterRequests).toHaveLength(0);
-    expect(controller.getState().error).toMatch(
-      /has no parameter voltageVolts/,
-    );
   });
 });
 
@@ -301,14 +279,14 @@ describe("diagnostics", () => {
       adapterWith(() => ({ status: "failure", diagnostics: [rejection] })),
     );
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const before = controller.getState();
     await controller.setParameter(R1, "resistanceOhms", 5);
     const after = controller.getState();
 
     expect(after.diagnostics).toEqual([rejection]);
     expect(after.snapshot).toBe(before.snapshot);
-    expect(after.schematic).toBe(before.schematic);
+    expect(after).not.toHaveProperty("schematic");
     expect(after.run).toEqual(before.run);
     expect(after.status).toBe("ready");
     expect(after.updating).toBe(false);
@@ -329,7 +307,7 @@ describe("diagnostics", () => {
       })),
     );
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     await controller.setParameter(R1, "resistanceOhms", 5);
 
     expect(controller.getState().diagnostics).toEqual([warning]);
@@ -344,7 +322,7 @@ describe("diagnostics", () => {
     });
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const state = controller.getState();
 
     expect(state.status).toBe("failed");
@@ -358,7 +336,7 @@ describe("unavailable backend", () => {
   it("never produces a reading when the production adapter has no bridge", async () => {
     const controller = controllerFor(new TauriEngineAdapter());
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const state = controller.getState();
 
     expect(state.status).toBe("unavailable");
@@ -376,7 +354,7 @@ describe("unavailable backend", () => {
     };
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
 
     expect(controller.getState()).toMatchObject({
       status: "unavailable",
@@ -408,7 +386,7 @@ describe("unavailable backend", () => {
     });
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const state = controller.getState();
 
     expect(state.status).toBe("unavailable");
@@ -520,7 +498,7 @@ describe("stale results", () => {
     });
     const controller = controllerFor(stale);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const before = controller.getState();
     await controller.setParameter(R1, "resistanceOhms", 2000);
     const after = controller.getState();
@@ -528,7 +506,7 @@ describe("stale results", () => {
     expect(after.discardedFrames).toBe(1);
     expect(after.error).toMatch(/unconfirmed/);
     expect(after.snapshot).toBe(before.snapshot);
-    expect(after.schematic).toBe(before.schematic);
+    expect(after).not.toHaveProperty("schematic");
     expect(after.run).toEqual(before.run);
   });
 });
@@ -609,7 +587,7 @@ describe("rapid edits", () => {
     const pending: Pending[] = [];
     const controller = controllerFor(slowAdapter(pending));
 
-    await controller.start();
+    await controller.start(dividerSchematic);
 
     const first = controller.setParameter(R1, "resistanceOhms", 2000);
     void controller.setParameter(R1, "resistanceOhms", 3000);
@@ -633,16 +611,14 @@ describe("rapid edits", () => {
     expect(pending).toHaveLength(2);
     expect(state.snapshot?.values).toEqual([4000]);
     expect(state.updating).toBe(false);
-    expect(
-      state.schematic.components.find((component) => component.id === R1),
-    ).toMatchObject({ parameters: { resistanceOhms: 4000 } });
+    expect(state).not.toHaveProperty("schematic");
   });
 
   it("never lets an older response overwrite a newer result", async () => {
     const pending: Pending[] = [];
     const controller = controllerFor(slowAdapter(pending));
 
-    await controller.start();
+    await controller.start(dividerSchematic);
 
     void controller.setParameter(R1, "resistanceOhms", 2000);
     pending[0]?.resolve(acceptAs(pending[0].request));
@@ -667,7 +643,7 @@ describe("rapid edits", () => {
     const pending: Pending[] = [];
     const controller = controllerFor(slowAdapter(pending));
 
-    await controller.start();
+    await controller.start(dividerSchematic);
 
     const done = controller.setParameter(R1, "resistanceOhms", 2000);
     void controller.setParameter(R2, "resistanceOhms", 5000);
@@ -690,15 +666,7 @@ describe("rapid edits", () => {
       [R1, 3000],
     ]);
 
-    const { schematic } = controller.getState();
-    const resistance = (id: string) =>
-      schematic.components.find((component) => component.id === id);
-    expect(resistance(R1)).toMatchObject({
-      parameters: { resistanceOhms: 3000 },
-    });
-    expect(resistance(R2)).toMatchObject({
-      parameters: { resistanceOhms: 5000 },
-    });
+    expect(controller.getState()).not.toHaveProperty("schematic");
   });
 });
 
@@ -756,7 +724,7 @@ describe("malformed engine answers", () => {
     });
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
 
     expect(controller.getState().status).toBe("unavailable");
     expect(controller.getState().snapshot).toBeNull();
@@ -771,7 +739,7 @@ describe("malformed engine answers", () => {
     });
     const controller = controllerFor(adapter);
 
-    await expect(controller.start()).resolves.toBeUndefined();
+    await expect(controller.start(dividerSchematic)).resolves.toBeUndefined();
 
     expect(controller.getState()).toMatchObject({ status: "unavailable" });
     expect(controller.getState().error).toMatch(/unreadable result/);
@@ -785,7 +753,7 @@ describe("malformed engine answers", () => {
     });
     const controller = controllerFor(adapter);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     const before = controller.getState();
 
     await expect(
@@ -796,7 +764,7 @@ describe("malformed engine answers", () => {
     expect(after.error).toMatch(/unreadable result/);
     expect(after.updating).toBe(false);
     expect(after.snapshot).toBe(before.snapshot);
-    expect(after.schematic).toBe(before.schematic);
+    expect(after).not.toHaveProperty("schematic");
     expect(after.run).toEqual(before.run);
   });
 });
@@ -807,7 +775,7 @@ describe("lifecycle", () => {
     const listener = vi.fn();
     const unsubscribe = controller.subscribe(listener);
 
-    await controller.start();
+    await controller.start(dividerSchematic);
     expect(listener).toHaveBeenCalled();
 
     const calls = listener.mock.calls.length;
@@ -832,7 +800,7 @@ describe("lifecycle", () => {
     const listener = vi.fn();
     controller.subscribe(listener);
 
-    const started = controller.start();
+    const started = controller.start(dividerSchematic);
     await vi.waitFor(() => expect(resolveCompile).toBeDefined());
     controller.dispose();
     resolveCompile?.({
@@ -849,7 +817,10 @@ describe("lifecycle", () => {
     const adapter = createDividerFixtureAdapter();
     const controller = controllerFor(adapter);
 
-    await Promise.all([controller.start(), controller.start()]);
+    await Promise.all([
+      controller.start(dividerSchematic),
+      controller.start(dividerSchematic),
+    ]);
 
     expect(adapter.compileRequests).toHaveLength(1);
   });

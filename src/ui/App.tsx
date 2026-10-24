@@ -1,10 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { EditorCore } from "../editor/EditorCore";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
   componentLabels,
   dividerSchematic,
 } from "../store/fixtures";
+import { SchematicDocumentStore } from "../store/document";
 import { Inspector } from "./Inspector";
 import { ResultPanel } from "./ResultPanel";
 import { useSimulation } from "./useSimulation";
@@ -17,10 +24,19 @@ export function App() {
   const canvasHost = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorCore | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const documentStore = useMemo(
+    () => new SchematicDocumentStore(dividerSchematic),
+    [],
+  );
+  const document = useSyncExternalStore(
+    documentStore.subscribe,
+    documentStore.getState,
+    documentStore.getState,
+  );
   const { state, controller } = useSimulation(dividerSchematic);
   const labels = useMemo(
-    () => componentLabels(state.schematic),
-    [state.schematic],
+    () => componentLabels(document.schematic),
+    [document.schematic],
   );
 
   useEffect(() => {
@@ -44,8 +60,8 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    editorRef.current?.setSchematic(state.schematic, labels);
-  }, [state.schematic, labels]);
+    editorRef.current?.setSchematic(document.schematic, labels);
+  }, [document.schematic, labels]);
 
   return (
     <main className="workspace">
@@ -61,7 +77,9 @@ export function App() {
         <section className="editor-panel" aria-label="Circuit editor">
           <div className="editor-toolbar">
             <span>Voltage divider</span>
-            <span className="editor-hint">Read-only view</span>
+            <span className="editor-hint">
+              {document.isDirty ? "Unsaved changes" : "Example"}
+            </span>
           </div>
           <div ref={canvasHost} className="editor-canvas" />
           {editorError && (
@@ -74,8 +92,16 @@ export function App() {
         <aside className="side">
           <Inspector
             state={state}
+            schematic={document.schematic}
             labels={labels}
             onCommit={(componentId, parameterId, value) => {
+              if (!state.catalog) return;
+              documentStore.setParameter(
+                componentId,
+                parameterId,
+                value,
+                state.catalog,
+              );
               void controller?.setParameter(componentId, parameterId, value);
             }}
           />
