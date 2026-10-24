@@ -60,6 +60,7 @@ circuit-sim/
 │   ├── engine/                 ← physics (pure Rust, no Tauri)
 │   │   ├── src/
 │   │   │   ├── lib.rs
+│   │   │   ├── engine.rs       ← compile, update, advance, and snapshot API
 │   │   │   ├── schematic.rs    ← input format: components + wires
 │   │   │   ├── netlist.rs      ← connectivity, nodes, per-wire currents
 │   │   │   ├── devices/        ← one file per device type
@@ -133,6 +134,11 @@ its contribution into the matrix. This is the method used by SPICE and Falstad, 
 results can be compared against ngspice. There are no separate formulas for
 "series/parallel sections": they break on bridges and relays.
 
+Stage 1 uses a dense matrix with partial-pivoted LU. Resistors stamp conductance, finite
+Thevenin sources use their Norton equivalent, and ideal voltage sources add an MNA branch
+current unknown. Numerical tolerances and accepted divider values are documented in
+[`docs/solver/stage-1-resistive.md`](docs/solver/stage-1-resistive.md).
+
 ### 3.3 One mode: transient analysis
 
 There is no separate DC/AC mode. DC is simply a source that does not change.
@@ -167,13 +173,14 @@ equation system: coupling through the previous step explicitly oscillates.
 ### 3.8 Unrealistic circuits and diagnostics
 
 - Sources have a default internal resistance (e.g. 0.1 Ω): a short circuit produces a large current, not `NaN`. More physical, and it is exactly what students should learn.
-- Structured diagnostics: `ShortCircuit`, `FloatingNode`, `NoGroundReference` (ground is added automatically). The UI highlights the offending parts.
+- Structured diagnostics: `ShortCircuit`, `FloatingNode`, `NoGroundReference`. Each unmarked electrical island gets its own local numerical reference; disconnected islands are never joined. The UI highlights the offending parts.
 
 ### 3.9 Wire currents (for animation)
 
 The solver knows device currents but not the current of an individual wire segment.
-`netlist.rs` builds a spanning tree per node and distributes pin currents using
-Kirchhoff's current law. This is engine math, not UI. The UI only draws moving dots.
+`netlist.rs` derives conductor nodes and electrical islands; later, it can build a spanning
+tree per node and distribute pin currents using Kirchhoff's current law. This is engine math,
+not UI. The UI only draws moving dots.
 
 ### 3.10 Units
 

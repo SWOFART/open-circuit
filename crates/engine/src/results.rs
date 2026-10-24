@@ -96,6 +96,7 @@ pub enum CompileResult {
 #[ts(export, export_to = "SetParameterRequest.ts")]
 pub struct SetParameterRequest {
     pub run_id: StableId,
+    pub expected_document_revision: String,
     pub document_revision: String,
     pub component_id: StableId,
     pub parameter_id: ParameterId,

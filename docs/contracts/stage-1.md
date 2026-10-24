@@ -142,10 +142,12 @@ freeze Rust method spelling or Tauri command names:
    document revision. Validate the whole input, derive topology, select references, build
    the MNA model, and return a compiled-run ID, result layout, and initial operating-point
    snapshot. If an error-severity diagnostic exists, compilation has no usable result.
-3. **Set parameter:** accept the current run ID, a newer document revision, component ID,
-   parameter ID, and SI value. Validate atomically, update stamps, and return a new snapshot
-   under the same layout if successful. Reject a stale run ID. Invalid updates preserve the
-   last valid state/result.
+3. **Set parameter:** accept the current run ID, the expected current document revision, a
+   new document revision, component ID, parameter ID, and SI value. Compare revision tokens
+   only by equality; the expected token must match the active snapshot, and the new token
+   must differ from the active token. Validate atomically, update stamps, and return a new
+   snapshot under the same layout if successful. Reject a stale run ID or revision. Invalid
+   updates preserve the last valid state/result.
 4. **Snapshot:** expose the latest completed state without requiring the caller to know
    solver internals. Engine owns numerical state; the application owns worker-thread
    lifecycle and message scheduling.
@@ -163,6 +165,8 @@ in the UI. Stage 1 uses these semantics:
 | `ShortCircuit` | error | An ideal zero-resistance source has both terminals on the same conductor; current is indeterminate, and nonzero EMF also conflicts with that conductor constraint. |
 | `InconsistentIdealConstraint` | error | Ideal voltage-source equations conflict in a loop. |
 | `SingularSystem` | error | The MNA system is rank-deficient or underdetermined and no more specific diagnosis is available. |
+| `StaleRun` | error | An operation refers to a run other than the currently compiled run. |
+| `StaleDocumentRevision` | error | The expected revision does not match the active snapshot, or the requested revision is unchanged. |
 
 Warnings may accompany a valid result; any error prevents that result from being accepted.
 
@@ -180,7 +184,9 @@ Each frame has metadata outside the numeric payload:
 
 - `runId`: a new opaque UUID for each successful compile;
 - `documentRevision`: an opaque revision token changed for each schematic edit and echoed
-  exactly; compare by equality, not numeric ordering;
+  exactly; compare by equality, not numeric ordering. Parameter updates also carry the
+  expected current token, which is checked against the active snapshot before applying the
+  change;
 - `layoutVersion`: the version of the accompanying layout;
 - `simulationStep`: an unsigned 64-bit physics-step index, starting at zero;
 - `simulationTimeSeconds`: finite model time, equal to `simulationStep × 0.001` seconds;

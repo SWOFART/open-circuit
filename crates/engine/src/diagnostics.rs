@@ -20,6 +20,8 @@ pub enum DiagnosticCode {
     ShortCircuit,
     InconsistentIdealConstraint,
     SingularSystem,
+    StaleRun,
+    StaleDocumentRevision,
 }
 
 impl DiagnosticCode {
@@ -37,6 +39,8 @@ impl DiagnosticCode {
             Self::ShortCircuit => "diagnostic.shortCircuit",
             Self::InconsistentIdealConstraint => "diagnostic.inconsistentIdealConstraint",
             Self::SingularSystem => "diagnostic.singularSystem",
+            Self::StaleRun => "diagnostic.staleRun",
+            Self::StaleDocumentRevision => "diagnostic.staleDocumentRevision",
         }
     }
 }

@@ -2103,6 +2103,7 @@ name = "open-circuit-engine-cli"
 version = "0.1.0"
 dependencies = [
  "open-circuit-engine",
+ "serde_json",
 ]
 
 [[package]]

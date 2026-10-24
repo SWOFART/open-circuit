@@ -2,4 +2,4 @@
 import type { ParameterId } from "./ParameterId";
 import type { StableId } from "./StableId";
 
-export type SetParameterRequest = { runId: StableId, documentRevision: string, componentId: StableId, parameterId: ParameterId, value: number, };
+export type SetParameterRequest = { runId: StableId, expectedDocumentRevision: string, documentRevision: string, componentId: StableId, parameterId: ParameterId, value: number, };
