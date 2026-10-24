@@ -1,10 +1,12 @@
 import type { ParameterId } from "../generated/ParameterId";
+import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { SimulationState } from "../store/simulation";
 import { ParameterField } from "./ParameterField";
 
 export interface InspectorProps {
   readonly state: SimulationState;
+  readonly schematic: Schematic;
   readonly labels: ReadonlyMap<StableId, string>;
   readonly onCommit: (
     componentId: StableId,
@@ -14,11 +16,17 @@ export interface InspectorProps {
 }
 
 /** Edits the resistances of the schematic's resistors. */
-export function Inspector({ state, labels, onCommit }: InspectorProps) {
+export function Inspector({
+  state,
+  schematic,
+  labels,
+  onCommit,
+}: InspectorProps) {
   const resistorDefinition = state.catalog?.componentTypes
     .find((entry) => entry.typeId === "resistor")
     ?.parameters.find((parameter) => parameter.id === "resistanceOhms");
-  const editable = state.status === "ready" && resistorDefinition !== undefined;
+  const editable =
+    resistorDefinition !== undefined && state.status !== "loading";
 
   return (
     <section className="side-panel" aria-labelledby="inspector-heading">
@@ -30,7 +38,7 @@ export function Inspector({ state, labels, onCommit }: InspectorProps) {
             : "Waiting for the component catalog."}
         </p>
       ) : (
-        state.schematic.components.map((component) =>
+        schematic.components.map((component) =>
           component.typeId === "resistor" ? (
             <ParameterField
               key={component.id}

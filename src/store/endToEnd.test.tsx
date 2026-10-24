@@ -9,6 +9,7 @@ import { symbols } from "../symbols";
 import { Inspector } from "../ui/Inspector";
 import { ResultPanel } from "../ui/ResultPanel";
 import { TauriEngineAdapter } from "./engineAdapter";
+import { SchematicDocumentStore } from "./document";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
   componentLabels,
@@ -179,11 +180,10 @@ async function boot(overrides: Partial<Record<string, unknown>> = {}) {
   replay(overrides);
   const controller = new SimulationController(
     new TauriEngineAdapter(),
-    dividerSchematic,
     symbols,
     revisions(),
   );
-  await controller.start();
+  await controller.start(dividerSchematic);
 
   return controller;
 }
@@ -192,12 +192,20 @@ function deliver(frameHex: string): void {
   tauri.state.channel?.onmessage(fromHex(frameHex));
 }
 
-function screen(state: SimulationState): string {
-  const labels = componentLabels(state.schematic);
+function screen(
+  state: SimulationState,
+  schematic: typeof dividerSchematic = dividerSchematic,
+): string {
+  const labels = componentLabels(schematic);
 
   return renderToStaticMarkup(
     <>
-      <Inspector state={state} labels={labels} onCommit={() => {}} />
+      <Inspector
+        state={state}
+        schematic={schematic}
+        labels={labels}
+        onCommit={() => {}}
+      />
       <ResultPanel
         state={state}
         labels={labels}
@@ -325,22 +333,27 @@ describe.skipIf(!recorded)("the real Engine session, end to end", () => {
 
   it("recalculates through the engine when R1 changes to 3000 and again when restored", async () => {
     const controller = await boot();
+    const document = new SchematicDocumentStore(dividerSchematic);
     deliver(step("compile").frameHex);
 
+    document.setParameter(R1, "resistanceOhms", 3000, session.catalog);
     await controller.setParameter(R1, "resistanceOhms", 3000);
     deliver(step("r1-to-3000").frameHex);
-    let markup = screen(controller.getState());
+    let markup = screen(controller.getState(), document.getState().schematic);
 
     expect(markup).toContain("<strong>1.249969 V</strong>");
     expect(markup).toContain("3.749906 V");
+    expect(markup).toContain('value="3 kΩ"');
     expect(controller.getState().error).toBeNull();
     expect(sentRequests("set_parameter")).toEqual([step("r1-to-3000").request]);
 
+    document.setParameter(R1, "resistanceOhms", 1000, session.catalog);
     await controller.setParameter(R1, "resistanceOhms", 1000);
     deliver(step("r1-restored").frameHex);
-    markup = screen(controller.getState());
+    markup = screen(controller.getState(), document.getState().schematic);
 
     expect(markup).toContain("<strong>2.499875 V</strong>");
+    expect(markup).toContain('value="1 kΩ"');
     expect(sentRequests("set_parameter")).toEqual([
       step("r1-to-3000").request,
       step("r1-restored").request,

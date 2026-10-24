@@ -47,7 +47,7 @@ const layout: ResultLayout = {
 
 function readyState(values: number[]): SimulationState {
   return {
-    ...initialSimulationState(dividerSchematic),
+    ...initialSimulationState(),
     status: "ready",
     catalog: catalogFixture as ComponentCatalog,
     run: { runId: RUN_ID, layout, documentRevision: "rev-1" },
@@ -129,7 +129,7 @@ describe("ResultPanel", () => {
   it("shows no Vout before there is a result", () => {
     const markup = renderToStaticMarkup(
       <ResultPanel
-        state={initialSimulationState(dividerSchematic)}
+        state={initialSimulationState()}
         labels={labels}
         outputComponentId={R2}
       />,
@@ -155,7 +155,7 @@ describe("ResultPanel", () => {
     const markup = renderToStaticMarkup(
       <ResultPanel
         state={{
-          ...initialSimulationState(dividerSchematic),
+          ...initialSimulationState(),
           status: "unavailable",
           error: "The simulation backend is not connected yet.",
         }}
@@ -178,7 +178,7 @@ describe("ResultPanel", () => {
     const markup = renderToStaticMarkup(
       <ResultPanel
         state={{
-          ...initialSimulationState(dividerSchematic),
+          ...initialSimulationState(),
           status: "failed",
           diagnostics: [diagnostic],
         }}
@@ -215,6 +215,7 @@ describe("Inspector", () => {
     const markup = renderToStaticMarkup(
       <Inspector
         state={readyState([1, 2])}
+        schematic={dividerSchematic}
         labels={labels}
         onCommit={noCommit}
       />,
@@ -226,10 +227,24 @@ describe("Inspector", () => {
     expect(markup).not.toContain("disabled");
   });
 
-  it("disables editing until the backend has produced a result", () => {
+  it("keeps document editing available when simulation is unavailable", () => {
     const markup = renderToStaticMarkup(
       <Inspector
         state={{ ...readyState([1, 2]), status: "unavailable" }}
+        schematic={dividerSchematic}
+        labels={labels}
+        onCommit={noCommit}
+      />,
+    );
+
+    expect(markup).not.toContain("disabled");
+  });
+
+  it("waits for the initial compile before forwarding document edits", () => {
+    const markup = renderToStaticMarkup(
+      <Inspector
+        state={{ ...readyState([1, 2]), status: "loading" }}
+        schematic={dividerSchematic}
         labels={labels}
         onCommit={noCommit}
       />,
@@ -242,10 +257,11 @@ describe("Inspector", () => {
     const markup = renderToStaticMarkup(
       <Inspector
         state={{
-          ...initialSimulationState(dividerSchematic),
+          ...initialSimulationState(),
           status: "unavailable",
           error: "The Rust engine is only available in the desktop app.",
         }}
+        schematic={dividerSchematic}
         labels={labels}
         onCommit={noCommit}
       />,
@@ -258,7 +274,8 @@ describe("Inspector", () => {
   it("waits for the catalog before offering any field", () => {
     const markup = renderToStaticMarkup(
       <Inspector
-        state={initialSimulationState(dividerSchematic)}
+        state={initialSimulationState()}
+        schematic={dividerSchematic}
         labels={labels}
         onCommit={noCommit}
       />,

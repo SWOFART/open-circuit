@@ -21,10 +21,7 @@ export function useSimulation(schematic: Schematic): {
   const [controller, setController] = useState<SimulationController | null>(
     null,
   );
-  const idleState = useMemo(
-    () => initialSimulationState(schematic),
-    [schematic],
-  );
+  const idleState = useMemo(() => initialSimulationState(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,9 +32,9 @@ export function useSimulation(schematic: Schematic): {
         return;
       }
 
-      created = new SimulationController(adapter, schematic);
+      created = new SimulationController(adapter);
       setController(created);
-      void created.start();
+      void created.start(schematic);
     });
 
     return () => {
