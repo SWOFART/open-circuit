@@ -16,21 +16,32 @@ export interface Bounds {
   readonly maxY: number;
 }
 
+export type SelectableKind =
+  "component" | "wire" | "junction" | "referenceMarker";
+
+/** The schematic object a shape belongs to; selection and hit tests use it. */
+export interface SceneOwner {
+  readonly kind: SelectableKind;
+  readonly id: StableId;
+}
+
 export type SceneShape =
   | {
       readonly kind: "polyline";
       readonly role: "wire" | "symbol" | "reference";
+      readonly owner: SceneOwner;
       readonly points: readonly ScenePoint[];
     }
   | {
       readonly kind: "circle";
       readonly role: "junction" | "symbol";
+      readonly owner: SceneOwner;
       readonly center: ScenePoint;
       readonly radius: number;
     }
   | {
       readonly kind: "label";
-      readonly componentId: StableId;
+      readonly owner: SceneOwner;
       readonly text: string;
       readonly position: ScenePoint;
     };
@@ -47,15 +58,19 @@ export interface SceneOptions {
 
 const JUNCTION_RADIUS = 0.12;
 // Labels are text, so their extent is only approximated for fitting purposes.
-const LABEL_HALF_WIDTH = 0.8;
-const LABEL_HALF_HEIGHT = 0.3;
+export const LABEL_HALF_WIDTH = 0.8;
+export const LABEL_HALF_HEIGHT = 0.3;
 const LABEL_OFFSET_Y = -1;
 
-function referenceMarkerShapes(position: GridPoint): SceneShape[] {
+function referenceMarkerShapes(
+  position: GridPoint,
+  owner: SceneOwner,
+): SceneShape[] {
   const { x, y } = position;
   const bar = (halfWidth: number, offset: number): SceneShape => ({
     kind: "polyline",
     role: "reference",
+    owner,
     points: [
       { x: x - halfWidth, y: y + offset },
       { x: x + halfWidth, y: y + offset },
@@ -66,6 +81,7 @@ function referenceMarkerShapes(position: GridPoint): SceneShape[] {
     {
       kind: "polyline",
       role: "reference",
+      owner,
       points: [
         { x, y },
         { x, y: y + 0.6 },
@@ -100,7 +116,7 @@ function shapePoints(shape: SceneShape): ScenePoint[] {
   }
 }
 
-function boundsOf(shapes: readonly SceneShape[]): Bounds {
+export function boundsOf(shapes: readonly SceneShape[]): Bounds {
   const points = shapes.flatMap(shapePoints);
 
   if (points.length === 0) {
@@ -134,24 +150,28 @@ export function buildScene(
     shapes.push({
       kind: "polyline",
       role: "wire",
+      owner: { kind: "wire", id: wire.id },
       points: wire.points.map((point) => ({ x: point.x, y: point.y })),
     });
   }
 
   for (const component of schematic.components) {
     const symbol = registry[component.typeId];
+    const owner: SceneOwner = { kind: "component", id: component.id };
 
     for (const primitive of symbol.primitives) {
       if (primitive.kind === "polyline") {
         shapes.push({
           kind: "polyline",
           role: "symbol",
+          owner,
           points: primitive.points.map((point) => worldPoint(point, component)),
         });
       } else {
         shapes.push({
           kind: "circle",
           role: "symbol",
+          owner,
           center: worldPoint(primitive.center, component),
           radius: primitive.radius,
         });
@@ -163,7 +183,7 @@ export function buildScene(
     if (label !== undefined) {
       shapes.push({
         kind: "label",
-        componentId: component.id,
+        owner,
         text: label,
         position: {
           x: component.position.x,
@@ -177,13 +197,19 @@ export function buildScene(
     shapes.push({
       kind: "circle",
       role: "junction",
+      owner: { kind: "junction", id: junction.id },
       center: { x: junction.position.x, y: junction.position.y },
       radius: JUNCTION_RADIUS,
     });
   }
 
   for (const marker of schematic.referenceMarkers) {
-    shapes.push(...referenceMarkerShapes(marker.position));
+    shapes.push(
+      ...referenceMarkerShapes(marker.position, {
+        kind: "referenceMarker",
+        id: marker.id,
+      }),
+    );
   }
 
   return { shapes, bounds: boundsOf(shapes) };

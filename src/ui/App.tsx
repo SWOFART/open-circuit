@@ -77,9 +77,18 @@ export function App() {
         <section className="editor-panel" aria-label="Circuit editor">
           <div className="editor-toolbar">
             <span>Voltage divider</span>
-            <span className="editor-hint">
-              {document.isDirty ? "Unsaved changes" : "Example"}
-            </span>
+            <div className="editor-actions">
+              <span className="editor-hint">
+                {document.isDirty ? "Unsaved changes" : "Example"}
+              </span>
+              <button
+                type="button"
+                className="toolbar-button"
+                onClick={() => editorRef.current?.fitToCircuit()}
+              >
+                Fit to circuit
+              </button>
+            </div>
           </div>
           <div ref={canvasHost} className="editor-canvas" />
           {editorError && (

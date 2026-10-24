@@ -77,6 +77,31 @@ input {
   font-size: 13px;
 }
 
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toolbar-button {
+  padding: 5px 10px;
+  color: #e5e7eb;
+  background: #1f2937;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toolbar-button:hover {
+  background: #273449;
+}
+
+.toolbar-button:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
 .editor-canvas {
   position: relative;
   min-height: 360px;

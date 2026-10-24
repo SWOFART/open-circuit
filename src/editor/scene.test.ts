@@ -57,6 +57,27 @@ describe("scene from the canonical fixture", () => {
     }
   });
 
+  it("tags every shape with the schematic object it belongs to", () => {
+    const owners = new Set(
+      scene.shapes.map((shape) => `${shape.owner.kind}:${shape.owner.id}`),
+    );
+
+    expect([...owners].sort()).toEqual(
+      [
+        ...schematic.components.map((item) => `component:${item.id}`),
+        ...schematic.wires.map((item) => `wire:${item.id}`),
+        ...schematic.referenceMarkers.map(
+          (item) => `referenceMarker:${item.id}`,
+        ),
+      ].sort(),
+    );
+    for (const shape of scene.shapes) {
+      if (shape.kind === "label") {
+        expect(shape.owner.kind).toBe("component");
+      }
+    }
+  });
+
   it("draws a junction as a filled dot", () => {
     const withJunction: Schematic = {
       ...schematic,
