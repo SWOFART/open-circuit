@@ -86,6 +86,15 @@ UTF-8 JSON Schematic object, with no project wrapper:
 - The canvas starts in **Select** mode. The user can pan with middle-button
   drag or Space plus left-button drag. The wheel zooms around the pointer.
   A **Fit to circuit** command frames all visible schematic geometry.
+- The view transform maps logical-grid coordinates to canvas pixels as
+  `screen = grid × scale + offset`, with one scale for both axes. A pointer
+  position maps back through the inverse transform and snaps to the nearest
+  integer grid point on each axis; exact halves round toward positive
+  infinity. Every move, placement, and wire gesture uses these snapped points.
+- Wheel zoom keeps the grid position under the pointer fixed and stays within
+  a fixed scale range. The view fits the circuit on startup and follows
+  window resizes until the user pans or zooms; **Fit to circuit** restores
+  that behavior.
 - Selection, pan, zoom, and preview state do not mark the document dirty.
 
 ### 3.2 Selection and component tools
@@ -93,6 +102,12 @@ UTF-8 JSON Schematic object, with no project wrapper:
 - Clicking a component, wire, junction, or reference marker selects that one
   object. Clicking empty canvas in Select mode clears selection. Multi-selection
   and group transforms are deferred.
+- Hit testing uses a pick radius fixed in screen pixels. A component is hit
+  anywhere within its symbol's extent or its label. Where objects overlap,
+  junctions and reference markers take precedence over components, and
+  components over wires, matching the drawing order. Selection is held by
+  stable ID, so it survives redraws and edits, and it clears when its object
+  is removed.
 - The palette is populated from the Rust component catalog. Selecting a type
   shows a snapped placement preview; clicking places the component using
   catalog defaults. The placement tool stays active for repeated placement.

@@ -6,8 +6,10 @@ import { Application, Container, Graphics, Text } from "pixi.js";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import { symbols, type SymbolRegistry } from "../symbols";
-import { buildScene, type SceneShape } from "./scene";
-import { fitView, toScreen, type ViewTransform } from "./view";
+import { bindCanvasInput } from "./canvasInput";
+import { CanvasInteraction, type InteractionChange } from "./interaction";
+import { buildScene, type SceneModel, type SceneShape } from "./scene";
+import { toScreen, type ViewTransform } from "./view";
 
 const COLORS = {
   background: "#111827",
@@ -17,12 +19,15 @@ const COLORS = {
   reference: 0x94a3b8,
   junction: 0x60a5fa,
   label: "#cbd5e1",
+  selected: 0xfbbf24,
+  selectedLabel: "#fbbf24",
+  cursor: 0x94a3b8,
 } as const;
 
 const STROKE_WIDTH_PX = 2;
+const SELECTED_STROKE_WIDTH_PX = 3;
 const GRID_MIN_SPACING_PX = 10;
-// View used before a schematic is set, so the empty canvas still shows a grid.
-const EMPTY_VIEW: ViewTransform = { scale: 24, offsetX: 0, offsetY: 0 };
+const CURSOR_ARM_PX = 5;
 
 /**
  * Plain TypeScript/PixiJS editor surface. It must not import React: panels
@@ -30,13 +35,19 @@ const EMPTY_VIEW: ViewTransform = { scale: 24, offsetX: 0, offsetY: 0 };
  */
 export class EditorCore {
   private readonly application = new Application();
-  private readonly world = new Container();
+  private readonly content = new Container();
+  private readonly overlay = new Graphics();
+  private readonly interaction: CanvasInteraction;
   private destroyed = false;
   private initialized = false;
-  private schematic: Schematic | null = null;
-  private labels: ReadonlyMap<StableId, string> | undefined;
+  private scene: SceneModel | null = null;
+  private contentStale = true;
+  private overlayStale = true;
+  private unbindInput: (() => void) | null = null;
 
-  constructor(private readonly registry: SymbolRegistry = symbols) {}
+  constructor(private readonly registry: SymbolRegistry = symbols) {
+    this.interaction = new CanvasInteraction(this.handleInteractionChange);
+  }
 
   async mount(container: HTMLElement): Promise<void> {
     try {
@@ -61,9 +72,16 @@ export class EditorCore {
 
     this.initialized = true;
     container.appendChild(this.application.canvas);
-    this.application.stage.addChild(this.world);
+    this.application.stage.addChild(this.content, this.overlay);
     this.application.renderer.on("resize", this.handleResize);
-    this.render();
+    this.application.ticker.add(this.flush);
+    this.unbindInput = bindCanvasInput(
+      this.application.canvas,
+      this.interaction,
+      window,
+    );
+    this.interaction.setViewport(this.application.screen);
+    this.flush();
   }
 
   /** Shows `schematic`; `labels` maps component IDs to display names. */
@@ -71,52 +89,106 @@ export class EditorCore {
     schematic: Schematic,
     labels?: ReadonlyMap<StableId, string>,
   ): void {
-    this.schematic = schematic;
-    this.labels = labels;
-    this.render();
+    this.scene = buildScene(schematic, this.registry, { labels });
+    this.interaction.setScene(this.scene);
+    this.contentStale = true;
+  }
+
+  /** Frames the whole circuit, as on startup. */
+  fitToCircuit(): void {
+    this.interaction.fitToCircuit();
   }
 
   destroy(): void {
     this.destroyed = true;
+    this.unbindInput?.();
+    this.unbindInput = null;
 
     if (this.initialized) {
+      this.application.ticker.remove(this.flush);
       this.application.renderer.off("resize", this.handleResize);
-      this.clearWorld();
+      this.clearContent();
       this.application.destroy({ removeView: true }, { children: true });
       this.initialized = false;
     }
   }
 
-  private readonly handleResize = (): void => {
-    this.render();
+  private readonly handleInteractionChange = (
+    change: InteractionChange,
+  ): void => {
+    if (change !== "pointer") {
+      this.contentStale = true;
+    }
+    if (change !== "selection") {
+      this.overlayStale = true;
+    }
   };
 
-  private clearWorld(): void {
-    for (const child of this.world.removeChildren()) {
-      child.destroy();
-    }
-  }
+  private readonly handleResize = (): void => {
+    this.interaction.setViewport(this.application.screen);
+    this.contentStale = true;
+    this.overlayStale = true;
+  };
 
-  private render(): void {
+  /** Redraws whatever changed; runs once per frame before Pixi renders. */
+  private readonly flush = (): void => {
     if (!this.initialized || this.destroyed) {
       return;
     }
 
-    this.clearWorld();
+    if (this.contentStale) {
+      this.contentStale = false;
+      this.drawContent();
+    }
+
+    if (this.overlayStale) {
+      this.overlayStale = false;
+      this.drawOverlay();
+    }
+  };
+
+  private clearContent(): void {
+    for (const child of this.content.removeChildren()) {
+      child.destroy();
+    }
+  }
+
+  private drawContent(): void {
+    this.clearContent();
 
     const { width, height } = this.application.screen;
-    const scene = this.schematic
-      ? buildScene(this.schematic, this.registry, { labels: this.labels })
-      : null;
-    const view = scene ? fitView(scene.bounds, { width, height }) : EMPTY_VIEW;
+    const view = this.interaction.view;
+    const selection = this.interaction.selection;
 
-    this.world.addChild(this.drawGrid(width, height, view));
+    this.content.addChild(this.drawGrid(width, height, view));
 
-    if (scene) {
-      for (const shape of scene.shapes) {
-        this.world.addChild(this.drawShape(shape, view));
+    if (this.scene) {
+      for (const shape of this.scene.shapes) {
+        const selected =
+          selection !== null &&
+          shape.owner.kind === selection.kind &&
+          shape.owner.id === selection.id;
+        this.content.addChild(this.drawShape(shape, view, selected));
       }
     }
+  }
+
+  /** Marks the snapped grid point under the pointer. */
+  private drawOverlay(): void {
+    this.overlay.clear();
+
+    const point = this.interaction.pointerGridPoint;
+    if (point === null || this.interaction.isPanning) {
+      return;
+    }
+
+    const { x, y } = toScreen(point, this.interaction.view);
+    this.overlay
+      .moveTo(x - CURSOR_ARM_PX, y)
+      .lineTo(x + CURSOR_ARM_PX, y)
+      .moveTo(x, y - CURSOR_ARM_PX)
+      .lineTo(x, y + CURSOR_ARM_PX)
+      .stroke({ color: COLORS.cursor, width: 1 });
   }
 
   private drawGrid(
@@ -148,13 +220,19 @@ export class EditorCore {
     return grid;
   }
 
-  private drawShape(shape: SceneShape, view: ViewTransform): Graphics | Text {
+  private drawShape(
+    shape: SceneShape,
+    view: ViewTransform,
+    selected: boolean,
+  ): Graphics | Text {
+    const strokeWidth = selected ? SELECTED_STROKE_WIDTH_PX : STROKE_WIDTH_PX;
+
     if (shape.kind === "label") {
       const position = toScreen(shape.position, view);
       const label = new Text({
         text: shape.text,
         style: {
-          fill: COLORS.label,
+          fill: selected ? COLORS.selectedLabel : COLORS.label,
           fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
           fontSize: 13,
         },
@@ -177,8 +255,8 @@ export class EditorCore {
           graphics.lineTo(point.x, point.y);
         }
         graphics.stroke({
-          color: COLORS[shape.role],
-          width: STROKE_WIDTH_PX,
+          color: selected ? COLORS.selected : COLORS[shape.role],
+          width: strokeWidth,
           join: "round",
           cap: "round",
         });
@@ -192,9 +270,12 @@ export class EditorCore {
     graphics.circle(center.x, center.y, radius);
 
     if (shape.role === "junction") {
-      graphics.fill(COLORS.junction);
+      graphics.fill(selected ? COLORS.selected : COLORS.junction);
     } else {
-      graphics.stroke({ color: COLORS.symbol, width: STROKE_WIDTH_PX });
+      graphics.stroke({
+        color: selected ? COLORS.selected : COLORS.symbol,
+        width: strokeWidth,
+      });
     }
 
     return graphics;
