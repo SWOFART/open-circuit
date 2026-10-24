@@ -3,13 +3,29 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
 describe("application shell", () => {
-  it("renders the circuit workspace and editor host", () => {
+  it("renders the circuit workspace, editor host, and side panels", () => {
     const markup = renderToStaticMarkup(<App />);
 
     expect(markup).toContain("Circuit workspace");
     expect(markup).toContain('aria-label="Circuit editor"');
     expect(markup).toContain("editor-canvas");
-    expect(markup).toContain("Rust catalog is available in the desktop app.");
-    expect(markup).toContain("Simulation solver is not connected yet.");
+    expect(markup).toContain("Inspector");
+    expect(markup).toContain("Results");
+  });
+
+  it("waits for the backend before showing any reading", () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain("Waiting for the component catalog.");
+    expect(markup).toContain("Waiting for the simulation backend");
+    expect(markup).not.toContain("NaN");
+    expect(markup).not.toContain("2.49988");
+  });
+
+  it("does not claim mock data unless a development mock was requested", () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toContain("Values come from the Rust engine only.");
+    expect(markup).not.toContain("Development mock");
   });
 });

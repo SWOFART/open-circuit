@@ -78,11 +78,19 @@ input {
 }
 
 .editor-canvas {
+  position: relative;
   min-height: 360px;
   overflow: hidden;
 }
 
+/*
+ * The canvas is taken out of the layout flow. PixiJS sizes it to this
+ * container (`resizeTo`); if it also took up space in the flow, the container
+ * could never shrink below the canvas's previous size when the window shrinks.
+ */
 .editor-canvas canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -97,4 +105,133 @@ input {
 
 .app-footer {
   min-height: 20px;
+}
+
+.workspace-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  min-height: 0;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.side-panel {
+  padding: 16px;
+  border: 1px solid #273449;
+  border-radius: 12px;
+  background: #111827;
+}
+
+.side-panel h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.parameter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.parameter-field label {
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.parameter-field input {
+  padding: 8px 10px;
+  color: #e5e7eb;
+  background: #0b1120;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+.parameter-field input:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
+.parameter-field input[aria-invalid="true"] {
+  border-color: #f87171;
+}
+
+.parameter-field input:disabled {
+  opacity: 0.55;
+}
+
+.field-error,
+.panel-error {
+  margin: 0;
+  font-size: 13px;
+  color: #fca5a5;
+}
+
+.panel-note {
+  margin: 0;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.readings {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.reading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reading dt {
+  font-size: 13px;
+  color: #9ca3af;
+  text-transform: capitalize;
+}
+
+.reading dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.diagnostics {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.diagnostic {
+  padding: 6px 0;
+}
+
+.diagnostic-severity {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.diagnostic-error {
+  color: #fca5a5;
+}
+
+.diagnostic-warning {
+  color: #fcd34d;
+}
+
+.diagnostic-info,
+.diagnostic-affected {
+  color: #9ca3af;
 }

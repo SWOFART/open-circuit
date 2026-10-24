@@ -1,13 +1,23 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
-import { useEffect, useRef, useState } from "react";
-import type { ComponentCatalog } from "../generated/ComponentCatalog";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorCore } from "../editor/EditorCore";
+import { componentLabels, dividerSchematic } from "../store/fixtures";
+import { Inspector } from "./Inspector";
+import { ResultPanel } from "./ResultPanel";
+import { useSimulation } from "./useSimulation";
+
+// True only in a development build that explicitly asked for the mock adapter.
+const usingMockAdapter =
+  import.meta.env.DEV && import.meta.env.VITE_ENGINE_ADAPTER === "mock";
 
 export function App() {
   const canvasHost = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<EditorCore | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
-  const [catalog, setCatalog] = useState<ComponentCatalog | null>(null);
-  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const { state, controller } = useSimulation(dividerSchematic);
+  const labels = useMemo(
+    () => componentLabels(state.schematic),
+    [state.schematic],
+  );
 
   useEffect(() => {
     const host = canvasHost.current;
@@ -17,38 +27,21 @@ export function App() {
     }
 
     const editor = new EditorCore();
+    editorRef.current = editor;
     void editor.mount(host).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       setEditorError(message);
     });
 
-    return () => editor.destroy();
+    return () => {
+      editor.destroy();
+      editorRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
-    if (!isTauri()) {
-      return;
-    }
-
-    let cancelled = false;
-    void invoke<ComponentCatalog>("get_component_catalog")
-      .then((result) => {
-        if (!cancelled) {
-          setCatalog(result);
-        }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          const message =
-            error instanceof Error ? error.message : String(error);
-          setCatalogError(message);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    editorRef.current?.setSchematic(state.schematic, labels);
+  }, [state.schematic, labels]);
 
   return (
     <main className="workspace">
@@ -60,32 +53,41 @@ export function App() {
         <p className="shell-status">Desktop shell ready</p>
       </header>
 
-      <section className="editor-panel" aria-label="Circuit editor">
-        <div className="editor-toolbar">
-          <span>Untitled circuit</span>
-          <span className="editor-hint">Editor scaffold</span>
-        </div>
-        <div ref={canvasHost} className="editor-canvas" />
-        {editorError && (
-          <p className="editor-error" role="alert">
-            The canvas could not be initialized: {editorError}
-          </p>
-        )}
-      </section>
+      <div className="workspace-body">
+        <section className="editor-panel" aria-label="Circuit editor">
+          <div className="editor-toolbar">
+            <span>Voltage divider</span>
+            <span className="editor-hint">Read-only view</span>
+          </div>
+          <div ref={canvasHost} className="editor-canvas" />
+          {editorError && (
+            <p className="editor-error" role="alert">
+              The canvas could not be initialized: {editorError}
+            </p>
+          )}
+        </section>
+
+        <aside className="side">
+          <Inspector
+            state={state}
+            labels={labels}
+            onCommit={(componentId, parameterId, value) => {
+              void controller?.setParameter(componentId, parameterId, value);
+            }}
+          />
+          <ResultPanel state={state} labels={labels} />
+        </aside>
+      </div>
 
       <footer className="app-footer">
-        {catalog ? (
-          <span>
-            Rust catalog:{" "}
-            {catalog.componentTypes.map((item) => item.typeId).join(", ")}
+        {usingMockAdapter ? (
+          <span role="status">
+            Development mock: predetermined fixture responses, not the Rust
+            engine.
           </span>
         ) : (
-          <span>Rust catalog is available in the desktop app.</span>
+          <span>Values come from the Rust engine only.</span>
         )}
-        {catalogError && (
-          <span role="alert">Catalog unavailable: {catalogError}</span>
-        )}
-        <span>Simulation solver is not connected yet.</span>
       </footer>
     </main>
   );

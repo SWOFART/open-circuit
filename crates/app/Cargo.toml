@@ -11,3 +11,6 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 open-circuit-engine = { path = "../engine" }
 tauri = { version = "2", features = [] }
+
+[dev-dependencies]
+serde_json = "1"
