@@ -235,3 +235,27 @@ input {
 .diagnostic-affected {
   color: #9ca3af;
 }
+
+.simulation-time {
+  margin-top: 14px;
+}
+
+.output-reading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #273449;
+}
+
+.output-reading span {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.output-reading strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}

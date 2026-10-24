@@ -247,6 +247,21 @@ expected golden results are stored separately from the schematic:
 - For this fixture, the accepted voltage error is at most `1 µV`; current error is at
   most `1 nA`.
 
+### 6.1 Display rounding
+
+The UI shows every voltage, current, and resistance with an SI prefix and **seven
+significant digits**. For the fixture it shows `Vout = 2.499875 V` (the voltage across R2)
+and, after R1 becomes 3000 Ω, `1.249969 V`. Both are within `1 µV` of the exact values,
+`2.499875006 V` and `1.249968751 V`. Six digits would show `2.49988 V`, 5 µV away, which
+is why seven are used. `src/ui/acceptance.test.ts` checks this against the golden values.
+
+Rounding is for display only. The number sent to the Engine, the number decoded from a
+frame, and the number a tolerance is checked against are never rounded. A value that
+cannot be shown as a finite number is shown as `—`, never as `NaN` or `Infinity`.
+
+This rule is proposed with the end-to-end acceptance (issue #10) and needs sign-off from
+both workstreams in review.
+
 ## 7. Verification and change control
 
 Review the fixture geometry against the pin transform and connectivity rules, calculate

@@ -78,7 +78,9 @@ The window was driven through the WebView2 remote-debugging port, which was enab
 a separate local build outside the repository (a `TAURI_CONFIG` override adding
 `additionalBrowserArgs`; the application code is identical). The UI was read and edited
 through its own DOM, so every number below went Rust engine, simulation thread, binary
-channel, `ArrayBuffer`, decoder, UI.
+channel, `ArrayBuffer`, decoder, UI. The readings were shown with six significant digits
+when this was recorded; the application now shows seven (contract section 6.1), and
+`docs/acceptance/stage-1-divider.md` records the same scenario at that precision.
 
 | Check | Result |
 |---|---|

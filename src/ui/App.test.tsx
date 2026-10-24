@@ -19,7 +19,7 @@ describe("application shell", () => {
     expect(markup).toContain("Waiting for the component catalog.");
     expect(markup).toContain("Waiting for the simulation backend");
     expect(markup).not.toContain("NaN");
-    expect(markup).not.toContain("2.49988");
+    expect(markup).not.toContain("2.499875");
   });
 
   it("does not claim mock data unless a development mock was requested", () => {

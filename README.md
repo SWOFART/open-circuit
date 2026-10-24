@@ -75,9 +75,13 @@ pnpm typecheck
 pnpm test
 pnpm types:check
 pnpm boundaries:check
+pnpm build
+pnpm bundle:check
 ```
 
-`pnpm types:generate` regenerates TypeScript bindings from the Rust engine types. `pnpm types:check` regenerates them and fails if the committed bindings are stale. `pnpm boundaries:check` fails if the engine crates depend on Tauri or other UI runtime crates, or if `src/editor` imports React.
+`pnpm types:generate` regenerates TypeScript bindings from the Rust engine types. `pnpm types:check` regenerates them and fails if the committed bindings are stale. `pnpm boundaries:check` fails if the engine crates depend on Tauri or other UI runtime crates, or if `src/editor` imports React. `pnpm bundle:check` runs after a build and fails if the production bundle contains the development mock adapter.
+
+`pnpm test` runs the Rust tests first and Vitest second, and the order matters. One Rust test (`crates/app/tests/bridge_session.rs`) runs the real engine through the bridge code, checks the divider against the golden values, and records the requests, replies, and binary frames to `target/tmp/bridge-session.json`. A Vitest test (`src/store/endToEnd.test.tsx`) replays that recording through the real TypeScript adapter, decoder, controller, and screen components, so the whole path from the engine to the displayed numbers is checked on every run. Running Vitest alone is skipped for that test when the recording is missing locally, and fails in CI.
 
 ## Continuous integration
 
@@ -91,6 +95,7 @@ The `CI` workflow (`.github/workflows/ci.yml`) runs on every pull request and on
 6. `pnpm types:generate`, then `git diff --exit-code -- src/generated` to detect stale generated types
 7. `pnpm boundaries:check`
 8. `pnpm build` (a Tauri build; nothing is published)
+9. `pnpm bundle:check`
 
 Run the same commands locally to reproduce a CI failure. The workflow needs no secrets. `.gitattributes` forces LF line endings so the formatting and generated-type checks give the same result on every OS, regardless of `core.autocrlf`.
 

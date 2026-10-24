@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import expected from "../../tests/golden/stage-1-divider.expected.json";
 import {
   domainAccepts,
   evaluateParameterDraft,
@@ -60,8 +61,11 @@ describe("formatSi", () => {
     [4700, "ohm", "4.7 kΩ"],
     [0.1, "ohm", "100 mΩ"],
     [0, "ohm", "0 Ω"],
-    [2.4998750062496877, "volt", "2.49988 V"],
-    [3.749906252343691, "volt", "3.74991 V"],
+    [2.4998750062496877, "volt", "2.499875 V"],
+    [3.749906252343691, "volt", "3.749906 V"],
+    [expected.resistor1At3000Ohms.resistor2VoltageVolts, "volt", "1.249969 V"],
+    [expected.equalResistors.sourceCurrentAmps, "amp", "2.499875 mA"],
+    [4.99975, "volt", "4.99975 V"],
     [-0.0025, "amp", "-2.5 mA"],
     [0.000001, "volt", "1 µV"],
     [1.5e12, "ohm", "1500 GΩ"],
@@ -118,12 +122,12 @@ describe("evaluateParameterDraft", () => {
   });
 
   it("does not treat an unedited, rounded display as a change", () => {
-    // 1234.5678 is shown as "1.23457 kΩ"; blurring the field without editing it
+    // 1234.5678 is shown as "1.234568 kΩ"; blurring the field without editing it
     // must not re-parse that rounded text and silently change the value.
     const committed = 1234.5678;
     const shown = formatSi(committed, "ohm");
 
-    expect(shown).toBe("1.23457 kΩ");
+    expect(shown).toBe("1.234568 kΩ");
     expect(evaluateParameterDraft(shown, resistance, committed)).toEqual({
       state: "unchanged",
     });

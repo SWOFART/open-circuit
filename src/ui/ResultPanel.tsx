@@ -1,13 +1,18 @@
 import type { Diagnostic } from "../generated/Diagnostic";
 import type { DiagnosticReference } from "../generated/DiagnosticReference";
 import type { StableId } from "../generated/StableId";
-import type { SimulationState } from "../store/simulation";
+import { readSlot, type SimulationState } from "../store/simulation";
 import { describeDiagnostic } from "./messages";
 import { formatSi } from "./units";
 
 export interface ResultPanelProps {
   readonly state: SimulationState;
   readonly labels: ReadonlyMap<StableId, string>;
+  /**
+   * The component whose terminal voltage is the circuit's output, shown first as
+   * `Vout`. The Stage 1 divider defines it as the voltage across R2.
+   */
+  readonly outputComponentId?: StableId;
 }
 
 function referenceLabel(
@@ -58,8 +63,36 @@ function DiagnosticsList({
   );
 }
 
+/** The circuit's output voltage, read through the layout like every other value. */
+function OutputReading({
+  state,
+  componentId,
+  labels,
+}: {
+  readonly state: SimulationState;
+  readonly componentId: StableId;
+  readonly labels: ReadonlyMap<StableId, string>;
+}) {
+  const voltage = readSlot(state.run, state.snapshot, componentId, "voltage");
+
+  if (voltage === undefined) {
+    return null;
+  }
+
+  return (
+    <p className="output-reading">
+      <span>Vout (across {labels.get(componentId) ?? "output"})</span>
+      <strong>{formatSi(voltage, "volt")}</strong>
+    </p>
+  );
+}
+
 /** Shows what the backend reported. It never calculates anything itself. */
-export function ResultPanel({ state, labels }: ResultPanelProps) {
+export function ResultPanel({
+  state,
+  labels,
+  outputComponentId,
+}: ResultPanelProps) {
   const { run, snapshot } = state;
 
   return (
@@ -82,6 +115,14 @@ export function ResultPanel({ state, labels }: ResultPanelProps) {
         <p className="panel-error" role="alert">
           The engine could not calculate this circuit.
         </p>
+      )}
+
+      {state.status === "ready" && outputComponentId !== undefined && (
+        <OutputReading
+          state={state}
+          componentId={outputComponentId}
+          labels={labels}
+        />
       )}
 
       {state.status === "ready" && run && snapshot && (
