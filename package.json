@@ -20,6 +20,7 @@
     "test": "cargo test --workspace && vitest run",
     "types:generate": "node scripts/generate-types.mjs",
     "types:check": "node scripts/check-types.mjs",
+    "boundaries:check": "node scripts/check-boundaries.mjs",
     "icons:generate": "pnpm --filter @open-circuit/app icons:generate"
   },
   "dependencies": {

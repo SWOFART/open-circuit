@@ -64,9 +64,25 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm types:check
+pnpm boundaries:check
 ```
 
-`pnpm types:generate` regenerates TypeScript bindings from the Rust engine types. `pnpm types:check` regenerates them and fails if the committed bindings are stale.
+`pnpm types:generate` regenerates TypeScript bindings from the Rust engine types. `pnpm types:check` regenerates them and fails if the committed bindings are stale. `pnpm boundaries:check` fails if the engine crates depend on Tauri or other UI runtime crates, or if `src/editor` imports React.
+
+## Continuous integration
+
+The `CI` workflow (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`, on `windows-latest`, `ubuntu-latest`, and `macos-latest`. Each job runs the commands above in this order, using the pinned toolchains and frozen lockfiles:
+
+1. `pnpm install --frozen-lockfile`
+2. `pnpm format:check` (`cargo fmt --check` and Prettier)
+3. `pnpm lint` (`cargo clippy --workspace --all-targets -- -D warnings` and ESLint)
+4. `pnpm typecheck`
+5. `pnpm test` (`cargo test --workspace` and Vitest)
+6. `pnpm types:generate`, then `git diff --exit-code -- src/generated` to detect stale generated types
+7. `pnpm boundaries:check`
+8. `pnpm build` (a Tauri build; nothing is published)
+
+Run the same commands locally to reproduce a CI failure. The workflow needs no secrets. `.gitattributes` forces LF line endings so the formatting and generated-type checks give the same result on every OS, regardless of `core.autocrlf`.
 
 ## License
 
