@@ -37,6 +37,7 @@ These instructions apply to work in this repository. Follow system and user inst
 - Do not implement directly on protected branches. Use a short-lived branch focused on one issue or tightly related change.
 - Do not force-push, rewrite shared history, or push directly to protected branches without explicit user authorization.
 - Keep commits scoped to intended files and changes. Do not include unrelated user work.
+- Always create pull requests as drafts. Do not mark them ready for review unless the user explicitly asks.
 - Agents do not merge pull requests. A human reviews and performs the merge.
 - Run applicable local checks and report the commands and results. If a required check cannot run or fails, report that clearly; do not bypass it.
 
