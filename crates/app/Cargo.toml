@@ -1,0 +1,13 @@
+[package]
+name = "open-circuit-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+open-circuit-engine = { path = "../engine" }
+tauri = { version = "2", features = [] }

@@ -1,0 +1,7 @@
+Cargo.lock
+pnpm-lock.yaml
+LICENSE
+src/generated/**
+target/**
+node_modules/**
+dist/**

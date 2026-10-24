@@ -1,0 +1,5 @@
+packages:
+  - crates/app
+
+allowBuilds:
+  esbuild: true

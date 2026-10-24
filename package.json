@@ -1,0 +1,45 @@
+{
+  "name": "open-circuit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.3.4",
+  "engines": {
+    "node": "24.19.0",
+    "pnpm": "12.3.4"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @open-circuit/app tauri dev",
+    "dev:web": "vite --host 127.0.0.1",
+    "build": "pnpm --filter @open-circuit/app tauri build",
+    "build:web": "tsc --noEmit && vite build",
+    "format": "cargo fmt --all && prettier --write \"src/**/*.{css,html,ts,tsx}\" \"scripts/**/*.{js,mjs}\" \"*.{json,js,mjs,ts,yaml,yml}\" \"crates/app/**/*.{json,js,mjs,ts,yaml,yml}\"",
+    "format:check": "cargo fmt --all -- --check && prettier --check \"src/**/*.{css,html,ts,tsx}\" \"scripts/**/*.{js,mjs}\" \"*.{json,js,mjs,ts,yaml,yml}\" \"crates/app/**/*.{json,js,mjs,ts,yaml,yml}\"",
+    "lint": "cargo clippy --workspace --all-targets -- -D warnings && eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "cargo test --workspace && vitest run",
+    "types:generate": "node scripts/generate-types.mjs",
+    "types:check": "node scripts/check-types.mjs",
+    "icons:generate": "pnpm --filter @open-circuit/app icons:generate"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "pixi.js": "^8.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^10.13.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vite": "^8.0.0",
+    "vitest": "^3.0.0"
+  }
+}
