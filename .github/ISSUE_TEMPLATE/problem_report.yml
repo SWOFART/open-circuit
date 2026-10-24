@@ -1,0 +1,55 @@
+name: Problem report
+description: Report a reproducible defect or other actionable problem.
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Report one actionable problem per issue. Do not include credentials,
+        secrets, or private personal data.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Problem
+      description: What is wrong?
+      placeholder: Describe the behavior or failure.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps and evidence
+      description: Include steps, relevant error messages, logs with sensitive data removed, or screenshots.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: false
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      options:
+        - Blocks core usage
+        - Major functionality is impaired
+        - Limited functionality is impaired
+        - Minor issue
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What must be true for this issue to be considered resolved?
+      placeholder: |
+        - [ ] ...
+    validations:
+      required: true
