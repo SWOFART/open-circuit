@@ -142,7 +142,17 @@ current unknown. Numerical tolerances and accepted divider values are documented
 ### 3.3 One mode: transient analysis
 
 There is no separate DC/AC mode. DC is simply a source that does not change.
-Initial state: operating point, then time steps. Lamps warm up, relays click,
+By default, initialize C/L state from the DC operating point, then advance in
+time. In that operating point, capacitors are open circuits and inductors are
+short circuits; their resulting voltages and currents seed the transient run.
+An explicit user-specified capacitor voltage or inductor current overrides
+that component's operating-point state and is treated as a transient initial
+state, not as a requirement that the circuit be in DC equilibrium. Unspecified
+C/L states use their operating-point values. If the resulting initial state
+conflicts with ideal algebraic circuit constraints, return a structured
+initialization diagnostic. Impulse currents and voltages are not modeled.
+User-specified initial conditions are schematic inputs; evolving simulation
+state remains runtime data and is not serialized. Lamps warm up, relays click,
 motors spin up. A phasor/AC-analysis mode can be added separately later.
 
 ### 3.4 Time and integration
@@ -150,6 +160,15 @@ motors spin up. A phasor/AC-analysis mode can be added separately later.
 - C and L: **companion models** (resistor + source), trapezoidal rule.
 - After an event (relay, switch), take one **backward Euler** step: otherwise the trapezoidal rule produces spurious ringing.
 - Start with a fixed physics step of **1 ms** (`timeStepSeconds = 0.001`), with sub-steps only if needed. "Slow down 100x" is the ratio of model time to wall-clock time, not a different step.
+- The lossless parallel LC regression fixture uses C = 100 µF, L = 100 mH,
+  initial capacitor voltage 10 V, and initial inductor current 0 A. Its exact
+  period is 19.8691765 ms and its initial stored energy is 5 mJ. Require period
+  error no greater than 0.25% for this fixture; with trapezoidal integration
+  this requires an internal step no larger than 0.5 ms. Preserve the ideal
+  fixture's total stored energy within numerical tolerance. This is a
+  fixture-specific accuracy target, not a universal maximum step; faster
+  circuits may require smaller sub-steps. Do not apply event-related backward
+  Euler startup to this source-free initial-state fixture.
 
 ### 3.5 Nonlinear elements
 
