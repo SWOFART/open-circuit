@@ -1,0 +1,12 @@
+{
+  "equalResistors": {
+    "sourceCurrentAmps": 0.0024998750062496877,
+    "resistor1VoltageVolts": 2.4998750062496877,
+    "resistor2VoltageVolts": 2.4998750062496877
+  },
+  "resistor1At3000Ohms": {
+    "sourceCurrentAmps": 0.0012499687507812304,
+    "resistor1VoltageVolts": 3.749906252343691,
+    "resistor2VoltageVolts": 1.2499687507812304
+  }
+}

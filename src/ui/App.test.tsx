@@ -9,5 +9,7 @@ describe("application shell", () => {
     expect(markup).toContain("Circuit workspace");
     expect(markup).toContain('aria-label="Circuit editor"');
     expect(markup).toContain("editor-canvas");
+    expect(markup).toContain("Rust catalog is available in the desktop app.");
+    expect(markup).toContain("Simulation solver is not connected yet.");
   });
 });
