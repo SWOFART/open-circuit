@@ -1,0 +1,22 @@
+# Rust build output
+/target/
+
+# JavaScript package and build output
+/node_modules/
+**/node_modules/
+/dist/
+**/dist/
+
+# Tauri generated and platform build output
+/crates/app/gen/
+/crates/app/target/
+/crates/app/icons/android/
+/crates/app/icons/ios/
+/crates/app/icons/Square*Logo.png
+/crates/app/icons/StoreLogo.png
+
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
