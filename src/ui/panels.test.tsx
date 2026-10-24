@@ -5,7 +5,11 @@ import expectedFixture from "../../tests/golden/stage-1-divider.expected.json";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { Diagnostic } from "../generated/Diagnostic";
 import type { ResultLayout } from "../generated/ResultLayout";
-import { componentLabels, dividerSchematic } from "../store/fixtures";
+import {
+  DIVIDER_OUTPUT_COMPONENT_ID,
+  componentLabels,
+  dividerSchematic,
+} from "../store/fixtures";
 import {
   initialSimulationState,
   type SimulationState,
@@ -77,8 +81,61 @@ describe("ResultPanel", () => {
 
     expect(markup).toContain("R1 voltage");
     expect(markup).toContain("R2 voltage");
-    expect(markup).toContain("2.49988 V");
+    expect(markup).toContain("2.499875 V");
     expect(markup).toContain("Simulation time 0.000 s");
+  });
+
+  it("keeps the divider's output component tied to R2, as the contract defines Vout", () => {
+    expect(DIVIDER_OUTPUT_COMPONENT_ID).toBe(R2);
+    expect(labels.get(DIVIDER_OUTPUT_COMPONENT_ID)).toBe("R2");
+    expect(
+      dividerSchematic.components.find(
+        (component) => component.id === DIVIDER_OUTPUT_COMPONENT_ID,
+      )?.typeId,
+    ).toBe("resistor");
+  });
+
+  it("shows Vout first, as the voltage across the output component", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPanel
+        state={readyState([
+          expectedFixture.equalResistors.resistor1VoltageVolts,
+          expectedFixture.equalResistors.resistor2VoltageVolts,
+        ])}
+        labels={labels}
+        outputComponentId={R2}
+      />,
+    );
+
+    expect(markup).toContain("Vout (across R2)");
+    expect(markup).toContain("<strong>2.499875 V</strong>");
+    expect(markup.indexOf("Vout (across R2)")).toBeLessThan(
+      markup.indexOf("R1 voltage"),
+    );
+  });
+
+  it("omits Vout when the layout has no voltage for the output component", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPanel
+        state={readyState([1, 2])}
+        labels={labels}
+        outputComponentId="00000000-0000-4000-8000-0000000000ee"
+      />,
+    );
+
+    expect(markup).not.toContain("Vout");
+  });
+
+  it("shows no Vout before there is a result", () => {
+    const markup = renderToStaticMarkup(
+      <ResultPanel
+        state={initialSimulationState(dividerSchematic)}
+        labels={labels}
+        outputComponentId={R2}
+      />,
+    );
+
+    expect(markup).not.toContain("Vout");
   });
 
   it("never renders NaN or Infinity as a reading", () => {

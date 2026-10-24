@@ -7,6 +7,13 @@ import type { StableId } from "../generated/StableId";
 // same file, so the cast only narrows JSON string types to the generated ones.
 export const dividerSchematic = schematicFixture as Schematic;
 
+/**
+ * The divider's output is the voltage across R2 (docs/contracts/stage-1.md section 6:
+ * `Vout = Vs × R2 / (Rs + R1 + R2)`).
+ */
+export const DIVIDER_OUTPUT_COMPONENT_ID =
+  "00000000-0000-4000-8000-000000000003";
+
 /** Display names such as `V1`, `R1`, `R2`, numbered per type in file order. */
 export function componentLabels(schematic: Schematic): Map<StableId, string> {
   const counters = new Map<string, number>();

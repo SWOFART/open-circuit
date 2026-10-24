@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EditorCore } from "../editor/EditorCore";
-import { componentLabels, dividerSchematic } from "../store/fixtures";
+import {
+  DIVIDER_OUTPUT_COMPONENT_ID,
+  componentLabels,
+  dividerSchematic,
+} from "../store/fixtures";
 import { Inspector } from "./Inspector";
 import { ResultPanel } from "./ResultPanel";
 import { useSimulation } from "./useSimulation";
@@ -75,7 +79,11 @@ export function App() {
               void controller?.setParameter(componentId, parameterId, value);
             }}
           />
-          <ResultPanel state={state} labels={labels} />
+          <ResultPanel
+            state={state}
+            labels={labels}
+            outputComponentId={DIVIDER_OUTPUT_COMPONENT_ID}
+          />
         </aside>
       </div>
 

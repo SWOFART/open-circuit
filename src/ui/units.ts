@@ -47,7 +47,16 @@ const parsePrefixExponents: Readonly<Record<string, number>> = {
 const NUMBER_PATTERN =
   /^([+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+))(?:[eE]([+-]?\d+))?\s*(.*)$/;
 
-/** Formats an SI value with a prefix, such as `1 kΩ` or `2.49988 V`. */
+/**
+ * Every reading and input is shown with this many significant digits
+ * (docs/contracts/stage-1.md section 6). Seven digits keep the displayed Stage 1
+ * fixture values within the acceptance tolerances of 1 µV and 1 nA of the exact
+ * ones. Rounding is for display only; the unrounded number is what is sent to the
+ * Engine and what tolerances are checked against.
+ */
+export const DISPLAY_SIGNIFICANT_DIGITS = 7;
+
+/** Formats an SI value with a prefix, such as `1 kΩ` or `2.499875 V`. */
 export function formatSi(value: number, unit: Unit): string {
   const symbol = unitSymbols[unit];
 
@@ -63,7 +72,9 @@ export function formatSi(value: number, unit: Unit): string {
   const prefix =
     prefixes.find((candidate) => magnitude >= candidate.factor) ??
     prefixes[prefixes.length - 1];
-  const mantissa = Number((value / prefix.factor).toPrecision(6));
+  const mantissa = Number(
+    (value / prefix.factor).toPrecision(DISPLAY_SIGNIFICANT_DIGITS),
+  );
 
   return `${mantissa} ${prefix.symbol}${symbol}`;
 }

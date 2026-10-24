@@ -94,5 +94,8 @@ jobs:
       - name: Build the Tauri application (no release is published)
         run: pnpm build
 
+      - name: Check the production bundle contains no mock adapter
+        run: pnpm bundle:check
+
       - name: Check lockfiles were not modified by the build
         run: git diff --exit-code -- Cargo.lock pnpm-lock.yaml
