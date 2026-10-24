@@ -1,9 +1,13 @@
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useEffect, useRef, useState } from "react";
+import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import { EditorCore } from "../editor/EditorCore";
 
 export function App() {
   const canvasHost = useRef<HTMLDivElement>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<ComponentCatalog | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   useEffect(() => {
     const host = canvasHost.current;
@@ -19,6 +23,31 @@ export function App() {
     });
 
     return () => editor.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (!isTauri()) {
+      return;
+    }
+
+    let cancelled = false;
+    void invoke<ComponentCatalog>("get_component_catalog")
+      .then((result) => {
+        if (!cancelled) {
+          setCatalog(result);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          setCatalogError(message);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -45,7 +74,18 @@ export function App() {
       </section>
 
       <footer className="app-footer">
-        <span>Simulation engine is not connected yet.</span>
+        {catalog ? (
+          <span>
+            Rust catalog:{" "}
+            {catalog.componentTypes.map((item) => item.typeId).join(", ")}
+          </span>
+        ) : (
+          <span>Rust catalog is available in the desktop app.</span>
+        )}
+        {catalogError && (
+          <span role="alert">Catalog unavailable: {catalogError}</span>
+        )}
+        <span>Simulation solver is not connected yet.</span>
       </footer>
     </main>
   );
