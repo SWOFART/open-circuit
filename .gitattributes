@@ -1,0 +1,8 @@
+# Check out and commit text files with LF on every platform. Without this,
+# actions/checkout and Git for Windows (core.autocrlf) produce CRLF files that
+# fail Prettier, rustfmt, and the generated-type drift check.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.icns binary

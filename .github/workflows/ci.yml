@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    name: Checks and Tauri build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Tauri's Linux build dependencies, as listed in README.md. Windows and
+      # macOS runners already provide the MSVC/WebView2 and Xcode toolchains.
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      # The pnpm version comes from "packageManager" in package.json.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      # With no arguments rustup installs the toolchain, profile, and
+      # components pinned in rust-toolchain.toml.
+      - name: Install Rust toolchain
+        run: rustup toolchain install
+
+      - name: Cache Rust build output
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting (cargo fmt, Prettier)
+        run: pnpm format:check
+
+      - name: Lint (cargo clippy, ESLint)
+        run: pnpm lint
+
+      - name: Type-check TypeScript
+        run: pnpm typecheck
+
+      - name: Test (cargo test, Vitest)
+        run: pnpm test
+
+      - name: Check generated TypeScript types are current
+        run: |
+          pnpm types:generate
+          git diff --exit-code -- src/generated
+          untracked="$(git ls-files --others --exclude-standard -- src/generated)"
+          if [ -n "$untracked" ]; then
+            echo "::error::Untracked generated files; commit them or fix the generator:"
+            echo "$untracked"
+            exit 1
+          fi
+
+      - name: Check architecture dependency boundaries
+        run: pnpm boundaries:check
+
+      - name: Build the Tauri application (no release is published)
+        run: pnpm build
+
+      - name: Check lockfiles were not modified by the build
+        run: git diff --exit-code -- Cargo.lock pnpm-lock.yaml
