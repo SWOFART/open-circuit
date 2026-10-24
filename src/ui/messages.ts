@@ -25,6 +25,10 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.inconsistentIdealConstraint":
     "Ideal voltage sources in a loop conflict with each other.",
   "diagnostic.singularSystem": "The circuit cannot be solved as drawn.",
+  "diagnostic.staleRun":
+    "The result belongs to an earlier calculation and was ignored.",
+  "diagnostic.staleDocumentRevision":
+    "The circuit changed while this update was in progress, so it was ignored.",
 };
 
 /** Looks up a localization key, falling back to the key itself. */

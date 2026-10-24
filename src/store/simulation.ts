@@ -391,6 +391,9 @@ export class SimulationController {
     try {
       result = await this.adapter.setParameter({
         runId: run.runId,
+        // The engine checks this against its active snapshot, then adopts the
+        // new revision; both are compared by equality only.
+        expectedDocumentRevision: run.documentRevision,
         documentRevision: revision,
         componentId: update.componentId,
         parameterId: update.parameterId,

@@ -117,6 +117,7 @@ describe("changing a resistance", () => {
 
     const expected: SetParameterRequest = {
       runId: RUN_ID,
+      expectedDocumentRevision: "test-revision-1",
       documentRevision: "test-revision-2",
       componentId: R1,
       parameterId: "resistanceOhms",
@@ -124,6 +125,38 @@ describe("changing a resistance", () => {
     };
     expect(adapter.parameterRequests).toEqual([expected]);
     expect(typeof adapter.parameterRequests[0]?.value).toBe("number");
+  });
+
+  it("expects the revision the engine last accepted, then adopts the new one", async () => {
+    const adapter = createDividerFixtureAdapter();
+    const controller = controllerFor(adapter);
+
+    await controller.start();
+    await controller.setParameter(R1, "resistanceOhms", 3000);
+    await controller.setParameter(R1, "resistanceOhms", 1000);
+
+    const [first, second] = adapter.parameterRequests;
+    expect(first?.expectedDocumentRevision).toBe("test-revision-1");
+    expect(second?.expectedDocumentRevision).toBe(first?.documentRevision);
+    expect(second?.documentRevision).not.toBe(second?.expectedDocumentRevision);
+  });
+
+  it("expects the unchanged revision again after the engine rejects an update", async () => {
+    const base = createDividerFixtureAdapter();
+    const adapter = new PredeterminedEngineAdapter({
+      catalog: catalogFixture as ComponentCatalog,
+      compile: (request) => base.compile(request),
+      setParameter: () => ({ status: "failure", diagnostics: [rejection] }),
+    });
+    const controller = controllerFor(adapter);
+
+    await controller.start();
+    await controller.setParameter(R1, "resistanceOhms", 3000);
+    await controller.setParameter(R1, "resistanceOhms", 4000);
+
+    const [first, second] = adapter.parameterRequests;
+    expect(first?.expectedDocumentRevision).toBe("test-revision-1");
+    expect(second?.expectedDocumentRevision).toBe("test-revision-1");
   });
 
   it("shows the new result and restores the original when changed back", async () => {
