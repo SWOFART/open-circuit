@@ -220,6 +220,10 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 
 > **Verify in the prototype (step 1):** how well binary transfer through the Tauri 2 `Channel`
 > works in the chosen version. Fallback: a shared buffer via a command returning `Vec<u8>`/`ArrayBuffer` on a timer.
+>
+> **Result (Stage 1):** the `Channel` works and the fallback is not needed; see
+> [`docs/adr/0001-binary-channel-frames.md`](docs/adr/0001-binary-channel-frames.md) and the frame
+> format in [`docs/contracts/stage-1.md`](docs/contracts/stage-1.md) section 8.
 
 ---
 
@@ -360,7 +364,7 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 
 1. **WebView on Linux (WebKitGTK):** canvas/WebGL can be slower. Check in the first week; keep a Canvas2D renderer as a fallback.
 2. **Relay and motor physics:** models are tuned iteratively; golden tests are mandatory.
-3. **Binary Tauri → UI channel:** verify in the prototype (see section 4).
+3. **Binary Tauri → UI channel:** verified for Stage 1 on Windows (see section 4); Linux and macOS are still to be observed.
 4. **Project scope:** the main risk. Follow the plan below strictly.
 
 ---

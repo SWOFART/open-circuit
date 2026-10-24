@@ -2083,9 +2083,11 @@ name = "open-circuit-app"
 version = "0.1.0"
 dependencies = [
  "open-circuit-engine",
+ "serde",
  "serde_json",
  "tauri",
  "tauri-build",
+ "uuid",
 ]
 
 [[package]]

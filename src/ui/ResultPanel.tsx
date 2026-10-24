@@ -103,6 +103,12 @@ export function ResultPanel({ state, labels }: ResultPanelProps) {
         </dl>
       )}
 
+      {state.status === "ready" && snapshot && (
+        <p className="panel-note simulation-time">
+          Simulation time {snapshot.metadata.simulationTimeSeconds.toFixed(3)} s
+        </p>
+      )}
+
       {state.status === "ready" && state.updating && (
         <p className="panel-note" role="status">
           Updating…
