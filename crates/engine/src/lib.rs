@@ -3,8 +3,9 @@
 pub mod catalog;
 pub mod diagnostics;
 pub mod ids;
+pub mod netlist;
 pub mod results;
-pub mod schema;
+pub mod schematic;
 
 pub use catalog::{
     ComponentCatalog, ComponentCatalogEntry, ComponentTypeId, NumericDomain, ParameterDefinition,
@@ -17,7 +18,7 @@ pub use results::{
     ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
     SetParameterRequest, SetParameterResult,
 };
-pub use schema::{
+pub use schematic::{
     ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, GeometryEnvelope, GridPoint,
     JunctionSpec, ReferenceMarkerSpec, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
     Schematic, WireSpec,
