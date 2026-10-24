@@ -1,0 +1,45 @@
+{
+  "componentTypes": [
+    {
+      "typeId": "resistor",
+      "displayNameKey": "component.resistor.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "resistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 1000.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.resistor.resistance"
+        }
+      ]
+    },
+    {
+      "typeId": "dc_voltage_source",
+      "displayNameKey": "component.dcVoltageSource.name",
+      "pins": [
+        { "id": "pin1", "role": "positive" },
+        { "id": "pin2", "role": "negative" }
+      ],
+      "parameters": [
+        {
+          "id": "voltageVolts",
+          "unit": "volt",
+          "defaultValue": 5.0,
+          "domain": "finite",
+          "descriptionKey": "component.dcVoltageSource.voltage"
+        },
+        {
+          "id": "internalResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "non_negative",
+          "descriptionKey": "component.dcVoltageSource.internalResistance"
+        }
+      ]
+    }
+  ]
+}
