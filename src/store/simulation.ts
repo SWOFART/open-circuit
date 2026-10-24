@@ -70,31 +70,47 @@ export function isSnapshotCurrent(
   lastApplied: ResultSnapshot | null,
   snapshot: ResultSnapshot,
 ): boolean {
+  return (
+    matchesRun(run, snapshot) &&
+    (lastApplied === null ||
+      snapshot.metadata.frameSequence > lastApplied.metadata.frameSequence)
+  );
+}
+
+/** Identity, layout, shape, and finiteness: everything but the sequence rule. */
+function matchesRun(run: ActiveRun | null, snapshot: ResultSnapshot): boolean {
   if (!run) {
     return false;
   }
 
   const { metadata, values } = snapshot;
 
-  if (
-    metadata.runId !== run.runId ||
-    metadata.documentRevision !== run.documentRevision ||
-    metadata.layoutVersion !== run.layout.layoutVersion
-  ) {
-    return false;
-  }
-
-  if (
-    values.length !== run.layout.valueCount ||
-    !values.every((value) => Number.isFinite(value)) ||
-    !Number.isFinite(metadata.simulationTimeSeconds)
-  ) {
-    return false;
-  }
-
   return (
-    lastApplied === null ||
-    metadata.frameSequence > lastApplied.metadata.frameSequence
+    metadata.runId === run.runId &&
+    metadata.documentRevision === run.documentRevision &&
+    metadata.layoutVersion === run.layout.layoutVersion &&
+    values.length === run.layout.valueCount &&
+    values.every((value) => Number.isFinite(value)) &&
+    Number.isFinite(metadata.simulationTimeSeconds)
+  );
+}
+
+/**
+ * A reply that arrived after a newer frame of the same revision was already
+ * applied. Frames and invoke replies travel separately, so a frame produced right
+ * after an update can overtake the reply to that update. The reply is then
+ * confirmed by the newer frame instead of being stale.
+ */
+export function isSnapshotSuperseded(
+  run: ActiveRun | null,
+  lastApplied: ResultSnapshot | null,
+  snapshot: ResultSnapshot,
+): boolean {
+  return (
+    lastApplied !== null &&
+    matchesRun(run, snapshot) &&
+    matchesRun(run, lastApplied) &&
+    lastApplied.metadata.frameSequence >= snapshot.metadata.frameSequence
   );
 }
 
@@ -208,6 +224,7 @@ export class SimulationController {
   private disposed = false;
   private readonly pending = new Map<string, ParameterUpdate>();
   private drain: Promise<void> | null = null;
+  private stopFrames: (() => void) | null = null;
 
   constructor(
     private readonly adapter: EngineAdapter,
@@ -312,7 +329,10 @@ export class SimulationController {
           `The engine returned an unreadable result: ${describeError(error)}`,
         ),
       );
+      return;
     }
+
+    await this.openFrameStream(result.runId);
   }
 
   /**
@@ -341,6 +361,59 @@ export class SimulationController {
     this.disposed = true;
     this.pending.clear();
     this.listeners.clear();
+    this.stopFrames?.();
+    this.stopFrames = null;
+  }
+
+  /**
+   * A live frame from the backend. It is applied only if it passes the contract's
+   * acceptance rule. Stale frames (an older revision, another run, a sequence that
+   * is not newer) are expected during edits and are dropped without an error.
+   */
+  private readonly handleFrame = (snapshot: ResultSnapshot): void => {
+    if (this.disposed || this.state.status !== "ready") {
+      return;
+    }
+
+    if (isSnapshotCurrent(this.state.run, this.state.snapshot, snapshot)) {
+      this.setState({ snapshot });
+    } else {
+      this.setState({ discardedFrames: this.state.discardedFrames + 1 });
+    }
+  };
+
+  private readonly handleFrameError = (error: Error): void => {
+    if (this.disposed) {
+      return;
+    }
+
+    this.setState({
+      discardedFrames: this.state.discardedFrames + 1,
+      error: `A frame from the engine was unusable: ${error.message}`,
+    });
+  };
+
+  private async openFrameStream(runId: StableId): Promise<void> {
+    try {
+      const stop = await this.adapter.startFrames(runId, {
+        onFrame: this.handleFrame,
+        onError: this.handleFrameError,
+      });
+
+      if (this.disposed) {
+        stop();
+      } else {
+        this.stopFrames = stop;
+      }
+    } catch (error) {
+      // The results returned by compile and setParameter stay valid; only the live
+      // updates are missing, and the user is told so.
+      if (!this.disposed) {
+        this.setState({
+          error: `Live updates are unavailable: ${describeError(error)}`,
+        });
+      }
+    }
   }
 
   private async drainUpdates(): Promise<void> {
@@ -418,6 +491,19 @@ export class SimulationController {
         this.setState({
           updating: false,
           run,
+          diagnostics: result.diagnostics,
+          error: null,
+        });
+        return;
+      }
+
+      if (isSnapshotSuperseded(sentRun, this.state.snapshot, result.snapshot)) {
+        // A newer frame of this revision is already on screen, so the update is
+        // confirmed; only the document has to follow.
+        this.setState({
+          updating: false,
+          run: sentRun,
+          schematic: nextSchematic,
           diagnostics: result.diagnostics,
           error: null,
         });

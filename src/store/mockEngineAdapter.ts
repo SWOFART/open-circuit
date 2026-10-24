@@ -8,7 +8,7 @@ import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
-import type { EngineAdapter } from "./engineAdapter";
+import type { EngineAdapter, FrameHandlers } from "./engineAdapter";
 import { dividerSchematic } from "./fixtures";
 
 /**
@@ -29,11 +29,38 @@ export interface PredeterminedResponses {
 export class PredeterminedEngineAdapter implements EngineAdapter {
   readonly compileRequests: CompileRequest[] = [];
   readonly parameterRequests: SetParameterRequest[] = [];
+  /** Runs for which live frames were requested, in order. */
+  readonly startedRuns: StableId[] = [];
+  /** How many times a frame stream was stopped. */
+  stopCount = 0;
+  private handlers: FrameHandlers | null = null;
 
   constructor(private readonly responses: PredeterminedResponses) {}
 
   getCatalog(): Promise<ComponentCatalog> {
     return Promise.resolve(this.responses.catalog);
+  }
+
+  startFrames(runId: StableId, handlers: FrameHandlers): Promise<() => void> {
+    this.startedRuns.push(runId);
+    this.handlers = handlers;
+
+    return Promise.resolve(() => {
+      if (this.handlers === handlers) {
+        this.handlers = null;
+      }
+      this.stopCount += 1;
+    });
+  }
+
+  /** Test hook: delivers a frame as the backend would. No-op when not streaming. */
+  emitFrame(snapshot: ResultSnapshot): void {
+    this.handlers?.onFrame(snapshot);
+  }
+
+  /** Test hook: reports a frame that could not be read. */
+  emitFrameError(error: Error): void {
+    this.handlers?.onError(error);
   }
 
   async compile(request: CompileRequest): Promise<CompileResult> {

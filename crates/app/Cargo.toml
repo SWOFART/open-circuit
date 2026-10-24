@@ -5,12 +5,18 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+[lib]
+name = "open_circuit_app_lib"
+path = "src/lib.rs"
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
 open-circuit-engine = { path = "../engine" }
 tauri = { version = "2", features = [] }
+uuid = "1"
 
 [dev-dependencies]
-serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["float_roundtrip"] }

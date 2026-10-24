@@ -57,6 +57,8 @@ const rejection: Diagnostic = {
   references: [{ kind: "component", componentId: R1 }],
 };
 
+const noFrames = () => Promise.resolve(() => {});
+
 const singleSlotLayout: ResultLayout = {
   layoutVersion: 1,
   valueCount: 1,
@@ -367,6 +369,7 @@ describe("unavailable backend", () => {
   it("reports a compile transport error", async () => {
     const adapter: EngineAdapter = {
       getCatalog: () => Promise.resolve(catalogFixture as ComponentCatalog),
+      startFrames: noFrames,
       compile: () =>
         Promise.reject(new EngineUnavailableError("The bridge is down.")),
       setParameter: () => Promise.reject(new Error("unused")),
@@ -558,6 +561,7 @@ describe("rapid edits", () => {
 
     return {
       getCatalog: () => Promise.resolve(catalogFixture as ComponentCatalog),
+      startFrames: noFrames,
       compile: (request) =>
         Promise.resolve({
           status: "success",
@@ -817,6 +821,7 @@ describe("lifecycle", () => {
     let resolveCompile: ((value: never) => void) | undefined;
     const adapter: EngineAdapter = {
       getCatalog: () => Promise.resolve(catalogFixture as ComponentCatalog),
+      startFrames: noFrames,
       compile: () =>
         new Promise((resolve) => {
           resolveCompile = resolve;
