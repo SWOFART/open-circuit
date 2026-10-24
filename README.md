@@ -2,7 +2,7 @@
 
 Open Circuit is an open-source desktop application for drawing and simulating electrical circuits. The repository is a Cargo and pnpm monorepo. The Rust engine is kept independent of Tauri, while the desktop shell lives in `crates/app` and the React/TypeScript/PixiJS frontend lives in `src/`.
 
-The current application shows the Stage 1 voltage divider (a battery and two resistors) as a read-only PixiJS schematic, with a React inspector for the two resistances and a result panel. The simulation engine is not connected to the UI yet: the Tauri bridge exposes only the component catalog, so the result panel reports that the backend is unavailable instead of showing numbers.
+The current application shows the Stage 1 voltage divider (a battery and two resistors) as a read-only PixiJS schematic, with a React inspector for the two resistances and a result panel. In the desktop app the circuit is compiled and solved by the Rust engine on its own simulation thread. The first result comes back with the compile, live results then arrive as binary frames over a Tauri channel (at most 60 per second), and changing a resistance recalculates through the engine. Opened outside the desktop app (for example in a plain browser) there is no engine, so the result panel reports that the backend is unavailable instead of showing numbers. The frame format and the commands are specified in `docs/contracts/stage-1.md` section 8.
 
 ## Prerequisites
 
@@ -48,7 +48,7 @@ The root command starts the Tauri application defined in `crates/app`; no genera
 
 ### Development mock
 
-To see the full UI before the simulation bridge exists, run the frontend against predetermined responses taken from `tests/golden/`:
+To work on the UI in a plain browser, where there is no Rust engine, run the frontend against predetermined responses taken from `tests/golden/`:
 
 ```sh
 VITE_ENGINE_ADAPTER=mock pnpm dev:web

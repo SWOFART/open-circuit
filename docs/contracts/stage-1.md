@@ -190,9 +190,11 @@ Each frame has metadata outside the numeric payload:
 - `layoutVersion`: the version of the accompanying layout;
 - `simulationStep`: an unsigned 64-bit physics-step index, starting at zero;
 - `simulationTimeSeconds`: finite model time, equal to `simulationStep × 0.001` seconds;
-- `frameSequence`: a monotonically increasing unsigned 64-bit sequence of delivered UI
-  frames within the run, starting at zero. It is distinct from `simulationStep`; frames may
-  skip physics steps when UI delivery is throttled.
+- `frameSequence`: a monotonically increasing unsigned 64-bit sequence within the run,
+  starting at zero. The Engine takes the next number for every physics advance and every
+  parameter update, whether or not a frame is then delivered to the UI, so the numbers the
+  UI sees have gaps and the UI relies only on their increasing. It is distinct from
+  `simulationStep`; frames may skip physics steps when UI delivery is throttled.
 
 `layoutVersion` is an unsigned 32-bit integer starting at 1 for each run. It changes only
 when the slot mapping changes. A new compile always creates a new `runId`, so its version
@@ -203,9 +205,9 @@ offset order. It contains no header or padding. Its byte length must equal
 `valueCount × 8`, checked for overflow; all values must be finite. Compile/layout/diagnostic
 metadata is sent outside the numeric payload. The application accepts a frame only when
 run ID, document revision, and layout version match the active document/run and its
-sequence is newer than the last applied frame. Otherwise, discard it. Transport framing
-and Tauri Channel API details are implementation choices for the bridge issue; no JSON is
-sent for every physics step.
+sequence is newer than the last applied frame. Otherwise, discard it. No JSON is sent for
+every physics step; section 8 specifies how frames are framed and delivered by the desktop
+bridge.
 
 ## 6. Canonical acceptance fixture
 
@@ -254,3 +256,100 @@ topology, solver, and bridge checks. Changes to these public fields, ID meanings
 geometry exchange, diagnostics, API semantics, or frame layout require both workstreams'
 review and an update to this contract. Changes that alter an architectural decision also
 update `ARCHITECTURE.md` or add an ADR.
+
+## 8. Desktop bridge transport
+
+This section fixes the details that sections 4 and 5 left to the bridge: the commands, the
+binary frame envelope, and how frames are delivered. It is implemented by `crates/app`
+(Rust) and `src/store` (TypeScript). The decision to use a Tauri `Channel` for frames, and
+the evidence for it, are recorded in `docs/adr/0001-binary-channel-frames.md`.
+
+### 8.1 Commands
+
+| Command | Arguments | Result |
+|---|---|---|
+| `get_component_catalog` | none | `ComponentCatalog` |
+| `compile_circuit` | `request: CompileRequest` | `CompileResult`, as JSON. The layout, diagnostics, and initial snapshot are sent once, here. A successful compile starts a new run and ends any frame stream. A failed compile leaves the previous run and stream untouched. |
+| `set_parameter` | `request: SetParameterRequest` | `SetParameterResult`, as JSON. |
+| `start_simulation` | `runId`, `onFrame: Channel` | Starts binary frames for the active run. Refused with an error if `runId` is not the active run. |
+| `stop_simulation` | `runId` | Ends the stream of that run and releases its channel. Ignored if that run is no longer streaming, so a late stop cannot cut off a newer run's stream. |
+| `acknowledge_frame` | `frameSequence` | The UI has processed every frame up to and including that sequence. |
+
+Engine diagnostics are part of the result values. A failure of the transport itself, such as
+a stopped simulation thread, is returned as an error string. The TypeScript adapter reports
+it as an unavailable engine, never as a circuit error.
+
+The engine serializes `u64` counters (`simulationStep`, `frameSequence`) as JSON numbers in
+the JSON results. The TypeScript adapter converts them to `bigint` after checking that each
+is a non-negative safe integer, and refuses anything else. Binary frames carry full 64-bit
+integers.
+
+### 8.2 Frame envelope
+
+A frame is one binary channel message, arriving in the webview as an `ArrayBuffer`. All
+integers and floats are little-endian.
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | Magic `OCF1`: the frame format, version 1 |
+| 4 | 4 | `layoutVersion`, `u32` |
+| 8 | 8 | `frameSequence`, `u64` |
+| 16 | 8 | `simulationStep`, `u64` |
+| 24 | 8 | `simulationTimeSeconds`, `f64` |
+| 32 | 16 | `runId`, the UUID as 16 raw bytes |
+| 48 | 4 | `valueCount`, `u32` |
+| 52 | 4 | `revisionLength`, `u32`, in UTF-8 bytes |
+| 56 | n | `documentRevision`, UTF-8 |
+| 56 + n | p | Zero padding up to the next multiple of 8 |
+| 56 + n + p | 8 × `valueCount` | The numeric payload: `f64` values in layout offset order |
+
+The numeric payload keeps the shape section 5 requires: contiguous binary64 values with no
+header or padding of their own. The metadata that section 5 puts outside the payload is the
+envelope before it. The padding makes the payload start on an 8-byte boundary, so a
+`Float64Array` can view it in place. The total length is exactly `payloadOffset + 8 ×
+valueCount`.
+
+A reader refuses a frame when: it is shorter than 56 bytes; the magic is wrong; the length
+differs from the one the header describes; the padding is not zero; the revision is not valid
+UTF-8 or is longer than 256 bytes (a leading byte order mark is kept as part of the
+revision); `valueCount` exceeds 65 536; or the simulation time or any
+value is not finite. Both readers check the limits before using the lengths in arithmetic.
+The Rust encoder and decoder (`crates/app/src/frame.rs`) and the TypeScript decoder
+(`src/store/frameCodec.ts`) are tested against the same golden frame,
+`tests/golden/stage-1-frame.json`, whose bytes were produced by an independent encoder
+written from this section.
+
+A change to this envelope is a contract change. An incompatible change gets a new magic.
+
+### 8.3 Delivery
+
+- The simulation thread owns the Engine and advances the fixed 1 ms physics step against
+  the wall clock. Its pace does not depend on the UI. After a long stall, the backlog is
+  dropped rather than simulated in one burst.
+- At most one frame is delivered per frame interval (1/60 s). Only the latest snapshot is
+  delivered; a lagging UI skips frames instead of queueing them.
+- The UI acknowledges frames. With two frames unacknowledged, nothing more is sent, so a
+  slow webview cannot make the backend queue frames without bound. A frame that stays
+  unacknowledged for one second no longer counts, so a lost acknowledgement cannot stall
+  delivery. A webview that stops acknowledging altogether therefore still receives about
+  two small frames per second, never more than two at a time, and nothing accumulates.
+- `compile_circuit` and `set_parameter` refuse a `documentRevision` longer than 256 bytes
+  with an `InvalidParameter` diagnostic, so a revision that no frame could carry never
+  ends a stream silently.
+- A frame is sent only when its `frameSequence` is newer than the last frame sent. A
+  successful `set_parameter` therefore reaches the stream as a frame carrying the new
+  revision and values.
+- Frames and command replies travel separately and are not ordered relative to each other.
+  A frame produced right after an update can reach the UI before that update's own reply.
+  The UI applies the section 5 acceptance rule to every frame, and treats a reply that a
+  newer frame of the same revision has already superseded as confirmed.
+
+### 8.4 Lifecycle
+
+- `start_simulation` opens a stream for the active run and replaces any earlier stream.
+- A successful `compile_circuit`, `stop_simulation` for the streaming run, a closed
+  receiver, a run that can no longer advance, and the end of the application each end the
+  stream. Ending a stream drops its channel, which releases the subscription in the
+  webview.
+- Destroying the window ends the stream, and exiting the application stops the simulation
+  thread and waits for it.

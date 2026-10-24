@@ -78,6 +78,7 @@ describe("ResultPanel", () => {
     expect(markup).toContain("R1 voltage");
     expect(markup).toContain("R2 voltage");
     expect(markup).toContain("2.49988 V");
+    expect(markup).toContain("Simulation time 0.000 s");
   });
 
   it("never renders NaN or Infinity as a reading", () => {

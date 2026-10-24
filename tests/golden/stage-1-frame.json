@@ -1,0 +1,19 @@
+{
+  "description": "A Stage 1 frame in the OCF1 envelope (docs/contracts/stage-1.md section 8). The hex was produced by an independent encoder written from the spec; the Rust encoder and the TypeScript decoder must both agree with it.",
+  "snapshot": {
+    "metadata": {
+      "runId": "00000000-0000-4000-8000-0000000000a0",
+      "documentRevision": "rev-1-abc12",
+      "layoutVersion": 1,
+      "simulationStep": 16,
+      "simulationTimeSeconds": 0.016,
+      "frameSequence": 3
+    },
+    "values": [
+      2.4998750062496877,
+      2.4998750062496877,
+      -0.0024998750062496878
+    ]
+  },
+  "hex": "4f4346310100000003000000000000001000000000000000fca9f1d24d62903f000000000000400080000000000000a0030000000b0000007265762d312d616263313200000000000f719f77beff03400f719f77beff0340d275ab2c9e7a64bf"
+}
