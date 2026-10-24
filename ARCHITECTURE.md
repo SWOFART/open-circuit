@@ -248,6 +248,13 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 
 ## 5. Frontend
 
+Stage 2 editor gestures, document history, dirty-state semantics, and project
+lifecycle are specified in
+[docs/contracts/stage-2-editor.md](docs/contracts/stage-2-editor.md). The
+document store is separate from simulation snapshots and runtime state; an
+incomplete but structurally valid schematic remains editable when the Engine
+reports electrical diagnostics.
+
 - **`EditorCore`** is a plain TS class using PixiJS, with no React. React handles panels only. Reasons: performance with thousands of objects, and editor logic can be tested in Vitest without a browser.
 - **Immutable document, history via `immer`** (patches and inverse patches): undo/redo works automatically for any change, with no hand-written do/undo pairs.
 - **Tools are finite state machines** (select, wire, place, pan) with explicit states. "Comfortable drawing mechanics" is hundreds of small behaviors; without state machines they become a tangle of flags.
@@ -258,6 +265,12 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 ---
 
 ## 6. File format
+
+The native project is a single UTF-8 JSON schematic file with the .ocircuit
+extension. Native dialogs and filesystem access belong to crates/app;
+version-aware validation and migrations are pure Engine logic. Stage 2
+interaction and persistence rules are specified in
+[docs/contracts/stage-2-editor.md](docs/contracts/stage-2-editor.md).
 
 JSON with `schemaVersion` and migration functions (`migrations/` in `engine`).
 Only what was drawn is stored: components, parameters, wires, junction/reference markers,
@@ -393,7 +406,7 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 | # | Stage | Done when |
 |---|---|---|
 | 1 | End-to-end skeleton: battery + 2 resistors, UI shows voltage from Rust | Changing a resistor in the UI changes the number; Ohm's-law test is green; CI is green on 3 OSes |
-| 2 | Editor: grid, parts, wires, undo/redo, saving | A circuit can be drawn, saved, and reopened; contract tests are green |
+| 2 | Editor: grid, parts, wires, undo/redo, saving | A user can create or edit a Stage 1 circuit, save and reopen it, and recover the same schematic; editor and file-contract tests are green |
 | 3 | Dynamics: C, L, oscilloscope | The RC curve matches ngspice within tolerance |
 | 4 | Relay, motor, fuse, measuring instruments | A relay self-latching circuit works; voltmeter and ammeter show correct values |
 | 5 | Assignments and fault finding | A teacher creates an assignment, a student completes it and gets checked |
