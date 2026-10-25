@@ -334,6 +334,20 @@ describe("Inspector", () => {
     expect(markup.match(/disabled/g)).toHaveLength(4);
   });
 
+  it("locks parameter fields while a project operation is pending", () => {
+    const markup = renderToStaticMarkup(
+      <Inspector
+        state={readyState([1, 2])}
+        schematic={dividerSchematic}
+        labels={labels}
+        disabled
+        onCommit={noCommit}
+      />,
+    );
+
+    expect(markup.match(/disabled/g)).toHaveLength(4);
+  });
+
   it("says so when the catalog could not be loaded", () => {
     const markup = renderToStaticMarkup(
       <Inspector

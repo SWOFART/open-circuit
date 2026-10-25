@@ -81,8 +81,17 @@ input {
 
 .editor-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.project-actions,
+.project-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .toolbar-button {
@@ -127,6 +136,10 @@ input {
   overflow: hidden;
 }
 
+.editor-canvas-locked {
+  pointer-events: none;
+}
+
 /*
  * The canvas is taken out of the layout flow. PixiJS sizes it to this
  * container (`resizeTo`); if it also took up space in the flow, the container
@@ -157,6 +170,41 @@ input {
   padding: 12px 16px;
   color: #fca5a5;
   background: #451a1a;
+}
+
+.project-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgb(3 7 18 / 72%);
+}
+
+.project-dialog {
+  width: min(100%, 420px);
+  padding: 20px;
+  border: 1px solid #475569;
+  border-radius: 12px;
+  color: #e5e7eb;
+  background: #111827;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 38%);
+}
+
+.project-dialog h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.project-dialog p {
+  margin: 0 0 18px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.project-dialog-actions {
+  justify-content: flex-end;
 }
 
 .app-footer {

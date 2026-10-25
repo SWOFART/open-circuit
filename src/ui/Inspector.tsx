@@ -8,6 +8,7 @@ export interface InspectorProps {
   readonly state: SimulationState;
   readonly schematic: Schematic;
   readonly labels: ReadonlyMap<StableId, string>;
+  readonly disabled?: boolean;
   readonly onCommit: (
     componentId: StableId,
     parameterId: ParameterId,
@@ -23,10 +24,11 @@ export function Inspector({
   state,
   schematic,
   labels,
+  disabled = false,
   onCommit,
 }: InspectorProps) {
   const { catalog } = state;
-  const editable = catalog !== null && state.status !== "loading";
+  const editable = !disabled && catalog !== null && state.status !== "loading";
 
   return (
     <section className="side-panel" aria-labelledby="inspector-heading">

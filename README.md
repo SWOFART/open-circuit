@@ -46,6 +46,21 @@ pnpm dev
 
 The root command starts the Tauri application defined in `crates/app`; no generated `src-tauri` project is used.
 
+## Project files
+
+Use **New** to start an empty schematic, **Open** to load an `.ocircuit` project,
+or **Open Example** to return to the built-in voltage divider. **Save** writes
+the current schematic; for a new document it opens the Save dialog. **Save As**
+always lets you choose a destination. The file is versioned JSON containing the
+schematic only; simulation results and runtime state are recalculated when it
+opens. Before New, Open, Open Example, or closing a window, the app asks whether
+to save, discard, or cancel when there are unsaved edits. Canceling a file
+dialog or a failed save keeps the active document in place.
+
+Keyboard shortcuts are Ctrl+N / Command+N for New, Ctrl+O / Command+O for Open,
+Ctrl+S / Command+S for Save, and Ctrl+Shift+S / Command+Shift+S for Save As.
+Shortcuts are ignored while editing text fields.
+
 ### Development mock
 
 To work on the UI in a plain browser, where there is no Rust engine, run the frontend against predetermined responses taken from `tests/golden/`:

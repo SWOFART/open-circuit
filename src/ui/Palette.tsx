@@ -6,6 +6,7 @@ export interface PaletteProps {
   /** The Rust catalog; null until it has loaded. */
   readonly catalog: ComponentCatalog | null;
   readonly tool: EditorTool;
+  readonly disabled?: boolean;
   readonly onSelectTool: (tool: EditorTool) => void;
 }
 
@@ -35,12 +36,18 @@ const DRAWING_TOOLS: readonly {
  * Select mode, one placement tool per component type in the catalog, and the
  * wire, junction, and reference tools.
  */
-export function Palette({ catalog, tool, onSelectTool }: PaletteProps) {
+export function Palette({
+  catalog,
+  tool,
+  disabled = false,
+  onSelectTool,
+}: PaletteProps) {
   return (
     <div className="palette" role="toolbar" aria-label="Component palette">
       <button
         type="button"
         className="toolbar-button"
+        disabled={disabled}
         aria-pressed={tool.kind === "select"}
         onClick={() => onSelectTool({ kind: "select" })}
       >
@@ -51,6 +58,7 @@ export function Palette({ catalog, tool, onSelectTool }: PaletteProps) {
           key={entry.typeId}
           type="button"
           className="toolbar-button"
+          disabled={disabled}
           aria-pressed={tool.kind === "place" && tool.typeId === entry.typeId}
           onClick={() =>
             onSelectTool({
@@ -68,6 +76,7 @@ export function Palette({ catalog, tool, onSelectTool }: PaletteProps) {
           key={entry.tool.kind}
           type="button"
           className="toolbar-button"
+          disabled={disabled}
           title={entry.title}
           aria-pressed={tool.kind === entry.tool.kind}
           onClick={() => onSelectTool(entry.tool)}

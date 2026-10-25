@@ -4,4 +4,5 @@
 //! timing rules can be tested without a window. `main.rs` wires it to Tauri commands.
 
 pub mod frame;
+pub mod project;
 pub mod simulation;

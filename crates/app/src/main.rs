@@ -2,15 +2,17 @@
 
 use std::sync::Arc;
 
+use open_circuit_app_lib::project::ProjectSession;
 use open_circuit_app_lib::simulation::{
     FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed,
 };
 use open_circuit_engine::{
-    CompileRequest, CompileResult, ComponentCatalog, SetParameterRequest, SetParameterResult,
-    StableId, component_catalog,
+    CompileRequest, CompileResult, ComponentCatalog, Schematic, SetParameterRequest,
+    SetParameterResult, StableId, component_catalog,
 };
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Manager, RunEvent, State, WindowEvent};
+use tauri_plugin_dialog::DialogExt;
 
 /// Managed state: the one simulation thread, shared by every command.
 struct Simulation(Arc<SimulationService>);
@@ -36,9 +38,101 @@ async fn run_blocking<T: Send + 'static>(
         .map_err(|error| error.to_string())
 }
 
+async fn run_project_blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|error| format!("Project operation could not finish: {error}"))?
+}
+
 #[tauri::command]
 fn get_component_catalog() -> ComponentCatalog {
     component_catalog()
+}
+
+/// Opens a native file picker and replaces the active path only after validation succeeds.
+#[tauri::command]
+async fn open_project(
+    app: tauri::AppHandle,
+    session: State<'_, ProjectSession>,
+) -> Result<Option<Schematic>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .set_title("Open Open Circuit project")
+        .add_filter("Open Circuit project", &["ocircuit"])
+        .blocking_pick_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let path = selected
+        .into_path()
+        .map_err(|error| format!("Could not use the selected project file: {error}"))?;
+    let project_path = path.clone();
+    let project_session = session.inner().clone();
+    let schematic = run_project_blocking(move || project_session.load(&project_path)).await?;
+    Ok(Some(schematic))
+}
+
+/// Saves to the current project path or asks for a path when this is a new document.
+#[tauri::command]
+async fn save_project(
+    app: tauri::AppHandle,
+    session: State<'_, ProjectSession>,
+    schematic: Schematic,
+) -> Result<bool, String> {
+    let path = match session.current_path()? {
+        Some(path) => Some(path),
+        None => choose_project_save_path(&app)?,
+    };
+    let Some(path) = path else {
+        return Ok(false);
+    };
+
+    let project_session = session.inner().clone();
+    run_project_blocking(move || project_session.save_to(&path, &schematic)).await?;
+    Ok(true)
+}
+
+/// Saves the current schematic to a path selected with the native Save As dialog.
+#[tauri::command]
+async fn save_project_as(
+    app: tauri::AppHandle,
+    session: State<'_, ProjectSession>,
+    schematic: Schematic,
+) -> Result<bool, String> {
+    let Some(path) = choose_project_save_path(&app)? else {
+        return Ok(false);
+    };
+
+    let project_session = session.inner().clone();
+    run_project_blocking(move || project_session.save_to(&path, &schematic)).await?;
+    Ok(true)
+}
+
+/// Clears the Rust-owned file location after New or Open Example succeeds.
+#[tauri::command]
+fn clear_project_path(session: State<'_, ProjectSession>) -> Result<(), String> {
+    session.clear_path()
+}
+
+fn choose_project_save_path(app: &tauri::AppHandle) -> Result<Option<std::path::PathBuf>, String> {
+    let Some(file_path) = app
+        .dialog()
+        .file()
+        .set_title("Save Open Circuit project")
+        .set_file_name("Untitled.ocircuit")
+        .add_filter("Open Circuit project", &["ocircuit"])
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+
+    let path = file_path
+        .into_path()
+        .map_err(|error| format!("Could not use the selected project path: {error}"))?;
+    Ok(Some(path))
 }
 
 /// Compiles the schematic into a new run. Layout, diagnostics, and the initial snapshot
@@ -107,8 +201,14 @@ fn main() {
 
     tauri::Builder::default()
         .manage(simulation)
+        .manage(ProjectSession::default())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_component_catalog,
+            open_project,
+            save_project,
+            save_project_as,
+            clear_project_path,
             compile_circuit,
             set_parameter,
             start_simulation,
