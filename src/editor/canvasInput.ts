@@ -46,17 +46,24 @@ export function isTextEntryTarget(target: EventTarget | null): boolean {
   }
 }
 
+export interface CanvasInputBinding {
+  /** Re-derives the cursor after a change made outside this binding. */
+  refreshCursor(): void;
+  /** Removes every listener and resets the cursor. */
+  dispose(): void;
+}
+
 /**
- * Feeds canvas pointer and wheel events, and the Space pan modifier from
- * `keyboard` (normally `window`), into `interaction`. Only events aimed at the
- * canvas are consumed, so the React panels keep their own input. Returns a
- * function that removes every listener.
+ * Feeds canvas pointer and wheel events, plus the Space pan modifier and the
+ * editing shortcuts from `keyboard` (normally `window`), into `interaction`.
+ * Only events aimed at the canvas are consumed, so the React panels keep their
+ * own input, and no shortcut acts while a text-entry field has focus.
  */
 export function bindCanvasInput(
   surface: CanvasInputSurface,
   interaction: CanvasInteraction,
   keyboard: EventTarget,
-): () => void {
+): CanvasInputBinding {
   const local = (event: PointerEvent): CanvasPointer => {
     const rect = surface.getBoundingClientRect();
 
@@ -73,7 +80,11 @@ export function bindCanvasInput(
       ? "grabbing"
       : interaction.isPanModifierHeld
         ? "grab"
-        : "";
+        : interaction.isDragging
+          ? "move"
+          : interaction.tool.kind === "place"
+            ? "crosshair"
+            : "";
   };
 
   const onPointerDown = (event: PointerEvent): void => {
@@ -91,6 +102,7 @@ export function bindCanvasInput(
 
   const onPointerMove = (event: PointerEvent): void => {
     interaction.pointerMove(local(event));
+    syncCursor();
   };
 
   const onPointerUp = (event: PointerEvent): void => {
@@ -128,8 +140,55 @@ export function bindCanvasInput(
     });
   };
 
+  /**
+   * Editing shortcuts from docs/contracts/stage-2-editor.md section 3.4.
+   * Physical key codes keep them working on non-Latin keyboard layouts.
+   */
+  const runShortcut = (event: KeyboardEvent): boolean => {
+    const command = event.ctrlKey || event.metaKey;
+
+    if (command && !event.altKey && event.code === "KeyZ") {
+      if (event.shiftKey) {
+        interaction.redo();
+      } else {
+        interaction.undo();
+      }
+      return true;
+    }
+    if (command || event.altKey) {
+      return false;
+    }
+
+    switch (event.key) {
+      case "Escape":
+        interaction.escape();
+        return true;
+      case "Delete":
+      case "Backspace":
+        interaction.deleteSelection();
+        return true;
+    }
+
+    if (event.code === "KeyR" && !event.shiftKey) {
+      // Holding R must not keep adding rotations to the history.
+      if (!event.repeat) {
+        interaction.rotate();
+      }
+      return true;
+    }
+    return false;
+  };
+
   const onKey = (event: KeyboardEvent): void => {
     if (event.code !== "Space") {
+      if (
+        event.type === "keydown" &&
+        !isTextEntryTarget(event.target) &&
+        runShortcut(event)
+      ) {
+        event.preventDefault();
+        syncCursor();
+      }
       return;
     }
 
@@ -175,13 +234,16 @@ export function bindCanvasInput(
     keyboard.addEventListener(type, listener);
   }
 
-  return () => {
-    for (const [type, listener] of surfaceListeners) {
-      surface.removeEventListener(type, listener);
-    }
-    for (const [type, listener] of keyboardListeners) {
-      keyboard.removeEventListener(type, listener);
-    }
-    surface.style.cursor = "";
+  return {
+    refreshCursor: syncCursor,
+    dispose: () => {
+      for (const [type, listener] of surfaceListeners) {
+        surface.removeEventListener(type, listener);
+      }
+      for (const [type, listener] of keyboardListeners) {
+        keyboard.removeEventListener(type, listener);
+      }
+      surface.style.cursor = "";
+    },
   };
 }

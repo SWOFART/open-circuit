@@ -10,6 +10,10 @@ describe("application shell", () => {
     expect(markup).toContain('aria-label="Circuit editor"');
     expect(markup).toContain("editor-canvas");
     expect(markup).toContain("Fit to circuit");
+    expect(markup).toContain('aria-label="Component palette"');
+    // Nothing to undo or redo in a freshly opened document.
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Undo<\/button>/);
+    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>Redo<\/button>/);
     expect(markup).toContain("Inspector");
     expect(markup).toContain("Results");
   });

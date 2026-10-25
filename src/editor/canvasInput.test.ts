@@ -7,7 +7,7 @@ import {
   isTextEntryTarget,
   type CanvasInputSurface,
 } from "./canvasInput";
-import { CanvasInteraction } from "./interaction";
+import { CanvasInteraction, type InteractionIntent } from "./interaction";
 import { buildScene } from "./scene";
 import { toGrid, toScreen } from "./view";
 
@@ -66,7 +66,7 @@ function setup() {
   const interaction = new CanvasInteraction();
   interaction.setViewport({ width: 800, height: 600 });
   interaction.setScene(buildScene(schematicFixture as Schematic, symbols));
-  const unbind = bindCanvasInput(canvas, interaction, keyboard);
+  const binding = bindCanvasInput(canvas, interaction, keyboard);
 
   // Client coordinates of a grid point under the current view.
   const client = (grid: { x: number; y: number }) => {
@@ -74,7 +74,7 @@ function setup() {
     return { x: screen.x + RECT.left, y: screen.y + RECT.top };
   };
 
-  return { canvas, keyboard, interaction, unbind, client };
+  return { canvas, keyboard, interaction, binding, client };
 }
 
 describe("canvas pointer input", () => {
@@ -243,9 +243,9 @@ describe("Space pan modifier", () => {
 
 describe("unbinding", () => {
   it("removes every listener", () => {
-    const { canvas, keyboard, interaction, unbind } = setup();
+    const { canvas, keyboard, interaction, binding } = setup();
     const start = interaction.view;
-    unbind();
+    binding.dispose();
 
     canvas.dispatchEvent(
       domEvent("wheel", { clientX: 100, clientY: 100, deltaY: -100 }),
@@ -276,5 +276,179 @@ describe("text-entry detection", () => {
   it("treats a non-element target as not typing", () => {
     expect(isTextEntryTarget(null)).toBe(false);
     expect(isTextEntryTarget(new EventTarget())).toBe(false);
+  });
+});
+
+describe("editing shortcuts", () => {
+  function withIntents() {
+    const canvas = new FakeCanvas();
+    const keyboard = new EventTarget();
+    const intents: InteractionIntent[] = [];
+    const interaction = new CanvasInteraction(undefined, (intent) =>
+      intents.push(intent),
+    );
+    interaction.setViewport({ width: 800, height: 600 });
+    interaction.setScene(buildScene(schematicFixture as Schematic, symbols));
+    bindCanvasInput(canvas, interaction, keyboard);
+    return { canvas, keyboard, interaction, intents };
+  }
+
+  function key(
+    code: string,
+    keyName: string,
+    modifiers: Partial<
+      Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>
+    > = {},
+    target?: object,
+  ): Event {
+    return domEvent(
+      "keydown",
+      {
+        code,
+        key: keyName,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+        ...modifiers,
+      },
+      target,
+    );
+  }
+
+  it.each([
+    ["Ctrl+Z", key("KeyZ", "z", { ctrlKey: true }), { kind: "undo" }],
+    ["Command+Z", key("KeyZ", "z", { metaKey: true }), { kind: "undo" }],
+    [
+      "Ctrl+Shift+Z",
+      key("KeyZ", "Z", { ctrlKey: true, shiftKey: true }),
+      { kind: "redo" },
+    ],
+    [
+      "Command+Shift+Z",
+      key("KeyZ", "Z", { metaKey: true, shiftKey: true }),
+      { kind: "redo" },
+    ],
+    // A Russian layout reports a Cyrillic key for the same physical key.
+    [
+      "Ctrl+Z on a Cyrillic layout",
+      key("KeyZ", "я", { ctrlKey: true }),
+      { kind: "undo" },
+    ],
+  ])("maps %s", (_, event, intent) => {
+    const { keyboard, intents } = withIntents();
+
+    keyboard.dispatchEvent(event);
+
+    expect(intents).toEqual([intent]);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it.each([
+    ["Delete", key("Delete", "Delete")],
+    ["Backspace", key("Backspace", "Backspace")],
+  ])("deletes the selected component with %s", (_, event) => {
+    const { keyboard, interaction, intents } = withIntents();
+    interaction.select({ kind: "component", id: R1 });
+
+    keyboard.dispatchEvent(event);
+
+    expect(intents).toEqual([
+      { kind: "delete", target: { kind: "component", id: R1 } },
+    ]);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("rotates the selected component with R", () => {
+    const { keyboard, interaction, intents } = withIntents();
+    interaction.select({ kind: "component", id: R1 });
+
+    keyboard.dispatchEvent(key("KeyR", "r"));
+
+    expect(intents).toEqual([{ kind: "rotate", componentId: R1 }]);
+  });
+
+  it("rotates once while R is held down", () => {
+    const { keyboard, interaction, intents } = withIntents();
+    interaction.select({ kind: "component", id: R1 });
+    const held = Object.assign(key("KeyR", "r"), { repeat: true });
+
+    keyboard.dispatchEvent(key("KeyR", "r"));
+    keyboard.dispatchEvent(held);
+
+    expect(intents).toEqual([{ kind: "rotate", componentId: R1 }]);
+    // The repeat is still consumed, so it does not type or scroll anything.
+    expect(held.defaultPrevented).toBe(true);
+  });
+
+  it("returns a placement tool to Select mode with Escape", () => {
+    const { canvas, keyboard, interaction } = withIntents();
+    interaction.setTool({ kind: "place", typeId: "resistor", rotationDeg: 0 });
+
+    keyboard.dispatchEvent(key("Escape", "Escape"));
+
+    expect(interaction.tool).toEqual({ kind: "select" });
+    expect(canvas.style.cursor).toBe("");
+  });
+
+  it("never acts while a text field has focus", () => {
+    const { keyboard, interaction, intents } = withIntents();
+    interaction.select({ kind: "component", id: R1 });
+    const input = { tagName: "INPUT", type: "text", isContentEditable: false };
+    const events = [
+      key("KeyZ", "z", { ctrlKey: true }, input),
+      key("Backspace", "Backspace", {}, input),
+      key("KeyR", "r", {}, input),
+    ];
+
+    for (const event of events) {
+      keyboard.dispatchEvent(event);
+    }
+
+    expect(intents).toEqual([]);
+    expect(events.some((event) => event.defaultPrevented)).toBe(false);
+  });
+
+  it("ignores unrelated keys and modified letters", () => {
+    const { keyboard, interaction, intents } = withIntents();
+    interaction.select({ kind: "component", id: R1 });
+    const events = [
+      key("KeyA", "a"),
+      key("KeyR", "r", { ctrlKey: true }),
+      key("KeyZ", "z"),
+      key("KeyZ", "z", { ctrlKey: true, altKey: true }),
+    ];
+
+    for (const event of events) {
+      keyboard.dispatchEvent(event);
+    }
+
+    expect(intents).toEqual([]);
+    expect(events.some((event) => event.defaultPrevented)).toBe(false);
+  });
+
+  it("shows a crosshair while placing and a move cursor while dragging", () => {
+    const { canvas, interaction } = withIntents();
+    const binding = bindCanvasInput(canvas, interaction, new EventTarget());
+
+    interaction.setTool({ kind: "place", typeId: "resistor", rotationDeg: 0 });
+    binding.refreshCursor();
+    expect(canvas.style.cursor).toBe("crosshair");
+
+    interaction.setTool({ kind: "select" });
+    const start = toScreen({ x: 4, y: 0 }, interaction.view);
+    const end = toScreen({ x: 6, y: 0 }, interaction.view);
+    canvas.dispatchEvent(
+      pointer("pointerdown", start.x + RECT.left, start.y + RECT.top),
+    );
+    canvas.dispatchEvent(
+      pointer("pointermove", end.x + RECT.left, end.y + RECT.top),
+    );
+    expect(canvas.style.cursor).toBe("move");
+
+    canvas.dispatchEvent(
+      pointer("pointerup", end.x + RECT.left, end.y + RECT.top),
+    );
+    expect(canvas.style.cursor).toBe("");
   });
 });

@@ -15,43 +15,54 @@ export interface InspectorProps {
   ) => void;
 }
 
-/** Edits the resistances of the schematic's resistors. */
+/**
+ * Edits every parameter of every component. Names, units, defaults, and
+ * domains come from the Rust catalog.
+ */
 export function Inspector({
   state,
   schematic,
   labels,
   onCommit,
 }: InspectorProps) {
-  const resistorDefinition = state.catalog?.componentTypes
-    .find((entry) => entry.typeId === "resistor")
-    ?.parameters.find((parameter) => parameter.id === "resistanceOhms");
-  const editable =
-    resistorDefinition !== undefined && state.status !== "loading";
+  const { catalog } = state;
+  const editable = catalog !== null && state.status !== "loading";
 
   return (
     <section className="side-panel" aria-labelledby="inspector-heading">
       <h2 id="inspector-heading">Inspector</h2>
-      {resistorDefinition === undefined ? (
+      {catalog === null ? (
         <p className="panel-note">
           {state.status === "unavailable" || state.status === "failed"
             ? "The component catalog is unavailable."
             : "Waiting for the component catalog."}
         </p>
+      ) : schematic.components.length === 0 ? (
+        <p className="panel-note">
+          No components yet. Choose one from the palette.
+        </p>
       ) : (
-        schematic.components.map((component) =>
-          component.typeId === "resistor" ? (
-            <ParameterField
-              key={component.id}
-              label={labels.get(component.id) ?? "Resistor"}
-              definition={resistorDefinition}
-              committedValue={component.parameters.resistanceOhms}
-              disabled={!editable}
-              onCommit={(value) =>
-                onCommit(component.id, resistorDefinition.id, value)
-              }
-            />
-          ) : null,
-        )
+        schematic.components.flatMap((component) => {
+          const entry = catalog.componentTypes.find(
+            (candidate) => candidate.typeId === component.typeId,
+          );
+          const values = component.parameters as Record<string, number>;
+
+          return (entry?.parameters ?? []).map((definition) => {
+            const value = values[definition.id];
+
+            return value === undefined ? null : (
+              <ParameterField
+                key={`${component.id}:${definition.id}`}
+                label={labels.get(component.id) ?? component.typeId}
+                definition={definition}
+                committedValue={value}
+                disabled={!editable}
+                onCommit={(next) => onCommit(component.id, definition.id, next)}
+              />
+            );
+          });
+        })
       )}
     </section>
   );

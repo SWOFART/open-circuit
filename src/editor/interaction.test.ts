@@ -7,6 +7,7 @@ import {
   EMPTY_VIEW,
   type CanvasPointer,
   type InteractionChange,
+  type InteractionIntent,
 } from "./interaction";
 import { buildScene } from "./scene";
 import { fitView, snapToGrid, toGrid, toScreen } from "./view";
@@ -80,9 +81,8 @@ describe("selection", () => {
   it("selects the object under a left click and clears it on empty canvas", () => {
     const { interaction, changes } = setup();
 
-    expect(interaction.pointerDown(at(interaction, { x: 4, y: 0 }))).toBe(
-      false,
-    );
+    // Pressing a component also captures the pointer for a possible drag.
+    expect(interaction.pointerDown(at(interaction, { x: 4, y: 0 }))).toBe(true);
     expect(interaction.selection).toEqual({ kind: "component", id: R1 });
     expect(changes).toContain("selection");
 
@@ -350,6 +350,239 @@ describe("wheel zoom", () => {
 
     interaction.wheel({ x: 10, y: 10, deltaY: -1000, deltaMode: 0 });
 
+    expect(changes).toEqual([]);
+  });
+});
+
+function withIntents() {
+  const intents: InteractionIntent[] = [];
+  const changes: InteractionChange[] = [];
+  const interaction = new CanvasInteraction(
+    (change) => changes.push(change),
+    (intent) => intents.push(intent),
+  );
+  interaction.setViewport(VIEWPORT);
+  interaction.setScene(scene);
+  return { interaction, intents, changes };
+}
+
+describe("placement tool", () => {
+  it("places the chosen type at the snapped point and stays active", () => {
+    const { interaction, intents } = withIntents();
+    interaction.setTool({ kind: "place", typeId: "resistor", rotationDeg: 0 });
+
+    interaction.pointerDown(at(interaction, { x: 12.3, y: -2.6 }));
+    interaction.pointerUp(at(interaction, { x: 12.3, y: -2.6 }));
+    interaction.pointerDown(at(interaction, { x: 15, y: 1 }));
+
+    expect(intents).toEqual([
+      {
+        kind: "place",
+        typeId: "resistor",
+        position: { x: 12, y: -3 },
+        rotationDeg: 0,
+      },
+      {
+        kind: "place",
+        typeId: "resistor",
+        position: { x: 15, y: 1 },
+        rotationDeg: 0,
+      },
+    ]);
+    expect(interaction.tool.kind).toBe("place");
+  });
+
+  it("does not select what lies under the placement point", () => {
+    const { interaction } = withIntents();
+    interaction.select({ kind: "component", id: R1 });
+
+    interaction.setTool({ kind: "place", typeId: "resistor", rotationDeg: 0 });
+    interaction.pointerDown(at(interaction, { x: 8, y: 0 }));
+
+    expect(interaction.selection).toBeNull();
+  });
+
+  it("rotates the placement preview clockwise with R", () => {
+    const { interaction, intents, changes } = withIntents();
+    interaction.setTool({
+      kind: "place",
+      typeId: "dc_voltage_source",
+      rotationDeg: 0,
+    });
+    changes.length = 0;
+
+    interaction.rotate();
+    interaction.rotate();
+    interaction.pointerDown(at(interaction, { x: 0, y: 6 }));
+
+    expect(changes).toContain("tool");
+    expect(intents).toEqual([
+      {
+        kind: "place",
+        typeId: "dc_voltage_source",
+        position: { x: 0, y: 6 },
+        rotationDeg: 180,
+      },
+    ]);
+  });
+
+  it("returns to Select mode on Escape", () => {
+    const { interaction, intents } = withIntents();
+    interaction.setTool({ kind: "place", typeId: "resistor", rotationDeg: 0 });
+
+    interaction.escape();
+
+    expect(interaction.tool).toEqual({ kind: "select" });
+    expect(intents).toEqual([]);
+  });
+
+  it("still pans with the middle button", () => {
+    const { interaction, intents } = withIntents();
+    interaction.setTool({ kind: "place", typeId: "resistor", rotationDeg: 0 });
+
+    expect(
+      interaction.pointerDown({ x: 10, y: 10, button: 1, pointerId: 1 }),
+    ).toBe(true);
+    expect(intents).toEqual([]);
+  });
+});
+
+describe("dragging a component", () => {
+  function press(interaction: CanvasInteraction) {
+    const start = at(interaction, { x: 4, y: 0 });
+    interaction.pointerDown(start);
+    return start;
+  }
+
+  it("previews a snapped move and commits it once on release", () => {
+    const { interaction, intents, changes } = withIntents();
+    press(interaction);
+    changes.length = 0;
+
+    interaction.pointerMove(at(interaction, { x: 5.2, y: 0.4 }));
+    interaction.pointerMove(at(interaction, { x: 6.1, y: 2.2 }));
+
+    expect(interaction.isDragging).toBe(true);
+    expect(interaction.dragPreview).toEqual({
+      componentId: R1,
+      delta: { x: 2, y: 2 },
+    });
+    expect(changes).toContain("preview");
+    expect(intents).toEqual([]);
+
+    interaction.pointerUp(at(interaction, { x: 6.1, y: 2.2 }));
+
+    expect(intents).toEqual([
+      { kind: "move", componentId: R1, delta: { x: 2, y: 2 } },
+    ]);
+    expect(interaction.dragPreview).toBeNull();
+  });
+
+  it("does not start a drag for movement within the same grid cell", () => {
+    const { interaction, intents } = withIntents();
+    press(interaction);
+
+    interaction.pointerMove(at(interaction, { x: 4.3, y: 0.2 }));
+    interaction.pointerUp(at(interaction, { x: 4.3, y: 0.2 }));
+
+    expect(interaction.isDragging).toBe(false);
+    expect(intents).toEqual([]);
+    expect(interaction.selection).toEqual({ kind: "component", id: R1 });
+  });
+
+  it("commits nothing when released back at the start", () => {
+    const { interaction, intents } = withIntents();
+    press(interaction);
+
+    interaction.pointerMove(at(interaction, { x: 6, y: 0 }));
+    interaction.pointerMove(at(interaction, { x: 4, y: 0 }));
+    interaction.pointerUp(at(interaction, { x: 4, y: 0 }));
+
+    expect(intents).toEqual([]);
+  });
+
+  it.each([
+    ["Escape", (interaction: CanvasInteraction) => interaction.escape()],
+    ["Undo", (interaction: CanvasInteraction) => interaction.undo()],
+    [
+      "pointer cancel",
+      (interaction: CanvasInteraction) => interaction.pointerCancel(1),
+    ],
+  ])("cancels the drag on %s without committing", (_, cancel) => {
+    const { interaction, intents } = withIntents();
+    press(interaction);
+    interaction.pointerMove(at(interaction, { x: 7, y: 1 }));
+
+    cancel(interaction);
+    interaction.pointerUp(at(interaction, { x: 7, y: 1 }));
+
+    expect(interaction.dragPreview).toBeNull();
+    expect(intents).toEqual([]);
+  });
+
+  it("does not drag wires or markers", () => {
+    const { interaction } = withIntents();
+
+    expect(interaction.pointerDown(at(interaction, { x: 6, y: 0 }))).toBe(
+      false,
+    );
+    interaction.pointerMove(at(interaction, { x: 6, y: 3 }));
+
+    expect(interaction.isDragging).toBe(false);
+  });
+});
+
+describe("keyboard commands", () => {
+  it("rotates the selected component", () => {
+    const { interaction, intents } = withIntents();
+    interaction.select({ kind: "component", id: R1 });
+
+    interaction.rotate();
+
+    expect(intents).toEqual([{ kind: "rotate", componentId: R1 }]);
+  });
+
+  it("does not rotate a selected wire or an empty selection", () => {
+    const { interaction, intents } = withIntents();
+
+    interaction.rotate();
+    interaction.select({ kind: "wire", id: MIDDLE_WIRE });
+    interaction.rotate();
+
+    expect(intents).toEqual([]);
+  });
+
+  it("deletes the selection, but not during a drag", () => {
+    const { interaction, intents } = withIntents();
+    interaction.pointerDown(at(interaction, { x: 4, y: 0 }));
+    interaction.pointerMove(at(interaction, { x: 6, y: 0 }));
+
+    interaction.deleteSelection();
+    expect(intents).toEqual([]);
+
+    interaction.escape();
+    interaction.deleteSelection();
+    expect(intents).toEqual([
+      { kind: "delete", target: { kind: "component", id: R1 } },
+    ]);
+  });
+
+  it("asks for undo and redo when no gesture is in progress", () => {
+    const { interaction, intents } = withIntents();
+
+    interaction.undo();
+    interaction.redo();
+
+    expect(intents).toEqual([{ kind: "undo" }, { kind: "redo" }]);
+  });
+
+  it("leaves Select mode alone on Escape", () => {
+    const { interaction, changes } = withIntents();
+    changes.length = 0;
+
+    interaction.escape();
+
+    expect(interaction.tool).toEqual({ kind: "select" });
     expect(changes).toEqual([]);
   });
 });

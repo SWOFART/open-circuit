@@ -264,7 +264,14 @@ adapter; an Engine rejection leaves the editable document intact.
 `src/editor/interaction.ts` owns the canvas view transform, pan and zoom
 gestures, the snapped pointer position, and the single selection, with no
 PixiJS, DOM, or React dependency. `src/editor/canvasInput.ts` feeds it canvas
-pointer, wheel, and Space-key events, and `EditorCore` renders its state.
+pointer, wheel, and keyboard events, and `EditorCore` renders its state.
+Completed gestures leave the canvas as intents; `src/editor/commands.ts` turns
+them into document commands (placement, a component transform together with
+the wires that follow its pins, deletion, undo, redo), which the application
+applies to the document store. `SimulationController.syncDocument` then brings
+the Engine to the new document: a lone parameter edit uses the lightweight
+parameter update, and any other change recompiles the whole document, one
+compile at a time and always for the newest document.
 
 - **`EditorCore`** is a plain TS class using PixiJS, with no React. React handles panels only. Reasons: performance with thousands of objects, and editor logic can be tested in Vitest without a browser.
 - **Immutable document, history via `immer`** (patches and inverse patches): undo/redo works automatically for any change, with no hand-written do/undo pairs.

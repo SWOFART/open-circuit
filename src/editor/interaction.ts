@@ -1,4 +1,7 @@
+import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { GridPoint } from "../generated/GridPoint";
+import type { StableId } from "../generated/StableId";
+import type { Rotation } from "./geometry";
 import { hitTest, sceneContains, type SelectionTarget } from "./hitTest";
 import type { SceneModel, ScenePoint } from "./scene";
 import {
@@ -40,7 +43,44 @@ export interface CanvasWheel {
 }
 
 /** What a change affects, so the renderer redraws only what it must. */
-export type InteractionChange = "view" | "selection" | "pointer";
+export type InteractionChange =
+  "view" | "selection" | "pointer" | "tool" | "preview";
+
+/** The active canvas tool. Placement stays active for repeated placement. */
+export type EditorTool =
+  | { readonly kind: "select" }
+  | {
+      readonly kind: "place";
+      readonly typeId: ComponentTypeId;
+      readonly rotationDeg: Rotation;
+    };
+
+/**
+ * A completed user action, in grid terms. The editor turns it into a document
+ * operation; nothing here changes the document directly.
+ */
+export type InteractionIntent =
+  | {
+      readonly kind: "place";
+      readonly typeId: ComponentTypeId;
+      readonly position: GridPoint;
+      readonly rotationDeg: Rotation;
+    }
+  | {
+      readonly kind: "move";
+      readonly componentId: StableId;
+      readonly delta: GridPoint;
+    }
+  | { readonly kind: "rotate"; readonly componentId: StableId }
+  | { readonly kind: "delete"; readonly target: SelectionTarget }
+  | { readonly kind: "undo" }
+  | { readonly kind: "redo" };
+
+/** A component being dragged, offset from its committed position. */
+export interface DragPreview {
+  readonly componentId: StableId;
+  readonly delta: GridPoint;
+}
 
 type Gesture =
   | { readonly kind: "idle" }
@@ -48,12 +88,21 @@ type Gesture =
       readonly kind: "panning";
       readonly pointerId: number;
       readonly last: ScenePoint;
+    }
+  | {
+      // Pressed on a component; it becomes a drag once the snapped point moves.
+      readonly kind: "pressing" | "dragging";
+      readonly pointerId: number;
+      readonly componentId: StableId;
+      readonly start: GridPoint;
+      readonly delta: GridPoint;
     };
 
 /**
- * Select-mode pointer state for the canvas: view transform, pan and zoom
- * gestures, the snapped pointer position, and the single selection. It knows
- * nothing about PixiJS, the DOM, or React, so it is tested directly.
+ * Pointer and keyboard state for the canvas: view transform, pan and zoom
+ * gestures, the snapped pointer position, the single selection, the active
+ * tool, and component drags. Completed actions are reported as intents. It
+ * knows nothing about PixiJS, the DOM, or React, so it is tested directly.
  *
  * The view fits the circuit until the user pans or zooms; after that, resizes
  * and edits keep the user's view until `fitToCircuit` is called.
@@ -69,10 +118,27 @@ export class CanvasInteraction {
   private pointer: GridPoint | null = null;
   // Last pointer position in canvas pixels, to re-snap after a view refit.
   private pointerScreen: ScenePoint | null = null;
+  private currentTool: EditorTool = { kind: "select" };
 
   constructor(
     private readonly onChange: (change: InteractionChange) => void = () => {},
+    private readonly onIntent: (intent: InteractionIntent) => void = () => {},
   ) {}
+
+  get tool(): EditorTool {
+    return this.currentTool;
+  }
+
+  /** The component drag in progress, or null. */
+  get dragPreview(): DragPreview | null {
+    return this.gesture.kind === "dragging"
+      ? { componentId: this.gesture.componentId, delta: this.gesture.delta }
+      : null;
+  }
+
+  get isDragging(): boolean {
+    return this.gesture.kind === "dragging";
+  }
 
   get view(): ViewTransform {
     return this.currentView;
@@ -139,10 +205,23 @@ export class CanvasInteraction {
     this.onChange("selection");
   }
 
-  /** Returns true when a pan starts, so the caller captures the pointer. */
+  /** Switches tools; any uncommitted gesture is canceled first. */
+  setTool(tool: EditorTool): void {
+    this.cancelGesture();
+    this.currentTool = tool;
+    if (tool.kind === "place") {
+      this.select(null);
+    }
+    this.onChange("tool");
+  }
+
+  /**
+   * Returns true when a pan or a component press starts, so the caller
+   * captures the pointer.
+   */
   pointerDown(pointer: CanvasPointer): boolean {
     this.updatePointer(pointer);
-    // A new press from the panning pointer means its release was missed
+    // A new press from the gesture's own pointer means its release was missed
     // (for example, released off the canvas without capture).
     this.endGesture(pointer.pointerId);
 
@@ -163,15 +242,40 @@ export class CanvasInteraction {
       return true;
     }
 
-    if (pointer.button === LEFT_BUTTON) {
-      const hit = this.scene
-        ? hitTest(
-            this.scene,
-            toGrid(pointer, this.currentView),
-            HIT_TOLERANCE_PX / this.currentView.scale,
-          )
-        : null;
-      this.select(hit);
+    if (pointer.button !== LEFT_BUTTON) {
+      return false;
+    }
+
+    const at = screenToGridPoint(pointer, this.currentView);
+
+    if (this.currentTool.kind === "place") {
+      this.onIntent({
+        kind: "place",
+        typeId: this.currentTool.typeId,
+        position: at,
+        rotationDeg: this.currentTool.rotationDeg,
+      });
+      return false;
+    }
+
+    const hit = this.scene
+      ? hitTest(
+          this.scene,
+          toGrid(pointer, this.currentView),
+          HIT_TOLERANCE_PX / this.currentView.scale,
+        )
+      : null;
+    this.select(hit);
+
+    if (hit?.kind === "component") {
+      this.gesture = {
+        kind: "pressing",
+        pointerId: pointer.pointerId,
+        componentId: hit.id,
+        start: at,
+        delta: { x: 0, y: 0 },
+      };
+      return true;
     }
 
     return false;
@@ -190,16 +294,100 @@ export class CanvasInteraction {
     }
 
     this.updatePointer(pointer);
+
+    if (
+      (this.gesture.kind === "pressing" || this.gesture.kind === "dragging") &&
+      this.gesture.pointerId === pointer.pointerId &&
+      this.pointer
+    ) {
+      const delta = {
+        x: this.pointer.x - this.gesture.start.x,
+        y: this.pointer.y - this.gesture.start.y,
+      };
+
+      if (
+        delta.x !== this.gesture.delta.x ||
+        delta.y !== this.gesture.delta.y
+      ) {
+        this.gesture = { ...this.gesture, kind: "dragging", delta };
+        this.onChange("preview");
+      }
+    }
   }
 
+  /** Ends the gesture; a component drag commits one snapped move. */
   pointerUp(pointer: CanvasPointer): void {
-    this.endGesture(pointer.pointerId);
     this.updatePointer(pointer);
+
+    const gesture = this.gesture;
+    this.endGesture(pointer.pointerId);
+
+    if (
+      gesture.kind === "dragging" &&
+      gesture.pointerId === pointer.pointerId &&
+      (gesture.delta.x !== 0 || gesture.delta.y !== 0)
+    ) {
+      this.onIntent({
+        kind: "move",
+        componentId: gesture.componentId,
+        delta: gesture.delta,
+      });
+    }
   }
 
-  /** The pointer was canceled or lost capture: end its gesture. */
+  /**
+   * The pointer was canceled or lost capture: end its gesture without
+   * committing anything.
+   */
   pointerCancel(pointerId: number): void {
     this.endGesture(pointerId);
+  }
+
+  /**
+   * Escape cancels an uncommitted gesture; otherwise it returns a placement
+   * tool to Select mode.
+   */
+  escape(): void {
+    if (!this.cancelGesture() && this.currentTool.kind !== "select") {
+      this.setTool({ kind: "select" });
+    }
+  }
+
+  /** R: rotates the placement preview or the selected component clockwise. */
+  rotate(): void {
+    if (this.currentTool.kind === "place") {
+      this.currentTool = {
+        ...this.currentTool,
+        rotationDeg: ((this.currentTool.rotationDeg + 90) % 360) as Rotation,
+      };
+      this.onChange("tool");
+      return;
+    }
+
+    if (this.gesture.kind === "idle" && this.selected?.kind === "component") {
+      this.onIntent({ kind: "rotate", componentId: this.selected.id });
+    }
+  }
+
+  /** Delete or Backspace: removes the selected object. */
+  deleteSelection(): void {
+    if (this.gesture.kind === "idle" && this.selected) {
+      this.onIntent({ kind: "delete", target: this.selected });
+    }
+  }
+
+  /** Undo during an uncommitted gesture only cancels that gesture. */
+  undo(): void {
+    if (!this.cancelGesture()) {
+      this.onIntent({ kind: "undo" });
+    }
+  }
+
+  /** Like undo, redo first cancels an uncommitted gesture. */
+  redo(): void {
+    if (!this.cancelGesture()) {
+      this.onIntent({ kind: "redo" });
+    }
   }
 
   pointerLeave(): void {
@@ -229,13 +417,24 @@ export class CanvasInteraction {
   }
 
   private endGesture(pointerId: number): void {
-    if (
-      this.gesture.kind === "panning" &&
-      this.gesture.pointerId === pointerId
-    ) {
-      this.gesture = { kind: "idle" };
-      this.onChange("pointer");
+    if (this.gesture.kind !== "idle" && this.gesture.pointerId === pointerId) {
+      this.cancelGesture();
     }
+  }
+
+  /** Drops any gesture without committing. Returns true if there was one. */
+  private cancelGesture(): boolean {
+    const previous = this.gesture;
+    if (previous.kind === "idle") {
+      return false;
+    }
+
+    this.gesture = { kind: "idle" };
+    if (previous.kind === "dragging") {
+      this.onChange("preview");
+    }
+    this.onChange("pointer");
+    return true;
   }
 
   private fit(): void {

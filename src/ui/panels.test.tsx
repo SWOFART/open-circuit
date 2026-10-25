@@ -227,6 +227,49 @@ describe("Inspector", () => {
     expect(markup).not.toContain("disabled");
   });
 
+  it("offers every catalog parameter of the voltage source", () => {
+    const markup = renderToStaticMarkup(
+      <Inspector
+        state={readyState([1, 2])}
+        schematic={dividerSchematic}
+        labels={labels}
+        onCommit={noCommit}
+      />,
+    );
+
+    expect(markup).toContain("V1 voltage");
+    expect(markup).toContain("V1 internal resistance");
+    expect(markup).toContain('value="5 V"');
+  });
+
+  it("keeps fields editable when the engine rejects the circuit", () => {
+    const markup = renderToStaticMarkup(
+      <Inspector
+        state={{ ...readyState([1, 2]), status: "failed" }}
+        schematic={dividerSchematic}
+        labels={labels}
+        onCommit={noCommit}
+      />,
+    );
+
+    expect(markup).toContain("R1 resistance");
+    expect(markup).not.toContain("disabled");
+  });
+
+  it("points to the palette when the schematic is empty", () => {
+    const markup = renderToStaticMarkup(
+      <Inspector
+        state={readyState([1, 2])}
+        schematic={{ ...dividerSchematic, components: [] }}
+        labels={labels}
+        onCommit={noCommit}
+      />,
+    );
+
+    expect(markup).toContain("No components yet.");
+    expect(markup).not.toContain("<input");
+  });
+
   it("keeps document editing available when simulation is unavailable", () => {
     const markup = renderToStaticMarkup(
       <Inspector
@@ -250,7 +293,8 @@ describe("Inspector", () => {
       />,
     );
 
-    expect(markup.match(/disabled/g)).toHaveLength(2);
+    // V1 voltage and internal resistance, R1, and R2.
+    expect(markup.match(/disabled/g)).toHaveLength(4);
   });
 
   it("says so when the catalog could not be loaded", () => {

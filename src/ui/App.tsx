@@ -5,14 +5,18 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import type { EditorCommand } from "../editor/commands";
 import { EditorCore } from "../editor/EditorCore";
+import type { EditorTool } from "../editor/interaction";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
   componentLabels,
   dividerSchematic,
 } from "../store/fixtures";
 import { SchematicDocumentStore } from "../store/document";
+import { applyEditorCommand } from "./editorCommands";
 import { Inspector } from "./Inspector";
+import { Palette } from "./Palette";
 import { ResultPanel } from "./ResultPanel";
 import { useSimulation } from "./useSimulation";
 
@@ -24,6 +28,8 @@ export function App() {
   const canvasHost = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorCore | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [tool, setTool] = useState<EditorTool>({ kind: "select" });
   const documentStore = useMemo(
     () => new SchematicDocumentStore(dividerSchematic),
     [],
@@ -33,11 +39,29 @@ export function App() {
     documentStore.getState,
     documentStore.getState,
   );
-  const { state, controller } = useSimulation(dividerSchematic);
+  // The store's own copy, so the first document sync below is a no-op.
+  const initialSchematic = useMemo(
+    () => documentStore.getState().schematic,
+    [documentStore],
+  );
+  const { state, controller } = useSimulation(initialSchematic);
   const labels = useMemo(
     () => componentLabels(document.schematic),
     [document.schematic],
   );
+
+  // The editor is created once; commands always use the latest catalog.
+  const commandHandler = useRef<(command: EditorCommand) => void>(() => {});
+  useEffect(() => {
+    commandHandler.current = (command) => {
+      try {
+        applyEditorCommand(documentStore, command, state.catalog);
+        setEditError(null);
+      } catch (error) {
+        setEditError(error instanceof Error ? error.message : String(error));
+      }
+    };
+  });
 
   useEffect(() => {
     const host = canvasHost.current;
@@ -46,7 +70,10 @@ export function App() {
       return;
     }
 
-    const editor = new EditorCore();
+    const editor = new EditorCore({
+      onCommand: (command) => commandHandler.current(command),
+      onToolChange: setTool,
+    });
     editorRef.current = editor;
     void editor.mount(host).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
@@ -63,6 +90,12 @@ export function App() {
     editorRef.current?.setSchematic(document.schematic, labels);
   }, [document.schematic, labels]);
 
+  // Every document change reaches the Engine; parameter edits are sent
+  // directly by the Inspector, so this then finds nothing new.
+  useEffect(() => {
+    void controller?.syncDocument(document.schematic);
+  }, [controller, document.schematic]);
+
   return (
     <main className="workspace">
       <header className="app-header">
@@ -76,11 +109,31 @@ export function App() {
       <div className="workspace-body">
         <section className="editor-panel" aria-label="Circuit editor">
           <div className="editor-toolbar">
-            <span>Voltage divider</span>
+            <Palette
+              catalog={state.catalog}
+              tool={tool}
+              onSelectTool={(next) => editorRef.current?.setTool(next)}
+            />
             <div className="editor-actions">
               <span className="editor-hint">
                 {document.isDirty ? "Unsaved changes" : "Example"}
               </span>
+              <button
+                type="button"
+                className="toolbar-button"
+                disabled={!document.canUndo}
+                onClick={() => commandHandler.current({ kind: "undo" })}
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                className="toolbar-button"
+                disabled={!document.canRedo}
+                onClick={() => commandHandler.current({ kind: "redo" })}
+              >
+                Redo
+              </button>
               <button
                 type="button"
                 className="toolbar-button"
@@ -91,6 +144,11 @@ export function App() {
             </div>
           </div>
           <div ref={canvasHost} className="editor-canvas" />
+          {editError && (
+            <p className="editor-error" role="alert">
+              The edit was not applied: {editError}
+            </p>
+          )}
           {editorError && (
             <p className="editor-error" role="alert">
               The canvas could not be initialized: {editorError}
@@ -105,13 +163,24 @@ export function App() {
             labels={labels}
             onCommit={(componentId, parameterId, value) => {
               if (!state.catalog) return;
-              documentStore.setParameter(
-                componentId,
-                parameterId,
-                value,
-                state.catalog,
+              try {
+                documentStore.setParameter(
+                  componentId,
+                  parameterId,
+                  value,
+                  state.catalog,
+                );
+                setEditError(null);
+              } catch (error) {
+                setEditError(
+                  error instanceof Error ? error.message : String(error),
+                );
+                return;
+              }
+              void controller?.syncDocument(
+                documentStore.getState().schematic,
+                { componentId, parameterId, value },
               );
-              void controller?.setParameter(componentId, parameterId, value);
             }}
           />
           <ResultPanel
