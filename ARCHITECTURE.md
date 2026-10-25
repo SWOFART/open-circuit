@@ -273,6 +273,17 @@ catalog, run, diagnostics, snapshot, and frame-delivery state. UI parameter
 edits are committed to the document store first, then sent through the Engine
 adapter; an Engine rejection leaves the editable document intact.
 
+The oscilloscope is a separate application store, `src/store/traces.ts`
+(`OscilloscopeController`, plain TypeScript, with its React panel in
+`src/ui/Oscilloscope.tsx`); it neither imports nor is imported by
+`src/editor`. It follows the active run of `SimulationController` and reads
+bounded trace responses through the Engine adapter (`readTraces`, decoded by
+`src/store/traceCodec.ts`). It keeps only the latest decimated response for the
+selected signals and the chosen window, never the history; it drops all data when
+the run or layout changes and discards a response that does not belong to the
+current run and selection. The selected signals and window are editor state and
+are not saved with the project.
+
 `src/editor/interaction.ts` owns the canvas view transform, pan and zoom
 gestures, the snapped pointer position, the single selection, the active tool,
 drags, and the wire route being drawn, with no PixiJS, DOM, or React

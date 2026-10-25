@@ -28,9 +28,11 @@ import {
   type ProjectShortcut,
 } from "./projectShortcuts";
 import { Inspector } from "./Inspector";
+import { Oscilloscope } from "./Oscilloscope";
 import { Palette, toolHint } from "./Palette";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { ResultPanel } from "./ResultPanel";
+import { useOscilloscope } from "./useOscilloscope";
 import { useSimulation } from "./useSimulation";
 
 // True only in a development build that explicitly asked for the mock adapter.
@@ -84,7 +86,11 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
     () => documentStore.getState().schematic,
     [documentStore],
   );
-  const { state, controller } = useSimulation(initialSchematic);
+  const { state, controller, adapter } = useSimulation(initialSchematic);
+  const { scope, controller: scopeController } = useOscilloscope(
+    adapter,
+    controller,
+  );
   // Names stay with their components through edits, undo, and redo.
   const labels = document.labels;
   const hint = toolHint(status);
@@ -485,6 +491,16 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
             outputComponentId={DIVIDER_OUTPUT_COMPONENT_ID}
           />
         </aside>
+
+        <Oscilloscope
+          simulation={state}
+          scope={scope}
+          labels={labels}
+          onToggleSignal={(key) => scopeController?.toggleSignal(key)}
+          onWindowChange={(seconds) =>
+            scopeController?.setWindowSeconds(seconds)
+          }
+        />
       </div>
 
       <footer className="app-footer">

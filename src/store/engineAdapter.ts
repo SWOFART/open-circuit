@@ -6,7 +6,13 @@ import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
+import type { TraceBatch } from "../generated/TraceBatch";
+import type { TraceRequest } from "../generated/TraceRequest";
 import { decodeFrame } from "./frameCodec";
+import { decodeTrace, type DecodedTrace } from "./traceCodec";
+
+/** How long a trace response may take to arrive after the request was accepted. */
+export const TRACE_DELIVERY_TIMEOUT_MS = 5000;
 
 /** What the adapter reports about live frames. Neither callback may throw. */
 export interface FrameHandlers {
@@ -30,6 +36,14 @@ export interface EngineAdapter {
    * already returned by `compile` and `setParameter`, never the only source of them.
    */
   startFrames(runId: StableId, handlers: FrameHandlers): Promise<() => void>;
+  /**
+   * Reads one bounded trace response for the active run: the Engine's stored samples
+   * of the requested signals, decimated to `maxPoints` with their minimum and maximum
+   * kept. The adapter decodes and acknowledges the response; deciding whether it still
+   * belongs to the current run is the caller's job, because a recompile can overtake
+   * a request.
+   */
+  readTraces(request: TraceRequest): Promise<TraceBatch>;
 }
 
 /** The backend cannot be reached, as opposed to rejecting the circuit. */
@@ -198,6 +212,72 @@ export class TauriEngineAdapter implements EngineAdapter {
       invoke("stop_simulation", { runId }).catch(() => {});
     };
   }
+
+  async readTraces(request: TraceRequest): Promise<TraceBatch> {
+    requireTauri();
+
+    const channel = new Channel<ArrayBuffer>();
+    // The response arrives on the channel, separately from the command's own reply and
+    // in either order, so both are awaited.
+    const received = new Promise<DecodedTrace>((resolve, reject) => {
+      channel.onmessage = (message) => {
+        if (!(message instanceof ArrayBuffer)) {
+          reject(new Error("The engine sent a trace that is not binary."));
+          return;
+        }
+
+        try {
+          resolve(decodeTrace(message));
+        } catch (error) {
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      };
+    });
+    // A failing command is reported below; this keeps the unused branch quiet.
+    received.catch(() => {});
+
+    try {
+      await call("read_traces", { request, onTrace: channel });
+
+      const decoded = await withTimeout(received, TRACE_DELIVERY_TIMEOUT_MS);
+      const sequence = Number(decoded.traceSequence);
+
+      // Acknowledging releases the one outstanding response of this run, so the backend
+      // may serve the next request. Without it a request waits for the backend's timeout.
+      if (Number.isSafeInteger(sequence)) {
+        invoke("acknowledge_trace", {
+          runId: request.runId,
+          traceSequence: sequence,
+        }).catch(() => {});
+      }
+
+      return decoded.batch;
+    } finally {
+      channel.onmessage = () => {};
+    }
+  }
+}
+
+/** Waits for `promise`, failing as an unavailable engine after `milliseconds`. */
+function withTimeout<T>(promise: Promise<T>, milliseconds: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(
+        new EngineUnavailableError("The engine did not deliver the trace."),
+      );
+    }, milliseconds);
+
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
 }
 
 /**

@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import frameFixture from "../../tests/golden/stage-1-frame.json";
+import traceFixture from "../../tests/golden/stage-3-trace.json";
 import type { CompileRequest } from "../generated/CompileRequest";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
+import type { TraceRequest } from "../generated/TraceRequest";
 import { dividerSchematic } from "./fixtures";
 
 // A stand-in for the Tauri JavaScript API: commands are recorded and answered by the
@@ -39,7 +41,11 @@ vi.mock("@tauri-apps/api/core", () => ({
   },
 }));
 
-import { EngineUnavailableError, TauriEngineAdapter } from "./engineAdapter";
+import {
+  EngineUnavailableError,
+  TauriEngineAdapter,
+  TRACE_DELIVERY_TIMEOUT_MS,
+} from "./engineAdapter";
 
 const RUN_ID = "00000000-0000-4000-8000-0000000000a0";
 
@@ -337,5 +343,160 @@ describe("the frame stream", () => {
     await expect(
       new TauriEngineAdapter().startFrames(RUN_ID, handlers().handlers),
     ).rejects.toThrow(/cannot be started/);
+  });
+});
+
+const TRACE_RUN_ID = traceFixture.header.metadata.runId;
+
+const traceRequest: TraceRequest = {
+  runId: TRACE_RUN_ID,
+  layoutVersion: 1,
+  signalKeys: traceFixture.header.signals.map((signal) => signal.key),
+  query: { kind: "history", startStep: 100, endStep: 200 },
+  maxPoints: 2048,
+};
+
+type FakeChannelInstance = InstanceType<typeof tauri.FakeChannel>;
+
+function traceChannel(): FakeChannelInstance {
+  const call = tauri.state.calls.find(
+    (candidate) => candidate.command === "read_traces",
+  );
+
+  return call?.args?.onTrace as FakeChannelInstance;
+}
+
+describe("trace reads", () => {
+  it("asks for the traces over a binary channel and decodes the response", async () => {
+    tauri.state.answer = (command, args) => {
+      if (command === "read_traces") {
+        // The backend sends the response before it replies to the command.
+        (args?.onTrace as FakeChannelInstance).onmessage(
+          fromHex(traceFixture.hex),
+        );
+      }
+    };
+
+    const batch = await new TauriEngineAdapter().readTraces(traceRequest);
+
+    expect(tauri.state.calls[0]).toMatchObject({
+      command: "read_traces",
+      args: { request: traceRequest },
+    });
+    expect(traceChannel()).toBeInstanceOf(tauri.FakeChannel);
+    expect(batch.metadata.runId).toBe(TRACE_RUN_ID);
+    expect(batch.metadata.latestSampleStep).toBe(105n);
+    expect(batch.points).toHaveLength(traceFixture.points.length);
+    expect(batch.signals.map((signal) => signal.unit)).toEqual(["volt", "amp"]);
+  });
+
+  it("accepts a response that arrives after the command's own reply", async () => {
+    const pending = new TauriEngineAdapter().readTraces(traceRequest);
+    await vi.waitFor(() => expect(commandsCalled()).toContain("read_traces"));
+
+    traceChannel().onmessage(fromHex(traceFixture.hex));
+
+    expect((await pending).points).toHaveLength(3);
+  });
+
+  it("acknowledges the response with its run and sequence as plain numbers", async () => {
+    tauri.state.answer = (command, args) => {
+      if (command === "read_traces") {
+        (args?.onTrace as FakeChannelInstance).onmessage(
+          fromHex(traceFixture.hex),
+        );
+      }
+    };
+
+    await new TauriEngineAdapter().readTraces(traceRequest);
+
+    expect(tauri.state.calls.at(-1)).toEqual({
+      command: "acknowledge_trace",
+      args: { runId: TRACE_RUN_ID, traceSequence: 7 },
+    });
+    expect(typeof tauri.state.calls.at(-1)?.args?.traceSequence).toBe("number");
+  });
+
+  it("rejects a corrupt response without acknowledging it", async () => {
+    const corrupt = new Uint8Array(fromHex(traceFixture.hex));
+    corrupt[0] = 0x58;
+    tauri.state.answer = (command, args) => {
+      if (command === "read_traces") {
+        (args?.onTrace as FakeChannelInstance).onmessage(corrupt.buffer);
+      }
+    };
+
+    await expect(
+      new TauriEngineAdapter().readTraces(traceRequest),
+    ).rejects.toThrow(/OCT1 magic/);
+    expect(commandsCalled()).not.toContain("acknowledge_trace");
+  });
+
+  it("rejects a message that is not binary", async () => {
+    tauri.state.answer = (command, args) => {
+      if (command === "read_traces") {
+        (args?.onTrace as FakeChannelInstance).onmessage({ not: "binary" });
+      }
+    };
+
+    await expect(
+      new TauriEngineAdapter().readTraces(traceRequest),
+    ).rejects.toThrow(/not binary/);
+  });
+
+  it("reports a refused request as an unavailable engine", async () => {
+    tauri.state.answer = () => {
+      throw "the trace request cannot be served: Some(StaleRun)";
+    };
+
+    const error = await new TauriEngineAdapter()
+      .readTraces(traceRequest)
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(EngineUnavailableError);
+    expect((error as Error).message).toMatch(/StaleRun/);
+  });
+
+  it("gives up when no response arrives", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const outcome = new TauriEngineAdapter()
+        .readTraces(traceRequest)
+        .catch((caught: unknown) => caught);
+
+      await vi.advanceTimersByTimeAsync(TRACE_DELIVERY_TIMEOUT_MS + 1);
+
+      expect(await outcome).toBeInstanceOf(EngineUnavailableError);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores a response that arrives after the read was given up", async () => {
+    vi.useFakeTimers();
+
+    try {
+      const outcome = new TauriEngineAdapter()
+        .readTraces(traceRequest)
+        .catch((caught: unknown) => caught);
+
+      await vi.advanceTimersByTimeAsync(TRACE_DELIVERY_TIMEOUT_MS + 1);
+      await outcome;
+      traceChannel().onmessage(fromHex(traceFixture.hex));
+
+      expect(commandsCalled()).not.toContain("acknowledge_trace");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refuses to read outside the desktop app", async () => {
+    tauri.state.inTauri = false;
+
+    await expect(
+      new TauriEngineAdapter().readTraces(traceRequest),
+    ).rejects.toThrow(/desktop app/);
+    expect(tauri.state.calls).toEqual([]);
   });
 });

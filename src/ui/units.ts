@@ -62,8 +62,14 @@ export const DISPLAY_SIGNIFICANT_DIGITS = 7;
 
 /** Formats an SI value with a prefix, such as `1 kΩ` or `2.499875 V`. */
 export function formatSi(value: number, unit: Unit): string {
-  const symbol = unitSymbols[unit];
+  return formatWithSymbol(value, unitSymbols[unit]);
+}
 
+/**
+ * The same formatting for a unit that is not a catalog unit, such as `s` for the
+ * oscilloscope's time axis.
+ */
+export function formatWithSymbol(value: number, symbol: string): string {
   if (!Number.isFinite(value)) {
     return "—";
   }

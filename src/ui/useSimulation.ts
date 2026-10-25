@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { Schematic } from "../generated/Schematic";
-import { createEngineAdapter } from "../store/engineAdapter";
+import {
+  createEngineAdapter,
+  type EngineAdapter,
+} from "../store/engineAdapter";
 import {
   initialSimulationState,
   SimulationController,
@@ -17,10 +20,14 @@ const noopSubscribe = (): (() => void) => () => {};
 export function useSimulation(schematic: Schematic): {
   state: SimulationState;
   controller: SimulationController | null;
+  /** The adapter the controller uses, for the other readers of the Engine. */
+  adapter: EngineAdapter | null;
 } {
-  const [controller, setController] = useState<SimulationController | null>(
-    null,
-  );
+  const [session, setSession] = useState<{
+    controller: SimulationController;
+    adapter: EngineAdapter;
+  } | null>(null);
+  const controller = session?.controller ?? null;
   const idleState = useMemo(() => initialSimulationState(), []);
 
   useEffect(() => {
@@ -33,14 +40,14 @@ export function useSimulation(schematic: Schematic): {
       }
 
       created = new SimulationController(adapter);
-      setController(created);
+      setSession({ controller: created, adapter });
       void created.start(schematic);
     });
 
     return () => {
       cancelled = true;
       created?.dispose();
-      setController(null);
+      setSession(null);
     };
   }, [schematic]);
 
@@ -51,5 +58,5 @@ export function useSimulation(schematic: Schematic): {
     getSnapshot,
   );
 
-  return { state, controller };
+  return { state, controller, adapter: session?.adapter ?? null };
 }
