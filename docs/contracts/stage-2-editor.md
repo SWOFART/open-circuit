@@ -70,8 +70,9 @@ UTF-8 JSON Schematic object, with no project wrapper:
   version control.
 - The save path is application state, not part of the Schematic and not
   serialized into the project file.
-- Selection, active tool, viewport pan/zoom, undo/redo history, and temporary
-  gesture previews are editor state and are not persisted.
+- Selection, active tool, viewport pan/zoom, undo/redo history, component
+  display names (section 3.2), and temporary gesture previews are editor state
+  and are not persisted.
 
 ## 3. Editing model
 
@@ -129,6 +130,16 @@ UTF-8 JSON Schematic object, with no project wrapper:
 - Deleting a selected component removes only that component. Wires and markers
   remain as drawn, even if they become dangling or detached; the user may edit
   or remove them separately.
+- Components are shown under display names such as `R1` and `V1`. A name
+  belongs to the component's stable ID and does not change while the document
+  stays open: components present when the document is opened or created are
+  numbered per type in file order, a component placed later takes the next
+  number of its type, and numbers are never reused. Deleting, placing,
+  moving, rotating, editing, undoing, or redoing therefore never renames
+  another component, and undoing a deletion restores the name too. Names are
+  editor state: they are not saved, and reopening a file numbers its
+  components in file order again. Results and diagnostics use the same names,
+  including for a component that was deleted after the result was computed.
 - The existing Inspector commits a parameter edit as one document operation.
   It reads parameter names, units, defaults, and domains from the Rust catalog.
   The Engine remains authoritative for validation and recalculation.

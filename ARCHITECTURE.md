@@ -256,7 +256,9 @@ incomplete but structurally valid schematic remains editable when the Engine
 reports electrical diagnostics.
 
 `src/store/document.ts` owns the immutable editable schematic, its undo/redo
-patch history, and saved-state comparison. `src/store/simulation.ts` owns only
+patch history, saved-state comparison, and the display names of components
+(`src/store/labels.ts`: a name is given once per stable ID and never reused or
+saved). `src/store/simulation.ts` owns only
 catalog, run, diagnostics, snapshot, and frame-delivery state. UI parameter
 edits are committed to the document store first, then sent through the Engine
 adapter; an Engine rejection leaves the editable document intact.

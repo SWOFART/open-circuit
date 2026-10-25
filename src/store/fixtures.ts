@@ -1,6 +1,7 @@
 import schematicFixture from "../../tests/golden/stage-1-divider.schematic.json";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
+import { ComponentLabels } from "./labels";
 
 // The canonical Stage 1 fixture is the single source for the demo circuit.
 // Its shape is verified by the Rust serialization tests, which round-trip the
@@ -14,21 +15,11 @@ export const dividerSchematic = schematicFixture as Schematic;
 export const DIVIDER_OUTPUT_COMPONENT_ID =
   "00000000-0000-4000-8000-000000000003";
 
-/** Display names such as `V1`, `R1`, `R2`, numbered per type in file order. */
+/**
+ * Display names such as `V1`, `R1`, `R2` for a schematic seen once: numbered per
+ * type in file order. A document being edited uses the store's labels instead,
+ * which keep each name through edits (see `ComponentLabels`).
+ */
 export function componentLabels(schematic: Schematic): Map<StableId, string> {
-  const counters = new Map<string, number>();
-  const prefixes: Record<Schematic["components"][number]["typeId"], string> = {
-    resistor: "R",
-    dc_voltage_source: "V",
-  };
-  const labels = new Map<StableId, string>();
-
-  for (const component of schematic.components) {
-    const prefix = prefixes[component.typeId];
-    const count = (counters.get(prefix) ?? 0) + 1;
-    counters.set(prefix, count);
-    labels.set(component.id, `${prefix}${count}`);
-  }
-
-  return labels;
+  return new Map(new ComponentLabels().labelsFor(schematic));
 }

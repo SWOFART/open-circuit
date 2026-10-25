@@ -14,6 +14,7 @@ import {
   initialSimulationState,
   type SimulationState,
 } from "../store/simulation";
+import { SchematicDocumentStore } from "../store/document";
 import { Inspector } from "./Inspector";
 import { ResultPanel } from "./ResultPanel";
 
@@ -378,5 +379,60 @@ describe("Inspector", () => {
 
     expect(markup).toContain("Waiting for the component catalog.");
     expect(markup).not.toContain("<input");
+  });
+});
+
+describe("names after a component is deleted", () => {
+  function afterDeletingR1() {
+    const store = new SchematicDocumentStore(dividerSchematic);
+    store.removeComponent(R1);
+
+    return store.getState();
+  }
+
+  it("keeps naming the output component R2 in the Vout reading", () => {
+    const { labels: current } = afterDeletingR1();
+    const markup = renderToStaticMarkup(
+      <ResultPanel
+        state={readyState([
+          expectedFixture.equalResistors.resistor1VoltageVolts,
+          expectedFixture.equalResistors.resistor2VoltageVolts,
+        ])}
+        labels={current}
+        outputComponentId={R2}
+      />,
+    );
+
+    expect(markup).toContain("Vout (across R2)");
+    expect(markup).not.toContain("Vout (across R1)");
+  });
+
+  it("still calls the deleted component R1 in a result that mentions it", () => {
+    const { labels: current } = afterDeletingR1();
+    const markup = renderToStaticMarkup(
+      <ResultPanel
+        state={readyState([1, 2])}
+        labels={current}
+        outputComponentId={R2}
+      />,
+    );
+
+    expect(markup).toContain("R1 voltage");
+    expect(markup).toContain("R2 voltage");
+  });
+
+  it("labels the remaining resistor R2 in the Inspector", () => {
+    const { schematic, labels: current } = afterDeletingR1();
+    const markup = renderToStaticMarkup(
+      <Inspector
+        state={readyState([1, 2])}
+        schematic={schematic}
+        labels={current}
+        onCommit={noCommit}
+      />,
+    );
+
+    expect(markup).toContain("R2 resistance");
+    expect(markup).not.toContain("R1 resistance");
   });
 });

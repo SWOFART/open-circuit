@@ -16,6 +16,7 @@ import type { ReferenceMarkerSpec } from "../generated/ReferenceMarkerSpec";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { WireSpec } from "../generated/WireSpec";
+import { ComponentLabels } from "./labels";
 
 enablePatches();
 
@@ -26,6 +27,11 @@ export type NewWireSpec = WithoutId<WireSpec>;
 
 export interface SchematicDocumentState {
   readonly schematic: Schematic;
+  /**
+   * Display names by stable ID. They stay with a component through edits and
+   * undo/redo, and are not part of the saved schematic.
+   */
+  readonly labels: ReadonlyMap<StableId, string>;
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   readonly isDirty: boolean;
@@ -239,6 +245,7 @@ export class SchematicDocumentStore {
   private readonly redoStack: HistoryEntry[] = [];
   private readonly listeners = new Set<() => void>();
   private readonly issuedIds = new Set<StableId>();
+  private readonly labels = new ComponentLabels();
   private state: SchematicDocumentState;
 
   constructor(
@@ -480,6 +487,8 @@ export class SchematicDocumentStore {
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     allIds(this.schematic).forEach((id) => this.issuedIds.add(id));
+    // A different document is numbered from scratch, in file order.
+    this.labels.reset();
     this.publish();
   }
 
@@ -549,6 +558,7 @@ export class SchematicDocumentStore {
   private makeState(): SchematicDocumentState {
     return Object.freeze({
       schematic: this.schematic,
+      labels: this.labels.labelsFor(this.schematic),
       canUndo: this.undoStack.length > 0,
       canRedo: this.redoStack.length > 0,
       isDirty: !sameSerializedDocument(this.schematic, this.savedSchematic),
