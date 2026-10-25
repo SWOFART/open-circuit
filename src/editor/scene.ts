@@ -2,6 +2,7 @@ import type { GridPoint } from "../generated/GridPoint";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { LocalPoint, SymbolRegistry } from "../symbols";
+import type { EditorGeometry } from "./connectivity";
 import { toWorld } from "./geometry";
 
 export interface ScenePoint {
@@ -31,6 +32,8 @@ export type SceneShape =
       readonly role: "wire" | "symbol" | "reference";
       readonly owner: SceneOwner;
       readonly points: readonly ScenePoint[];
+      /** A marker with no pin or wire at its point; drawn as a warning. */
+      readonly detached?: boolean;
     }
   | {
       readonly kind: "circle";
@@ -38,6 +41,7 @@ export type SceneShape =
       readonly owner: SceneOwner;
       readonly center: ScenePoint;
       readonly radius: number;
+      readonly detached?: boolean;
     }
   | {
       readonly kind: "label";
@@ -50,27 +54,35 @@ export type SceneShape =
 export interface SceneModel {
   readonly shapes: readonly SceneShape[];
   readonly bounds: Bounds;
+  /** Derived connection dots (T-junctions and similar). Not selectable. */
+  readonly connectionDots: readonly ScenePoint[];
 }
 
 export interface SceneOptions {
   readonly labels?: ReadonlyMap<StableId, string>;
+  /** Adds derived connection dots and flags detached markers. */
+  readonly geometry?: EditorGeometry;
 }
 
-const JUNCTION_RADIUS = 0.12;
+export const JUNCTION_RADIUS = 0.12;
 // Labels are text, so their extent is only approximated for fitting purposes.
 export const LABEL_HALF_WIDTH = 0.8;
 export const LABEL_HALF_HEIGHT = 0.3;
 const LABEL_OFFSET_Y = -1;
 
-function referenceMarkerShapes(
+/** The ground glyph of a reference marker whose stem starts at `position`. */
+export function referenceMarkerShapes(
   position: GridPoint,
   owner: SceneOwner,
+  detached = false,
 ): SceneShape[] {
   const { x, y } = position;
+  const flag = detached ? { detached } : {};
   const bar = (halfWidth: number, offset: number): SceneShape => ({
     kind: "polyline",
     role: "reference",
     owner,
+    ...flag,
     points: [
       { x: x - halfWidth, y: y + offset },
       { x: x + halfWidth, y: y + offset },
@@ -82,6 +94,7 @@ function referenceMarkerShapes(
       kind: "polyline",
       role: "reference",
       owner,
+      ...flag,
       points: [
         { x, y },
         { x, y: y + 0.6 },
@@ -198,6 +211,9 @@ export function buildScene(
       kind: "circle",
       role: "junction",
       owner: { kind: "junction", id: junction.id },
+      ...(options.geometry?.detachedMarkers.has(junction.id)
+        ? { detached: true }
+        : {}),
       center: { x: junction.position.x, y: junction.position.y },
       radius: JUNCTION_RADIUS,
     });
@@ -205,12 +221,20 @@ export function buildScene(
 
   for (const marker of schematic.referenceMarkers) {
     shapes.push(
-      ...referenceMarkerShapes(marker.position, {
-        kind: "referenceMarker",
-        id: marker.id,
-      }),
+      ...referenceMarkerShapes(
+        marker.position,
+        { kind: "referenceMarker", id: marker.id },
+        options.geometry?.detachedMarkers.has(marker.id) ?? false,
+      ),
     );
   }
 
-  return { shapes, bounds: boundsOf(shapes) };
+  return {
+    shapes,
+    bounds: boundsOf(shapes),
+    connectionDots: (options.geometry?.connectionDots ?? []).map((point) => ({
+      x: point.x,
+      y: point.y,
+    })),
+  };
 }

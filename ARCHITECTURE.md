@@ -262,13 +262,19 @@ edits are committed to the document store first, then sent through the Engine
 adapter; an Engine rejection leaves the editable document intact.
 
 `src/editor/interaction.ts` owns the canvas view transform, pan and zoom
-gestures, the snapped pointer position, and the single selection, with no
-PixiJS, DOM, or React dependency. `src/editor/canvasInput.ts` feeds it canvas
+gestures, the snapped pointer position, the single selection, the active tool,
+drags, and the wire route being drawn, with no PixiJS, DOM, or React
+dependency. `src/editor/canvasInput.ts` feeds it canvas
 pointer, wheel, and keyboard events, and `EditorCore` renders its state.
 Completed gestures leave the canvas as intents; `src/editor/commands.ts` turns
 them into document commands (placement, a component transform together with
-the wires that follow its pins, deletion, undo, redo), which the application
-applies to the document store. `SimulationController.syncDocument` then brings
+the wires that follow its pins, wire, junction, and reference-marker edits,
+deletion, undo, redo), which the application applies to the document store.
+`src/editor/connectivity.ts` derives drawing hints from the geometry (where a
+route may end, where a junction can go, connection dots, detached markers).
+They only guide the user; the Rust Engine alone decides connectivity, and
+`tests/golden/stage-2-connectivity.json` checks both against the same
+drawings. `SimulationController.syncDocument` then brings
 the Engine to the new document: a lone parameter edit uses the lightweight
 parameter update, and any other change recompiles the whole document, one
 compile at a time and always for the newest document.

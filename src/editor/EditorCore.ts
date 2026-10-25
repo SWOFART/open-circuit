@@ -14,12 +14,24 @@ import {
   type EditorCommand,
 } from "./commands";
 import {
+  analyzeGeometry,
+  EMPTY_GEOMETRY,
+  type EditorGeometry,
+} from "./connectivity";
+import {
   CanvasInteraction,
+  type EditorStatus,
   type EditorTool,
   type InteractionChange,
   type InteractionIntent,
 } from "./interaction";
-import { buildScene, type SceneModel, type SceneShape } from "./scene";
+import {
+  buildScene,
+  JUNCTION_RADIUS,
+  referenceMarkerShapes,
+  type SceneModel,
+  type SceneShape,
+} from "./scene";
 import { toScreen, type ViewTransform } from "./view";
 
 const COLORS = {
@@ -32,6 +44,7 @@ const COLORS = {
   label: "#cbd5e1",
   selected: 0xfbbf24,
   selectedLabel: "#fbbf24",
+  detached: 0xf87171,
   cursor: 0x94a3b8,
   preview: 0x93c5fd,
 } as const;
@@ -41,11 +54,19 @@ const SELECTED_STROKE_WIDTH_PX = 3;
 const GRID_MIN_SPACING_PX = 10;
 const CURSOR_ARM_PX = 5;
 const PREVIEW_ALPHA = 0.6;
+const HANDLE_HALF_PX = 4;
+const RING_RADIUS_PX = 7;
+// Never stored: the reference preview is drawn, not added to the document.
+const PREVIEW_OWNER = {
+  kind: "referenceMarker",
+  id: "00000000-0000-4000-8000-000000000000",
+} as const;
 
 /** How the editor reports document operations and tool changes. */
 export interface EditorHost {
   onCommand(command: EditorCommand): void;
-  onToolChange?(tool: EditorTool): void;
+  /** The tool, an unfinished wire route, or a refused click changed. */
+  onStatusChange?(status: EditorStatus): void;
 }
 
 /**
@@ -62,6 +83,7 @@ export class EditorCore {
   private schematic: Schematic | null = null;
   private labels: ReadonlyMap<StableId, string> | undefined;
   private scene: SceneModel | null = null;
+  private geometry: EditorGeometry = EMPTY_GEOMETRY;
   private contentStale = true;
   private overlayStale = true;
   private input: CanvasInputBinding | null = null;
@@ -118,12 +140,17 @@ export class EditorCore {
   ): void {
     this.schematic = schematic;
     this.labels = labels;
-    this.scene = buildScene(schematic, this.registry, { labels });
-    this.interaction.setScene(this.scene);
+    this.geometry = analyzeGeometry(schematic, this.registry);
+    this.scene = buildScene(schematic, this.registry, {
+      labels,
+      geometry: this.geometry,
+    });
+    this.interaction.setScene(this.scene, this.geometry);
     this.contentStale = true;
+    this.overlayStale = true;
   }
 
-  /** Selects the Select tool, or the placement tool for a component type. */
+  /** Selects the active tool: Select, placement, or a drawing tool. */
   setTool(tool: EditorTool): void {
     this.interaction.setTool(tool);
   }
@@ -152,7 +179,7 @@ export class EditorCore {
   ): void => {
     if (change === "tool") {
       this.input?.refreshCursor();
-      this.host.onToolChange?.(this.interaction.tool);
+      this.host.onStatusChange?.(this.interaction.status);
       this.overlayStale = true;
       return;
     }
@@ -211,14 +238,19 @@ export class EditorCore {
     const view = this.interaction.view;
     const selection = this.interaction.selection;
     const drag = this.interaction.dragPreview;
-    const scene =
-      drag && this.schematic
-        ? buildScene(
-            dragPreviewSchematic(this.schematic, drag, this.registry),
-            this.registry,
-            { labels: this.labels },
-          )
-        : this.scene;
+
+    // During a drag the drawing shows where the release would leave it.
+    let shown = this.schematic;
+    let scene = this.scene;
+    let geometry = this.geometry;
+    if (drag && this.schematic) {
+      shown = dragPreviewSchematic(this.schematic, drag, this.registry);
+      geometry = analyzeGeometry(shown, this.registry);
+      scene = buildScene(shown, this.registry, {
+        labels: this.labels,
+        geometry,
+      });
+    }
 
     this.content.addChild(this.drawGrid(width, height, view));
 
@@ -230,31 +262,89 @@ export class EditorCore {
           shape.owner.id === selection.id;
         this.content.addChild(this.drawShape(shape, view, selected));
       }
+
+      for (const dot of scene.connectionDots) {
+        this.content.addChild(this.drawDot(dot, view));
+      }
+    }
+
+    // Drag handles of the selected wire, at the vertices as they are now.
+    const handles =
+      selection?.kind === "wire" && shown
+        ? geometry.wires.get(selection.id)
+        : null;
+    if (handles) {
+      this.content.addChild(this.drawHandles(handles, view));
     }
   }
 
   /**
-   * Marks the snapped grid point under the pointer and, with a placement tool,
-   * draws the component that a click would place there.
+   * The pointer's snapped grid point, plus what the active tool would do
+   * there: the component a click would place, the route being drawn, the
+   * junction or reference marker a click would add, or why a drop is refused.
    */
   private drawOverlay(): void {
     this.overlay.clear();
 
+    const view = this.interaction.view;
+    const tool = this.interaction.tool;
+    const drag = this.interaction.dragPreview;
+
+    if (tool.kind === "junction") {
+      for (const spot of this.geometry.junctionSpots) {
+        this.traceRing(spot, view, 0.5);
+      }
+    }
+
+    const route = this.interaction.routePreview;
+    if (route) {
+      this.traceRoute(route, view);
+    }
+
     const point = this.interaction.pointerGridPoint;
+    if (drag?.kind === "marker" && !drag.valid && point) {
+      this.traceRing(point, view, 1, COLORS.detached);
+    }
+
     if (point === null || this.interaction.isPanning) {
       return;
     }
 
-    const view = this.interaction.view;
-    const tool = this.interaction.tool;
-    if (tool.kind === "place") {
-      const preview = buildScene(
-        placementPreviewSchematic(tool.typeId, point, tool.rotationDeg),
-        this.registry,
-      );
-      for (const shape of preview.shapes) {
-        this.tracePreviewShape(shape, view);
-      }
+    switch (tool.kind) {
+      case "place":
+        for (const shape of buildScene(
+          placementPreviewSchematic(tool.typeId, point, tool.rotationDeg),
+          this.registry,
+        ).shapes) {
+          this.tracePreviewShape(shape, view);
+        }
+        break;
+      case "junction":
+        if (this.geometry.isJunctionSpot(point)) {
+          const { x, y } = toScreen(point, view);
+          this.overlay
+            .circle(x, y, JUNCTION_RADIUS * view.scale * 1.6)
+            .fill({ color: COLORS.preview, alpha: PREVIEW_ALPHA });
+        }
+        break;
+      case "reference":
+        if (
+          this.geometry.isAttachment(point) &&
+          !this.geometry.hasReferenceMarkerAt(point)
+        ) {
+          for (const shape of referenceMarkerShapes(point, PREVIEW_OWNER)) {
+            this.tracePreviewShape(shape, view);
+          }
+        }
+        break;
+      case "wire":
+        // A pin or a wire under the pointer would end the route there.
+        if (this.geometry.isAttachment(point)) {
+          this.traceRing(point, view, 0.9);
+        }
+        break;
+      case "select":
+        break;
     }
 
     const { x, y } = toScreen(point, view);
@@ -264,6 +354,48 @@ export class EditorCore {
       .moveTo(x, y - CURSOR_ARM_PX)
       .lineTo(x, y + CURSOR_ARM_PX)
       .stroke({ color: COLORS.cursor, width: 1 });
+  }
+
+  private traceRing(
+    point: { readonly x: number; readonly y: number },
+    view: ViewTransform,
+    alpha: number,
+    color: number = COLORS.preview,
+  ): void {
+    const { x, y } = toScreen(point, view);
+    this.overlay
+      .circle(x, y, RING_RADIUS_PX)
+      .stroke({ color, alpha, width: STROKE_WIDTH_PX });
+  }
+
+  private traceRoute(
+    route: readonly { readonly x: number; readonly y: number }[],
+    view: ViewTransform,
+  ): void {
+    const [first, ...rest] = route.map((point) => toScreen(point, view));
+    if (!first) {
+      return;
+    }
+
+    this.overlay.moveTo(first.x, first.y);
+    for (const point of rest) {
+      this.overlay.lineTo(point.x, point.y);
+    }
+    this.overlay.stroke({
+      color: COLORS.preview,
+      width: STROKE_WIDTH_PX,
+      join: "round",
+      cap: "round",
+    });
+
+    // The start and the last waypoint are where the route is anchored.
+    const anchor = this.interaction.routeAnchor;
+    for (const point of [route[0], anchor]) {
+      if (point) {
+        const { x, y } = toScreen(point, view);
+        this.overlay.circle(x, y, 3).fill(COLORS.preview);
+      }
+    }
   }
 
   private tracePreviewShape(shape: SceneShape, view: ViewTransform): void {
@@ -321,6 +453,40 @@ export class EditorCore {
     return grid;
   }
 
+  /** A derived connection dot, drawn like an explicit junction. */
+  private drawDot(
+    point: { readonly x: number; readonly y: number },
+    view: ViewTransform,
+  ): Graphics {
+    const { x, y } = toScreen(point, view);
+
+    return new Graphics()
+      .circle(x, y, JUNCTION_RADIUS * view.scale)
+      .fill(COLORS.junction);
+  }
+
+  private drawHandles(
+    points: readonly { readonly x: number; readonly y: number }[],
+    view: ViewTransform,
+  ): Graphics {
+    const handles = new Graphics();
+
+    for (const point of points) {
+      const { x, y } = toScreen(point, view);
+      handles
+        .rect(
+          x - HANDLE_HALF_PX,
+          y - HANDLE_HALF_PX,
+          2 * HANDLE_HALF_PX,
+          2 * HANDLE_HALF_PX,
+        )
+        .fill(COLORS.selected)
+        .stroke({ color: COLORS.background, width: 1 });
+    }
+
+    return handles;
+  }
+
   private drawShape(
     shape: SceneShape,
     view: ViewTransform,
@@ -344,6 +510,12 @@ export class EditorCore {
     }
 
     const graphics = new Graphics();
+    // A marker with nothing under it is drawn as a warning, not hidden.
+    const color = selected
+      ? COLORS.selected
+      : shape.detached
+        ? COLORS.detached
+        : null;
 
     if (shape.kind === "polyline") {
       const [first, ...rest] = shape.points.map((point) =>
@@ -356,7 +528,7 @@ export class EditorCore {
           graphics.lineTo(point.x, point.y);
         }
         graphics.stroke({
-          color: selected ? COLORS.selected : COLORS[shape.role],
+          color: color ?? COLORS[shape.role],
           width: strokeWidth,
           join: "round",
           cap: "round",
@@ -371,10 +543,10 @@ export class EditorCore {
     graphics.circle(center.x, center.y, radius);
 
     if (shape.role === "junction") {
-      graphics.fill(selected ? COLORS.selected : COLORS.junction);
+      graphics.fill(color ?? COLORS.junction);
     } else {
       graphics.stroke({
-        color: selected ? COLORS.selected : COLORS.symbol,
+        color: color ?? COLORS.symbol,
         width: strokeWidth,
       });
     }

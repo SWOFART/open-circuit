@@ -5,7 +5,9 @@ import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { SymbolRegistry } from "../symbols";
 import type { Rotation } from "./geometry";
+import type { SelectionTarget } from "./hitTest";
 import type { DragPreview, InteractionIntent } from "./interaction";
+import { moveVertex } from "./wireRoute";
 import {
   applyComponentTransform,
   followingWireEdits,
@@ -33,6 +35,27 @@ export type EditorCommand =
       readonly wires: readonly WireEdit[];
     }
   | { readonly kind: "deleteComponent"; readonly componentId: StableId }
+  | { readonly kind: "addWire"; readonly points: readonly GridPoint[] }
+  | {
+      readonly kind: "editWire";
+      readonly wireId: StableId;
+      readonly points: readonly GridPoint[];
+    }
+  | { readonly kind: "deleteWire"; readonly wireId: StableId }
+  | { readonly kind: "addJunction"; readonly position: GridPoint }
+  | {
+      readonly kind: "moveJunction";
+      readonly id: StableId;
+      readonly position: GridPoint;
+    }
+  | { readonly kind: "deleteJunction"; readonly id: StableId }
+  | { readonly kind: "addReferenceMarker"; readonly position: GridPoint }
+  | {
+      readonly kind: "moveReferenceMarker";
+      readonly id: StableId;
+      readonly position: GridPoint;
+    }
+  | { readonly kind: "deleteReferenceMarker"; readonly id: StableId }
   | { readonly kind: "undo" }
   | { readonly kind: "redo" };
 
@@ -106,9 +129,27 @@ export function commandForIntent(
         : null;
     }
     case "delete":
-      // Wires, junctions, and reference markers get their own tools (#31).
-      return intent.target.kind === "component" && find(intent.target.id)
-        ? { kind: "deleteComponent", componentId: intent.target.id }
+      return deleteCommand(intent.target, schematic);
+    case "addWire":
+      return { kind: "addWire", points: intent.points };
+    case "editWire":
+      return exists(schematic.wires, intent.wireId)
+        ? { kind: "editWire", wireId: intent.wireId, points: intent.points }
+        : null;
+    case "addJunction":
+    case "addReferenceMarker":
+      return { kind: intent.kind, position: intent.position };
+    case "moveJunction":
+      return exists(schematic.junctions, intent.id)
+        ? { kind: "moveJunction", id: intent.id, position: intent.position }
+        : null;
+    case "moveReferenceMarker":
+      return exists(schematic.referenceMarkers, intent.id)
+        ? {
+            kind: "moveReferenceMarker",
+            id: intent.id,
+            position: intent.position,
+          }
         : null;
     case "undo":
     case "redo":
@@ -116,26 +157,96 @@ export function commandForIntent(
   }
 }
 
-/** The schematic as it would be if the current drag were released now. */
+function exists(items: readonly { id: StableId }[], id: StableId): boolean {
+  return items.some((item) => item.id === id);
+}
+
+/**
+ * Deleting removes exactly the selected object and nothing connected to it;
+ * the Engine re-derives connectivity from what remains.
+ */
+function deleteCommand(
+  target: SelectionTarget,
+  schematic: Schematic,
+): EditorCommand | null {
+  switch (target.kind) {
+    case "component":
+      return exists(schematic.components, target.id)
+        ? { kind: "deleteComponent", componentId: target.id }
+        : null;
+    case "wire":
+      return exists(schematic.wires, target.id)
+        ? { kind: "deleteWire", wireId: target.id }
+        : null;
+    case "junction":
+      return exists(schematic.junctions, target.id)
+        ? { kind: "deleteJunction", id: target.id }
+        : null;
+    case "referenceMarker":
+      return exists(schematic.referenceMarkers, target.id)
+        ? { kind: "deleteReferenceMarker", id: target.id }
+        : null;
+  }
+}
+
+/**
+ * The schematic as it would be if the current drag were released now. A drag
+ * that would be canceled on release (an invalid vertex path or marker target)
+ * leaves the drawing as it is.
+ */
 export function dragPreviewSchematic(
   schematic: Schematic,
   drag: DragPreview,
   registry: SymbolRegistry,
 ): Schematic {
-  const command = commandForIntent(
-    { kind: "move", ...drag },
-    schematic,
-    registry,
-  );
-
-  return command?.kind === "transformComponent"
-    ? applyComponentTransform(
+  switch (drag.kind) {
+    case "component": {
+      const command = commandForIntent(
+        { kind: "move", componentId: drag.componentId, delta: drag.delta },
         schematic,
-        drag.componentId,
-        command,
-        command.wires,
-      )
-    : schematic;
+        registry,
+      );
+
+      return command?.kind === "transformComponent"
+        ? applyComponentTransform(
+            schematic,
+            drag.componentId,
+            command,
+            command.wires,
+          )
+        : schematic;
+    }
+    case "vertex": {
+      const wire = schematic.wires.find((item) => item.id === drag.wireId);
+      const points = wire && moveVertex(wire.points, drag.index, drag.to);
+
+      return points
+        ? {
+            ...schematic,
+            wires: schematic.wires.map((item) =>
+              item.id === drag.wireId ? { ...item, points } : item,
+            ),
+          }
+        : schematic;
+    }
+    case "marker": {
+      if (!drag.valid) {
+        return schematic;
+      }
+
+      const move = <T extends { id: StableId }>(items: readonly T[]): T[] =>
+        items.map((item) =>
+          item.id === drag.id ? { ...item, position: drag.to } : item,
+        );
+
+      return drag.marker === "junction"
+        ? { ...schematic, junctions: move(schematic.junctions) }
+        : {
+            ...schematic,
+            referenceMarkers: move(schematic.referenceMarkers),
+          };
+    }
+  }
 }
 
 /** A one-component schematic that draws the placement preview. */

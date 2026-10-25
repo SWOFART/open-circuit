@@ -14,6 +14,7 @@ const R1 = "00000000-0000-4000-8000-000000000002";
 const MIDDLE_WIRE = "00000000-0000-4000-8000-000000000005";
 const GROUND = "00000000-0000-4000-8000-000000000007";
 const MISSING = "00000000-0000-4000-8000-0000000000ff";
+const JUNCTION = "00000000-0000-4000-8000-0000000000f2";
 
 describe("turning canvas intents into document commands", () => {
   it("places the chosen type at the snapped point with its rotation", () => {
@@ -85,15 +86,106 @@ describe("turning canvas intents into document commands", () => {
     ).toEqual({ kind: "deleteComponent", componentId: R1 });
   });
 
-  it("leaves other selected objects to their own tools", () => {
-    for (const target of [
-      { kind: "wire", id: MIDDLE_WIRE },
-      { kind: "referenceMarker", id: GROUND },
-    ] as const) {
+  it("deletes a selected wire or marker as that object only", () => {
+    const withJunction: Schematic = {
+      ...schematic,
+      junctions: [{ id: JUNCTION, position: { x: 6, y: 2 } }],
+    };
+
+    expect(
+      commandForIntent(
+        { kind: "delete", target: { kind: "wire", id: MIDDLE_WIRE } },
+        withJunction,
+        symbols,
+      ),
+    ).toEqual({ kind: "deleteWire", wireId: MIDDLE_WIRE });
+    expect(
+      commandForIntent(
+        { kind: "delete", target: { kind: "junction", id: JUNCTION } },
+        withJunction,
+        symbols,
+      ),
+    ).toEqual({ kind: "deleteJunction", id: JUNCTION });
+    expect(
+      commandForIntent(
+        { kind: "delete", target: { kind: "referenceMarker", id: GROUND } },
+        withJunction,
+        symbols,
+      ),
+    ).toEqual({ kind: "deleteReferenceMarker", id: GROUND });
+  });
+
+  it("ignores deleting a wire or marker that no longer exists", () => {
+    for (const kind of ["wire", "junction", "referenceMarker"] as const) {
       expect(
-        commandForIntent({ kind: "delete", target }, schematic, symbols),
+        commandForIntent(
+          { kind: "delete", target: { kind, id: MISSING } },
+          schematic,
+          symbols,
+        ),
       ).toBeNull();
     }
+  });
+
+  it("passes wire and marker edits through for objects that exist", () => {
+    const path = [
+      { x: 0, y: 0 },
+      { x: 3, y: 0 },
+    ];
+
+    expect(
+      commandForIntent({ kind: "addWire", points: path }, schematic, symbols),
+    ).toEqual({ kind: "addWire", points: path });
+    expect(
+      commandForIntent(
+        { kind: "editWire", wireId: MIDDLE_WIRE, points: path },
+        schematic,
+        symbols,
+      ),
+    ).toEqual({ kind: "editWire", wireId: MIDDLE_WIRE, points: path });
+    expect(
+      commandForIntent(
+        { kind: "editWire", wireId: MISSING, points: path },
+        schematic,
+        symbols,
+      ),
+    ).toBeNull();
+    expect(
+      commandForIntent(
+        { kind: "addJunction", position: { x: 6, y: 2 } },
+        schematic,
+        symbols,
+      ),
+    ).toEqual({ kind: "addJunction", position: { x: 6, y: 2 } });
+    expect(
+      commandForIntent(
+        { kind: "addReferenceMarker", position: { x: 5, y: 0 } },
+        schematic,
+        symbols,
+      ),
+    ).toEqual({ kind: "addReferenceMarker", position: { x: 5, y: 0 } });
+    expect(
+      commandForIntent(
+        {
+          kind: "moveReferenceMarker",
+          id: GROUND,
+          position: { x: 5, y: 0 },
+        },
+        schematic,
+        symbols,
+      ),
+    ).toEqual({
+      kind: "moveReferenceMarker",
+      id: GROUND,
+      position: { x: 5, y: 0 },
+    });
+    expect(
+      commandForIntent(
+        { kind: "moveJunction", id: MISSING, position: { x: 1, y: 1 } },
+        schematic,
+        symbols,
+      ),
+    ).toBeNull();
   });
 
   it("ignores intents for a component that no longer exists", () => {
@@ -134,7 +226,7 @@ describe("previews", () => {
   it("shows a dragged component and its rubber-band wires before release", () => {
     const preview = dragPreviewSchematic(
       schematic,
-      { componentId: R1, delta: { x: 0, y: 2 } },
+      { kind: "component", componentId: R1, delta: { x: 0, y: 2 } },
       symbols,
     );
 
@@ -168,5 +260,99 @@ describe("previews", () => {
       rotationDeg: 270,
     });
     expect(preview.wires).toEqual([]);
+  });
+});
+
+describe("drag previews of wires and markers", () => {
+  const withMarkers: Schematic = {
+    ...schematic,
+    junctions: [{ id: JUNCTION, position: { x: 6, y: 2 } }],
+  };
+
+  it("shows a dragged wire vertex with both neighbours kept orthogonal", () => {
+    const preview = dragPreviewSchematic(
+      schematic,
+      { kind: "vertex", wireId: MIDDLE_WIRE, index: 1, to: { x: 7, y: 2 } },
+      symbols,
+    );
+
+    expect(
+      preview.wires.find((wire) => wire.id === MIDDLE_WIRE)?.points,
+    ).toEqual([
+      { x: 5, y: 0 },
+      { x: 7, y: 0 },
+      { x: 7, y: 2 },
+    ]);
+    expect(
+      schematic.wires.find((wire) => wire.id === MIDDLE_WIRE)?.points,
+    ).toEqual([
+      { x: 5, y: 0 },
+      { x: 7, y: 0 },
+    ]);
+  });
+
+  it("leaves the drawing as it is for a vertex move that would be refused", () => {
+    expect(
+      dragPreviewSchematic(
+        schematic,
+        { kind: "vertex", wireId: MIDDLE_WIRE, index: 1, to: { x: 5, y: 0 } },
+        symbols,
+      ),
+    ).toBe(schematic);
+    expect(
+      dragPreviewSchematic(
+        schematic,
+        { kind: "vertex", wireId: MISSING, index: 0, to: { x: 5, y: 0 } },
+        symbols,
+      ),
+    ).toBe(schematic);
+  });
+
+  it("shows a junction at its drop point only when the drop is valid", () => {
+    const valid = dragPreviewSchematic(
+      withMarkers,
+      {
+        kind: "marker",
+        marker: "junction",
+        id: JUNCTION,
+        to: { x: 8, y: 2 },
+        valid: true,
+      },
+      symbols,
+    );
+    const invalid = dragPreviewSchematic(
+      withMarkers,
+      {
+        kind: "marker",
+        marker: "junction",
+        id: JUNCTION,
+        to: { x: 8, y: 2 },
+        valid: false,
+      },
+      symbols,
+    );
+
+    expect(valid.junctions).toEqual([
+      { id: JUNCTION, position: { x: 8, y: 2 } },
+    ]);
+    expect(invalid).toBe(withMarkers);
+  });
+
+  it("shows a reference marker at its drop point", () => {
+    const preview = dragPreviewSchematic(
+      schematic,
+      {
+        kind: "marker",
+        marker: "referenceMarker",
+        id: GROUND,
+        to: { x: 5, y: 0 },
+        valid: true,
+      },
+      symbols,
+    );
+
+    expect(preview.referenceMarkers).toEqual([
+      { id: GROUND, position: { x: 5, y: 0 } },
+    ]);
   });
 });

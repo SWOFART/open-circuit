@@ -192,6 +192,43 @@ describe("ResultPanel", () => {
     expect(markup).not.toContain("diagnostic.singularSystem");
   });
 
+  it("names a detached ground marker or junction so it can be found and fixed", () => {
+    const diagnostics: Diagnostic[] = [
+      {
+        code: "DetachedReferenceMarker",
+        severity: "error",
+        localizationKey: "diagnostic.detachedReferenceMarker",
+        references: [
+          {
+            kind: "referenceMarker",
+            referenceMarkerId: "00000000-0000-4000-8000-0000000001b1",
+          },
+        ],
+      },
+      {
+        code: "InvalidGeometry",
+        severity: "error",
+        localizationKey: "diagnostic.invalidGeometry",
+        references: [
+          {
+            kind: "junction",
+            junctionId: "00000000-0000-4000-8000-0000000001a1",
+          },
+        ],
+      },
+    ];
+    const markup = renderToStaticMarkup(
+      <ResultPanel
+        state={{ ...initialSimulationState(), status: "failed", diagnostics }}
+        labels={labels}
+      />,
+    );
+
+    expect(markup).toContain("A ground marker is not placed on a wire or pin.");
+    expect(markup).toContain("(ground marker)");
+    expect(markup).toContain("(junction)");
+  });
+
   it("keeps showing the last result while reporting a failed update", () => {
     const markup = renderToStaticMarkup(
       <ResultPanel

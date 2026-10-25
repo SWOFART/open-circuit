@@ -4,6 +4,7 @@ import type { Schematic } from "../generated/Schematic";
 import { symbols } from "../symbols";
 import { componentLabels } from "../store/fixtures";
 import { buildScene, type Bounds, type SceneShape } from "./scene";
+import { analyzeGeometry } from "./connectivity";
 import { fitView, MAX_SCALE_PX_PER_UNIT, toScreen } from "./view";
 
 const schematic = schematicFixture as Schematic;
@@ -158,5 +159,82 @@ describe("fitting the scene into the window", () => {
     expect(view.scale).toBeGreaterThan(0);
     expect(Number.isFinite(view.offsetX)).toBe(true);
     expect(Number.isFinite(view.offsetY)).toBe(true);
+  });
+});
+
+describe("scene of drawn connections", () => {
+  const geometrySchematic: Schematic = {
+    ...schematic,
+    wires: [
+      {
+        id: "00000000-0000-4000-8000-000000000101",
+        points: [
+          { x: 3, y: 4 },
+          { x: 9, y: 4 },
+        ],
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000102",
+        points: [
+          { x: 6, y: 1 },
+          { x: 6, y: 4 },
+        ],
+      },
+    ],
+    junctions: [
+      {
+        id: "00000000-0000-4000-8000-0000000001a1",
+        position: { x: 20, y: 20 },
+      },
+    ],
+    referenceMarkers: [
+      {
+        id: "00000000-0000-4000-8000-0000000001b1",
+        position: { x: 6, y: 4 },
+      },
+      {
+        id: "00000000-0000-4000-8000-0000000001b2",
+        position: { x: 30, y: 30 },
+      },
+    ],
+  };
+
+  it("adds nothing derived when no geometry is supplied", () => {
+    const scene = buildScene(geometrySchematic, symbols);
+
+    expect(scene.connectionDots).toEqual([]);
+    expect(
+      scene.shapes.some((shape) => "detached" in shape && shape.detached),
+    ).toBe(false);
+  });
+
+  it("carries the derived connection dots, which are not selectable", () => {
+    const geometry = analyzeGeometry(geometrySchematic, symbols);
+    const scene = buildScene(geometrySchematic, symbols, { geometry });
+
+    expect(scene.connectionDots).toEqual([{ x: 6, y: 4 }]);
+    // Only the one explicit junction is a shape; the dot is not an object.
+    expect(
+      scene.shapes.filter(
+        (shape) => shape.kind === "circle" && shape.role === "junction",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("flags markers with nothing under them, and only those", () => {
+    const geometry = analyzeGeometry(geometrySchematic, symbols);
+    const scene = buildScene(geometrySchematic, symbols, { geometry });
+    const detachedOwners = new Set(
+      scene.shapes.flatMap((shape) =>
+        "detached" in shape && shape.detached ? [shape.owner.id] : [],
+      ),
+    );
+
+    expect(detachedOwners).toEqual(
+      new Set([
+        "00000000-0000-4000-8000-0000000001a1",
+        "00000000-0000-4000-8000-0000000001b2",
+      ]),
+    );
   });
 });

@@ -19,9 +19,18 @@ function referenceLabel(
   reference: DiagnosticReference,
   labels: ReadonlyMap<StableId, string>,
 ): string | undefined {
-  return reference.kind === "component" || reference.kind === "pin"
-    ? labels.get(reference.componentId)
-    : undefined;
+  switch (reference.kind) {
+    case "component":
+    case "pin":
+      return labels.get(reference.componentId);
+    // Markers have no names; say what kind of object is meant.
+    case "junction":
+      return "junction";
+    case "referenceMarker":
+      return "ground marker";
+    default:
+      return undefined;
+  }
 }
 
 function DiagnosticsList({

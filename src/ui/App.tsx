@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { EditorCommand } from "../editor/commands";
 import { EditorCore } from "../editor/EditorCore";
-import type { EditorTool } from "../editor/interaction";
+import type { EditorStatus } from "../editor/interaction";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
   componentLabels,
@@ -16,7 +16,7 @@ import {
 import { SchematicDocumentStore } from "../store/document";
 import { applyEditorCommand } from "./editorCommands";
 import { Inspector } from "./Inspector";
-import { Palette } from "./Palette";
+import { Palette, toolHint } from "./Palette";
 import { ResultPanel } from "./ResultPanel";
 import { useSimulation } from "./useSimulation";
 
@@ -24,12 +24,18 @@ import { useSimulation } from "./useSimulation";
 const usingMockAdapter =
   import.meta.env.DEV && import.meta.env.VITE_ENGINE_ADAPTER === "mock";
 
+const IDLE_STATUS: EditorStatus = {
+  tool: { kind: "select" },
+  routing: false,
+  rejected: null,
+};
+
 export function App() {
   const canvasHost = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorCore | null>(null);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
-  const [tool, setTool] = useState<EditorTool>({ kind: "select" });
+  const [status, setStatus] = useState<EditorStatus>(IDLE_STATUS);
   const documentStore = useMemo(
     () => new SchematicDocumentStore(dividerSchematic),
     [],
@@ -49,6 +55,7 @@ export function App() {
     () => componentLabels(document.schematic),
     [document.schematic],
   );
+  const hint = toolHint(status);
 
   // The editor is created once; commands always use the latest catalog.
   const commandHandler = useRef<(command: EditorCommand) => void>(() => {});
@@ -72,7 +79,7 @@ export function App() {
 
     const editor = new EditorCore({
       onCommand: (command) => commandHandler.current(command),
-      onToolChange: setTool,
+      onStatusChange: setStatus,
     });
     editorRef.current = editor;
     void editor.mount(host).catch((error: unknown) => {
@@ -111,7 +118,7 @@ export function App() {
           <div className="editor-toolbar">
             <Palette
               catalog={state.catalog}
-              tool={tool}
+              tool={status.tool}
               onSelectTool={(next) => editorRef.current?.setTool(next)}
             />
             <div className="editor-actions">
@@ -144,6 +151,14 @@ export function App() {
             </div>
           </div>
           <div ref={canvasHost} className="editor-canvas" />
+          <p
+            className={
+              hint.warning ? "tool-hint tool-hint-warning" : "tool-hint"
+            }
+            role="status"
+          >
+            {hint.text}
+          </p>
           {editError && (
             <p className="editor-error" role="alert">
               The edit was not applied: {editError}
