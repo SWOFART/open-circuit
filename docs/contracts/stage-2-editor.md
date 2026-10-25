@@ -287,6 +287,14 @@ undoes the latest committed document operation.
   affect it.
 - The document remains editable when Engine compilation fails. Diagnostics are
   displayed; an invalid/incomplete circuit is not replaced by a mock result.
+- A result is shown as current only for a document the Engine has accepted. If
+  a lightweight parameter update is rejected, fails, or cannot be confirmed,
+  the Engine does not have that edit, so the queued updates behind it are
+  dropped and the whole current document is compiled at once, without waiting
+  for another edit. The outcome of that compile is what the user sees: a
+  fresh result, or the Engine's diagnostics with no result, or the transport
+  error. A later update never produces a result that leaves out a refused
+  edit.
 
 ## 5. Open, save, validation, and versioning
 

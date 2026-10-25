@@ -12,6 +12,7 @@ import { dividerSchematic } from "./fixtures";
 import { PredeterminedEngineAdapter } from "./mockEngineAdapter";
 import { SimulationController } from "./simulation";
 
+const V1 = "00000000-0000-4000-8000-000000000001";
 const R1 = "00000000-0000-4000-8000-000000000002";
 
 const floating: Diagnostic = {
@@ -106,6 +107,20 @@ function edited(base: Schematic, x: number): Schematic {
     components: base.components.map((component) =>
       component.id === R1
         ? { ...component, position: { x, y: component.position.y } }
+        : component,
+    ),
+  };
+}
+
+function withVoltage(base: Schematic, volts: number): Schematic {
+  return {
+    ...base,
+    components: base.components.map((component) =>
+      component.id === V1 && component.typeId === "dc_voltage_source"
+        ? {
+            ...component,
+            parameters: { ...component.parameters, voltageVolts: volts },
+          }
         : component,
     ),
   };
@@ -266,32 +281,199 @@ describe("keeping the Engine in step with the document", () => {
     expect(adapter.compileRequests).toHaveLength(3);
   });
 
-  it("recompiles after the Engine rejected a parameter update", async () => {
-    const { adapter, script } = scriptedAdapter();
-    const controller = controllerFor(adapter);
-    await controller.start(dividerSchematic);
-    script.setParameter = () => ({
+  describe("after a parameter update did not reach the Engine", () => {
+    const edit = (
+      componentId: string,
+      parameterId: "resistanceOhms" | "voltageVolts",
+      value: number,
+    ) => ({ componentId, parameterId, value });
+
+    const rejected = (): SetParameterResult => ({
       status: "failure",
       diagnostics: [floating],
     });
-    const first = withResistance(dividerSchematic, 3000);
-    await controller.syncDocument(first, {
-      componentId: R1,
-      parameterId: "resistanceOhms",
-      value: 3000,
+
+    it("compiles the whole document at once, without waiting for another edit", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      script.setParameter = rejected;
+      const first = withResistance(dividerSchematic, 3000);
+
+      await controller.syncDocument(first, edit(R1, "resistanceOhms", 3000));
+
+      expect(adapter.parameterRequests).toHaveLength(1);
+      expect(
+        adapter.compileRequests.map((request) => request.schematic),
+      ).toEqual([dividerSchematic, first]);
+      expect(controller.getState()).toMatchObject({
+        status: "ready",
+        updating: false,
+        run: { runId: runId(2) },
+        diagnostics: [],
+        error: null,
+      });
     });
 
-    const second = withResistance(dividerSchematic, 4700);
-    await controller.syncDocument(second, {
-      componentId: R1,
-      parameterId: "resistanceOhms",
-      value: 4700,
+    it("sends lightweight updates again once the Engine has the document", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      const original = script.setParameter;
+      script.setParameter = rejected;
+      await controller.syncDocument(
+        withResistance(dividerSchematic, 3000),
+        edit(R1, "resistanceOhms", 3000),
+      );
+      script.setParameter = original;
+
+      await controller.syncDocument(
+        withResistance(dividerSchematic, 4700),
+        edit(R1, "resistanceOhms", 4700),
+      );
+
+      expect(adapter.parameterRequests).toHaveLength(2);
+      expect(adapter.compileRequests).toHaveLength(2);
     });
 
-    // The rejected 3000 Ω never reached the Engine, so the whole document
-    // is compiled instead of trusting another lightweight update.
-    expect(adapter.parameterRequests).toHaveLength(1);
-    expect(adapter.compileRequests.at(-1)?.schematic).toEqual(second);
+    it("does not send a queued update after a failed one, and compiles both edits", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      const answer = deferred<SetParameterResult>();
+      script.setParameter = () => answer.promise;
+
+      const resized = withResistance(dividerSchematic, 3000);
+      const both = withVoltage(resized, 9);
+      const first = controller.syncDocument(
+        resized,
+        edit(R1, "resistanceOhms", 3000),
+      );
+      const second = controller.syncDocument(both, edit(V1, "voltageVolts", 9));
+      answer.resolve(rejected());
+      await Promise.all([first, second]);
+
+      // The 9 V edit alone would have produced a clean result without the
+      // 3 kΩ edit that the document contains.
+      expect(adapter.parameterRequests).toHaveLength(1);
+      expect(adapter.compileRequests.at(-1)?.schematic).toEqual(both);
+      expect(controller.getState()).toMatchObject({
+        status: "ready",
+        diagnostics: [],
+        run: { runId: runId(2) },
+      });
+    });
+
+    it("keeps the rejection visible when the Engine rejects the whole document too", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      script.setParameter = rejected;
+      script.compile = () => ({ status: "failure", diagnostics: [floating] });
+
+      await controller.syncDocument(
+        withResistance(dividerSchematic, 3000),
+        edit(R1, "resistanceOhms", 3000),
+      );
+
+      // No result is shown as current for a document the Engine refused.
+      expect(controller.getState()).toMatchObject({
+        status: "failed",
+        run: null,
+        snapshot: null,
+        diagnostics: [floating],
+        updating: false,
+      });
+    });
+
+    it("reports an unreachable Engine instead of an old result", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      script.setParameter = () =>
+        Promise.reject(new Error("The bridge is down."));
+      script.compile = () => Promise.reject(new Error("The bridge is down."));
+
+      await controller.syncDocument(
+        withResistance(dividerSchematic, 3000),
+        edit(R1, "resistanceOhms", 3000),
+      );
+
+      expect(controller.getState()).toMatchObject({
+        status: "unavailable",
+        error: "The bridge is down.",
+        updating: false,
+      });
+      // One resync, not a retry loop.
+      expect(adapter.compileRequests).toHaveLength(2);
+    });
+
+    it("resyncs after an answer that cannot be confirmed", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      const real = script.setParameter;
+      script.setParameter = (request) => {
+        const answer = real(request) as Extract<
+          SetParameterResult,
+          { status: "success" }
+        >;
+
+        return {
+          ...answer,
+          snapshot: {
+            ...answer.snapshot,
+            metadata: { ...answer.snapshot.metadata, runId: runId(77) },
+          },
+        };
+      };
+
+      await controller.syncDocument(
+        withResistance(dividerSchematic, 3000),
+        edit(R1, "resistanceOhms", 3000),
+      );
+
+      expect(adapter.compileRequests).toHaveLength(2);
+      expect(controller.getState()).toMatchObject({
+        status: "ready",
+        error: null,
+        run: { runId: runId(2) },
+      });
+    });
+
+    it("does not deadlock with a document edit that was waiting for the update", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      const answer = deferred<SetParameterResult>();
+      script.setParameter = () => answer.promise;
+
+      const resized = withResistance(dividerSchematic, 3000);
+      const update = controller.syncDocument(
+        resized,
+        edit(R1, "resistanceOhms", 3000),
+      );
+      const moved = edited(resized, 6);
+      const recompile = controller.syncDocument(moved);
+      answer.resolve(rejected());
+      await Promise.all([update, recompile]);
+
+      expect(adapter.compileRequests.at(-1)?.schematic).toEqual(moved);
+      expect(adapter.compileRequests).toHaveLength(2);
+      expect(controller.getState().status).toBe("ready");
+    });
+
+    it("leaves a direct setParameter call alone, as it is not tied to a document", async () => {
+      const { adapter, script } = scriptedAdapter();
+      const controller = controllerFor(adapter);
+      await controller.start(dividerSchematic);
+      script.setParameter = rejected;
+
+      await controller.setParameter(R1, "resistanceOhms", 3000);
+
+      expect(adapter.compileRequests).toHaveLength(1);
+      expect(controller.getState().diagnostics).toEqual([floating]);
+    });
   });
 
   it("compiles the newest document synced before the catalog arrived", async () => {
