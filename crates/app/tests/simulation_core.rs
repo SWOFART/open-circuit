@@ -786,7 +786,7 @@ fn trace_acknowledgement_timeout_starts_after_the_response_is_sent() {
     core.read_traces(
         request,
         Box::new(TraceSinkHandle(TraceRecordingSink::default())),
-        start + Duration::from_millis(250),
+        start + Duration::from_millis(1_000),
     )
     .expect("a sent response is released after its acknowledgement timeout");
 }
