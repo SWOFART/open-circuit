@@ -71,8 +71,10 @@ input {
 }
 
 .editor-toolbar {
+  flex-wrap: wrap;
+  gap: 8px;
   min-height: 48px;
-  padding: 0 16px;
+  padding: 8px 16px;
   border-bottom: 1px solid #273449;
   font-size: 13px;
 }
@@ -80,7 +82,7 @@ input {
 .editor-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .toolbar-button {
@@ -93,8 +95,25 @@ input {
   cursor: pointer;
 }
 
-.toolbar-button:hover {
+.toolbar-button:hover:not(:disabled) {
   background: #273449;
+}
+
+.toolbar-button[aria-pressed="true"] {
+  color: #0b1120;
+  background: #93c5fd;
+  border-color: #93c5fd;
+}
+
+.toolbar-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .toolbar-button:focus-visible {

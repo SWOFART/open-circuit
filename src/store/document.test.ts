@@ -170,6 +170,81 @@ describe("SchematicDocumentStore", () => {
     expect(store.getState().schematic).toEqual(afterRemovals);
   });
 
+  it("moves a component together with its following wires in one history entry", () => {
+    const store = createStore();
+    const before = store.getState().schematic;
+    const wireId = "00000000-0000-4000-8000-000000000005";
+    const newPath = [
+      { x: 5, y: 2 },
+      { x: 7, y: 2 },
+      { x: 7, y: 0 },
+    ];
+
+    store.transformComponent(R1, { x: 4, y: 2 }, 90, [
+      { id: wireId, points: newPath },
+    ]);
+    const after = store.getState().schematic;
+
+    expect(after.components.find((item) => item.id === R1)).toMatchObject({
+      id: R1,
+      position: { x: 4, y: 2 },
+      rotationDeg: 90,
+    });
+    expect(after.wires.find((wire) => wire.id === wireId)?.points).toEqual(
+      newPath,
+    );
+
+    expect(store.undo()).toBe(true);
+    expect(store.getState().schematic).toEqual(before);
+    expect(store.getState().canUndo).toBe(false);
+    expect(store.getState().isDirty).toBe(false);
+
+    expect(store.redo()).toBe(true);
+    expect(store.getState().schematic).toEqual(after);
+  });
+
+  it("rejects a transform with an invalid wire path or unknown object", () => {
+    const store = createStore();
+    const before = store.getState().schematic;
+    const wireId = "00000000-0000-4000-8000-000000000005";
+
+    expect(() =>
+      store.transformComponent(R1, { x: 4, y: 2 }, 0, [
+        {
+          id: wireId,
+          points: [
+            { x: 5, y: 2 },
+            { x: 7, y: 0 },
+          ],
+        },
+      ]),
+    ).toThrow();
+    expect(() =>
+      store.transformComponent(R1, { x: 4, y: 2 }, 0, [
+        {
+          id: "00000000-0000-4000-8000-0000000000ff",
+          points: [
+            { x: 5, y: 2 },
+            { x: 7, y: 2 },
+          ],
+        },
+      ]),
+    ).toThrow();
+    expect(() =>
+      store.transformComponent(R1, { x: 4, y: 2 }, 45 as 0, []),
+    ).toThrow();
+    expect(() =>
+      store.transformComponent(
+        "00000000-0000-4000-8000-0000000000ff",
+        { x: 0, y: 0 },
+        0,
+      ),
+    ).toThrow();
+
+    expect(store.getState().schematic).toBe(before);
+    expect(store.getState().canUndo).toBe(false);
+  });
+
   it("clears the redo branch after a new document edit", () => {
     const store = createStore();
 

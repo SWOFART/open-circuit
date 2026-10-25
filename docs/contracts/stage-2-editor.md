@@ -116,9 +116,16 @@ UTF-8 JSON Schematic object, with no project wrapper:
 - Moving or rotating a component preserves its stable ID. A drag commits one
   snapped move on pointer release. Wire endpoints that exactly coincide with
   old pin positions follow the new pin positions with orthogonal rubber-band
-  routing. A pin that only touches the interior of a wire segment has no stored
-  attachment; moving or rotating that component leaves the wire fixed and may
-  disconnect the pin.
+  routing: the moved endpoint bends once to rejoin the rest of the path. Of
+  the two possible bends, the one that runs through the component's body or
+  over its other pins fewer times is chosen; on a tie the endpoint leaves in
+  the direction of the wire's old end segment. Around the new bend, repeated
+  points and points inside a straight run are removed; the rest of the wire
+  keeps its drawn path. The component and its following wires change in one
+  history transaction. A wire that would collapse to a single
+  point is left unchanged. A pin that only touches the interior of a wire
+  segment has no stored attachment; moving or rotating that component leaves
+  the wire fixed and may disconnect the pin.
 - Deleting a selected component removes only that component. Wires and markers
   remain as drawn, even if they become dangling or detached; the user may edit
   or remove them separately.

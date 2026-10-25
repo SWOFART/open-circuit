@@ -317,6 +317,38 @@ export class SchematicDocumentStore {
     });
   }
 
+  /**
+   * Moves and/or rotates a component and replaces the paths of the wires that
+   * follow its pins, as one history transaction. The component keeps its ID.
+   */
+  transformComponent(
+    id: StableId,
+    position: GridPoint,
+    rotationDeg: ComponentSpec["rotationDeg"],
+    wires: readonly { id: StableId; points: readonly GridPoint[] }[] = [],
+  ): void {
+    assertPoint(position);
+    if (!VALID_ROTATIONS.has(rotationDeg)) {
+      throw new Error(
+        "A component rotation must be 0, 90, 180, or 270 degrees.",
+      );
+    }
+    wires.forEach((wire) => assertWirePoints(wire.points));
+
+    this.commit((draft) => {
+      const component = draft.components.find((item) => item.id === id);
+      if (!component) throw new Error(`Component ${id} does not exist.`);
+      component.position = pointCopy(position);
+      component.rotationDeg = rotationDeg;
+
+      for (const edit of wires) {
+        const wire = draft.wires.find((item) => item.id === edit.id);
+        if (!wire) throw new Error(`Wire ${edit.id} does not exist.`);
+        wire.points = pointsCopy(edit.points);
+      }
+    });
+  }
+
   setParameter(
     componentId: StableId,
     parameterId: ParameterId,

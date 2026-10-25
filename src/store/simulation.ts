@@ -37,7 +37,7 @@ export interface SimulationState {
   readonly diagnostics: readonly Diagnostic[];
   /** A transport failure, as opposed to engine diagnostics. */
   readonly error: string | null;
-  /** A parameter update is waiting for the engine. */
+  /** A parameter update or a recompile of an edit is waiting for the engine. */
   readonly updating: boolean;
   /** Frames rejected by `isSnapshotCurrent`. */
   readonly discardedFrames: number;
@@ -165,7 +165,7 @@ function describeError(error: unknown): string {
 const UNCONFIRMED_UPDATE =
   "The engine's answer did not match the current document and was ignored, so the last update is unconfirmed.";
 
-interface ParameterUpdate {
+export interface ParameterUpdate {
   readonly componentId: StableId;
   readonly parameterId: ParameterId;
   readonly value: number;
@@ -177,7 +177,9 @@ interface ParameterUpdate {
  *
  * Parameter edits are sent one at a time and coalesced, so the engine's state
  * always corresponds to the newest response and an older one can never be
- * applied over a newer one.
+ * applied over a newer one. Any other document change recompiles the whole
+ * document; compiles run one at a time and only the newest document is
+ * compiled next.
  */
 export class SimulationController {
   private state: SimulationState;
@@ -187,6 +189,11 @@ export class SimulationController {
   private readonly pending = new Map<string, ParameterUpdate>();
   private drain: Promise<void> | null = null;
   private stopFrames: (() => void) | null = null;
+  /** The newest document handed to the controller. */
+  private syncedSchematic: Schematic | null = null;
+  /** The newest document the engine was asked to adopt. */
+  private engineSchematic: Schematic | null = null;
+  private compiling: Promise<void> | null = null;
 
   constructor(
     private readonly adapter: EngineAdapter,
@@ -212,6 +219,8 @@ export class SimulationController {
     }
 
     this.started = true;
+    // A document synced before start is newer than the one start was given.
+    this.syncedSchematic ??= schematic;
     this.setState({ status: "loading", error: null });
 
     let catalog: ComponentCatalog;
@@ -228,72 +237,46 @@ export class SimulationController {
     }
 
     this.setState({ catalog });
+    await this.requestCompile();
+  }
 
-    const documentRevision = this.createRevision();
-    let result: CompileResult;
-
-    try {
-      result = await this.adapter.compile({
-        schematic,
-        geometry: buildGeometryEnvelope(schematic, this.registry),
-        documentRevision,
-      });
-    } catch (error) {
-      this.markUnavailable(error);
-      return;
+  /**
+   * Brings the engine to `schematic`, the current document. Pass `parameter`
+   * when that parameter edit is the only change since the previous document:
+   * it is then sent as a lightweight update. Any other change recompiles the
+   * whole document. Resolves once the engine has answered.
+   */
+  syncDocument(
+    schematic: Schematic,
+    parameter?: ParameterUpdate,
+  ): Promise<void> {
+    if (this.disposed || schematic === this.syncedSchematic) {
+      return Promise.resolve();
     }
 
-    if (this.disposed) {
-      return;
+    const previous = this.syncedSchematic;
+    this.syncedSchematic = schematic;
+
+    if (!this.started || this.state.catalog === null) {
+      // start() compiles the newest synced document once the catalog arrives.
+      return Promise.resolve();
     }
 
-    try {
-      if (result.status === "failure") {
-        this.setState({
-          status: "failed",
-          diagnostics: result.diagnostics,
-          error: null,
-        });
-        return;
-      }
-
-      const run: ActiveRun = {
-        runId: result.runId,
-        layout: result.layout,
-        documentRevision,
-      };
-
-      if (
-        !isLayoutCoherent(run.layout) ||
-        !isSnapshotCurrent(run, null, result.initialSnapshot)
-      ) {
-        this.setState({
-          status: "unavailable",
-          error:
-            "The engine returned a result that does not match the compiled run.",
-          discardedFrames: this.state.discardedFrames + 1,
-        });
-        return;
-      }
-
-      this.setState({
-        status: "ready",
-        run,
-        snapshot: result.initialSnapshot,
-        diagnostics: result.diagnostics,
-        error: null,
-      });
-    } catch (error) {
-      // A malformed payload must surface as an error, never as a crash.
-      this.markUnavailable(
-        new Error(
-          `The engine returned an unreadable result: ${describeError(error)}`,
-        ),
+    if (
+      parameter &&
+      this.state.status === "ready" &&
+      this.compiling === null &&
+      this.engineSchematic === previous
+    ) {
+      this.engineSchematic = schematic;
+      return this.setParameter(
+        parameter.componentId,
+        parameter.parameterId,
+        parameter.value,
       );
-      return;
     }
 
-    await this.openFrameStream(result.runId);
+    return this.requestCompile();
   }
 
   /**
@@ -322,6 +305,130 @@ export class SimulationController {
     this.disposed = true;
     this.pending.clear();
     this.listeners.clear();
+    this.stopFrames?.();
+    this.stopFrames = null;
+  }
+
+  private requestCompile(): Promise<void> {
+    // A recompile carries every parameter, so queued updates are obsolete.
+    this.pending.clear();
+    this.compiling ??= this.compileNewest().finally(() => {
+      this.compiling = null;
+    });
+    return this.compiling;
+  }
+
+  private async compileNewest(): Promise<void> {
+    while (
+      !this.disposed &&
+      this.syncedSchematic !== null &&
+      this.syncedSchematic !== this.engineSchematic
+    ) {
+      // An update already in flight belongs to the run being replaced; let it
+      // finish so its answer cannot land on the new run.
+      if (this.drain) {
+        await this.drain;
+        continue;
+      }
+
+      const target = this.syncedSchematic;
+      this.engineSchematic = target;
+      if (!(await this.compileDocument(target))) {
+        // The backend could not be reached; the next document change retries.
+        this.engineSchematic = null;
+        return;
+      }
+    }
+  }
+
+  /** Returns false when the engine could not be reached. */
+  private async compileDocument(schematic: Schematic): Promise<boolean> {
+    const documentRevision = this.createRevision();
+    let result: CompileResult;
+
+    if (this.state.status === "ready") {
+      this.setState({ updating: true });
+    }
+
+    try {
+      result = await this.adapter.compile({
+        schematic,
+        geometry: buildGeometryEnvelope(schematic, this.registry),
+        documentRevision,
+      });
+    } catch (error) {
+      this.stopFrameStream();
+      this.markUnavailable(error);
+      this.setState({ updating: false });
+      return false;
+    }
+
+    if (this.disposed || schematic !== this.syncedSchematic) {
+      // A newer document is waiting; the loop compiles it next.
+      return true;
+    }
+
+    try {
+      if (result.status === "failure") {
+        // The document stays editable; only the result is withdrawn.
+        this.stopFrameStream();
+        this.setState({
+          status: "failed",
+          run: null,
+          snapshot: null,
+          diagnostics: result.diagnostics,
+          error: null,
+          updating: false,
+        });
+        return true;
+      }
+
+      const run: ActiveRun = {
+        runId: result.runId,
+        layout: result.layout,
+        documentRevision,
+      };
+
+      if (
+        !isLayoutCoherent(run.layout) ||
+        !isSnapshotCurrent(run, null, result.initialSnapshot)
+      ) {
+        this.stopFrameStream();
+        this.setState({
+          status: "unavailable",
+          error:
+            "The engine returned a result that does not match the compiled run.",
+          discardedFrames: this.state.discardedFrames + 1,
+          updating: false,
+        });
+        return true;
+      }
+
+      this.stopFrameStream();
+      this.setState({
+        status: "ready",
+        run,
+        snapshot: result.initialSnapshot,
+        diagnostics: result.diagnostics,
+        error: null,
+        updating: false,
+      });
+    } catch (error) {
+      // A malformed payload must surface as an error, never as a crash.
+      this.markUnavailable(
+        new Error(
+          `The engine returned an unreadable result: ${describeError(error)}`,
+        ),
+      );
+      this.setState({ updating: false });
+      return true;
+    }
+
+    await this.openFrameStream(result.runId);
+    return true;
+  }
+
+  private stopFrameStream(): void {
     this.stopFrames?.();
     this.stopFrames = null;
   }
@@ -398,7 +505,7 @@ export class SimulationController {
   private async applyUpdate(update: ParameterUpdate): Promise<void> {
     const { run } = this.state;
 
-    if (this.state.status !== "ready" || !run) {
+    if (this.state.status !== "ready" || !run || this.compiling) {
       return;
     }
 
@@ -420,6 +527,7 @@ export class SimulationController {
         value: update.value,
       });
     } catch (error) {
+      this.engineMayDifferFromDocument();
       this.setState({
         updating: false,
         run,
@@ -435,6 +543,7 @@ export class SimulationController {
     try {
       if (result.status === "failure") {
         // A rejected update leaves the previous valid state and result in place.
+        this.engineMayDifferFromDocument();
         this.setState({
           updating: false,
           run,
@@ -459,6 +568,7 @@ export class SimulationController {
       if (!isSnapshotCurrent(sentRun, this.state.snapshot, result.snapshot)) {
         // The engine may have applied the change, but its answer cannot be
         // trusted for this document, so the update is reported as unconfirmed.
+        this.engineMayDifferFromDocument();
         this.setState({
           updating: false,
           run,
@@ -477,12 +587,21 @@ export class SimulationController {
       });
     } catch (error) {
       // A malformed payload must surface as an error, never as a crash.
+      this.engineMayDifferFromDocument();
       this.setState({
         updating: false,
         run,
         error: `The engine returned an unreadable result: ${describeError(error)}`,
       });
     }
+  }
+
+  /**
+   * An update did not certainly reach the engine, so the next document sync
+   * recompiles the whole document instead of sending another update.
+   */
+  private engineMayDifferFromDocument(): void {
+    this.engineSchematic = null;
   }
 
   private markUnavailable(error: unknown): void {
