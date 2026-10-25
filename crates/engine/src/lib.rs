@@ -7,6 +7,7 @@ pub mod engine;
 pub mod ids;
 mod mna;
 pub mod netlist;
+pub mod project;
 pub mod results;
 pub mod schematic;
 pub mod solver;
@@ -18,6 +19,7 @@ pub use catalog::{
 pub use diagnostics::{Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity};
 pub use engine::Engine;
 pub use ids::{InvalidStableId, StableId};
+pub use project::{ProjectDocumentError, decode_project_json, validate_project_schematic};
 pub use results::{
     AdvanceRequest, CompileRequest, CompileResult, FrameMetadata, ResultLayout, ResultQuantity,
     ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,

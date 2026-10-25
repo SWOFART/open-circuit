@@ -465,9 +465,10 @@ export class SchematicDocumentStore {
     return true;
   }
 
-  /** Records the current document as the last successfully saved state. */
-  markSaved(): void {
-    this.savedSchematic = this.schematic;
+  /** Records exactly the persisted snapshot as the last successfully saved state. */
+  markSaved(schematic: Schematic = this.schematic): void {
+    assertSchematicShape(schematic);
+    this.savedSchematic = freeze(structuredClone(schematic), true) as Schematic;
     this.publish();
   }
 

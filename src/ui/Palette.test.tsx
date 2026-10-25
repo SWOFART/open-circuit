@@ -52,6 +52,21 @@ describe("component palette", () => {
     expect(pressed(markup)).toEqual(["DC voltage source"]);
   });
 
+  it("disables every editor tool while a project operation is pending", () => {
+    const markup = renderToStaticMarkup(
+      <Palette
+        catalog={catalog}
+        tool={{ kind: "select" }}
+        disabled
+        onSelectTool={noTool}
+      />,
+    );
+
+    expect(markup.match(/disabled=""/g)).toHaveLength(
+      catalog.componentTypes.length + 4,
+    );
+  });
+
   it.each([
     [{ kind: "wire" }, "Wire"],
     [{ kind: "junction" }, "Junction"],
