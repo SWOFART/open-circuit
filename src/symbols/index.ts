@@ -1,5 +1,7 @@
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
+import { capacitorSymbol } from "./capacitor";
 import { dcVoltageSourceSymbol } from "./dcVoltageSource";
+import { inductorSymbol } from "./inductor";
 import { resistorSymbol } from "./resistor";
 import type { SymbolDefinition } from "./types";
 
@@ -16,6 +18,8 @@ export type SymbolRegistry = Readonly<
 export const symbols: SymbolRegistry = {
   resistor: resistorSymbol,
   dc_voltage_source: dcVoltageSourceSymbol,
+  capacitor: capacitorSymbol,
+  inductor: inductorSymbol,
 };
 
 /** Returns a drawing symbol or explains why a component cannot be placed yet. */

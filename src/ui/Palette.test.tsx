@@ -32,6 +32,8 @@ describe("component palette", () => {
       "Select",
       "Resistor",
       "DC voltage source",
+      "Capacitor",
+      "Inductor",
       "Wire",
       "Junction",
       "Ground",
@@ -39,8 +41,8 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
-    expect(markup).not.toContain("Capacitor");
-    expect(markup).not.toContain("Inductor");
+    // Every catalog type now has a symbol, so every one is offered.
+    expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
     expect(pressed(markup)).toEqual(["Select"]);
   });
 

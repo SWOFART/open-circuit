@@ -1,9 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import catalogFixture from "../../tests/golden/stage-1-catalog.json";
+import losslessLc from "../../tests/golden/stage-3-lossless-lc.schematic.json";
+import rcCharge from "../../tests/golden/stage-3-rc-charge.schematic.json";
 import expectedFixture from "../../tests/golden/stage-1-divider.expected.json";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { Diagnostic } from "../generated/Diagnostic";
+import type { Schematic } from "../generated/Schematic";
 import type { ResultLayout } from "../generated/ResultLayout";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
@@ -16,6 +19,7 @@ import {
 } from "../store/simulation";
 import { SchematicDocumentStore } from "../store/document";
 import { Inspector } from "./Inspector";
+import { optionalToggle } from "./OptionalParameterField";
 import { ResultPanel } from "./ResultPanel";
 
 const R1 = "00000000-0000-4000-8000-000000000002";
@@ -434,5 +438,106 @@ describe("names after a component is deleted", () => {
 
     expect(markup).toContain("R2 resistance");
     expect(markup).not.toContain("R1 resistance");
+  });
+});
+
+describe("Inspector for capacitors and inductors", () => {
+  const rcSchematic = rcCharge as Schematic;
+  const lcSchematic = losslessLc as Schematic;
+
+  function inspect(schematic: Schematic) {
+    return renderToStaticMarkup(
+      <Inspector
+        state={readyState([1, 2])}
+        schematic={schematic}
+        labels={componentLabels(schematic)}
+        onCommit={noCommit}
+      />,
+    );
+  }
+
+  it("edits the capacitance in convenient units", () => {
+    const markup = inspect(rcSchematic);
+
+    expect(markup).toContain("C1 capacitance");
+    expect(markup).toContain('value="10 µF"');
+  });
+
+  it("shows a set initial voltage with its sign reference", () => {
+    const markup = inspect(rcSchematic);
+
+    expect(markup).toContain("Set C1 initial voltage");
+    expect(markup).toMatch(/type="checkbox"[^>]*checked=""/);
+    expect(markup).toContain("C1 initial voltage");
+    expect(markup).toContain("Voltage V(pin1) − V(pin2) at time zero.");
+  });
+
+  it("shows an inductor's inductance and initial current", () => {
+    const markup = inspect(lcSchematic);
+
+    expect(markup).toContain("L1 inductance");
+    expect(markup).toContain('value="100 mH"');
+    expect(markup).toContain("Set L1 initial current");
+    expect(markup).toContain("Current entering pin1 at time zero.");
+  });
+
+  it("offers an unset initial condition as an unchecked choice, with no stored value", () => {
+    const unset: Schematic = {
+      ...lcSchematic,
+      components: lcSchematic.components.map((component) =>
+        component.typeId === "inductor"
+          ? {
+              ...component,
+              parameters: {
+                inductanceHenries: component.parameters.inductanceHenries,
+              },
+            }
+          : component,
+      ),
+    };
+    const markup = inspect(unset);
+
+    expect(markup).toContain("Set L1 initial current");
+    expect(markup).toContain("Not set: starts from the operating point.");
+    // Only the capacitor's initial voltage field is left, plus the two values.
+    expect(markup.match(/type="checkbox"[^>]*checked=""/g)).toHaveLength(1);
+    // No value field for it: the only "L1 initial current" label is the choice.
+    expect(markup).not.toContain(">L1 initial current</label>");
+  });
+
+  it("disables the choice and the fields while the catalog is loading", () => {
+    const markup = renderToStaticMarkup(
+      <Inspector
+        state={{ ...readyState([1, 2]), status: "loading" }}
+        schematic={lcSchematic}
+        labels={componentLabels(lcSchematic)}
+        onCommit={noCommit}
+      />,
+    );
+
+    expect(markup.match(/disabled=""/g)?.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe("turning an initial condition on or off", () => {
+  const definition = (id: "initialVoltageVolts" | "initialCurrentAmps") =>
+    (catalogFixture as ComponentCatalog).componentTypes
+      .flatMap((entry) => entry.parameters)
+      .find((item) => item.id === id);
+
+  it("offers the catalog's value when turned on, and removes the parameter when turned off", () => {
+    const voltage = definition("initialVoltageVolts");
+    const current = definition("initialCurrentAmps");
+    if (!voltage || !current) throw new Error("Catalog entries are missing.");
+
+    expect(optionalToggle(true, voltage)).toEqual({
+      kind: "set",
+      value: voltage.defaultValue,
+    });
+    expect(optionalToggle(true, current)).toEqual({
+      kind: "set",
+      value: current.defaultValue,
+    });
+    expect(optionalToggle(false, voltage)).toEqual({ kind: "clear" });
   });
 });

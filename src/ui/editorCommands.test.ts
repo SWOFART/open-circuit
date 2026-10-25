@@ -1,13 +1,20 @@
 import { describe, expect, it } from "vitest";
 import catalogFixture from "../../tests/golden/stage-1-catalog.json";
+import losslessLc from "../../tests/golden/stage-3-lossless-lc.schematic.json";
+import rcCharge from "../../tests/golden/stage-3-rc-charge.schematic.json";
 import { commandForIntent } from "../editor/commands";
 import { resolvePinPositions } from "../editor/geometry";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
+import type { Schematic } from "../generated/Schematic";
 import { SchematicDocumentStore } from "../store/document";
 import { dividerSchematic } from "../store/fixtures";
 import { symbols } from "../symbols";
-import { applyEditorCommand, defaultParameters } from "./editorCommands";
+import {
+  applyEditorCommand,
+  defaultParameters,
+  liveParameterUpdate,
+} from "./editorCommands";
 
 const catalog = catalogFixture as ComponentCatalog;
 const R1 = "00000000-0000-4000-8000-000000000002";
@@ -20,18 +27,26 @@ function createStore(): SchematicDocumentStore {
 
 describe("catalog defaults", () => {
   it.each(catalog.componentTypes)(
-    "gives a new $typeId every catalog parameter at its default",
+    "gives a new $typeId every required catalog parameter at its default",
     (entry) => {
       expect(defaultParameters(catalog, entry.typeId)).toEqual(
         Object.fromEntries(
-          entry.parameters.map((parameter) => [
-            parameter.id,
-            parameter.defaultValue,
-          ]),
+          entry.parameters
+            .filter((parameter) => !parameter.optional)
+            .map((parameter) => [parameter.id, parameter.defaultValue]),
         ),
       );
     },
   );
+
+  it("leaves optional parameters, such as initial conditions, unset", () => {
+    expect(defaultParameters(catalog, "capacitor")).toEqual({
+      capacitanceFarads: 1e-5,
+    });
+    expect(defaultParameters(catalog, "inductor")).toEqual({
+      inductanceHenries: 0.1,
+    });
+  });
 
   it("refuses a type that is not in the catalog", () => {
     expect(() =>
@@ -326,5 +341,71 @@ describe("applying drawing commands to the document", () => {
       ),
     ).toThrow();
     expect(store.getState().schematic).toBe(before);
+  });
+});
+
+describe("choosing between a live update and a recompile", () => {
+  const schematic = losslessLc as Schematic;
+  const capacitor = "00000000-0000-4000-8000-000000000001";
+  const resistorFixture = rcCharge as Schematic;
+
+  function componentOf(typeId: "capacitor" | "inductor"): string {
+    const found = schematic.components.find((item) => item.typeId === typeId);
+    if (!found) throw new Error(`No ${typeId} in the fixture.`);
+    return found.id;
+  }
+
+  it("sends a lightweight update for a value, whatever the part", () => {
+    const inductor = componentOf("inductor");
+
+    expect(
+      liveParameterUpdate(catalog, schematic, inductor, "inductanceHenries", 2),
+    ).toEqual({
+      componentId: inductor,
+      parameterId: "inductanceHenries",
+      value: 2,
+    });
+    expect(
+      liveParameterUpdate(
+        catalog,
+        resistorFixture,
+        "00000000-0000-4000-8000-000000000002",
+        "resistanceOhms",
+        470,
+      ),
+    ).toBeDefined();
+  });
+
+  it.each([
+    ["capacitor", "initialVoltageVolts"],
+    ["inductor", "initialCurrentAmps"],
+  ] as const)(
+    "recompiles for the %s's %s, which only sets the state at time zero",
+    (typeId, parameterId) => {
+      expect(
+        liveParameterUpdate(
+          catalog,
+          schematic,
+          componentOf(typeId),
+          parameterId,
+          1,
+        ),
+      ).toBeUndefined();
+    },
+  );
+
+  it("recompiles when the component or the parameter is unknown", () => {
+    expect(
+      liveParameterUpdate(catalog, schematic, capacitor, "resistanceOhms", 1),
+    ).toBeUndefined();
+    expect(
+      liveParameterUpdate(
+        catalog,
+        schematic,
+        "00000000-0000-4000-8000-0000000000ff",
+        "capacitanceFarads",
+        1,
+      ),
+    ).toBeUndefined();
   });
 });

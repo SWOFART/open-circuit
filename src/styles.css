@@ -273,6 +273,29 @@ input {
   opacity: 0.55;
 }
 
+.optional-parameter {
+  margin-bottom: 14px;
+}
+
+.optional-parameter .parameter-field {
+  margin-bottom: 6px;
+}
+
+.optional-parameter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.parameter-hint {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #9ca3af;
+}
+
 .field-error,
 .panel-error {
   margin: 0;

@@ -2,6 +2,7 @@ import type { ParameterId } from "../generated/ParameterId";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { SimulationState } from "../store/simulation";
+import { OptionalParameterField } from "./OptionalParameterField";
 import { ParameterField } from "./ParameterField";
 
 export interface InspectorProps {
@@ -14,6 +15,8 @@ export interface InspectorProps {
     parameterId: ParameterId,
     value: number,
   ) => void;
+  /** Stops storing an optional parameter, such as an initial condition. */
+  readonly onClear?: (componentId: StableId, parameterId: ParameterId) => void;
 }
 
 /**
@@ -26,6 +29,7 @@ export function Inspector({
   labels,
   disabled = false,
   onCommit,
+  onClear = () => {},
 }: InspectorProps) {
   const { catalog } = state;
   const editable = !disabled && catalog !== null && state.status !== "loading";
@@ -52,11 +56,29 @@ export function Inspector({
 
           return (entry?.parameters ?? []).map((definition) => {
             const value = values[definition.id];
+            const label = labels.get(component.id) ?? component.typeId;
+            const key = `${component.id}:${definition.id}`;
+
+            if (definition.optional) {
+              return (
+                <OptionalParameterField
+                  key={key}
+                  label={label}
+                  definition={definition}
+                  committedValue={value}
+                  disabled={!editable}
+                  onCommit={(next) =>
+                    onCommit(component.id, definition.id, next)
+                  }
+                  onClear={() => onClear(component.id, definition.id)}
+                />
+              );
+            }
 
             return value === undefined ? null : (
               <ParameterField
-                key={`${component.id}:${definition.id}`}
-                label={labels.get(component.id) ?? component.typeId}
+                key={key}
+                label={label}
                 definition={definition}
                 committedValue={value}
                 disabled={!editable}
