@@ -293,6 +293,8 @@ the evidence for it, are recorded in `docs/adr/0001-binary-channel-frames.md`.
 | `start_simulation` | `runId`, `onFrame: Channel` | Starts binary frames for the active run. Refused with an error if `runId` is not the active run. |
 | `stop_simulation` | `runId` | Ends the stream of that run and releases its channel. Ignored if that run is no longer streaming, so a late stop cannot cut off a newer run's stream. |
 | `acknowledge_frame` | `frameSequence` | The UI has processed every frame up to and including that sequence. |
+| `read_traces` | `request: TraceRequest`, `onTrace: Channel` | Sends one bounded `OCT1` binary response for the active run. |
+| `acknowledge_trace` | `runId`, `traceSequence` | The UI has processed the trace response identified by this run and sequence. |
 
 Engine diagnostics are part of the result values. A failure of the transport itself, such as
 a stopped simulation thread, is returned as an error string. The TypeScript adapter reports
@@ -340,7 +342,66 @@ written from this section.
 
 A change to this envelope is a contract change. An incompatible change gets a new magic.
 
-### 8.3 Delivery
+### 8.3 Trace response envelope
+
+`read_traces` sends one message on `onTrace`, arriving in the webview as an
+`ArrayBuffer`. The response combines a bounded JSON metadata header with a little-endian
+numeric payload:
+
+| Offset | Size | Field |
+|---|---|---|
+| 0 | 4 | Magic `OCT1`: the trace format, version 1 |
+| 4 | 4 | `headerLength`, `u32`, the UTF-8 JSON header length |
+| 8 | n | JSON header: `traceSequence`, `metadata`, selected `signals`, and `pointCount` |
+| 8 + n | p | Zero padding up to the next multiple of 8 |
+| 8 + n + p | variable | `pointCount` records, each `simulationStep: u64` followed by one `minimum: f64` and `maximum: f64` pair per signal, in `signals` order |
+
+All integers and floats are little-endian. Each signal descriptor carries its layout
+`key` and SI `unit`. The metadata carries `runId`, `documentRevision`, `layoutVersion`,
+`sampleIntervalSeconds`, `historySamples`, `oldestSampleStep`, `latestSampleStep`,
+`firstSampleStep`, `lastSampleStep`, `sampleCount` (raw samples represented before decimation), `missedSamples`, and
+`replaced`. The header is at most 8192 bytes. It is followed by at most 2048 points for
+at most 8 signals; therefore a response is at most 512 KiB. A reader checks the magic,
+header length, padding, dimensions, total length, and finite payload values before using
+any decoded lengths. The JSON `u64` fields `traceSequence`, `oldestSampleStep`,
+`latestSampleStep`, `firstSampleStep`, `lastSampleStep`, and `missedSamples` are base-10
+strings (nullable for the optional steps), preserving full precision in JavaScript.
+`firstSampleStep` and `lastSampleStep` are the inclusive raw sample range represented
+before decimation; clients use `lastSampleStep` as the cursor for a later `newSamples`
+request. They are `null` for an empty response, whose `documentRevision` is the newest
+stored sample's revision. Point `simulationStep` values are binary `u64` integers.
+
+`TraceRequest` selects 1–8 unique layout keys and a `maxPoints` value. The application
+caps `maxPoints` at 2048 (the Engine also refuses values above 4096). A `history` query
+uses an inclusive `[startStep, endStep]` range. A `newSamples` query supplies
+`afterStep` and `afterDocumentRevision`: normally it returns samples after that step; if
+that step was replaced by a live parameter update and its revision differs, it returns
+that step too and sets `replaced`. The JSON step fields are non-negative safe integers in
+JavaScript. If history has overwritten requested steps,
+`missedSamples` reports the number omitted before the first returned sample. A reader
+must use each point's `simulationStep`; it must not join across a reported gap as if no
+samples were lost. When decimating, a point's step is the first step in its bucket, and
+its per-signal minimum and maximum preserve peaks.
+
+### 8.4 Trace delivery and flow control
+
+- Trace samples are captured by the Engine at every public 1 ms step, independent of the
+  60 Hz frame delivery cap. `read_traces` reads the Engine's bounded ring history; it does
+  not start or advance the simulation.
+- The app admits at most one pending `read_traces` request per active run and rejects a
+  second request before it enters the simulation-thread queue. Only one trace response per
+  run may be unacknowledged. The UI acknowledges it with the matching `runId` and
+  `traceSequence`; an acknowledgement for another response is ignored. After one second,
+  an unacknowledged response no longer blocks a new request. The bridge does not queue
+  trace responses.
+- A successful compile discards the previous trace buffer and any pending response. A
+  failed compile preserves both. A stopped run stops advancing but its retained history
+  stays readable. A live parameter update replaces the sample at the current step.
+- `read_traces` refuses stale run IDs and layout versions. Trace data and commands stay
+  outside the pure Engine's transport model; the Engine returns typed batches and `crates/app`
+  encodes this envelope.
+
+### 8.5 Frame delivery
 
 - The simulation thread owns the Engine and advances the fixed 1 ms physics step against
   the wall clock. Its pace does not depend on the UI. After a long stall, the backlog is
@@ -363,7 +424,7 @@ A change to this envelope is a contract change. An incompatible change gets a ne
   The UI applies the section 5 acceptance rule to every frame, and treats a reply that a
   newer frame of the same revision has already superseded as confirmed.
 
-### 8.4 Lifecycle
+### 8.6 Lifecycle
 
 - `start_simulation` opens a stream for the active run and replaces any earlier stream.
 - A successful `compile_circuit`, `stop_simulation` for the streaming run, a closed

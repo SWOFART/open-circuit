@@ -380,9 +380,9 @@ can be traced.
   simulation thread as the run advances, whether or not a frame is built or
   delivered, so the 60 Hz cap, a lagging UI, a closed oscilloscope, and a
   slow-down factor change which frames the UI sees but never which samples
-  exist. As in stage-1.md section 8.3, the run advances while a stream is open;
-  the bridge issue (#48) decides whether traces get a stream of their own, and
-  it must not make sampling depend on which frames were delivered.
+  exist. As in stage-1.md section 8.5, the run advances while a frame stream is
+  open. Trace reads use the bounded request-response Channel in section 8.3;
+  sampling does not depend on which frames were delivered.
 - Samples of a run are strictly ordered by `simulationStep`, and their time is
   `simulationStep x 0.001`. A sample is never reordered or repeated.
 - Dynamics faster than the public step are not shown (section 1.4).
@@ -404,8 +404,8 @@ can be traced.
 ### 7.4 Retrieval and decimation
 
 This section fixes what a trace message means. The binary envelope, command
-names, flow control, and exact limits are specified when the bridge is built
-(issue #48) as an addition to stage-1.md section 8, under these rules:
+names, flow control, and exact limits are specified in stage-1.md section 8,
+implemented by issue #48 under these rules:
 
 - A response names the `runId`, the `documentRevision` in force at its last
   sample, the layout version, `sampleIntervalSeconds`, and `historySamples`.
@@ -413,9 +413,9 @@ names, flow control, and exact limits are specified when the bridge is built
   asked for by step range) and **new samples** since the previous response to
   the same request. Both are bounded.
 - A request names at most 8 signals, and a response holds at most `maxPoints`
-  points per signal (a limit of at most 4096, set by the application), so one
-  response holds at most 8 x 4096 points. Issue #48 may lower these limits. If
-  the requested samples exceed `maxPoints`, the Engine
+  points per signal. The Engine accepts at most 4096 points; the application
+  caps responses at 2048 points per signal, as specified in stage-1.md section
+  8.3. If the requested samples exceed `maxPoints`, the Engine
   groups them into consecutive buckets of `k = ceil(count / maxPoints)`
   samples. Each point then carries the step of the bucket's first sample and,
   for each signal, the **minimum and maximum** over the bucket, so that peaks

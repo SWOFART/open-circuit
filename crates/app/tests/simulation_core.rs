@@ -7,11 +7,12 @@ use std::time::{Duration, Instant};
 
 use open_circuit_app_lib::frame::decode_frame;
 use open_circuit_app_lib::simulation::{
-    FrameSink, PHYSICS_STEP, SimulationConfig, SimulationCore, SinkClosed,
+    FrameSink, PHYSICS_STEP, SimulationConfig, SimulationCore, SinkClosed, TraceSink,
 };
 use open_circuit_engine::{
     CompileRequest, CompileResult, DiagnosticCode, ParameterId, ResultSnapshot,
-    SIMULATION_TIMESTEP_SECONDS, SetParameterRequest, SetParameterResult, StableId,
+    SIMULATION_TIMESTEP_SECONDS, SetParameterRequest, SetParameterResult, StableId, TraceQuery,
+    TraceRequest,
 };
 
 const SCHEMATIC: &str = include_str!("../../../tests/golden/stage-1-divider.schematic.json");
@@ -51,6 +52,29 @@ impl FrameSink for SinkHandle {
             return Err(SinkClosed);
         }
         self.0.frames.lock().expect("lock").push(frame);
+        Ok(())
+    }
+}
+
+#[derive(Clone, Default)]
+struct TraceRecordingSink {
+    responses: Arc<Mutex<Vec<Vec<u8>>>>,
+}
+
+struct TraceSinkHandle(TraceRecordingSink);
+
+impl TraceSink for TraceSinkHandle {
+    fn send(&mut self, response: Vec<u8>) -> Result<(), SinkClosed> {
+        self.0.responses.lock().expect("lock").push(response);
+        Ok(())
+    }
+}
+
+struct DelayedTraceSink(Duration);
+
+impl TraceSink for DelayedTraceSink {
+    fn send(&mut self, _response: Vec<u8>) -> Result<(), SinkClosed> {
+        std::thread::sleep(self.0);
         Ok(())
     }
 }
@@ -637,4 +661,132 @@ fn a_revision_too_long_for_a_frame_is_refused_instead_of_silently_ending_the_str
         other.compile(request(&longest)),
         CompileResult::Success { .. }
     ));
+}
+
+#[test]
+fn trace_bridge_is_bounded_acknowledged_and_rejects_a_stale_run() {
+    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let frame_sink = RecordingSink::default();
+    let start = Instant::now();
+    core.start(run_id.clone(), Box::new(SinkHandle(frame_sink)), start)
+        .expect("start");
+    core.tick(start + Duration::from_millis(5));
+    core.stop(Some(&run_id));
+    assert!(!core.is_streaming());
+
+    let request = TraceRequest {
+        run_id: run_id.clone(),
+        layout_version: 1,
+        signal_keys: vec![format!("{RESISTOR_1}:voltage")],
+        query: TraceQuery::History {
+            start_step: 0,
+            end_step: 5,
+        },
+        max_points: 4096,
+    };
+    let sink = TraceRecordingSink::default();
+    core.read_traces(
+        request.clone(),
+        Box::new(TraceSinkHandle(sink.clone())),
+        start + Duration::from_millis(5),
+    )
+    .expect("first bounded response");
+
+    let response = sink.responses.lock().expect("lock")[0].clone();
+    assert_eq!(&response[..4], b"OCT1");
+    assert!(response.len() <= open_circuit_app_lib::trace::MAX_RESPONSE_BYTES);
+    let header_length = u32::from_le_bytes(response[4..8].try_into().unwrap()) as usize;
+    let header: serde_json::Value =
+        serde_json::from_slice(&response[8..8 + header_length]).expect("valid trace header");
+    assert_eq!(header["pointCount"], 6);
+    assert_eq!(header["metadata"]["sampleCount"], 6);
+    assert_eq!(header["metadata"]["firstSampleStep"], "0");
+    assert_eq!(header["metadata"]["lastSampleStep"], "5");
+    let sequence = header["traceSequence"]
+        .as_str()
+        .expect("trace sequence")
+        .parse::<u64>()
+        .expect("valid trace sequence");
+
+    let busy = core.read_traces(
+        request.clone(),
+        Box::new(TraceSinkHandle(TraceRecordingSink::default())),
+        start + Duration::from_millis(6),
+    );
+    assert_eq!(busy.unwrap_err()[0].code, DiagnosticCode::InvalidParameter);
+
+    core.acknowledge_trace(&run_id, sequence);
+    core.read_traces(
+        request.clone(),
+        Box::new(TraceSinkHandle(TraceRecordingSink::default())),
+        start + Duration::from_millis(7),
+    )
+    .expect("acknowledgement releases the next response");
+    core.read_traces(
+        request,
+        Box::new(TraceSinkHandle(TraceRecordingSink::default())),
+        start + Duration::from_millis(1008),
+    )
+    .expect("an unacknowledged response times out after one second");
+    core.acknowledge_trace(&run_id, sequence + 2);
+
+    let stale = core.read_traces(
+        TraceRequest {
+            run_id: StableId::parse("00000000-0000-4000-8000-000000000099").unwrap(),
+            layout_version: 1,
+            signal_keys: vec![format!("{RESISTOR_1}:voltage")],
+            query: TraceQuery::History {
+                start_step: 0,
+                end_step: 5,
+            },
+            max_points: 32,
+        },
+        Box::new(TraceSinkHandle(TraceRecordingSink::default())),
+        start + Duration::from_millis(8),
+    );
+    assert_eq!(stale.unwrap_err()[0].code, DiagnosticCode::StaleRun);
+}
+
+#[test]
+fn trace_acknowledgement_timeout_starts_after_the_response_is_sent() {
+    let ack_timeout = Duration::from_millis(100);
+    let (mut core, run_id) = compiled_core(SimulationConfig {
+        ack_timeout,
+        ..SimulationConfig::default()
+    });
+    let start = Instant::now();
+    let request = TraceRequest {
+        run_id,
+        layout_version: 1,
+        signal_keys: vec![format!("{RESISTOR_1}:voltage")],
+        query: TraceQuery::History {
+            start_step: 0,
+            end_step: 0,
+        },
+        max_points: 8,
+    };
+
+    core.read_traces(
+        request.clone(),
+        Box::new(DelayedTraceSink(Duration::from_millis(130))),
+        start,
+    )
+    .expect("first trace response is sent");
+
+    let sent_recently = core.read_traces(
+        request.clone(),
+        Box::new(TraceSinkHandle(TraceRecordingSink::default())),
+        start + Duration::from_millis(150),
+    );
+    assert_eq!(
+        sent_recently.unwrap_err()[0].code,
+        DiagnosticCode::InvalidParameter
+    );
+
+    core.read_traces(
+        request,
+        Box::new(TraceSinkHandle(TraceRecordingSink::default())),
+        start + Duration::from_millis(1_000),
+    )
+    .expect("a sent response is released after its acknowledgement timeout");
 }

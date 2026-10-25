@@ -6,11 +6,11 @@ use std::time::Duration;
 
 use open_circuit_app_lib::frame::decode_frame;
 use open_circuit_app_lib::simulation::{
-    FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed,
+    FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed, TraceSink,
 };
 use open_circuit_engine::{
     CompileRequest, CompileResult, DiagnosticCode, ParameterId, ResultSnapshot,
-    SetParameterRequest, SetParameterResult, StableId,
+    SetParameterRequest, SetParameterResult, StableId, TraceQuery, TraceRequest,
 };
 
 const SCHEMATIC: &str = include_str!("../../../tests/golden/stage-1-divider.schematic.json");
@@ -23,6 +23,14 @@ struct ChannelSink(Sender<Vec<u8>>);
 impl FrameSink for ChannelSink {
     fn send(&mut self, frame: Vec<u8>) -> Result<(), SinkClosed> {
         self.0.send(frame).map_err(|_| SinkClosed)
+    }
+}
+
+struct TraceChannelSink(Sender<Vec<u8>>);
+
+impl TraceSink for TraceChannelSink {
+    fn send(&mut self, response: Vec<u8>) -> Result<(), SinkClosed> {
+        self.0.send(response).map_err(|_| SinkClosed)
     }
 }
 
@@ -64,6 +72,80 @@ fn start(service: &SimulationService, run_id: StableId) -> Receiver<Vec<u8>> {
 
 fn next_frame(receiver: &Receiver<Vec<u8>>) -> ResultSnapshot {
     decode_frame(&receiver.recv_timeout(WAIT).expect("a frame arrives")).expect("decodes")
+}
+
+#[test]
+fn trace_requests_flow_through_the_simulation_thread_and_require_acknowledgement() {
+    let service = SimulationService::spawn(fast_config());
+    let run_id = compile(&service, "rev-1");
+    let request = TraceRequest {
+        run_id: run_id.clone(),
+        layout_version: 1,
+        signal_keys: vec![format!("{RESISTOR_1}:voltage")],
+        query: TraceQuery::History {
+            start_step: 0,
+            end_step: 0,
+        },
+        max_points: 8,
+    };
+    let (sender, _receiver) = mpsc::channel();
+    let stale_run = StableId::parse("00000000-0000-4000-8000-000000000099").unwrap();
+    let stale = service
+        .read_traces(
+            TraceRequest {
+                run_id: stale_run,
+                ..request.clone()
+            },
+            Box::new(TraceChannelSink(sender)),
+        )
+        .expect("the thread is not needed to reject a stale run");
+    assert_eq!(stale.unwrap_err()[0].code, DiagnosticCode::StaleRun);
+
+    let (sender, receiver) = mpsc::channel();
+    let sequence_from_service = service
+        .read_traces(request.clone(), Box::new(TraceChannelSink(sender)))
+        .expect("the thread answers")
+        .expect("the initial trace is available");
+    let response = receiver.recv_timeout(WAIT).expect("trace response arrives");
+    assert_eq!(&response[..4], b"OCT1");
+    let header_length = u32::from_le_bytes(response[4..8].try_into().unwrap()) as usize;
+    let header: serde_json::Value =
+        serde_json::from_slice(&response[8..8 + header_length]).expect("trace header is JSON");
+    let sequence = header["traceSequence"]
+        .as_str()
+        .expect("trace sequence is a decimal string")
+        .parse::<u64>()
+        .expect("trace sequence is valid");
+    assert_eq!(sequence_from_service, sequence);
+
+    service
+        .acknowledge_trace(run_id.clone(), sequence + 1)
+        .expect("a stale acknowledgement is harmless");
+
+    let (sender, _receiver) = mpsc::channel();
+    let pending = service
+        .read_traces(request.clone(), Box::new(TraceChannelSink(sender)))
+        .expect("the thread answers");
+    assert_eq!(
+        pending.unwrap_err()[0].code,
+        DiagnosticCode::InvalidParameter
+    );
+
+    service
+        .acknowledge_trace(run_id, sequence)
+        .expect("trace acknowledgement is queued");
+    let (sender, receiver) = mpsc::channel();
+    service
+        .read_traces(request, Box::new(TraceChannelSink(sender)))
+        .expect("the thread answers")
+        .expect("acknowledgement permits another trace");
+    assert_eq!(
+        &receiver
+            .recv_timeout(WAIT)
+            .expect("second response arrives")[..4],
+        b"OCT1"
+    );
+    service.shutdown();
 }
 
 #[test]

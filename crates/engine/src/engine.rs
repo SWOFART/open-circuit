@@ -1,5 +1,7 @@
 //! Stateful Engine API for compiling, updating, and advancing circuit simulations.
 
+#[path = "trace.rs"]
+mod trace;
 #[path = "transient.rs"]
 mod transient;
 
@@ -11,7 +13,7 @@ use crate::{
     AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, Diagnostic, DiagnosticCode,
     DiagnosticReference, DiagnosticSeverity, GeometryEnvelope, ParameterId, PinId, ResultLayout,
     ResultQuantity, ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
-    Schematic, SetParameterRequest, SetParameterResult, StableId, Unit,
+    Schematic, SetParameterRequest, SetParameterResult, StableId, TraceBatch, TraceRequest, Unit,
     devices::{
         CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult,
         InductorDevice, InductorMode, ResistorDevice, Terminals, component_diagnostic,
@@ -20,6 +22,7 @@ use crate::{
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist},
     solver::SolverError,
 };
+use trace::TraceHistory;
 use transient::{
     CapacitorState, CircuitStates, InductorState, SolveMode, advance_public_steps,
     choose_internal_substeps, circuit_states_from_results,
@@ -40,6 +43,7 @@ struct CompiledRun {
     states: CircuitStates,
     step_start_states: CircuitStates,
     internal_substeps: u32,
+    trace_history: TraceHistory,
 }
 
 type InitializationOutcome =
@@ -109,6 +113,26 @@ impl Engine {
             values,
         };
 
+        let Some(mut trace_history) = TraceHistory::new(layout.value_count as usize) else {
+            return CompileResult::Failure {
+                diagnostics: vec![Diagnostic::error(
+                    DiagnosticCode::InvalidParameter,
+                    Vec::new(),
+                )],
+            };
+        };
+        if trace_history
+            .append(0, &snapshot.metadata.document_revision, &snapshot.values)
+            .is_err()
+        {
+            return CompileResult::Failure {
+                diagnostics: vec![Diagnostic::error(
+                    DiagnosticCode::InvalidParameter,
+                    Vec::new(),
+                )],
+            };
+        }
+
         self.compiled = Some(CompiledRun {
             run_id: run_id.clone(),
             schematic: request.schematic,
@@ -118,6 +142,7 @@ impl Engine {
             step_start_states: states.clone(),
             states,
             internal_substeps,
+            trace_history,
         });
 
         CompileResult::Success {
@@ -241,6 +266,24 @@ impl Engine {
             .compiled
             .as_mut()
             .expect("active run was checked above");
+        if active
+            .trace_history
+            .replace_latest(
+                simulation_step,
+                &snapshot.metadata.document_revision,
+                &snapshot.values,
+            )
+            .is_err()
+        {
+            return SetParameterResult::Failure {
+                diagnostics: vec![Diagnostic::error(
+                    DiagnosticCode::InvalidParameter,
+                    vec![DiagnosticReference::Component {
+                        component_id: request.component_id,
+                    }],
+                )],
+            };
+        }
         active.schematic = candidate;
         active.snapshot = snapshot.clone();
         active.states = states.clone();
@@ -292,31 +335,70 @@ impl Engine {
                 Vec::new(),
             )]);
         };
-        let simulation_time_seconds = simulation_step as f64 * SIMULATION_TIMESTEP_SECONDS;
-        if !simulation_time_seconds.is_finite() {
+        if !(simulation_step as f64 * SIMULATION_TIMESTEP_SECONDS).is_finite() {
             return Err(vec![Diagnostic::error(
                 DiagnosticCode::InvalidParameter,
                 Vec::new(),
             )]);
         }
 
-        let (device_results, states, step_start_states, _diagnostics) = advance_public_steps(
-            &active.schematic,
-            &active.geometry,
-            active.states.clone(),
-            active.internal_substeps,
-            request.step_count,
-        )?;
-        let values = values_for_layout(&active.layout, &device_results)?;
-        let mut snapshot = active.snapshot.clone();
-        snapshot.values = values;
-        snapshot.metadata.simulation_step = simulation_step;
-        snapshot.metadata.simulation_time_seconds = simulation_time_seconds;
-        snapshot.metadata.frame_sequence = frame_sequence;
+        let mut states = active.states.clone();
+        let mut step_start_states = active.step_start_states.clone();
+        let mut samples = TraceHistory::with_capacity(
+            active.layout.value_count as usize,
+            (request.step_count as usize).min(active.trace_history.capacity()),
+        )
+        .ok_or_else(|| {
+            vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]
+        })?;
+        let document_revision = active.snapshot.metadata.document_revision.clone();
+        let mut final_values = None;
+
+        for offset in 1..=request.step_count {
+            let (device_results, next_states, next_step_start_states, _diagnostics) =
+                advance_public_steps(
+                    &active.schematic,
+                    &active.geometry,
+                    states,
+                    active.internal_substeps,
+                    1,
+                )?;
+            let values = values_for_layout(&active.layout, &device_results)?;
+            let current_step = active.snapshot.metadata.simulation_step + u64::from(offset);
+            let simulation_time_seconds = current_step as f64 * SIMULATION_TIMESTEP_SECONDS;
+            if !simulation_time_seconds.is_finite()
+                || samples
+                    .append(current_step, &document_revision, &values)
+                    .is_err()
+            {
+                return Err(vec![Diagnostic::error(
+                    DiagnosticCode::InvalidParameter,
+                    Vec::new(),
+                )]);
+            }
+
+            states = next_states;
+            step_start_states = next_step_start_states;
+            final_values = Some(values);
+        }
+
+        active.trace_history.append_history(&samples).map_err(|_| {
+            vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]
+        })?;
         active.step_start_states = step_start_states;
         active.states = states;
-        active.snapshot = snapshot.clone();
-        Ok(snapshot)
+        active.snapshot.values = final_values.expect("advance requires at least one step");
+        active.snapshot.metadata.simulation_step = simulation_step;
+        active.snapshot.metadata.simulation_time_seconds =
+            simulation_step as f64 * SIMULATION_TIMESTEP_SECONDS;
+        active.snapshot.metadata.frame_sequence = frame_sequence;
+        Ok(active.snapshot.clone())
     }
 
     pub fn latest_snapshot(&self) -> Option<&ResultSnapshot> {
@@ -325,6 +407,27 @@ impl Engine {
 
     pub fn result_layout(&self) -> Option<&ResultLayout> {
         self.compiled.as_ref().map(|active| &active.layout)
+    }
+
+    /// Reads a bounded selection of samples from the active run's trace history.
+    pub fn read_traces(&self, request: TraceRequest) -> Result<TraceBatch, Vec<Diagnostic>> {
+        let Some(active) = self.compiled.as_ref() else {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::StaleRun,
+                Vec::new(),
+            )]);
+        };
+        if request.run_id != active.run_id || request.layout_version != active.layout.layout_version
+        {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::StaleRun,
+                Vec::new(),
+            )]);
+        }
+
+        active
+            .trace_history
+            .read(&request, active.run_id.clone(), &active.layout)
     }
 }
 
@@ -1338,6 +1441,205 @@ mod tests {
         });
         assert_stale_revision(delayed_update);
         assert_eq!(engine.latest_snapshot(), Some(&snapshot));
+    }
+
+    #[test]
+    fn trace_history_samples_each_public_step_and_rejects_stale_runs() {
+        let mut engine = Engine::default();
+        let CompileResult::Success { run_id, layout, .. } = engine.compile(test_compile_request())
+        else {
+            panic!("divider should compile");
+        };
+        let signal_key = layout.slots[0].key.clone();
+        engine
+            .advance(AdvanceRequest {
+                run_id: run_id.clone(),
+                step_count: 3,
+            })
+            .unwrap();
+
+        let batch = engine
+            .read_traces(TraceRequest {
+                run_id: run_id.clone(),
+                layout_version: layout.layout_version,
+                signal_keys: vec![signal_key],
+                query: crate::TraceQuery::History {
+                    start_step: 0,
+                    end_step: 3,
+                },
+                max_points: 16,
+            })
+            .unwrap();
+        assert_eq!(
+            batch.metadata.sample_interval_seconds,
+            SIMULATION_TIMESTEP_SECONDS
+        );
+        assert_eq!(batch.metadata.sample_count, 4);
+        assert_eq!(batch.metadata.first_sample_step, Some(0));
+        assert_eq!(batch.metadata.last_sample_step, Some(3));
+        assert_eq!(batch.points.len(), 4);
+        assert_eq!(
+            batch
+                .points
+                .iter()
+                .map(|point| point.simulation_step)
+                .collect::<Vec<_>>(),
+            vec![0, 1, 2, 3]
+        );
+        for pair in batch.points.windows(2) {
+            assert!(pair[0].simulation_step < pair[1].simulation_step);
+        }
+        for point in &batch.points {
+            let time = point.simulation_step as f64 * batch.metadata.sample_interval_seconds;
+            assert!(time.is_finite());
+            assert_eq!(time, point.simulation_step as f64 * 0.001);
+        }
+
+        let stale = engine.read_traces(TraceRequest {
+            run_id: StableId::parse("00000000-0000-4000-8000-000000000099").unwrap(),
+            layout_version: layout.layout_version,
+            signal_keys: vec![layout.slots[0].key.clone()],
+            query: crate::TraceQuery::History {
+                start_step: 0,
+                end_step: 3,
+            },
+            max_points: 16,
+        });
+        assert!(stale.is_err());
+        assert_eq!(stale.unwrap_err()[0].code, DiagnosticCode::StaleRun);
+
+        let excessive_points = engine.read_traces(TraceRequest {
+            run_id: run_id.clone(),
+            layout_version: layout.layout_version,
+            signal_keys: vec![layout.slots[0].key.clone()],
+            query: crate::TraceQuery::History {
+                start_step: 0,
+                end_step: 3,
+            },
+            max_points: 4097,
+        });
+        assert_eq!(
+            excessive_points.unwrap_err()[0].code,
+            DiagnosticCode::InvalidParameter
+        );
+
+        let stale_layout = engine.read_traces(TraceRequest {
+            run_id,
+            layout_version: layout.layout_version + 1,
+            signal_keys: vec![layout.slots[0].key.clone()],
+            query: crate::TraceQuery::History {
+                start_step: 0,
+                end_step: 3,
+            },
+            max_points: 8,
+        });
+        assert_eq!(stale_layout.unwrap_err()[0].code, DiagnosticCode::StaleRun);
+    }
+
+    #[test]
+    fn trace_replaces_the_current_sample_on_live_parameter_update() {
+        let mut engine = Engine::default();
+        let CompileResult::Success { run_id, layout, .. } = engine.compile(test_compile_request())
+        else {
+            panic!("divider should compile");
+        };
+        engine
+            .advance(AdvanceRequest {
+                run_id: run_id.clone(),
+                step_count: 1,
+            })
+            .unwrap();
+        let component_id = StableId::parse("00000000-0000-4000-8000-000000000002").unwrap();
+        assert!(matches!(
+            engine.set_parameter(SetParameterRequest {
+                run_id: run_id.clone(),
+                expected_document_revision: "revision-1".to_owned(),
+                document_revision: "revision-2".to_owned(),
+                component_id,
+                parameter_id: ParameterId::ResistanceOhms,
+                value: 2000.0,
+            }),
+            SetParameterResult::Success { .. }
+        ));
+
+        let replaced = engine
+            .read_traces(TraceRequest {
+                run_id: run_id.clone(),
+                layout_version: layout.layout_version,
+                signal_keys: vec![layout.slots[0].key.clone()],
+                query: crate::TraceQuery::NewSamples {
+                    after_step: 1,
+                    after_document_revision: "revision-1".to_owned(),
+                },
+                max_points: 8,
+            })
+            .unwrap();
+        assert!(replaced.metadata.replaced);
+        assert_eq!(replaced.metadata.document_revision, "revision-2");
+        assert_eq!(replaced.metadata.sample_count, 1);
+        assert_eq!(replaced.points[0].simulation_step, 1);
+
+        engine
+            .advance(AdvanceRequest {
+                run_id: run_id.clone(),
+                step_count: 1,
+            })
+            .unwrap();
+        let replaced_before_latest = engine
+            .read_traces(TraceRequest {
+                run_id: run_id.clone(),
+                layout_version: layout.layout_version,
+                signal_keys: vec![layout.slots[0].key.clone()],
+                query: crate::TraceQuery::NewSamples {
+                    after_step: 1,
+                    after_document_revision: "revision-1".to_owned(),
+                },
+                max_points: 8,
+            })
+            .unwrap();
+        assert!(replaced_before_latest.metadata.replaced);
+        assert_eq!(replaced_before_latest.metadata.sample_count, 2);
+        assert_eq!(
+            replaced_before_latest
+                .points
+                .iter()
+                .map(|point| point.simulation_step)
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+
+        let CompileResult::Success {
+            run_id: next_run, ..
+        } = engine.compile(test_compile_request())
+        else {
+            panic!("divider should recompile");
+        };
+        let old_run = engine.read_traces(TraceRequest {
+            run_id,
+            layout_version: layout.layout_version,
+            signal_keys: vec![layout.slots[0].key.clone()],
+            query: crate::TraceQuery::History {
+                start_step: 0,
+                end_step: 1,
+            },
+            max_points: 8,
+        });
+        assert!(old_run.is_err());
+        let new_run = engine
+            .read_traces(TraceRequest {
+                run_id: next_run,
+                layout_version: layout.layout_version,
+                signal_keys: vec![layout.slots[0].key.clone()],
+                query: crate::TraceQuery::History {
+                    start_step: 0,
+                    end_step: 0,
+                },
+                max_points: 8,
+            })
+            .unwrap();
+        assert_eq!(new_run.metadata.oldest_sample_step, Some(0));
+        assert_eq!(new_run.metadata.latest_sample_step, Some(0));
+        assert_eq!(new_run.metadata.sample_count, 1);
     }
 
     fn assert_stale_revision(result: SetParameterResult) {
