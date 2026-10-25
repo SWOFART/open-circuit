@@ -34,13 +34,42 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Get Ubuntu release and APT cache week
+        if: runner.os == 'Linux'
+        id: apt-cache-key
+        run: |
+          . /etc/os-release
+          echo "release=$VERSION_ID" >> "$GITHUB_OUTPUT"
+          echo "week=$(date -u +%G-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache APT package archives
+        if: runner.os == 'Linux'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ${{ runner.temp }}/apt-cache
+          key: ubuntu-${{ steps.apt-cache-key.outputs.release }}-apt-v1-${{ hashFiles('.github/workflows/ci.yml') }}-${{ steps.apt-cache-key.outputs.week }}
+          restore-keys: |
+            ubuntu-${{ steps.apt-cache-key.outputs.release }}-apt-v1-${{ hashFiles('.github/workflows/ci.yml') }}-
+
       # Tauri's Linux build dependencies, as listed in README.md. Windows and
       # macOS runners already provide the MSVC/WebView2 and Xcode toolchains.
+      - name: Prepare APT cache directory
+        if: runner.os == 'Linux'
+        run: |
+          cache_dir="$RUNNER_TEMP/apt-cache"
+          mkdir -p "$cache_dir/partial"
+          chmod 755 "$cache_dir"
+          sudo chown _apt:root "$cache_dir/partial"
+          sudo chmod 700 "$cache_dir/partial"
+
       - name: Install Linux system dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes \
+          sudo apt-get \
+            -o "Dir::Cache::archives=$RUNNER_TEMP/apt-cache" \
+            -o "Dir::Cache::archives::partial=$RUNNER_TEMP/apt-cache/partial" \
+            install --yes \
             libwebkit2gtk-4.1-dev build-essential curl wget file \
             libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 
