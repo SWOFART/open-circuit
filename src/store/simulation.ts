@@ -194,6 +194,12 @@ export class SimulationController {
   /** The newest document the engine was asked to adopt. */
   private engineSchematic: Schematic | null = null;
   private compiling: Promise<void> | null = null;
+  /**
+   * Queued updates come from `syncDocument`, so a failed one must bring the
+   * engine back to the document. Updates requested directly through
+   * `setParameter` are not tied to a document and are never resynced.
+   */
+  private documentBackedUpdates = false;
 
   constructor(
     private readonly adapter: EngineAdapter,
@@ -269,6 +275,7 @@ export class SimulationController {
       this.engineSchematic === previous
     ) {
       this.engineSchematic = schematic;
+      this.documentBackedUpdates = true;
       return this.setParameter(
         parameter.componentId,
         parameter.parameterId,
@@ -485,6 +492,8 @@ export class SimulationController {
   }
 
   private async drainUpdates(): Promise<void> {
+    let resync = false;
+
     try {
       while (!this.disposed) {
         const next = this.pending.entries().next();
@@ -495,18 +504,35 @@ export class SimulationController {
 
         const [key, update] = next.value;
         this.pending.delete(key);
-        await this.applyUpdate(update);
+
+        if (!(await this.applyUpdate(update)) && this.documentBackedUpdates) {
+          // The engine does not have this edit, so a later update would only
+          // produce a result that leaves it out. Drop the rest and resync.
+          this.pending.clear();
+          resync = true;
+          break;
+        }
       }
     } finally {
       this.drain = null;
+      this.documentBackedUpdates = false;
+    }
+
+    // A compile already waiting for this drain picks the document up itself.
+    if (resync && !this.disposed && this.compiling === null) {
+      await this.requestCompile();
     }
   }
 
-  private async applyUpdate(update: ParameterUpdate): Promise<void> {
+  /**
+   * Sends one update. Returns false when the engine certainly or possibly does
+   * not have it afterwards: it was rejected, failed, or could not be confirmed.
+   */
+  private async applyUpdate(update: ParameterUpdate): Promise<boolean> {
     const { run } = this.state;
 
     if (this.state.status !== "ready" || !run || this.compiling) {
-      return;
+      return true;
     }
 
     const revision = this.createRevision();
@@ -533,11 +559,11 @@ export class SimulationController {
         run,
         error: describeError(error),
       });
-      return;
+      return false;
     }
 
     if (this.disposed) {
-      return;
+      return true;
     }
 
     try {
@@ -550,7 +576,7 @@ export class SimulationController {
           diagnostics: result.diagnostics,
           error: null,
         });
-        return;
+        return false;
       }
 
       if (isSnapshotSuperseded(sentRun, this.state.snapshot, result.snapshot)) {
@@ -562,7 +588,7 @@ export class SimulationController {
           diagnostics: result.diagnostics,
           error: null,
         });
-        return;
+        return true;
       }
 
       if (!isSnapshotCurrent(sentRun, this.state.snapshot, result.snapshot)) {
@@ -575,7 +601,7 @@ export class SimulationController {
           error: UNCONFIRMED_UPDATE,
           discardedFrames: this.state.discardedFrames + 1,
         });
-        return;
+        return false;
       }
 
       this.setState({
@@ -585,6 +611,7 @@ export class SimulationController {
         diagnostics: result.diagnostics,
         error: null,
       });
+      return true;
     } catch (error) {
       // A malformed payload must surface as an error, never as a crash.
       this.engineMayDifferFromDocument();
@@ -593,12 +620,14 @@ export class SimulationController {
         run,
         error: `The engine returned an unreadable result: ${describeError(error)}`,
       });
+      return false;
     }
   }
 
   /**
-   * An update did not certainly reach the engine, so the next document sync
-   * recompiles the whole document instead of sending another update.
+   * An update did not certainly reach the engine, so the engine is resynced
+   * with a full compile, and a later document sync never sends a lightweight
+   * update on top of it.
    */
   private engineMayDifferFromDocument(): void {
     this.engineSchematic = null;

@@ -279,7 +279,10 @@ They only guide the user; the Rust Engine alone decides connectivity, and
 drawings. `SimulationController.syncDocument` then brings
 the Engine to the new document: a lone parameter edit uses the lightweight
 parameter update, and any other change recompiles the whole document, one
-compile at a time and always for the newest document.
+compile at a time and always for the newest document. If a lightweight update
+does not reach the Engine (rejected, failed, or unconfirmed), the updates
+queued behind it are dropped and the current document is compiled at once, so a
+result is never shown for a document the Engine has not accepted.
 
 - **`EditorCore`** is a plain TS class using PixiJS, with no React. React handles panels only. Reasons: performance with thousands of objects, and editor logic can be tested in Vitest without a browser.
 - **Immutable document, history via `immer`** (patches and inverse patches): undo/redo works automatically for any change, with no hand-written do/undo pairs.
