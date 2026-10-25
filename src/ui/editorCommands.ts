@@ -1,12 +1,20 @@
 import type { EditorCommand } from "../editor/commands";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
+import type { ParameterId } from "../generated/ParameterId";
+import type { Schematic } from "../generated/Schematic";
+import type { StableId } from "../generated/StableId";
 import type {
   NewComponentSpec,
   SchematicDocumentStore,
 } from "../store/document";
+import type { ParameterUpdate } from "../store/simulation";
 
-/** A new component's parameters: every catalog default, explicitly. */
+/**
+ * A new component's parameters: every required catalog parameter at its
+ * default, explicitly. Optional parameters, such as initial conditions, stay
+ * absent: a default offered by the editor is never applied implicitly.
+ */
 export function defaultParameters(
   catalog: ComponentCatalog,
   typeId: ComponentTypeId,
@@ -17,8 +25,35 @@ export function defaultParameters(
   }
 
   return Object.fromEntries(
-    entry.parameters.map((parameter) => [parameter.id, parameter.defaultValue]),
+    entry.parameters
+      .filter((parameter) => !parameter.optional)
+      .map((parameter) => [parameter.id, parameter.defaultValue]),
   );
+}
+
+/**
+ * The lightweight Engine update for a committed parameter edit, or undefined
+ * when the edit must recompile the circuit. An initial condition only sets the
+ * state at time zero, so setting or clearing one always starts a new run; the
+ * catalog's `initialCondition` flag decides, not the parameter's name.
+ */
+export function liveParameterUpdate(
+  catalog: ComponentCatalog,
+  schematic: Schematic,
+  componentId: StableId,
+  parameterId: ParameterId,
+  value: number,
+): ParameterUpdate | undefined {
+  const component = schematic.components.find(
+    (item) => item.id === componentId,
+  );
+  const definition = catalog.componentTypes
+    .find((entry) => entry.typeId === component?.typeId)
+    ?.parameters.find((item) => item.id === parameterId);
+
+  return definition && !definition.initialCondition
+    ? { componentId, parameterId, value }
+    : undefined;
 }
 
 /**

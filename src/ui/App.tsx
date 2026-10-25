@@ -22,7 +22,7 @@ import {
   type ProjectAction,
   type UnsavedChoice,
 } from "../store/projectWorkflow";
-import { applyEditorCommand } from "./editorCommands";
+import { applyEditorCommand, liveParameterUpdate } from "./editorCommands";
 import {
   projectShortcutFromEvent,
   type ProjectShortcut,
@@ -445,10 +445,38 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
                 );
                 return;
               }
+              const schematic = documentStore.getState().schematic;
+              // An initial condition only sets the state at time zero, so
+              // setting one recompiles instead of sending a lightweight update.
               void controller?.syncDocument(
-                documentStore.getState().schematic,
-                { componentId, parameterId, value },
+                schematic,
+                liveParameterUpdate(
+                  state.catalog,
+                  schematic,
+                  componentId,
+                  parameterId,
+                  value,
+                ),
               );
+            }}
+            onClear={(componentId, parameterId) => {
+              if (projectOperationLocked) return;
+              if (!state.catalog) return;
+              try {
+                documentStore.clearParameter(
+                  componentId,
+                  parameterId,
+                  state.catalog,
+                );
+                setEditError(null);
+              } catch (error) {
+                setEditError(
+                  error instanceof Error ? error.message : String(error),
+                );
+                return;
+              }
+              // Clearing an optional parameter always recompiles.
+              void controller?.syncDocument(documentStore.getState().schematic);
             }}
           />
           <ResultPanel

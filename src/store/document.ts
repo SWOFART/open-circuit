@@ -204,10 +204,16 @@ function assertComponentParameters(
 
   const parameterValues = component.parameters as Record<string, number>;
   const definitions = new Map(entry.parameters.map((item) => [item.id, item]));
-  const keys = Object.keys(parameterValues);
+  // Every required parameter is present, and nothing outside the catalog is.
+  // An optional parameter, such as an initial condition, may be absent.
   if (
-    keys.length !== definitions.size ||
-    keys.some((key) => !definitions.has(key as ParameterId))
+    Object.keys(parameterValues).some(
+      (key) => !definitions.has(key as ParameterId),
+    ) ||
+    entry.parameters.some(
+      (definition) =>
+        !definition.optional && !(definition.id in parameterValues),
+    )
   ) {
     throw new Error(
       `Component ${component.typeId} has an unexpected parameter set.`,
@@ -383,23 +389,42 @@ export class SchematicDocumentStore {
       if (!component)
         throw new Error(`Component ${componentId} does not exist.`);
 
-      if (component.typeId === "resistor" && parameterId === "resistanceOhms") {
-        component.parameters.resistanceOhms = value;
-        return;
-      }
+      // The catalog lookup above proved that this type has the parameter.
+      (component.parameters as Record<string, number>)[parameterId] = value;
+    });
+  }
 
-      if (
-        component.typeId === "dc_voltage_source" &&
-        (parameterId === "voltageVolts" ||
-          parameterId === "internalResistanceOhms")
-      ) {
-        component.parameters[parameterId] = value;
-        return;
-      }
+  /**
+   * Removes an optional parameter, for example an initial condition, so that
+   * the component starts from the operating point again.
+   */
+  clearParameter(
+    componentId: StableId,
+    parameterId: ParameterId,
+    catalog: ComponentCatalog,
+  ): void {
+    const currentComponent = this.schematic.components.find(
+      (item) => item.id === componentId,
+    );
+    if (!currentComponent)
+      throw new Error(`Component ${componentId} does not exist.`);
+    const definition = catalog.componentTypes
+      .find((entry) => entry.typeId === currentComponent.typeId)
+      ?.parameters.find((item) => item.id === parameterId);
+    if (!definition?.optional) {
+      throw new Error(`Parameter ${parameterId} cannot be cleared.`);
+    }
 
-      throw new Error(
-        `Component ${componentId} has no parameter ${parameterId}.`,
+    this.commit((draft) => {
+      const component = draft.components.find(
+        (item) => item.id === componentId,
       );
+      if (!component)
+        throw new Error(`Component ${componentId} does not exist.`);
+
+      delete (component.parameters as Record<string, number | undefined>)[
+        parameterId
+      ];
     });
   }
 
