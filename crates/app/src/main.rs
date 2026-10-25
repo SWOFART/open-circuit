@@ -4,11 +4,11 @@ use std::sync::Arc;
 
 use open_circuit_app_lib::project::ProjectSession;
 use open_circuit_app_lib::simulation::{
-    FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed,
+    FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed, TraceSink,
 };
 use open_circuit_engine::{
     CompileRequest, CompileResult, ComponentCatalog, Schematic, SetParameterRequest,
-    SetParameterResult, StableId, component_catalog,
+    SetParameterResult, StableId, TraceRequest, component_catalog,
 };
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Manager, RunEvent, State, WindowEvent};
@@ -24,6 +24,14 @@ impl FrameSink for ChannelSink {
     fn send(&mut self, frame: Vec<u8>) -> Result<(), SinkClosed> {
         self.0
             .send(InvokeResponseBody::Raw(frame))
+            .map_err(|_| SinkClosed)
+    }
+}
+
+impl TraceSink for ChannelSink {
+    fn send(&mut self, response: Vec<u8>) -> Result<(), SinkClosed> {
+        self.0
+            .send(InvokeResponseBody::Raw(response))
             .map_err(|_| SinkClosed)
     }
 }
@@ -194,6 +202,34 @@ async fn acknowledge_frame(
     run_blocking(move || service.acknowledge(frame_sequence)).await
 }
 
+/// Sends one bounded binary trace response for the requested run and signals.
+#[tauri::command]
+async fn read_traces(
+    simulation: State<'_, Simulation>,
+    request: TraceRequest,
+    on_trace: Channel<InvokeResponseBody>,
+) -> Result<(), String> {
+    let service = Arc::clone(&simulation.0);
+    let outcome =
+        run_blocking(move || service.read_traces(request, Box::new(ChannelSink(on_trace)))).await?;
+    outcome.map_err(|diagnostics| {
+        let code = diagnostics.first().map(|diagnostic| diagnostic.code);
+        format!("the trace request cannot be served: {code:?}")
+    })?;
+    Ok(())
+}
+
+/// The UI has processed the trace response identified by this run and sequence.
+#[tauri::command]
+async fn acknowledge_trace(
+    simulation: State<'_, Simulation>,
+    run_id: StableId,
+    trace_sequence: u64,
+) -> Result<(), String> {
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.acknowledge_trace(run_id, trace_sequence)).await
+}
+
 fn main() {
     let simulation = Simulation(Arc::new(SimulationService::spawn(
         SimulationConfig::default(),
@@ -214,6 +250,8 @@ fn main() {
             start_simulation,
             stop_simulation,
             acknowledge_frame,
+            read_traces,
+            acknowledge_trace,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::Destroyed = event {

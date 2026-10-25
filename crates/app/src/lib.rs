@@ -6,3 +6,4 @@
 pub mod frame;
 pub mod project;
 pub mod simulation;
+pub mod trace;

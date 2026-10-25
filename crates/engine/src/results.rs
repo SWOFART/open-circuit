@@ -129,3 +129,85 @@ pub struct AdvanceRequest {
     pub run_id: StableId,
     pub step_count: u32,
 }
+
+/// A bounded request for selected result-layout signals from an active run.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "TraceRequest.ts")]
+pub struct TraceRequest {
+    pub run_id: StableId,
+    pub layout_version: u32,
+    pub signal_keys: Vec<String>,
+    pub query: TraceQuery,
+    pub max_points: u32,
+}
+
+/// Selects a stored range or samples newer than the caller's previous cursor.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "TraceQuery.ts")]
+pub enum TraceQuery {
+    History {
+        #[ts(type = "number")]
+        start_step: u64,
+        #[ts(type = "number")]
+        end_step: u64,
+    },
+    NewSamples {
+        #[ts(type = "number")]
+        after_step: u64,
+        after_document_revision: String,
+    },
+}
+
+/// The identity and SI unit of one selected result-layout signal.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "TraceSignal.ts")]
+pub struct TraceSignal {
+    pub key: String,
+    pub unit: Unit,
+}
+
+/// One decimated trace point. Each min/max vector follows `TraceBatch::signals` order.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "TracePoint.ts")]
+pub struct TracePoint {
+    pub simulation_step: u64,
+    pub minimum_values: Vec<f64>,
+    pub maximum_values: Vec<f64>,
+}
+
+/// Run and retention metadata attached to a bounded trace response.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "TraceBatchMetadata.ts")]
+pub struct TraceBatchMetadata {
+    pub run_id: StableId,
+    pub document_revision: String,
+    pub layout_version: u32,
+    pub sample_interval_seconds: f64,
+    pub history_samples: u32,
+    pub oldest_sample_step: Option<u64>,
+    pub latest_sample_step: Option<u64>,
+    pub first_sample_step: Option<u64>,
+    pub last_sample_step: Option<u64>,
+    pub sample_count: u32,
+    pub missed_samples: u64,
+    pub replaced: bool,
+}
+
+/// Transport-independent trace data returned by the Engine.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "TraceBatch.ts")]
+pub struct TraceBatch {
+    pub metadata: TraceBatchMetadata,
+    pub signals: Vec<TraceSignal>,
+    pub points: Vec<TracePoint>,
+}

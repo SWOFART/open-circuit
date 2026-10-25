@@ -23,7 +23,8 @@ pub use project::{ProjectDocumentError, decode_project_json, validate_project_sc
 pub use results::{
     AdvanceRequest, CompileRequest, CompileResult, FrameMetadata, ResultLayout, ResultQuantity,
     ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
-    SetParameterRequest, SetParameterResult,
+    SetParameterRequest, SetParameterResult, TraceBatch, TraceBatchMetadata, TracePoint,
+    TraceQuery, TraceRequest, TraceSignal,
 };
 pub use schematic::{
     ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, GeometryEnvelope, GridPoint,

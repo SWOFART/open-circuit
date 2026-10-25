@@ -242,6 +242,7 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 - Only the **latest** snapshot is kept: a lagging UI skips frames instead of building a queue.
 - UI delivery is throttled independently to at most **60 frames per wall-clock second** (nominally 16.67 ms). It never changes the 1 ms physics step; a frame may contain a later simulation step than the previous frame.
 - A frame is a binary `f64` array with a fixed layout. When a schematic is compiled, the UI receives a "component → offset" map once. No JSON per frame.
+- The Engine keeps a bounded per-run ring of signal samples at every public 1 ms step (up to 10,000 samples and 16 MiB of values; each retained document revision is at most 256 bytes). The app exposes history and incremental reads through a separate binary Tauri Channel; responses carry run/layout metadata, preserve peaks when decimated, and require acknowledgement before another response is sent.
 - Rust → TS types are generated automatically (`tauri-specta` or `ts-rs`). CI checks that `src/generated/` is up to date.
 - `set_param(id, value)`: a lightweight command that only rebuilds stamps.
 - Topology change: a fast recompile. **State transfer** keyed by component ID (capacitor charge, relay position) is deferred: through Stage 3 every successful compile starts a new run at time zero, initialized as described in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md) section 3.
