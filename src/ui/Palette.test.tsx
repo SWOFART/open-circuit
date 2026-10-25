@@ -1,8 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import catalogFixture from "../../tests/golden/stage-1-catalog.json";
+import type { EditorStatus } from "../editor/interaction";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
-import { Palette } from "./Palette";
+import { Palette, toolHint } from "./Palette";
 
 const catalog = catalogFixture as ComponentCatalog;
 const noTool = () => {};
@@ -14,7 +15,7 @@ function pressed(markup: string): string[] {
 }
 
 describe("component palette", () => {
-  it("offers Select and every catalog type by its display name", () => {
+  it("offers Select, every catalog type, and the drawing tools", () => {
     const markup = renderToStaticMarkup(
       <Palette
         catalog={catalog}
@@ -23,11 +24,18 @@ describe("component palette", () => {
       />,
     );
 
-    expect(markup).toContain(">Select<");
-    expect(markup).toContain(">Resistor<");
-    expect(markup).toContain(">DC voltage source<");
+    for (const label of [
+      "Select",
+      "Resistor",
+      "DC voltage source",
+      "Wire",
+      "Junction",
+      "Ground",
+    ]) {
+      expect(markup).toContain(`>${label}<`);
+    }
     expect(markup.match(/<button/g)).toHaveLength(
-      catalog.componentTypes.length + 1,
+      catalog.componentTypes.length + 4,
     );
     expect(pressed(markup)).toEqual(["Select"]);
   });
@@ -44,7 +52,19 @@ describe("component palette", () => {
     expect(pressed(markup)).toEqual(["DC voltage source"]);
   });
 
-  it("offers only Select until the catalog has loaded", () => {
+  it.each([
+    [{ kind: "wire" }, "Wire"],
+    [{ kind: "junction" }, "Junction"],
+    [{ kind: "reference" }, "Ground"],
+  ] as const)("marks the %o tool", (tool, label) => {
+    const markup = renderToStaticMarkup(
+      <Palette catalog={catalog} tool={tool} onSelectTool={noTool} />,
+    );
+
+    expect(pressed(markup)).toEqual([label]);
+  });
+
+  it("offers the drawing tools before the catalog has loaded", () => {
     const markup = renderToStaticMarkup(
       <Palette
         catalog={null}
@@ -53,7 +73,53 @@ describe("component palette", () => {
       />,
     );
 
-    expect(markup.match(/<button/g)).toHaveLength(1);
+    expect(markup.match(/<button/g)).toHaveLength(4);
     expect(markup).not.toContain("Resistor");
+  });
+});
+
+describe("tool hint", () => {
+  const status = (partial: Partial<EditorStatus>): EditorStatus => ({
+    tool: { kind: "select" },
+    routing: false,
+    rejected: null,
+    ...partial,
+  });
+
+  it("explains each tool", () => {
+    const texts = [
+      status({}),
+      status({ tool: { kind: "place", typeId: "resistor", rotationDeg: 0 } }),
+      status({ tool: { kind: "wire" } }),
+      status({ tool: { kind: "junction" } }),
+      status({ tool: { kind: "reference" } }),
+    ].map((value) => toolHint(value).text);
+
+    expect(new Set(texts).size).toBe(texts.length);
+    expect(texts.every((text) => text.length > 0)).toBe(true);
+  });
+
+  it("describes how to finish a wire once a route has started", () => {
+    const idle = toolHint(status({ tool: { kind: "wire" } }));
+    const routing = toolHint(status({ tool: { kind: "wire" }, routing: true }));
+
+    expect(idle.text).toContain("start");
+    expect(routing.text).toContain("Enter");
+    expect(routing.text).toContain("Shift");
+    expect(routing.warning).toBe(false);
+  });
+
+  it("warns when a click was refused, and says why", () => {
+    const junction = toolHint(
+      status({ tool: { kind: "junction" }, rejected: "crossing" }),
+    );
+    const reference = toolHint(
+      status({ tool: { kind: "reference" }, rejected: "attachment" }),
+    );
+
+    expect(junction).toMatchObject({ warning: true });
+    expect(junction.text).toContain("crossing");
+    expect(reference).toMatchObject({ warning: true });
+    expect(reference.text).toContain("pin or a wire");
   });
 });

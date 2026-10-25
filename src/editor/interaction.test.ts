@@ -464,6 +464,7 @@ describe("dragging a component", () => {
 
     expect(interaction.isDragging).toBe(true);
     expect(interaction.dragPreview).toEqual({
+      kind: "component",
       componentId: R1,
       delta: { x: 2, y: 2 },
     });

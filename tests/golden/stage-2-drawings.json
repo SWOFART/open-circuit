@@ -1,0 +1,94 @@
+{
+  "description": "How each drawing in stage-2-connectivity.json is made with the editor tools, as grid clicks in order. Tools: wire (clicks, then finish by 'attachment' (the last click is a pin or wire, the default), 'doubleClick', or 'enter'), junction, reference, and delete (select the object under the click and press Delete). Objects get their IDs in creation order: the case's wire, junction, and reference-marker IDs in that order, unless 'ids' lists them, which is needed when an object is drawn and deleted again.",
+  "drawings": {
+    "wire-end-on-wire-interior": {
+      "steps": [
+        { "tool": "wire", "clicks": [[3, 0], [3, 4], [9, 4], [9, 0]] },
+        { "tool": "wire", "clicks": [[1, 0], [1, -3], [6, -3], [6, 4]] }
+      ]
+    },
+    "pin-on-wire-interior": {
+      "steps": [{ "tool": "wire", "clicks": [[5, 0], [9, 0]] }]
+    },
+    "crossing-without-junction": {
+      "steps": [
+        { "tool": "wire", "clicks": [[3, 0], [3, -3], [6, -3], [6, 3], [9, 3], [9, 0]] },
+        { "tool": "wire", "clicks": [[5, 0], [7, 0]] }
+      ]
+    },
+    "crossing-with-junction": {
+      "steps": [
+        { "tool": "wire", "clicks": [[3, 0], [3, -3], [6, -3], [6, 3], [9, 3], [9, 0]] },
+        { "tool": "wire", "clicks": [[5, 0], [7, 0]] },
+        { "tool": "junction", "clicks": [[6, 0]] }
+      ]
+    },
+    "reference-marker-joins-a-crossing": {
+      "steps": [
+        { "tool": "wire", "clicks": [[3, 0], [3, -3], [6, -3], [6, 3], [9, 3], [9, 0]] },
+        { "tool": "wire", "clicks": [[5, 0], [7, 0]] },
+        { "tool": "reference", "clicks": [[6, 0], [1, 0]] }
+      ]
+    },
+    "self-crossing-wire": {
+      "steps": [
+        { "tool": "wire", "clicks": [[5, 0], [5, 4], [7, 4], [7, 2], [3, 2], [3, 0]] }
+      ]
+    },
+    "wire-end-to-wire-end": {
+      "steps": [
+        { "tool": "wire", "clicks": [[5, 0], [6, 0]], "finish": "doubleClick" },
+        { "tool": "wire", "clicks": [[6, 0], [7, 0]] }
+      ]
+    },
+    "three-wires-meet-at-an-end": {
+      "steps": [
+        { "tool": "wire", "clicks": [[5, 0], [5, 2], [6, 2]], "finish": "enter" },
+        { "tool": "wire", "clicks": [[7, 0], [7, 2], [6, 2]] },
+        { "tool": "wire", "clicks": [[6, 2], [6, 3], [3, 3], [3, 0]] }
+      ]
+    },
+    "junction-on-a-single-wire": {
+      "ids": [
+        "00000000-0000-4000-8000-000000000101",
+        "00000000-0000-4000-8000-000000000102",
+        "00000000-0000-4000-8000-0000000001a1"
+      ],
+      "steps": [
+        { "tool": "wire", "clicks": [[5, 0], [7, 0]] },
+        { "tool": "wire", "clicks": [[6, -2], [6, 2]], "finish": "doubleClick" },
+        { "tool": "junction", "clicks": [[6, 0]] },
+        { "tool": "delete", "click": [6, -2] }
+      ]
+    },
+    "detached-reference-marker": {
+      "ids": [
+        "00000000-0000-4000-8000-000000000101",
+        "00000000-0000-4000-8000-000000000102",
+        "00000000-0000-4000-8000-0000000001b1"
+      ],
+      "steps": [
+        { "tool": "wire", "clicks": [[5, 0], [7, 0]] },
+        { "tool": "wire", "clicks": [[6, 3], [6, 5]], "finish": "doubleClick" },
+        { "tool": "reference", "clicks": [[6, 3]] },
+        { "tool": "delete", "click": [6, 5] }
+      ]
+    },
+    "detached-junction": {
+      "ids": [
+        "00000000-0000-4000-8000-000000000101",
+        "00000000-0000-4000-8000-000000000102",
+        "00000000-0000-4000-8000-000000000103",
+        "00000000-0000-4000-8000-0000000001a1"
+      ],
+      "steps": [
+        { "tool": "wire", "clicks": [[5, 0], [7, 0]] },
+        { "tool": "wire", "clicks": [[5, 3], [7, 3]], "finish": "doubleClick" },
+        { "tool": "wire", "clicks": [[6, 1], [6, 5]], "finish": "doubleClick" },
+        { "tool": "junction", "clicks": [[6, 3]] },
+        { "tool": "delete", "click": [5, 3] },
+        { "tool": "delete", "click": [6, 5] }
+      ]
+    }
+  }
+}

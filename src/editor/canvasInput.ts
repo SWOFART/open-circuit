@@ -72,6 +72,7 @@ export function bindCanvasInput(
       y: event.clientY - rect.top,
       button: event.button,
       pointerId: event.pointerId,
+      shiftKey: event.shiftKey,
     };
   };
 
@@ -82,7 +83,7 @@ export function bindCanvasInput(
         ? "grab"
         : interaction.isDragging
           ? "move"
-          : interaction.tool.kind === "place"
+          : interaction.tool.kind !== "select"
             ? "crosshair"
             : "";
   };
@@ -163,6 +164,13 @@ export function bindCanvasInput(
       case "Escape":
         interaction.escape();
         return true;
+      case "Enter":
+        // Otherwise Enter belongs to whatever control has the focus.
+        if (!interaction.status.routing) {
+          return false;
+        }
+        interaction.finishRoute();
+        return true;
       case "Delete":
       case "Backspace":
         interaction.deleteSelection();
@@ -180,6 +188,12 @@ export function bindCanvasInput(
   };
 
   const onKey = (event: KeyboardEvent): void => {
+    if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+      // Shift only picks the bend direction of the next route legs.
+      interaction.setVerticalFirst(event.type === "keydown");
+      return;
+    }
+
     if (event.code !== "Space") {
       if (
         event.type === "keydown" &&
@@ -207,6 +221,7 @@ export function bindCanvasInput(
 
   const onBlur = (): void => {
     interaction.setPanModifier(false);
+    interaction.setVerticalFirst(false);
     syncCursor();
   };
 

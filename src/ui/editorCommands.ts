@@ -58,6 +58,33 @@ export function applyEditorCommand(
     case "deleteComponent":
       store.removeComponent(command.componentId);
       return;
+    case "addWire":
+      store.addWire({ points: [...command.points] });
+      return;
+    case "editWire":
+      store.editWire(command.wireId, command.points);
+      return;
+    case "deleteWire":
+      store.removeWire(command.wireId);
+      return;
+    case "addJunction":
+      store.addJunction(command.position);
+      return;
+    case "moveJunction":
+      store.moveJunction(command.id, command.position);
+      return;
+    case "deleteJunction":
+      store.removeJunction(command.id);
+      return;
+    case "addReferenceMarker":
+      store.addReferenceMarker(command.position);
+      return;
+    case "moveReferenceMarker":
+      store.moveReferenceMarker(command.id, command.position);
+      return;
+    case "deleteReferenceMarker":
+      store.removeReferenceMarker(command.id);
+      return;
     case "undo":
       store.undo();
       return;

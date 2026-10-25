@@ -452,3 +452,178 @@ describe("editing shortcuts", () => {
     expect(canvas.style.cursor).toBe("");
   });
 });
+
+describe("drawing shortcuts", () => {
+  function drawingSetup() {
+    const canvas = new FakeCanvas();
+    const keyboard = new EventTarget();
+    const intents: InteractionIntent[] = [];
+    const interaction = new CanvasInteraction(undefined, (intent) =>
+      intents.push(intent),
+    );
+    interaction.setViewport({ width: 800, height: 600 });
+    interaction.setScene(buildScene(schematicFixture as Schematic, symbols));
+    const binding = bindCanvasInput(canvas, interaction, keyboard);
+    const clientAt = (x: number, y: number) => {
+      const screen = toScreen({ x, y }, interaction.view);
+      return { x: screen.x + RECT.left, y: screen.y + RECT.top };
+    };
+
+    return { canvas, keyboard, interaction, intents, binding, clientAt };
+  }
+
+  function press(code: string, key: string, target?: object): Event {
+    return domEvent(
+      "keydown",
+      {
+        code,
+        key,
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        altKey: false,
+      },
+      target,
+    );
+  }
+
+  it("finishes the wire being drawn with Enter", () => {
+    const { canvas, keyboard, interaction, intents, clientAt } = drawingSetup();
+    interaction.setTool({ kind: "wire" });
+    const start = clientAt(10, 5);
+    canvas.dispatchEvent(pointer("pointerdown", start.x, start.y));
+    const end = clientAt(13, 5);
+    canvas.dispatchEvent(pointer("pointermove", end.x, end.y));
+    const enter = press("Enter", "Enter");
+
+    keyboard.dispatchEvent(enter);
+
+    expect(intents).toEqual([
+      {
+        kind: "addWire",
+        points: [
+          { x: 10, y: 5 },
+          { x: 13, y: 5 },
+        ],
+      },
+    ]);
+    expect(enter.defaultPrevented).toBe(true);
+  });
+
+  it("leaves Enter to the focused control when no wire is being drawn", () => {
+    const { keyboard, interaction, intents } = drawingSetup();
+    interaction.setTool({ kind: "wire" });
+    const enter = press("Enter", "Enter");
+
+    keyboard.dispatchEvent(enter);
+
+    expect(intents).toEqual([]);
+    expect(enter.defaultPrevented).toBe(false);
+  });
+
+  it("does not finish a wire from a text field", () => {
+    const { canvas, keyboard, interaction, intents, clientAt } = drawingSetup();
+    interaction.setTool({ kind: "wire" });
+    const start = clientAt(10, 5);
+    canvas.dispatchEvent(pointer("pointerdown", start.x, start.y));
+    const input = { tagName: "INPUT", type: "text", isContentEditable: false };
+
+    keyboard.dispatchEvent(press("Enter", "Enter", input));
+
+    expect(intents).toEqual([]);
+    expect(interaction.status.routing).toBe(true);
+  });
+
+  it("bends vertical-first while Shift is held, and horizontal-first after", () => {
+    const { canvas, keyboard, interaction, clientAt } = drawingSetup();
+    interaction.setTool({ kind: "wire" });
+    const start = clientAt(10, 5);
+    canvas.dispatchEvent(pointer("pointerdown", start.x, start.y));
+    const end = clientAt(14, 8);
+    canvas.dispatchEvent(pointer("pointermove", end.x, end.y));
+    expect(interaction.routePreview).toEqual([
+      { x: 10, y: 5 },
+      { x: 14, y: 5 },
+      { x: 14, y: 8 },
+    ]);
+
+    keyboard.dispatchEvent(domEvent("keydown", { code: "ShiftLeft" }));
+    expect(interaction.routePreview).toEqual([
+      { x: 10, y: 5 },
+      { x: 10, y: 8 },
+      { x: 14, y: 8 },
+    ]);
+
+    keyboard.dispatchEvent(domEvent("keyup", { code: "ShiftLeft" }));
+    expect(interaction.routePreview).toEqual([
+      { x: 10, y: 5 },
+      { x: 14, y: 5 },
+      { x: 14, y: 8 },
+    ]);
+  });
+
+  it("reads Shift from the pointer event too", () => {
+    const { canvas, interaction, intents, clientAt } = drawingSetup();
+    interaction.setTool({ kind: "wire" });
+    const start = clientAt(10, 5);
+    canvas.dispatchEvent(pointer("pointerdown", start.x, start.y));
+    const end = clientAt(14, 8);
+
+    canvas.dispatchEvent(
+      domEvent("pointerdown", {
+        clientX: end.x,
+        clientY: end.y,
+        button: 0,
+        pointerId: 1,
+        shiftKey: true,
+      }),
+    );
+    canvas.dispatchEvent(
+      domEvent("pointerdown", {
+        clientX: end.x,
+        clientY: end.y,
+        button: 0,
+        pointerId: 1,
+        shiftKey: true,
+      }),
+    );
+
+    expect(intents).toEqual([
+      {
+        kind: "addWire",
+        points: [
+          { x: 10, y: 5 },
+          { x: 10, y: 8 },
+          { x: 14, y: 8 },
+        ],
+      },
+    ]);
+  });
+
+  it("lets go of Shift when the window loses focus", () => {
+    const { keyboard, interaction, canvas, clientAt } = drawingSetup();
+    interaction.setTool({ kind: "wire" });
+    const start = clientAt(10, 5);
+    canvas.dispatchEvent(pointer("pointerdown", start.x, start.y));
+    const end = clientAt(14, 8);
+    canvas.dispatchEvent(pointer("pointermove", end.x, end.y));
+    keyboard.dispatchEvent(domEvent("keydown", { code: "ShiftRight" }));
+
+    keyboard.dispatchEvent(domEvent("blur", {}));
+
+    expect(interaction.routePreview?.[1]).toEqual({ x: 14, y: 5 });
+  });
+
+  it.each([
+    { kind: "wire" },
+    { kind: "junction" },
+    { kind: "reference" },
+  ] as const)("shows a crosshair cursor with the %o tool", (tool) => {
+    const { canvas, interaction, binding } = drawingSetup();
+
+    interaction.setTool(tool);
+    binding.refreshCursor();
+
+    expect(canvas.style.cursor).toBe("crosshair");
+  });
+});

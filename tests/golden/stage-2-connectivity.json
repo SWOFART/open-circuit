@@ -1,0 +1,301 @@
+{
+  "description": "Edited drawings on the Stage 1 divider components (V1 at (0,0), R1 at (4,0), R2 at (8,0)). The Rust Engine derives the connectivity in `expected.joinedPins` and `expected.diagnostics`; the editor derives `expected.editor`. See docs/contracts/stage-2-editor.md section 3.3.",
+  "componentNames": {
+    "00000000-0000-4000-8000-000000000001": "V1",
+    "00000000-0000-4000-8000-000000000002": "R1",
+    "00000000-0000-4000-8000-000000000003": "R2"
+  },
+  "cases": [
+    {
+      "name": "wire-end-on-wire-interior",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 3, "y": 0 }, { "x": 3, "y": 4 }, { "x": 9, "y": 4 }, { "x": 9, "y": 0 }]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000102",
+          "points": [{ "x": 1, "y": 0 }, { "x": 1, "y": -3 }, { "x": 6, "y": -3 }, { "x": 6, "y": 4 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin1", "R2.pin2", "V1.pin2"]],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [{ "x": 6, "y": 4 }],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "pin-on-wire-interior",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 5, "y": 0 }, { "x": 9, "y": 0 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin2", "R2.pin1", "R2.pin2"]],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [{ "x": 7, "y": 0 }],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "crossing-without-junction",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 3, "y": 0 }, { "x": 3, "y": -3 }, { "x": 6, "y": -3 }, { "x": 6, "y": 3 }, { "x": 9, "y": 3 }, { "x": 9, "y": 0 }]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000102",
+          "points": [{ "x": 5, "y": 0 }, { "x": 7, "y": 0 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [
+          ["R1.pin1", "R2.pin2"],
+          ["R1.pin2", "R2.pin1"]
+        ],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [{ "x": 6, "y": 0 }],
+          "connectionDots": [],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "crossing-with-junction",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 3, "y": 0 }, { "x": 3, "y": -3 }, { "x": 6, "y": -3 }, { "x": 6, "y": 3 }, { "x": 9, "y": 3 }, { "x": 9, "y": 0 }]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000102",
+          "points": [{ "x": 5, "y": 0 }, { "x": 7, "y": 0 }]
+        }
+      ],
+      "junctions": [
+        {
+          "id": "00000000-0000-4000-8000-0000000001a1",
+          "position": { "x": 6, "y": 0 }
+        }
+      ],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin1", "R1.pin2", "R2.pin1", "R2.pin2"]],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "reference-marker-joins-a-crossing",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 3, "y": 0 }, { "x": 3, "y": -3 }, { "x": 6, "y": -3 }, { "x": 6, "y": 3 }, { "x": 9, "y": 3 }, { "x": 9, "y": 0 }]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000102",
+          "points": [{ "x": 5, "y": 0 }, { "x": 7, "y": 0 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [
+        {
+          "id": "00000000-0000-4000-8000-0000000001b1",
+          "position": { "x": 6, "y": 0 }
+        },
+        {
+          "id": "00000000-0000-4000-8000-0000000001b2",
+          "position": { "x": 1, "y": 0 }
+        }
+      ],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin1", "R1.pin2", "R2.pin1", "R2.pin2", "V1.pin2"]],
+        "diagnostics": [],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [{ "x": 6, "y": 0 }],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "self-crossing-wire",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 5, "y": 0 }, { "x": 5, "y": 4 }, { "x": 7, "y": 4 }, { "x": 7, "y": 2 }, { "x": 3, "y": 2 }, { "x": 3, "y": 0 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin1", "R1.pin2"]],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "wire-end-to-wire-end",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 5, "y": 0 }, { "x": 6, "y": 0 }]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000102",
+          "points": [{ "x": 6, "y": 0 }, { "x": 7, "y": 0 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin2", "R2.pin1"]],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "three-wires-meet-at-an-end",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 5, "y": 0 }, { "x": 5, "y": 2 }, { "x": 6, "y": 2 }]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000102",
+          "points": [{ "x": 7, "y": 0 }, { "x": 7, "y": 2 }, { "x": 6, "y": 2 }]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000103",
+          "points": [{ "x": 6, "y": 2 }, { "x": 6, "y": 3 }, { "x": 3, "y": 3 }, { "x": 3, "y": 0 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin1", "R1.pin2", "R2.pin1"]],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [{ "x": 6, "y": 2 }],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "junction-on-a-single-wire",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 5, "y": 0 }, { "x": 7, "y": 0 }]
+        }
+      ],
+      "junctions": [
+        {
+          "id": "00000000-0000-4000-8000-0000000001a1",
+          "position": { "x": 6, "y": 0 }
+        }
+      ],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "netlist",
+        "joinedPins": [["R1.pin2", "R2.pin1"]],
+        "diagnostics": ["NoGroundReference"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [],
+          "detachedMarkers": []
+        }
+      }
+    },
+    {
+      "name": "detached-reference-marker",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 5, "y": 0 }, { "x": 7, "y": 0 }]
+        }
+      ],
+      "junctions": [],
+      "referenceMarkers": [
+        {
+          "id": "00000000-0000-4000-8000-0000000001b1",
+          "position": { "x": 6, "y": 3 }
+        }
+      ],
+      "expected": {
+        "outcome": "rejected",
+        "joinedPins": [],
+        "diagnostics": ["DetachedReferenceMarker"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [],
+          "detachedMarkers": ["00000000-0000-4000-8000-0000000001b1"]
+        }
+      }
+    },
+    {
+      "name": "detached-junction",
+      "wires": [
+        {
+          "id": "00000000-0000-4000-8000-000000000101",
+          "points": [{ "x": 5, "y": 0 }, { "x": 7, "y": 0 }]
+        }
+      ],
+      "junctions": [
+        {
+          "id": "00000000-0000-4000-8000-0000000001a1",
+          "position": { "x": 6, "y": 3 }
+        }
+      ],
+      "referenceMarkers": [],
+      "expected": {
+        "outcome": "rejected",
+        "joinedPins": [],
+        "diagnostics": ["InvalidGeometry"],
+        "editor": {
+          "junctionSpots": [],
+          "connectionDots": [],
+          "detachedMarkers": ["00000000-0000-4000-8000-0000000001a1"]
+        }
+      }
+    }
+  ]
+}
