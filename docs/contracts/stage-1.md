@@ -50,6 +50,10 @@ Version 1 component types and parameter domains:
 | `resistor` | `pin1`, `pin2` | `resistanceOhms`: finite and strictly greater than zero | `1000 Ω` |
 | `dc_voltage_source` | `pin1` is positive; `pin2` is negative | `voltageVolts`: any finite signed value; `internalResistanceOhms`: finite and greater than or equal to zero | `5 V`, `0.1 Ω` |
 
+Stage 3 adds the `capacitor` and `inductor` types and their optional initial-condition
+parameters, the only parameters that may be absent; see
+[`stage-3-dynamics.md`](stage-3-dynamics.md) section 2.
+
 Catalog metadata is authoritative for parameter names, units, defaults, and allowed
 domains. NaN, positive/negative infinity, null, unknown parameters, and out-of-domain
 values are rejected. An explicitly configured zero source resistance means an ideal
