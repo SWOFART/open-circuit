@@ -35,6 +35,12 @@ real Engine and replayed through the TypeScript adapter, controller, and result 
 
 ## Checks run on Windows
 
+These command results were collected on 2026-10-25 during the automated Stage 2 acceptance
+run against implementation revision `35aa24d1f3378d4f6bd650730aadbb8b745ba799`, before this
+documentation-only update. They are carried-forward evidence for that implementation; they
+were not rerun for the current acceptance-record candidate. No automated test, formatting,
+lint, type-check, or build command was rerun for this documentation-only change.
+
 | Command | Result |
 |---|---|
 | `pnpm format:check` | Pass |
@@ -47,26 +53,26 @@ real Engine and replayed through the TypeScript adapter, controller, and result 
 | `pnpm bundle:check` | Pass; production bundle contains no mock adapter. |
 | Lockfile diff check | Pass; `Cargo.lock` and `pnpm-lock.yaml` were unchanged. |
 
-The CI matrix passed on all three operating systems on the draft PR candidate:
-[GitHub Actions run 40190063230](https://github.com/SWOFART/open-circuit/actions/runs/40190063230).
+The previous PR head at commit `b5662a6666bf591c70ba4031376b40b06d184248` passed the
+cross-platform CI matrix in
+[GitHub Actions run 40190470648](https://github.com/SWOFART/open-circuit/actions/runs/40190470648).
 The `windows-latest`, `ubuntu-latest`, and `macos-latest` jobs each passed the repository
-checks and Tauri build (4m12s, 2m14s, and 3m53s respectively).
+checks and Tauri build. This newer acceptance-record candidate has not been pushed, so CI
+has not run on its tree.
 
-## Manual desktop interaction still required
+## Manual desktop interaction
 
-The application process built and launched locally, but the available computer-use and CUA
-runtimes both failed to initialize in this session. As a result, the following user-visible
-steps have **not** been observed in the running window and this issue is not yet fully
-accepted:
+**Operator:** Codex, in a user-authorized live desktop session.
+**Environment:** Windows desktop; Tauri development build started with `pnpm dev` from
+source revision `35aa24d1f3378d4f6bd650730aadbb8b745ba799`.
 
-- Start from **New**, place the three components from the palette, enter their parameters,
-  draw the three wires, and place the explicit reference marker.
-- Observe `Vout = 2.499875 V`; set R1 to `3 kΩ` and observe `Vout = 1.249969 V`.
-- Undo and redo the parameter change and observe the readings follow the document.
-- Save the project, close the application, reopen the saved file, and verify the schematic
-  round-trips while results are recalculated.
-- Confirm in the live window that malformed/unsupported files and unsaved-change choices
-  leave valid work intact.
+| Manual check | Observed result | Result |
+|---|---|---|
+| New document, component placement, wires, and reference | Started from **New**, placed a 5 V source with 0.1 Ω internal resistance and two 1 kΩ resistors, drew the divider connections, and placed an explicit ground marker. The live results showed `Vout = 2.499875 V` and `2.499875 mA` through each resistor. | Pass |
+| Parameter edit and undo/redo | Changed R1 to `3 kΩ`; the live result changed to `1.249969 V`. Undo restored `1 kΩ` and `2.499875 V`; redo restored `3 kΩ` and `1.249969 V`. | Pass |
+| Save, close, and reopen | Saved the test project as an `.ocircuit` file, closed the window, restarted the development server after the local page was unavailable, and reopened the saved project. The component values, positions, wires, explicit ground, and `2.499875 V` divider result were visible after reopening. | Pass |
+| Unsaved-change prompt | Changed R1 to `2 kΩ` (`Vout = 1.666611 V`) and selected **New**. The app displayed **Save / Discard / Cancel**. **Cancel** retained the modified circuit and result; Undo returned to the saved `1 kΩ` state and `2.499875 V`. | Pass |
+| Malformed and unsupported projects | Opened a malformed JSON test file; the app reported a parse error. Then opened a valid JSON project with `schemaVersion = 2`; the app reported `InvalidSchemaVersion`. In both cases, the active 1 kΩ divider remained visible with `Vout = 2.499875 V`. Automated coverage in `crates/app/src/project.rs` also checks unknown fields and invalid IDs/rotations/parameters. | Pass |
 
-Record the operator, OS, app/tool versions, outcomes, and any deviations here after the
-manual run. Do not mark the GUI steps passed based only on automated tests.
+The user-visible editing, recalculation, undo/redo, save/reopen, malformed/unsupported file,
+and cancel-without-data-loss flows passed.
