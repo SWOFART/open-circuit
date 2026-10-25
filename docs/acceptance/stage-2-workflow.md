@@ -56,9 +56,13 @@ lint, type-check, or build command was rerun for this documentation-only change.
 The previous PR head at commit `b5662a6666bf591c70ba4031376b40b06d184248` passed the
 cross-platform CI matrix in
 [GitHub Actions run 40190470648](https://github.com/SWOFART/open-circuit/actions/runs/40190470648).
-The `windows-latest`, `ubuntu-latest`, and `macos-latest` jobs each passed the repository
-checks and Tauri build. This newer acceptance-record candidate has not been pushed, so CI
-has not run on its tree.
+The desktop-acceptance update committed as `35f6060ff19a16109467cb154b783c88b14289a8`
+(tree `dcd3a1cde8a53564240b55445aa865453ad9f868`) subsequently passed the Windows,
+Ubuntu, and macOS jobs in
+[GitHub Actions run 40199537906](https://github.com/SWOFART/open-circuit/actions/runs/40199537906).
+That run is evidence for that exact tree. The local Windows command results above remain
+carried-forward evidence from the implementation revision; they were not rerun locally for
+this documentation-only update.
 
 ## Manual desktop interaction
 
