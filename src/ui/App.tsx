@@ -12,7 +12,6 @@ import { EditorCore } from "../editor/EditorCore";
 import type { EditorStatus } from "../editor/interaction";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
-  componentLabels,
   dividerSchematic,
 } from "../store/fixtures";
 import { SchematicDocumentStore } from "../store/document";
@@ -86,10 +85,8 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
     [documentStore],
   );
   const { state, controller } = useSimulation(initialSchematic);
-  const labels = useMemo(
-    () => componentLabels(document.schematic),
-    [document.schematic],
-  );
+  // Names stay with their components through edits, undo, and redo.
+  const labels = document.labels;
   const hint = toolHint(status);
 
   const saveProject = async (saveAs = false): Promise<boolean> => {
