@@ -9,12 +9,16 @@ export const unitSymbols: Readonly<Record<Unit, string>> = {
   ohm: "Ω",
   volt: "V",
   amp: "A",
+  farad: "F",
+  henry: "H",
 };
 
 const unitWords: Readonly<Record<Unit, readonly string[]>> = {
   ohm: ["Ω", "ohm", "ohms"],
   volt: ["v", "volt", "volts"],
   amp: ["a", "amp", "amps"],
+  farad: ["f", "farad", "farads"],
+  henry: ["h", "henry", "henries"],
 };
 
 const prefixes = [

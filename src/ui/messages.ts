@@ -8,6 +8,9 @@ const messages: Readonly<Record<string, string>> = {
   "component.dcVoltageSource.name": "DC voltage source",
   "component.dcVoltageSource.voltage": "Voltage",
   "component.dcVoltageSource.internalResistance": "Internal resistance",
+  "component.capacitor.name": "Capacitor",
+  "component.capacitor.capacitance": "Capacitance",
+  "component.capacitor.initialVoltage": "Initial voltage",
   "diagnostic.invalidSchemaVersion":
     "The circuit file version is not supported.",
   "diagnostic.invalidGeometry": "The circuit geometry is invalid.",
@@ -24,7 +27,11 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.shortCircuit": "An ideal source is short-circuited.",
   "diagnostic.inconsistentIdealConstraint":
     "Ideal voltage sources in a loop conflict with each other.",
+  "diagnostic.inconsistentState":
+    "The specified initial capacitor voltages conflict with ideal circuit constraints.",
   "diagnostic.singularSystem": "The circuit cannot be solved as drawn.",
+  "diagnostic.stepAccuracyLimited":
+    "The circuit is too fast for the available internal step limit; simulation accuracy may be limited.",
   "diagnostic.staleRun":
     "The result belongs to an earlier calculation and was ignored.",
   "diagnostic.staleDocumentRevision":

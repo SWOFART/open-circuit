@@ -3,9 +3,13 @@ import { describe, expect, it } from "vitest";
 import catalogFixture from "../../tests/golden/stage-1-catalog.json";
 import type { EditorStatus } from "../editor/interaction";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
+import { symbols } from "../symbols";
 import { Palette, toolHint } from "./Palette";
 
 const catalog = catalogFixture as ComponentCatalog;
+const placeableTypes = catalog.componentTypes.filter(
+  (entry) => symbols[entry.typeId],
+);
 const noTool = () => {};
 
 function pressed(markup: string): string[] {
@@ -15,7 +19,7 @@ function pressed(markup: string): string[] {
 }
 
 describe("component palette", () => {
-  it("offers Select, every catalog type, and the drawing tools", () => {
+  it("offers Select, supported catalog types, and the drawing tools", () => {
     const markup = renderToStaticMarkup(
       <Palette
         catalog={catalog}
@@ -34,9 +38,8 @@ describe("component palette", () => {
     ]) {
       expect(markup).toContain(`>${label}<`);
     }
-    expect(markup.match(/<button/g)).toHaveLength(
-      catalog.componentTypes.length + 4,
-    );
+    expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
+    expect(markup).not.toContain("Capacitor");
     expect(pressed(markup)).toEqual(["Select"]);
   });
 
@@ -63,7 +66,7 @@ describe("component palette", () => {
     );
 
     expect(markup.match(/disabled=""/g)).toHaveLength(
-      catalog.componentTypes.length + 4,
+      placeableTypes.length + 4,
     );
   });
 

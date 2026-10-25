@@ -2,4 +2,4 @@
 import type { Diagnostic } from "./Diagnostic";
 import type { ResultSnapshot } from "./ResultSnapshot";
 
-export type SetParameterResult = { "status": "success", snapshot: ResultSnapshot, diagnostics: Array<Diagnostic>, } | { "status": "failure", diagnostics: Array<Diagnostic>, };
+export type SetParameterResult = { "status": "success", snapshot: ResultSnapshot, internalSubsteps: number, diagnostics: Array<Diagnostic>, } | { "status": "failure", diagnostics: Array<Diagnostic>, };

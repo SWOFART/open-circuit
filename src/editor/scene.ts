@@ -1,7 +1,7 @@
 import type { GridPoint } from "../generated/GridPoint";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
-import type { LocalPoint, SymbolRegistry } from "../symbols";
+import { symbolFor, type LocalPoint, type SymbolRegistry } from "../symbols";
 import type { EditorGeometry } from "./connectivity";
 import { toWorld } from "./geometry";
 
@@ -169,7 +169,7 @@ export function buildScene(
   }
 
   for (const component of schematic.components) {
-    const symbol = registry[component.typeId];
+    const symbol = symbolFor(component.typeId, registry);
     const owner: SceneOwner = { kind: "component", id: component.id };
 
     for (const primitive of symbol.primitives) {

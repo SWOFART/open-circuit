@@ -255,6 +255,7 @@ describe("diagnostics", () => {
       catalog: catalogFixture as ComponentCatalog,
       compile: (request) => ({
         status: "success",
+        internalSubsteps: 1,
         runId: RUN_ID,
         layout,
         initialSnapshot: {
@@ -302,6 +303,7 @@ describe("diagnostics", () => {
     const controller = controllerFor(
       adapterWith((request) => ({
         status: "success",
+        internalSubsteps: 1,
         snapshot: snapshotFor(request, 1n),
         diagnostics: [warning],
       })),
@@ -367,6 +369,7 @@ describe("unavailable backend", () => {
       catalog: catalogFixture as ComponentCatalog,
       compile: (request) => ({
         status: "success",
+        internalSubsteps: 1,
         runId: RUN_ID,
         layout: singleSlotLayout,
         initialSnapshot: {
@@ -465,6 +468,7 @@ describe("stale results", () => {
       catalog: catalogFixture as ComponentCatalog,
       compile: (request) => ({
         status: "success",
+        internalSubsteps: 1,
         runId: RUN_ID,
         layout: { layoutVersion: 1, valueCount: 0, slots: [] },
         initialSnapshot: {
@@ -482,6 +486,7 @@ describe("stale results", () => {
       }),
       setParameter: () => ({
         status: "success",
+        internalSubsteps: 1,
         snapshot: {
           metadata: {
             runId: RUN_ID,
@@ -543,6 +548,7 @@ describe("rapid edits", () => {
       compile: (request) =>
         Promise.resolve({
           status: "success",
+          internalSubsteps: 1,
           runId: RUN_ID,
           layout,
           initialSnapshot: snapshot(request.documentRevision, 0),
@@ -568,6 +574,7 @@ describe("rapid edits", () => {
   function acceptAs(request: SetParameterRequest): SetParameterResult {
     return {
       status: "success",
+      internalSubsteps: 1,
       snapshot: {
         metadata: {
           runId: request.runId,
@@ -675,6 +682,7 @@ describe("malformed engine answers", () => {
     documentRevision: string;
   }): CompileResult => ({
     status: "success",
+    internalSubsteps: 1,
     runId: RUN_ID,
     layout: singleSlotLayout,
     initialSnapshot: {
@@ -734,7 +742,12 @@ describe("malformed engine answers", () => {
     const adapter = new PredeterminedEngineAdapter({
       catalog,
       compile: () =>
-        ({ status: "success", runId: RUN_ID, diagnostics: [] }) as never,
+        ({
+          status: "success",
+          internalSubsteps: 1,
+          runId: RUN_ID,
+          diagnostics: [],
+        }) as never,
       setParameter: () => ({ status: "failure", diagnostics: [] }),
     });
     const controller = controllerFor(adapter);
@@ -749,7 +762,8 @@ describe("malformed engine answers", () => {
     const adapter = new PredeterminedEngineAdapter({
       catalog,
       compile: oneSlotSuccess,
-      setParameter: () => ({ status: "success", diagnostics: [] }) as never,
+      setParameter: () =>
+        ({ status: "success", internalSubsteps: 1, diagnostics: [] }) as never,
     });
     const controller = controllerFor(adapter);
 

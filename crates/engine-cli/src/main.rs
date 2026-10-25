@@ -26,6 +26,7 @@ fn run() -> Result<(), String> {
     let CompileResult::Success {
         run_id,
         layout,
+        internal_substeps,
         initial_snapshot,
         diagnostics,
     } = engine.compile(CompileRequest {
@@ -39,7 +40,7 @@ fn run() -> Result<(), String> {
 
     let expected_equal = &expected["equalResistors"];
     verify_fixture_result(&layout, &initial_snapshot, expected_equal)?;
-    println!("Stage 1 divider at simulation step 0:");
+    println!("Stage 1 divider at simulation step 0 (internal substeps: {internal_substeps}):");
     print_values(&layout, &initial_snapshot)?;
     for diagnostic in diagnostics {
         println!(
@@ -50,6 +51,7 @@ fn run() -> Result<(), String> {
 
     let SetParameterResult::Success {
         snapshot,
+        internal_substeps,
         diagnostics,
     } = engine.set_parameter(SetParameterRequest {
         run_id,
@@ -63,7 +65,7 @@ fn run() -> Result<(), String> {
         return Err("changing R1 to 3000 ohms failed".to_owned());
     };
     verify_fixture_result(&layout, &snapshot, &expected["resistor1At3000Ohms"])?;
-    println!("\nAfter changing R1 to 3000 ohms:");
+    println!("\nAfter changing R1 to 3000 ohms (internal substeps: {internal_substeps}):");
     print_values(&layout, &snapshot)?;
     for diagnostic in diagnostics {
         println!(

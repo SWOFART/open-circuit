@@ -67,6 +67,7 @@ circuit-sim/
 │   │   │   │   ├── mod.rs      ← Device trait, catalog
 │   │   │   │   ├── resistor.rs
 │   │   │   │   ├── source.rs
+│   │   │   │   ├── capacitor.rs
 │   │   │   │   ├── lamp.rs
 │   │   │   │   ├── switch.rs
 │   │   │   │   ├── relay.rs

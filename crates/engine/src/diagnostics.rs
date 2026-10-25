@@ -19,7 +19,9 @@ pub enum DiagnosticCode {
     FloatingNode,
     ShortCircuit,
     InconsistentIdealConstraint,
+    InconsistentState,
     SingularSystem,
+    StepAccuracyLimited,
     StaleRun,
     StaleDocumentRevision,
 }
@@ -38,7 +40,9 @@ impl DiagnosticCode {
             Self::FloatingNode => "diagnostic.floatingNode",
             Self::ShortCircuit => "diagnostic.shortCircuit",
             Self::InconsistentIdealConstraint => "diagnostic.inconsistentIdealConstraint",
+            Self::InconsistentState => "diagnostic.inconsistentState",
             Self::SingularSystem => "diagnostic.singularSystem",
+            Self::StepAccuracyLimited => "diagnostic.stepAccuracyLimited",
             Self::StaleRun => "diagnostic.staleRun",
             Self::StaleDocumentRevision => "diagnostic.staleDocumentRevision",
         }

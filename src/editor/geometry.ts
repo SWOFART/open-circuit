@@ -3,7 +3,7 @@ import type { GeometryEnvelope } from "../generated/GeometryEnvelope";
 import type { GridPoint } from "../generated/GridPoint";
 import type { ResolvedPinPosition } from "../generated/ResolvedPinPosition";
 import type { Schematic } from "../generated/Schematic";
-import type { LocalPoint, SymbolRegistry } from "../symbols";
+import { symbolFor, type LocalPoint, type SymbolRegistry } from "../symbols";
 
 export type Rotation = ComponentSpec["rotationDeg"];
 
@@ -57,7 +57,7 @@ export function resolvePinPositions(
   component: ComponentSpec,
   registry: SymbolRegistry,
 ): ResolvedPinPosition[] {
-  const symbol = registry[component.typeId];
+  const symbol = symbolFor(component.typeId, registry);
 
   return symbol.pins.map((pin) => ({
     pinId: pin.id,

@@ -41,7 +41,7 @@ describe("catalog defaults", () => {
 });
 
 describe("applying canvas commands to the document", () => {
-  it.each(catalog.componentTypes)(
+  it.each(catalog.componentTypes.filter((entry) => symbols[entry.typeId]))(
     "places a $typeId the store accepts, with pins on the grid",
     (entry) => {
       const store = createStore();

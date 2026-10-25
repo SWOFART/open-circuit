@@ -34,7 +34,45 @@ pub struct DcVoltageSourceParameters {
     pub internal_resistance_ohms: f64,
 }
 
-/// Version 1 supports only the resistor and constant independent voltage source.
+#[derive(Clone, Debug, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "CapacitorParameters.ts")]
+pub struct CapacitorParameters {
+    pub capacitance_farads: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub initial_voltage_volts: Option<f64>,
+}
+
+fn deserialize_optional_non_null_f64<'de, D>(deserializer: D) -> Result<Option<f64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    f64::deserialize(deserializer).map(Some)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct CapacitorParametersInput {
+    capacitance_farads: f64,
+    #[serde(default, deserialize_with = "deserialize_optional_non_null_f64")]
+    initial_voltage_volts: Option<f64>,
+}
+
+impl<'de> Deserialize<'de> for CapacitorParameters {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let input = CapacitorParametersInput::deserialize(deserializer)?;
+        Ok(Self {
+            capacitance_farads: input.capacitance_farads,
+            initial_voltage_volts: input.initial_voltage_volts,
+        })
+    }
+}
+
+/// Version 1 supports resistors, independent voltage sources, and capacitors.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -58,12 +96,21 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: DcVoltageSourceParameters,
     },
+    Capacitor {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: CapacitorParameters,
+    },
 }
 
 impl ComponentSpec {
     pub fn id(&self) -> &StableId {
         match self {
-            Self::Resistor { id, .. } | Self::DcVoltageSource { id, .. } => id,
+            Self::Resistor { id, .. }
+            | Self::DcVoltageSource { id, .. }
+            | Self::Capacitor { id, .. } => id,
         }
     }
 
@@ -71,6 +118,7 @@ impl ComponentSpec {
         match self {
             Self::Resistor { .. } => ComponentTypeId::Resistor,
             Self::DcVoltageSource { .. } => ComponentTypeId::DcVoltageSource,
+            Self::Capacitor { .. } => ComponentTypeId::Capacitor,
         }
     }
 
@@ -86,6 +134,16 @@ impl ComponentSpec {
                     parameters.internal_resistance_ohms,
                 ),
             ],
+            Self::Capacitor { parameters, .. } => {
+                let mut values = vec![(
+                    ParameterId::CapacitanceFarads,
+                    parameters.capacitance_farads,
+                )];
+                if let Some(value) = parameters.initial_voltage_volts {
+                    values.push((ParameterId::InitialVoltageVolts, value));
+                }
+                values
+            }
         }
     }
 }
@@ -185,6 +243,16 @@ impl Schematic {
                     }],
                 ));
             }
+            if let ComponentSpec::Capacitor { rotation_deg, .. } = component
+                && !matches!(rotation_deg, 0 | 90 | 180 | 270)
+            {
+                diagnostics.push(Diagnostic::error(
+                    DiagnosticCode::InvalidGeometry,
+                    vec![DiagnosticReference::Component {
+                        component_id: component.id().clone(),
+                    }],
+                ));
+            }
 
             let catalog_entry = catalog
                 .component_types
@@ -193,10 +261,14 @@ impl Schematic {
             if let Some(ComponentCatalogEntry { parameters, .. }) = catalog_entry {
                 let values = component.parameter_values();
                 for parameter in parameters {
-                    let valid = values
+                    let parameter_value = values
                         .iter()
                         .find(|(parameter_id, _)| *parameter_id == parameter.id)
-                        .is_some_and(|(_, value)| parameter.domain.accepts(*value));
+                        .map(|(_, value)| *value);
+                    let valid = match parameter_value {
+                        Some(value) => parameter.domain.accepts(value),
+                        None => parameter.optional,
+                    };
                     if !valid {
                         diagnostics.push(Diagnostic::error(
                             DiagnosticCode::InvalidParameter,

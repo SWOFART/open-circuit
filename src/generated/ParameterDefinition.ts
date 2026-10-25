@@ -3,4 +3,4 @@ import type { NumericDomain } from "./NumericDomain";
 import type { ParameterId } from "./ParameterId";
 import type { Unit } from "./Unit";
 
-export type ParameterDefinition = { id: ParameterId, unit: Unit, defaultValue: number, domain: NumericDomain, descriptionKey: string, };
+export type ParameterDefinition = { id: ParameterId, unit: Unit, defaultValue: number, domain: NumericDomain, descriptionKey: string, optional: boolean, initialCondition: boolean, };

@@ -1,5 +1,6 @@
-//! Stage 1 device behavior, separate from the serialized schematic variants.
+//! Device behavior is separate from the serialized schematic variants.
 
+mod capacitor;
 mod resistor;
 mod source;
 
@@ -7,6 +8,7 @@ use crate::{Diagnostic, StableId};
 
 use super::mna::{MnaSystem, NodeVariables};
 
+pub(crate) use capacitor::{CapacitorDevice, CapacitorMode};
 pub(crate) use resistor::ResistorDevice;
 pub(crate) use source::DcVoltageSourceDevice;
 

@@ -13,7 +13,9 @@
           "unit": "ohm",
           "defaultValue": 1000.0,
           "domain": "strictly_positive",
-          "descriptionKey": "component.resistor.resistance"
+          "descriptionKey": "component.resistor.resistance",
+          "optional": false,
+          "initialCondition": false
         }
       ]
     },
@@ -30,14 +32,46 @@
           "unit": "volt",
           "defaultValue": 5.0,
           "domain": "finite",
-          "descriptionKey": "component.dcVoltageSource.voltage"
+          "descriptionKey": "component.dcVoltageSource.voltage",
+          "optional": false,
+          "initialCondition": false
         },
         {
           "id": "internalResistanceOhms",
           "unit": "ohm",
           "defaultValue": 0.1,
           "domain": "non_negative",
-          "descriptionKey": "component.dcVoltageSource.internalResistance"
+          "descriptionKey": "component.dcVoltageSource.internalResistance",
+          "optional": false,
+          "initialCondition": false
+        }
+      ]
+    },
+    {
+      "typeId": "capacitor",
+      "displayNameKey": "component.capacitor.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "capacitanceFarads",
+          "unit": "farad",
+          "defaultValue": 1e-5,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.capacitor.capacitance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "initialVoltageVolts",
+          "unit": "volt",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.capacitor.initialVoltage",
+          "optional": true,
+          "initialCondition": true
         }
       ]
     }

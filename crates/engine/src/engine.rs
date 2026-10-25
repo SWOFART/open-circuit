@@ -1,4 +1,7 @@
-//! Stateful Stage 1 Engine API for compiling and updating resistive circuits.
+//! Stateful Engine API for compiling, updating, and advancing circuit simulations.
+
+#[path = "transient.rs"]
+mod transient;
 
 use std::collections::{HashMap, HashSet};
 
@@ -10,12 +13,16 @@ use crate::{
     ResultQuantity, ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
     Schematic, SetParameterRequest, SetParameterResult, StableId, Unit,
     devices::{
-        DcVoltageSourceDevice, Device, DeviceResult, ResistorDevice, Terminals,
-        component_diagnostic,
+        CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult,
+        ResistorDevice, Terminals, component_diagnostic,
     },
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist},
     solver::SolverError,
+};
+use transient::{
+    CapacitorState, SolveMode, advance_public_steps, capacitor_states_from_results,
+    choose_internal_substeps,
 };
 
 /// Owns the active compiled run and its latest valid result.
@@ -30,7 +37,19 @@ struct CompiledRun {
     geometry: GeometryEnvelope,
     layout: ResultLayout,
     snapshot: ResultSnapshot,
+    capacitor_states: HashMap<StableId, CapacitorState>,
+    step_start_capacitor_states: HashMap<StableId, CapacitorState>,
+    internal_substeps: u32,
 }
+
+type InitializationOutcome = Result<
+    (
+        Vec<DeviceResult>,
+        HashMap<StableId, CapacitorState>,
+        Vec<Diagnostic>,
+    ),
+    Vec<Diagnostic>,
+>;
 
 #[derive(Clone)]
 struct DeviceSpec {
@@ -48,16 +67,29 @@ enum DeviceModel {
         voltage_volts: f64,
         internal_resistance_ohms: f64,
     },
+    Capacitor {
+        capacitance_farads: f64,
+        initial_voltage_volts: Option<f64>,
+    },
 }
 
 impl Engine {
     /// Validate, compile, and solve the operating point at simulation step zero.
     pub fn compile(&mut self, request: CompileRequest) -> CompileResult {
-        let (device_results, diagnostics) =
-            match compute_operating_point(&request.schematic, &request.geometry) {
+        let (device_results, capacitor_states, mut diagnostics) =
+            match initialize_circuit(&request.schematic, &request.geometry) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return CompileResult::Failure { diagnostics },
             };
+        let (internal_substeps, limited) =
+            choose_internal_substeps(&request.schematic, &request.geometry);
+        if limited {
+            diagnostics.push(Diagnostic::warning(
+                DiagnosticCode::StepAccuracyLimited,
+                Vec::new(),
+            ));
+            sort_diagnostics(&mut diagnostics);
+        }
         let layout = match build_result_layout(&request.schematic) {
             Ok(layout) => layout,
             Err(diagnostics) => return CompileResult::Failure { diagnostics },
@@ -85,11 +117,15 @@ impl Engine {
             geometry: request.geometry,
             layout: layout.clone(),
             snapshot: snapshot.clone(),
+            step_start_capacitor_states: capacitor_states.clone(),
+            capacitor_states,
+            internal_substeps,
         });
 
         CompileResult::Success {
             run_id,
             layout,
+            internal_substeps,
             initial_snapshot: snapshot,
             diagnostics,
         }
@@ -148,10 +184,34 @@ impl Engine {
         let layout = active.layout.clone();
         let simulation_step = active.snapshot.metadata.simulation_step;
         let document_revision = request.document_revision;
-        let (device_results, diagnostics) = match compute_operating_point(&candidate, &geometry) {
-            Ok(computed) => computed,
-            Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+        let previous_step_states = active.step_start_capacitor_states.clone();
+        let (internal_substeps, limited) = choose_internal_substeps(&candidate, &geometry);
+        let (device_results, capacitor_states, mut diagnostics) = if simulation_step == 0 {
+            match initialize_circuit(&candidate, &geometry) {
+                Ok(computed) => computed,
+                Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+            }
+        } else {
+            match advance_public_steps(
+                &candidate,
+                &geometry,
+                previous_step_states,
+                internal_substeps,
+                1,
+            ) {
+                Ok((results, states, _step_start_states, diagnostics)) => {
+                    (results, states, diagnostics)
+                }
+                Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+            }
         };
+        if limited {
+            diagnostics.push(Diagnostic::warning(
+                DiagnosticCode::StepAccuracyLimited,
+                Vec::new(),
+            ));
+            sort_diagnostics(&mut diagnostics);
+        }
         let values = match values_for_layout(&layout, &device_results) {
             Ok(values) => values,
             Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
@@ -185,14 +245,19 @@ impl Engine {
             .expect("active run was checked above");
         active.schematic = candidate;
         active.snapshot = snapshot.clone();
+        active.capacitor_states = capacitor_states.clone();
+        if simulation_step == 0 {
+            active.step_start_capacitor_states = capacitor_states;
+        }
+        active.internal_substeps = internal_substeps;
         SetParameterResult::Success {
             snapshot,
+            internal_substeps,
             diagnostics,
         }
     }
 
-    /// Advance the fixed-step transient scaffold. Stage 1 devices are memoryless, so the
-    /// operating point is unchanged while simulation metadata advances.
+    /// Advance the compiled circuit by the requested number of public transient steps.
     pub fn advance(&mut self, request: AdvanceRequest) -> Result<ResultSnapshot, Vec<Diagnostic>> {
         let Some(active) = self.compiled.as_mut() else {
             return Err(vec![Diagnostic::error(
@@ -237,10 +302,22 @@ impl Engine {
             )]);
         }
 
+        let (device_results, capacitor_states, step_start_states, _diagnostics) =
+            advance_public_steps(
+                &active.schematic,
+                &active.geometry,
+                active.capacitor_states.clone(),
+                active.internal_substeps,
+                request.step_count,
+            )?;
+        let values = values_for_layout(&active.layout, &device_results)?;
         let mut snapshot = active.snapshot.clone();
+        snapshot.values = values;
         snapshot.metadata.simulation_step = simulation_step;
         snapshot.metadata.simulation_time_seconds = simulation_time_seconds;
         snapshot.metadata.frame_sequence = frame_sequence;
+        active.step_start_capacitor_states = step_start_states;
+        active.capacitor_states = capacitor_states;
         active.snapshot = snapshot.clone();
         Ok(snapshot)
     }
@@ -254,9 +331,59 @@ impl Engine {
     }
 }
 
-fn compute_operating_point(
+fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> InitializationOutcome {
+    let capacitors = schematic
+        .components
+        .iter()
+        .filter_map(|component| match component {
+            ComponentSpec::Capacitor { id, parameters, .. } => {
+                Some((id.clone(), parameters.initial_voltage_volts))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let has_explicit_initial_state = capacitors.iter().any(|(_, initial)| initial.is_some());
+
+    if !has_explicit_initial_state {
+        let (results, diagnostics) =
+            compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?;
+        let states = capacitor_states_from_results(schematic, &results);
+        return Ok((results, states, diagnostics));
+    }
+
+    let mut diagnostics = Vec::new();
+    let mut states = HashMap::new();
+    if capacitors.iter().any(|(_, initial)| initial.is_none()) {
+        let (operating_point, operating_diagnostics) =
+            compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?;
+        diagnostics.extend(operating_diagnostics);
+        let operating_states = capacitor_states_from_results(schematic, &operating_point);
+        states.extend(operating_states);
+    }
+    for (component_id, initial_voltage_volts) in &capacitors {
+        if let Some(voltage_volts) = initial_voltage_volts {
+            states.insert(
+                component_id.clone(),
+                CapacitorState {
+                    voltage_volts: *voltage_volts,
+                    current_amps: 0.0,
+                },
+            );
+        }
+    }
+
+    let (results, initial_diagnostics) =
+        compute_circuit(schematic, geometry, SolveMode::InitialState(&states))?;
+    diagnostics.extend(initial_diagnostics);
+    let states = capacitor_states_from_results(schematic, &results);
+    sort_diagnostics(&mut diagnostics);
+    Ok((results, states, diagnostics))
+}
+
+fn compute_circuit(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
+    mode: SolveMode<'_>,
 ) -> Result<(Vec<DeviceResult>, Vec<Diagnostic>), Vec<Diagnostic>> {
     let netlist = derive_netlist(schematic, geometry)?;
     let mut diagnostics = netlist.diagnostics.clone();
@@ -274,6 +401,19 @@ fn compute_operating_point(
         diagnostics.extend(constraint_errors);
         sort_diagnostics(&mut diagnostics);
         return Err(diagnostics);
+    }
+    if let SolveMode::InitialState(states) = mode {
+        let state_errors = check_initial_state_constraints(
+            &device_specs,
+            states,
+            netlist.nodes.len(),
+            &netlist.islands,
+        );
+        if !state_errors.is_empty() {
+            diagnostics.extend(state_errors);
+            sort_diagnostics(&mut diagnostics);
+            return Err(diagnostics);
+        }
     }
 
     let mut results = Vec::with_capacity(device_specs.len());
@@ -300,13 +440,16 @@ fn compute_operating_point(
         let mut branch_variables = HashMap::new();
         let mut next_variable = variables.voltage_variable_count();
         for spec in &island_specs {
-            if matches!(
+            let ideal_source = matches!(
                 spec.model,
                 DeviceModel::DcVoltageSource {
                     internal_resistance_ohms: 0.0,
                     ..
                 }
-            ) {
+            );
+            let initial_capacitor = matches!(spec.model, DeviceModel::Capacitor { .. })
+                && matches!(mode, SolveMode::InitialState(_));
+            if ideal_source || initial_capacitor {
                 branch_variables.insert(spec.component_id.as_str().to_owned(), next_variable);
                 next_variable += 1;
             }
@@ -318,6 +461,7 @@ fn compute_operating_point(
                 make_device(
                     spec,
                     branch_variables.get(spec.component_id.as_str()).copied(),
+                    mode,
                 )
             })
             .collect::<Vec<_>>();
@@ -427,6 +571,10 @@ fn build_device_specs(
                     internal_resistance_ohms: parameters.internal_resistance_ohms,
                 }
             }
+            ComponentSpec::Capacitor { parameters, .. } => DeviceModel::Capacitor {
+                capacitance_farads: parameters.capacitance_farads,
+                initial_voltage_volts: parameters.initial_voltage_volts,
+            },
         };
         specs.push(DeviceSpec {
             component_id: component.id().clone(),
@@ -441,7 +589,11 @@ fn build_device_specs(
     }
 }
 
-fn make_device(spec: &DeviceSpec, branch_variable: Option<usize>) -> Box<dyn Device> {
+fn make_device(
+    spec: &DeviceSpec,
+    branch_variable: Option<usize>,
+    mode: SolveMode<'_>,
+) -> Box<dyn Device> {
     match spec.model {
         DeviceModel::Resistor { resistance_ohms } => Box::new(ResistorDevice::new(
             spec.component_id.clone(),
@@ -458,6 +610,42 @@ fn make_device(spec: &DeviceSpec, branch_variable: Option<usize>) -> Box<dyn Dev
             internal_resistance_ohms,
             branch_variable,
         )),
+        DeviceModel::Capacitor {
+            capacitance_farads, ..
+        } => {
+            let capacitor_mode = match mode {
+                SolveMode::OperatingPoint => CapacitorMode::Open,
+                SolveMode::InitialState(states) => {
+                    let state = states
+                        .get(&spec.component_id)
+                        .expect("every capacitor has an initialized state");
+                    CapacitorMode::Initial {
+                        voltage_volts: state.voltage_volts,
+                        branch_variable: branch_variable
+                            .expect("initial-state capacitors have branch variables"),
+                    }
+                }
+                SolveMode::Transient {
+                    step_seconds,
+                    states,
+                } => {
+                    let state = states
+                        .get(&spec.component_id)
+                        .expect("every transient capacitor has a state");
+                    CapacitorMode::Transient {
+                        step_seconds,
+                        start_voltage_volts: state.voltage_volts,
+                        start_current_amps: state.current_amps,
+                    }
+                }
+            };
+            Box::new(CapacitorDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                capacitance_farads,
+                capacitor_mode,
+            ))
+        }
     }
 }
 
@@ -529,6 +717,193 @@ fn check_ideal_source_constraints(specs: &[DeviceSpec], node_count: usize) -> Ve
         }
     }
     diagnostics
+}
+
+fn check_initial_state_constraints(
+    specs: &[DeviceSpec],
+    states: &HashMap<StableId, CapacitorState>,
+    node_count: usize,
+    islands: &[ElectricalIsland],
+) -> Vec<Diagnostic> {
+    type VoltageEdge = (usize, f64, Option<StableId>);
+
+    let mut conflicting_explicit_states = HashSet::<StableId>::new();
+    for island in islands {
+        let component_ids = island
+            .component_ids
+            .iter()
+            .map(|id| id.as_str())
+            .collect::<HashSet<_>>();
+        let mut island_specs = specs
+            .iter()
+            .filter(|spec| component_ids.contains(spec.component_id.as_str()))
+            .collect::<Vec<_>>();
+        island_specs
+            .sort_by(|left, right| left.component_id.as_str().cmp(right.component_id.as_str()));
+
+        let mut adjacency = vec![Vec::<VoltageEdge>::new(); node_count];
+        let mut explicit_capacitors = Vec::new();
+        for spec in &island_specs {
+            let constraint = match spec.model {
+                DeviceModel::DcVoltageSource {
+                    voltage_volts,
+                    internal_resistance_ohms: 0.0,
+                } => Some((voltage_volts, None)),
+                DeviceModel::Capacitor {
+                    initial_voltage_volts: Some(voltage_volts),
+                    ..
+                } => {
+                    explicit_capacitors.push((spec, voltage_volts));
+                    None
+                }
+                DeviceModel::Capacitor {
+                    initial_voltage_volts: None,
+                    ..
+                } => states
+                    .get(&spec.component_id)
+                    .map(|state| (state.voltage_volts, None)),
+                _ => None,
+            };
+            if let Some((voltage, explicit_component_id)) = constraint {
+                add_voltage_constraint(
+                    &mut adjacency,
+                    spec.terminals.pin1,
+                    spec.terminals.pin2,
+                    voltage,
+                    explicit_component_id,
+                );
+            }
+        }
+
+        // Unspecified capacitor states come from the DC solve. If those base
+        // constraints are already inconsistent, let the ordinary solver report
+        // that failure; it is not caused by a user-imposed initial condition.
+        if !voltage_constraints_consistent(&adjacency, island_specs.len()) {
+            continue;
+        }
+
+        for (spec, voltage_volts) in explicit_capacitors {
+            let path = voltage_path(&adjacency, spec.terminals.pin1, spec.terminals.pin2);
+            if let Some((actual_delta, path_initial_states)) = path {
+                let expected_delta = -voltage_volts;
+                let tolerance = f64::EPSILON
+                    * (island_specs.len().max(1) as f64)
+                    * 32.0
+                    * actual_delta.abs().max(expected_delta.abs()).max(1.0);
+                if !actual_delta.is_finite() || (actual_delta - expected_delta).abs() > tolerance {
+                    conflicting_explicit_states.insert(spec.component_id.clone());
+                    conflicting_explicit_states.extend(path_initial_states);
+                    continue;
+                }
+            }
+            add_voltage_constraint(
+                &mut adjacency,
+                spec.terminals.pin1,
+                spec.terminals.pin2,
+                voltage_volts,
+                Some(spec.component_id.clone()),
+            );
+        }
+    }
+
+    if conflicting_explicit_states.is_empty() {
+        return Vec::new();
+    }
+    let references = conflicting_explicit_states
+        .into_iter()
+        .map(|component_id| DiagnosticReference::Component { component_id })
+        .collect();
+    vec![Diagnostic::error(
+        DiagnosticCode::InconsistentState,
+        references,
+    )]
+}
+
+fn add_voltage_constraint(
+    adjacency: &mut [Vec<(usize, f64, Option<StableId>)>],
+    pin1: usize,
+    pin2: usize,
+    voltage_volts: f64,
+    explicit_component_id: Option<StableId>,
+) {
+    adjacency[pin1].push((pin2, -voltage_volts, explicit_component_id.clone()));
+    adjacency[pin2].push((pin1, voltage_volts, explicit_component_id));
+}
+
+fn voltage_constraints_consistent(
+    adjacency: &[Vec<(usize, f64, Option<StableId>)>],
+    constraint_count: usize,
+) -> bool {
+    let mut potentials = vec![None::<f64>; adjacency.len()];
+    for start in 0..adjacency.len() {
+        if potentials[start].is_some() || adjacency[start].is_empty() {
+            continue;
+        }
+        potentials[start] = Some(0.0);
+        let mut stack = vec![start];
+        while let Some(node) = stack.pop() {
+            let current_potential = potentials[node].expect("visited node has a potential");
+            for (neighbor, delta, _) in &adjacency[node] {
+                let expected = current_potential + delta;
+                if !expected.is_finite() {
+                    return false;
+                }
+                match potentials[*neighbor] {
+                    None => {
+                        potentials[*neighbor] = Some(expected);
+                        stack.push(*neighbor);
+                    }
+                    Some(actual) => {
+                        let tolerance = f64::EPSILON
+                            * (constraint_count.max(1) as f64)
+                            * 32.0
+                            * actual.abs().max(expected.abs()).max(1.0);
+                        if (actual - expected).abs() > tolerance {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    true
+}
+
+fn voltage_path(
+    adjacency: &[Vec<(usize, f64, Option<StableId>)>],
+    start: usize,
+    target: usize,
+) -> Option<(f64, Vec<StableId>)> {
+    let mut potentials = vec![None::<f64>; adjacency.len()];
+    let mut parents = vec![None::<(usize, Option<StableId>)>; adjacency.len()];
+    potentials[start] = Some(0.0);
+    let mut stack = vec![start];
+    while let Some(node) = stack.pop() {
+        if node == target {
+            break;
+        }
+        let current_potential = potentials[node]?;
+        for (neighbor, delta, explicit_component_id) in &adjacency[node] {
+            if potentials[*neighbor].is_some() {
+                continue;
+            }
+            let potential = current_potential + delta;
+            potentials[*neighbor] = Some(potential);
+            parents[*neighbor] = Some((node, explicit_component_id.clone()));
+            stack.push(*neighbor);
+        }
+    }
+    let voltage_delta = potentials[target]?;
+    let mut explicit_states = Vec::new();
+    let mut node = target;
+    while node != start {
+        let (parent, explicit_component_id) = parents[node].clone()?;
+        if let Some(component_id) = explicit_component_id {
+            explicit_states.push(component_id);
+        }
+        node = parent;
+    }
+    Some((voltage_delta, explicit_states))
 }
 
 fn diagnostic_for_island(code: DiagnosticCode, island: &ElectricalIsland) -> Diagnostic {
@@ -654,7 +1029,13 @@ fn update_parameter(
             ParameterId::InternalResistanceOhms => {
                 parameters.internal_resistance_ohms = value;
             }
-            ParameterId::ResistanceOhms => return false,
+            ParameterId::ResistanceOhms
+            | ParameterId::CapacitanceFarads
+            | ParameterId::InitialVoltageVolts => return false,
+        },
+        ComponentSpec::Capacitor { parameters, .. } => match parameter_id {
+            ParameterId::CapacitanceFarads => parameters.capacitance_farads = value,
+            _ => return false,
         },
     }
     true

@@ -8,6 +8,7 @@ use ts_rs::TS;
 pub enum ComponentTypeId {
     Resistor,
     DcVoltageSource,
+    Capacitor,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -34,6 +35,8 @@ pub enum ParameterId {
     ResistanceOhms,
     VoltageVolts,
     InternalResistanceOhms,
+    CapacitanceFarads,
+    InitialVoltageVolts,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -43,6 +46,8 @@ pub enum Unit {
     Ohm,
     Volt,
     Amp,
+    Farad,
+    Henry,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -95,6 +100,8 @@ pub struct ParameterDefinition {
     pub default_value: f64,
     pub domain: NumericDomain,
     pub description_key: String,
+    pub optional: bool,
+    pub initial_condition: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
@@ -114,7 +121,7 @@ pub struct ComponentCatalog {
     pub component_types: Vec<ComponentCatalogEntry>,
 }
 
-/// Returns the authoritative Stage 1 catalog. Values use SI units.
+/// Returns the authoritative Engine catalog. Values use SI units.
 pub fn component_catalog() -> ComponentCatalog {
     let two_unpolarized_pins = || {
         vec![
@@ -141,6 +148,8 @@ pub fn component_catalog() -> ComponentCatalog {
                     default_value: 1000.0,
                     domain: NumericDomain::StrictlyPositive,
                     description_key: "component.resistor.resistance".to_owned(),
+                    optional: false,
+                    initial_condition: false,
                 }],
             },
             ComponentCatalogEntry {
@@ -163,6 +172,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         default_value: 5.0,
                         domain: NumericDomain::Finite,
                         description_key: "component.dcVoltageSource.voltage".to_owned(),
+                        optional: false,
+                        initial_condition: false,
                     },
                     ParameterDefinition {
                         id: ParameterId::InternalResistanceOhms,
@@ -170,6 +181,33 @@ pub fn component_catalog() -> ComponentCatalog {
                         default_value: 0.1,
                         domain: NumericDomain::NonNegative,
                         description_key: "component.dcVoltageSource.internalResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Capacitor,
+                display_name_key: "component.capacitor.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::CapacitanceFarads,
+                        unit: Unit::Farad,
+                        default_value: 1e-5,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.capacitor.capacitance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::InitialVoltageVolts,
+                        unit: Unit::Volt,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.capacitor.initialVoltage".to_owned(),
+                        optional: true,
+                        initial_condition: true,
                     },
                 ],
             },
