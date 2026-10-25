@@ -47,8 +47,10 @@ real Engine and replayed through the TypeScript adapter, controller, and result 
 | `pnpm bundle:check` | Pass; production bundle contains no mock adapter. |
 | Lockfile diff check | Pass; `Cargo.lock` and `pnpm-lock.yaml` were unchanged. |
 
-Linux/macOS Tauri builds and the associated CI run are pending the draft PR. No CI run is
-linked yet.
+The CI matrix passed on all three operating systems on the draft PR candidate:
+[GitHub Actions run 40190063230](https://github.com/SWOFART/open-circuit/actions/runs/40190063230).
+The `windows-latest`, `ubuntu-latest`, and `macos-latest` jobs each passed the repository
+checks and Tauri build (4m12s, 2m14s, and 3m53s respectively).
 
 ## Manual desktop interaction still required
 
