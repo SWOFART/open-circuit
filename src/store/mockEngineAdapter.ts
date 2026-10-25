@@ -8,6 +8,8 @@ import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
+import type { TraceBatch } from "../generated/TraceBatch";
+import type { TraceRequest } from "../generated/TraceRequest";
 import type { EngineAdapter, FrameHandlers } from "./engineAdapter";
 import { dividerSchematic } from "./fixtures";
 
@@ -24,11 +26,14 @@ export interface PredeterminedResponses {
   readonly setParameter: (
     request: SetParameterRequest,
   ) => SetParameterResult | Promise<SetParameterResult>;
+  /** Without this, a trace request is refused: the double invents no samples. */
+  readonly traces?: (request: TraceRequest) => TraceBatch | Promise<TraceBatch>;
 }
 
 export class PredeterminedEngineAdapter implements EngineAdapter {
   readonly compileRequests: CompileRequest[] = [];
   readonly parameterRequests: SetParameterRequest[] = [];
+  readonly traceRequests: TraceRequest[] = [];
   /** Runs for which live frames were requested, in order. */
   readonly startedRuns: StableId[] = [];
   /** How many times a frame stream was stopped. */
@@ -73,6 +78,24 @@ export class PredeterminedEngineAdapter implements EngineAdapter {
   ): Promise<SetParameterResult> {
     this.parameterRequests.push(request);
     return this.responses.setParameter(request);
+  }
+
+  async readTraces(request: TraceRequest): Promise<TraceBatch> {
+    this.traceRequests.push(request);
+
+    if (!this.responses.traces) {
+      throw new PredeterminedTraceMissingError();
+    }
+
+    return this.responses.traces(request);
+  }
+}
+
+/** Thrown when a test double was asked for samples it was not given. */
+export class PredeterminedTraceMissingError extends Error {
+  constructor() {
+    super("No predetermined trace response.");
+    this.name = "PredeterminedTraceMissingError";
   }
 }
 
@@ -119,6 +142,59 @@ const dividerLayout: ResultLayout = {
   ],
 };
 
+/** The constant divider readings as a trace of the steps `request` asks for. */
+function dividerTrace(
+  request: TraceRequest,
+  values: readonly number[],
+  latestStep: number,
+): TraceBatch {
+  const slots = request.signalKeys.map((key) => {
+    const slot = dividerLayout.slots.find((candidate) => candidate.key === key);
+
+    if (!slot) {
+      throw new PredeterminedTraceMissingError();
+    }
+
+    return slot;
+  });
+  const first =
+    request.query.kind === "history" ? Math.max(0, request.query.startStep) : 0;
+  const last =
+    request.query.kind === "history"
+      ? Math.min(request.query.endStep, latestStep)
+      : latestStep;
+  const count = Math.max(0, last - first + 1);
+  const bucket = Math.max(1, Math.ceil(count / request.maxPoints));
+  const points = [];
+
+  for (let offset = 0; offset < count; offset += bucket) {
+    points.push({
+      simulationStep: BigInt(first + offset),
+      minimumValues: slots.map((slot) => values[slot.offset] ?? 0),
+      maximumValues: slots.map((slot) => values[slot.offset] ?? 0),
+    });
+  }
+
+  return {
+    metadata: {
+      runId: DIVIDER_RUN_ID,
+      documentRevision: "mock-revision",
+      layoutVersion: dividerLayout.layoutVersion,
+      sampleIntervalSeconds: 0.001,
+      historySamples: 10000,
+      oldestSampleStep: 0n,
+      latestSampleStep: BigInt(latestStep),
+      firstSampleStep: count > 0 ? BigInt(first) : null,
+      lastSampleStep: count > 0 ? BigInt(last) : null,
+      sampleCount: count,
+      missedSamples: 0n,
+      replaced: false,
+    },
+    signals: slots.map((slot) => ({ key: slot.key, unit: slot.unit })),
+    points,
+  };
+}
+
 interface DividerCase {
   readonly r1: number;
   readonly r2: number;
@@ -158,6 +234,8 @@ function resistanceOf(
 export function createDividerFixtureAdapter(): PredeterminedEngineAdapter {
   let resistances = new Map<StableId, number>();
   let frameSequence = 0n;
+  let latestValues: readonly number[] = [];
+  let traceReads = 0;
 
   function respond(
     documentRevision: string,
@@ -174,6 +252,7 @@ export function createDividerFixtureAdapter(): PredeterminedEngineAdapter {
     }
 
     resistances = new Map(next);
+    latestValues = match.values;
     const snapshot: ResultSnapshot = {
       metadata: {
         runId: DIVIDER_RUN_ID,
@@ -193,6 +272,7 @@ export function createDividerFixtureAdapter(): PredeterminedEngineAdapter {
     catalog: catalogFixture as ComponentCatalog,
     compile: (request) => {
       frameSequence = 0n;
+      traceReads = 0;
       const next = new Map<StableId, number>();
 
       for (const component of request.schematic.components) {
@@ -209,6 +289,12 @@ export function createDividerFixtureAdapter(): PredeterminedEngineAdapter {
         initialSnapshot: respond(request.documentRevision, next),
         diagnostics: [],
       };
+    },
+    traces: (request) => {
+      // A divider has no dynamics, so its recorded readings are constant. Time is made
+      // to pass by 16 steps per read so the development scope visibly runs.
+      traceReads += 1;
+      return dividerTrace(request, latestValues, 16 * traceReads);
     },
     setParameter: (request) => {
       const next = new Map(resistances);

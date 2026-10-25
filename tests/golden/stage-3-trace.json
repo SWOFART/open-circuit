@@ -1,0 +1,67 @@
+{
+  "description": "A Stage 3 trace response in the OCT1 envelope (docs/contracts/stage-1.md section 8.3). The hex was produced by an independent encoder written from the spec; the Rust encoder and the TypeScript decoder must both agree with it.",
+  "header": {
+    "metadata": {
+      "documentRevision": "rev-2-abc123",
+      "firstSampleStep": "100",
+      "historySamples": 10000,
+      "lastSampleStep": "105",
+      "latestSampleStep": "105",
+      "layoutVersion": 1,
+      "missedSamples": "0",
+      "oldestSampleStep": "0",
+      "replaced": false,
+      "runId": "00000000-0000-4000-8000-0000000000a0",
+      "sampleCount": 6,
+      "sampleIntervalSeconds": 0.001
+    },
+    "pointCount": 3,
+    "signals": [
+      {
+        "key": "00000000-0000-4000-8000-000000000011:voltage",
+        "unit": "volt"
+      },
+      {
+        "key": "00000000-0000-4000-8000-000000000011:current",
+        "unit": "amp"
+      }
+    ],
+    "traceSequence": "7"
+  },
+  "points": [
+    {
+      "simulationStep": 100,
+      "minimumValues": [
+        1.5,
+        -0.001
+      ],
+      "maximumValues": [
+        1.5,
+        -0.001
+      ]
+    },
+    {
+      "simulationStep": 102,
+      "minimumValues": [
+        1.25,
+        -0.002
+      ],
+      "maximumValues": [
+        1.75,
+        0.0005
+      ]
+    },
+    {
+      "simulationStep": 104,
+      "minimumValues": [
+        2,
+        0
+      ],
+      "maximumValues": [
+        2.5,
+        0.001
+      ]
+    }
+  ],
+  "hex": "4f435431f20100007b226d65746164617461223a7b22646f63756d656e745265766973696f6e223a227265762d322d616263313233222c22666972737453616d706c6553746570223a22313030222c22686973746f727953616d706c6573223a31303030302c226c61737453616d706c6553746570223a22313035222c226c617465737453616d706c6553746570223a22313035222c226c61796f757456657273696f6e223a312c226d697373656453616d706c6573223a2230222c226f6c6465737453616d706c6553746570223a2230222c227265706c61636564223a66616c73652c2272756e4964223a2230303030303030302d303030302d343030302d383030302d303030303030303030306130222c2273616d706c65436f756e74223a362c2273616d706c65496e74657276616c5365636f6e6473223a302e3030317d2c22706f696e74436f756e74223a332c227369676e616c73223a5b7b226b6579223a2230303030303030302d303030302d343030302d383030302d3030303030303030303031313a766f6c74616765222c22756e6974223a22766f6c74227d2c7b226b6579223a2230303030303030302d303030302d343030302d383030302d3030303030303030303031313a63757272656e74222c22756e6974223a22616d70227d5d2c22747261636553657175656e6365223a2237227d0000000000006400000000000000000000000000f83f000000000000f83ffca9f1d24d6250bffca9f1d24d6250bf6600000000000000000000000000f43f000000000000fc3ffca9f1d24d6260bffca9f1d24d62403f6800000000000000000000000000004000000000000004400000000000000000fca9f1d24d62503f"
+}

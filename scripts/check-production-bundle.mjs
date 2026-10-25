@@ -13,6 +13,7 @@ const distDirectory = join(repositoryRoot, "dist");
 /** String literals that exist only in the mock adapter and its development banner. */
 export const mockMarkers = [
   "No predetermined response",
+  "No predetermined trace response",
   "Development mock",
   "00000000-0000-4000-8000-0000000000a0",
 ];
@@ -24,6 +25,7 @@ export const mockMarkers = [
  */
 export const requiredMarkers = [
   "The Rust engine is only available in the desktop app.",
+  "The engine did not deliver the trace.",
 ];
 
 export function findMockMarkers(source) {
