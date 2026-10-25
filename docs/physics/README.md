@@ -10,6 +10,9 @@ physical effect or every real-world part.
   decisions.
 - The [Stage 1 contract](../contracts/stage-1.md) is normative for the current schematic,
   parameter domains, terminal signs, and Engine behavior.
+- The [Stage 3 contract](../contracts/stage-3-dynamics.md) is normative for the
+  capacitor and inductor components, transient initialization, the sub-step
+  rule, and oscilloscope traces.
 - The [Stage 1 resistive solver notes](../solver/stage-1-resistive.md) record the implemented
   matrix stamps, numerical thresholds, and golden-fixture tolerances.
 - [`models.md`](models.md) gives the common model-record format and the staged component

@@ -91,7 +91,9 @@ circuit-sim/
 ├── docs/
 │   ├── adr/                    ← architecture decision records
 │   ├── contracts/              ← versioned cross-layer contracts
-│   │   └── stage-1.md
+│   │   ├── stage-1.md
+│   │   ├── stage-2-editor.md
+│   │   └── stage-3-dynamics.md
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -169,6 +171,11 @@ motors spin up. A phasor/AC-analysis mode can be added separately later.
   fixture-specific accuracy target, not a universal maximum step; faster
   circuits may require smaller sub-steps. Do not apply event-related backward
   Euler startup to this source-free initial-state fixture.
+- The initialization procedure, the deterministic sub-step rule, and the
+  oscilloscope trace semantics are specified in
+  [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md);
+  the numerical acceptance of the C/L fixtures is in
+  [`docs/physics/models.md`](docs/physics/models.md).
 
 ### 3.5 Nonlinear elements
 
@@ -235,7 +242,7 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 - A frame is a binary `f64` array with a fixed layout. When a schematic is compiled, the UI receives a "component → offset" map once. No JSON per frame.
 - Rust → TS types are generated automatically (`tauri-specta` or `ts-rs`). CI checks that `src/generated/` is up to date.
 - `set_param(id, value)`: a lightweight command that only rebuilds stamps.
-- Topology change: fast recompile with **state transfer** (capacitor charge, relay position) keyed by component ID.
+- Topology change: a fast recompile. **State transfer** keyed by component ID (capacitor charge, relay position) is deferred: through Stage 3 every successful compile starts a new run at time zero, initialized as described in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md) section 3.
 
 > **Verify in the prototype (step 1):** how well binary transfer through the Tauri 2 `Channel`
 > works in the chosen version. Fallback: a shared buffer via a command returning `Vec<u8>`/`ArrayBuffer` on a timer.
@@ -278,7 +285,8 @@ They only guide the user; the Rust Engine alone decides connectivity, and
 `tests/golden/stage-2-connectivity.json` checks both against the same
 drawings. `SimulationController.syncDocument` then brings
 the Engine to the new document: a lone parameter edit uses the lightweight
-parameter update, and any other change recompiles the whole document, one
+parameter update (except an initial condition of a capacitor or inductor, which
+always recompiles), and any other change recompiles the whole document, one
 compile at a time and always for the newest document. If a lightweight update
 does not reach the Engine (rejected, failed, or unconfirmed), the updates
 queued behind it are dropped and the current document is compiled at once, so a
@@ -306,6 +314,11 @@ Only what was drawn is stored: components, parameters, wires, junction/reference
 and positions.
 **Nodes, currents, and simulation state are not saved**; they are computed.
 Export to a SPICE netlist (for ngspice and interchange).
+
+The Stage 3 additions (capacitor and inductor components with optional initial
+conditions, which are the only schematic fields for transient state) are
+specified in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md);
+the computed state and the oscilloscope traces are never saved.
 
 The Stage 1 schematic, connectivity, Engine API, diagnostics, and result-layout
 contract is specified in [`docs/contracts/stage-1.md`](docs/contracts/stage-1.md).
@@ -415,6 +428,7 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 - Sparse matrices (the solver sits behind a `Solver` trait).
 - WASM/web version (the architecture allows it, but it is an extra build for now).
 - Adaptive time step.
+- State transfer across recompiles (through Stage 3 every compile restarts at time zero).
 - AC/phasor analysis.
 - Assignment mode, fault finding, AI explanations, collaboration, electro-pneumatics.
 - Smart A* wire routing.
