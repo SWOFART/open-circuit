@@ -29,8 +29,8 @@ describe("scene from the canonical fixture", () => {
   it("draws the three wires, the symbols, the labels, and the ground marker", () => {
     expect(count(scene.shapes, "polyline", "wire")).toBe(3);
     expect(count(scene.shapes, "polyline", "symbol")).toBe(
-      symbols.dc_voltage_source.primitives.length +
-        2 * symbols.resistor.primitives.length,
+      symbols.dc_voltage_source!.primitives.length +
+        2 * symbols.resistor!.primitives.length,
     );
     expect(count(scene.shapes, "label")).toBe(3);
     expect(count(scene.shapes, "polyline", "reference")).toBe(4);

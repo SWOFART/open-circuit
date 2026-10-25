@@ -27,8 +27,8 @@ pub use results::{
 };
 pub use schematic::{
     ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, GeometryEnvelope, GridPoint,
-    JunctionSpec, ReferenceMarkerSpec, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
-    Schematic, WireSpec,
+    InductorParameters, JunctionSpec, ReferenceMarkerSpec, ResistorParameters, ResolvedPinPosition,
+    SCHEMA_VERSION, Schematic, WireSpec,
 };
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");

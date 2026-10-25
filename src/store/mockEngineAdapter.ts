@@ -203,6 +203,7 @@ export function createDividerFixtureAdapter(): PredeterminedEngineAdapter {
 
       return {
         status: "success",
+        internalSubsteps: 1,
         runId: DIVIDER_RUN_ID,
         layout: dividerLayout,
         initialSnapshot: respond(request.documentRevision, next),
@@ -218,6 +219,7 @@ export function createDividerFixtureAdapter(): PredeterminedEngineAdapter {
 
       return {
         status: "success",
+        internalSubsteps: 1,
         snapshot: respond(request.documentRevision, next),
         diagnostics: [],
       };

@@ -65,7 +65,7 @@ describe("pin geometry", () => {
     const offGrid: SymbolRegistry = {
       ...symbols,
       resistor: {
-        ...symbols.resistor,
+        ...symbols.resistor!,
         pins: [{ id: "pin1", local: { x: 0.5, y: 0 } }],
       },
     };

@@ -6,6 +6,8 @@ import type { StableId } from "../generated/StableId";
 const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   resistor: "R",
   dc_voltage_source: "V",
+  capacitor: "C",
+  inductor: "L",
 };
 
 /**

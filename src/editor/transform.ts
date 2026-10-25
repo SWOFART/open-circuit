@@ -2,7 +2,7 @@ import type { ComponentSpec } from "../generated/ComponentSpec";
 import type { GridPoint } from "../generated/GridPoint";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
-import type { SymbolRegistry } from "../symbols";
+import { symbolFor, type SymbolRegistry } from "../symbols";
 import { resolvePinPositions, toWorld, type Rotation } from "./geometry";
 import type { Bounds } from "./scene";
 
@@ -77,19 +77,20 @@ function bodyBounds(
   component: ComponentSpec,
   registry: SymbolRegistry,
 ): Bounds {
-  const points = registry[component.typeId].primitives.flatMap((primitive) =>
-    primitive.kind === "polyline"
-      ? primitive.points
-      : [
-          {
-            x: primitive.center.x - primitive.radius,
-            y: primitive.center.y - primitive.radius,
-          },
-          {
-            x: primitive.center.x + primitive.radius,
-            y: primitive.center.y + primitive.radius,
-          },
-        ],
+  const points = symbolFor(component.typeId, registry).primitives.flatMap(
+    (primitive) =>
+      primitive.kind === "polyline"
+        ? primitive.points
+        : [
+            {
+              x: primitive.center.x - primitive.radius,
+              y: primitive.center.y - primitive.radius,
+            },
+            {
+              x: primitive.center.x + primitive.radius,
+              y: primitive.center.y + primitive.radius,
+            },
+          ],
   );
   const world = points.map((point) => toWorld(point, component));
 

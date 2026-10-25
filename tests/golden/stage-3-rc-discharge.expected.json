@@ -1,0 +1,10 @@
+{
+  "fullScaleVolts": 10.0,
+  "analyticalToleranceVolts": 0.01,
+  "ngspiceToleranceVolts": 0.02,
+  "analytical": [
+    { "timeSeconds": 0.01, "voltageVolts": 3.678794412 },
+    { "timeSeconds": 0.02, "voltageVolts": 1.353352832 },
+    { "timeSeconds": 0.03, "voltageVolts": 0.497870683 }
+  ]
+}

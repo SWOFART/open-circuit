@@ -1,0 +1,5 @@
+# Generated with ngspice-36; see stage-3-ngspice-rc-discharge.cir
+timeSeconds,capacitorVoltageVolts
+0.010,3.678794
+0.020,1.353353
+0.030,0.4978706

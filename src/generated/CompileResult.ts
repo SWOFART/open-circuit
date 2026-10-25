@@ -4,4 +4,4 @@ import type { ResultLayout } from "./ResultLayout";
 import type { ResultSnapshot } from "./ResultSnapshot";
 import type { StableId } from "./StableId";
 
-export type CompileResult = { "status": "success", runId: StableId, layout: ResultLayout, initialSnapshot: ResultSnapshot, diagnostics: Array<Diagnostic>, } | { "status": "failure", diagnostics: Array<Diagnostic>, };
+export type CompileResult = { "status": "success", runId: StableId, layout: ResultLayout, internalSubsteps: number, initialSnapshot: ResultSnapshot, diagnostics: Array<Diagnostic>, } | { "status": "failure", diagnostics: Array<Diagnostic>, };

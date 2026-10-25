@@ -3,4 +3,4 @@
 /**
  * Stable machine-readable diagnostic codes. The UI resolves localization keys to prose.
  */
-export type DiagnosticCode = "InvalidSchemaVersion" | "InvalidGeometry" | "InvalidParameter" | "DuplicateId" | "UnknownComponentType" | "UnknownPin" | "DetachedReferenceMarker" | "NoGroundReference" | "FloatingNode" | "ShortCircuit" | "InconsistentIdealConstraint" | "SingularSystem" | "StaleRun" | "StaleDocumentRevision";
+export type DiagnosticCode = "InvalidSchemaVersion" | "InvalidGeometry" | "InvalidParameter" | "DuplicateId" | "UnknownComponentType" | "UnknownPin" | "DetachedReferenceMarker" | "NoGroundReference" | "FloatingNode" | "ShortCircuit" | "InconsistentIdealConstraint" | "InconsistentState" | "SingularSystem" | "StepAccuracyLimited" | "StaleRun" | "StaleDocumentRevision";

@@ -29,6 +29,7 @@ function runId(index: number): string {
 function success(request: CompileRequest, index: number): CompileResult {
   return {
     status: "success",
+    internalSubsteps: 1,
     runId: runId(index),
     layout: { layoutVersion: 1, valueCount: 0, slots: [] },
     initialSnapshot: {
@@ -73,6 +74,7 @@ function scriptedAdapter() {
       request: SetParameterRequest,
     ): SetParameterResult | Promise<SetParameterResult> => ({
       status: "success",
+      internalSubsteps: 1,
       snapshot: {
         metadata: {
           runId: request.runId,

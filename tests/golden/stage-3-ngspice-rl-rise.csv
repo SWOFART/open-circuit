@@ -1,0 +1,5 @@
+# Generated with ngspice-36; see stage-3-ngspice-rl-rise.cir
+timeSeconds,inductorCurrentAmps
+0.010,0.6321206
+0.020,0.8646647
+0.030,0.9502129

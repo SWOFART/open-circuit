@@ -83,6 +83,7 @@ pub enum CompileResult {
     Success {
         run_id: StableId,
         layout: ResultLayout,
+        internal_substeps: u32,
         initial_snapshot: ResultSnapshot,
         diagnostics: Vec<Diagnostic>,
     },
@@ -113,6 +114,7 @@ pub struct SetParameterRequest {
 pub enum SetParameterResult {
     Success {
         snapshot: ResultSnapshot,
+        internal_substeps: u32,
         diagnostics: Vec<Diagnostic>,
     },
     Failure {

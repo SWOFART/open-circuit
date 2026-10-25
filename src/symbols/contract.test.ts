@@ -1,33 +1,27 @@
 import { describe, expect, it } from "vitest";
 import catalogFixture from "../../tests/golden/stage-1-catalog.json";
-import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import { symbols } from ".";
 
 // The catalog fixture equals the Rust catalog; crates/app/tests/catalog_contract.rs
-// enforces that. Together the two tests guarantee that every device type in Rust
-// has a symbol with the same pins.
+// enforces that. This test checks registered UI symbols against the shared pin
+// contract while allowing Engine devices that are not yet placeable in the UI.
 
 describe("symbol and catalog contract", () => {
-  it("has a symbol for every catalog device type and no others", () => {
-    const catalogTypes = catalogFixture.componentTypes
-      .map((entry) => entry.typeId)
-      .sort();
+  it("gives every registered symbol the same pin IDs and count as the catalog", () => {
+    for (const [typeId, symbol] of Object.entries(symbols)) {
+      if (!symbol) throw new Error(`Symbol ${typeId} is missing.`);
+      const entry = catalogFixture.componentTypes.find(
+        (candidate) => candidate.typeId === typeId,
+      );
 
-    expect(Object.keys(symbols).sort()).toEqual(catalogTypes);
-  });
-
-  it.each(catalogFixture.componentTypes)(
-    "gives $typeId the same pin IDs and pin count as the catalog",
-    (entry) => {
-      const symbol = symbols[entry.typeId as ComponentTypeId];
-
+      if (!entry) throw new Error(`Catalog entry ${typeId} is missing.`);
       expect(symbol.typeId).toBe(entry.typeId);
       expect(symbol.pins).toHaveLength(entry.pins.length);
       expect(symbol.pins.map((pin) => pin.id).sort()).toEqual(
         entry.pins.map((pin) => pin.id).sort(),
       );
-    },
-  );
+    }
+  });
 
   it("places every pin on an integer grid point and never repeats a pin", () => {
     for (const symbol of Object.values(symbols)) {

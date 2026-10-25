@@ -59,6 +59,7 @@ function frame(
 function compiled(documentRevision: string): CompileResult {
   return {
     status: "success",
+    internalSubsteps: 1,
     runId: RUN_ID,
     layout,
     initialSnapshot: frame(documentRevision, 0n, 1),
@@ -246,6 +247,7 @@ describe("frames during a parameter update", () => {
     // The reply for the same revision carries an older sequence than that frame.
     answer({
       status: "success",
+      internalSubsteps: 1,
       snapshot: frame("rev-2", 7n, 21),
       diagnostics: [],
     });
@@ -266,6 +268,7 @@ describe("frames during a parameter update", () => {
     const done = controller.setParameter(R1, "resistanceOhms", 2000);
     answer({
       status: "success",
+      internalSubsteps: 1,
       snapshot: frame("rev-2", 7n, 21),
       diagnostics: [],
     });
@@ -283,6 +286,7 @@ describe("frames during a parameter update", () => {
     adapter.emitFrame(frame("rev-2", 8n, 22));
     answer({
       status: "success",
+      internalSubsteps: 1,
       snapshot: frame("not-this-revision", 9n, 5),
       diagnostics: [],
     });

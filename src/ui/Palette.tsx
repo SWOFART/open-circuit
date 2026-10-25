@@ -1,5 +1,6 @@
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { EditorStatus, EditorTool } from "../editor/interaction";
+import { symbols } from "../symbols";
 import { message } from "./messages";
 
 export interface PaletteProps {
@@ -33,8 +34,8 @@ const DRAWING_TOOLS: readonly {
 ];
 
 /**
- * Select mode, one placement tool per component type in the catalog, and the
- * wire, junction, and reference tools.
+ * Select mode, one placement tool per catalog component with a UI symbol, and
+ * the wire, junction, and reference tools.
  */
 export function Palette({
   catalog,
@@ -53,24 +54,26 @@ export function Palette({
       >
         Select
       </button>
-      {catalog?.componentTypes.map((entry) => (
-        <button
-          key={entry.typeId}
-          type="button"
-          className="toolbar-button"
-          disabled={disabled}
-          aria-pressed={tool.kind === "place" && tool.typeId === entry.typeId}
-          onClick={() =>
-            onSelectTool({
-              kind: "place",
-              typeId: entry.typeId,
-              rotationDeg: 0,
-            })
-          }
-        >
-          {message(entry.displayNameKey)}
-        </button>
-      ))}
+      {catalog?.componentTypes
+        .filter((entry) => symbols[entry.typeId])
+        .map((entry) => (
+          <button
+            key={entry.typeId}
+            type="button"
+            className="toolbar-button"
+            disabled={disabled}
+            aria-pressed={tool.kind === "place" && tool.typeId === entry.typeId}
+            onClick={() =>
+              onSelectTool({
+                kind: "place",
+                typeId: entry.typeId,
+                rotationDeg: 0,
+              })
+            }
+          >
+            {message(entry.displayNameKey)}
+          </button>
+        ))}
       {DRAWING_TOOLS.map((entry) => (
         <button
           key={entry.tool.kind}
