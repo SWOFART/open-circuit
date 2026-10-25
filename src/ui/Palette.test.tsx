@@ -40,6 +40,7 @@ describe("component palette", () => {
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
     expect(markup).not.toContain("Capacitor");
+    expect(markup).not.toContain("Inductor");
     expect(pressed(markup)).toEqual(["Select"]);
   });
 

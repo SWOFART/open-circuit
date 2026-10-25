@@ -115,7 +115,7 @@ fn rejects_invalid_component_rotations_and_wire_paths() {
 #[test]
 fn catalog_is_authoritative_for_defaults_units_and_domains() {
     let catalog: ComponentCatalog = component_catalog();
-    assert_eq!(catalog.component_types.len(), 3);
+    assert_eq!(catalog.component_types.len(), 4);
 
     let resistor = catalog
         .component_types
@@ -157,6 +157,24 @@ fn catalog_is_authoritative_for_defaults_units_and_domains() {
     assert!(capacitor.parameters[1].initial_condition);
     assert_eq!(capacitor.parameters[1].id, ParameterId::InitialVoltageVolts);
     assert_eq!(capacitor.parameters[1].unit, Unit::Volt);
+
+    let inductor = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::Inductor)
+        .unwrap();
+    assert_eq!(inductor.parameters[0].id, ParameterId::InductanceHenries);
+    assert_eq!(inductor.parameters[0].unit, Unit::Henry);
+    assert_eq!(inductor.parameters[0].default_value, 0.1);
+    assert_eq!(
+        inductor.parameters[0].domain,
+        NumericDomain::StrictlyPositive
+    );
+    assert!(inductor.parameters[1].optional);
+    assert!(inductor.parameters[1].initial_condition);
+    assert_eq!(inductor.parameters[1].id, ParameterId::InitialCurrentAmps);
+    assert_eq!(inductor.parameters[1].unit, Unit::Amp);
+
     assert!(NumericDomain::NonNegative.accepts(0.0));
     assert!(NumericDomain::Finite.accepts(-5.0));
     assert!(!NumericDomain::Finite.accepts(f64::INFINITY));

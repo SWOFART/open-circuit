@@ -1,0 +1,5 @@
+# Generated with ngspice-36; see stage-3-ngspice-rl-decay.cir
+timeSeconds,inductorCurrentAmps
+0.010,0.3678794
+0.020,0.1353353
+0.030,0.0497871

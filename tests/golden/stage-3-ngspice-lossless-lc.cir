@@ -1,0 +1,11 @@
+* Open Circuit Stage 3 lossless parallel LC reference; ngspice 36.
+C1 n 0 100u IC=10
+L1 n 0 100m IC=0
+.control
+set numdgt=15
+tran 10u 200m 0 10u uic
+set wr_singlescale
+wrdata stage-3-ngspice-lossless-lc.dat v(n) i(L1)
+quit
+.endc
+.end

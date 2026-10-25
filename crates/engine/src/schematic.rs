@@ -72,7 +72,38 @@ impl<'de> Deserialize<'de> for CapacitorParameters {
     }
 }
 
-/// Version 1 supports resistors, independent voltage sources, and capacitors.
+#[derive(Clone, Debug, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "InductorParameters.ts")]
+pub struct InductorParameters {
+    pub inductance_henries: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub initial_current_amps: Option<f64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct InductorParametersInput {
+    inductance_henries: f64,
+    #[serde(default, deserialize_with = "deserialize_optional_non_null_f64")]
+    initial_current_amps: Option<f64>,
+}
+
+impl<'de> Deserialize<'de> for InductorParameters {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let input = InductorParametersInput::deserialize(deserializer)?;
+        Ok(Self {
+            inductance_henries: input.inductance_henries,
+            initial_current_amps: input.initial_current_amps,
+        })
+    }
+}
+
+/// Version 1 supports resistors, independent voltage sources, capacitors, and inductors.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -103,6 +134,13 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: CapacitorParameters,
     },
+    Inductor {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: InductorParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -110,7 +148,8 @@ impl ComponentSpec {
         match self {
             Self::Resistor { id, .. }
             | Self::DcVoltageSource { id, .. }
-            | Self::Capacitor { id, .. } => id,
+            | Self::Capacitor { id, .. }
+            | Self::Inductor { id, .. } => id,
         }
     }
 
@@ -119,6 +158,7 @@ impl ComponentSpec {
             Self::Resistor { .. } => ComponentTypeId::Resistor,
             Self::DcVoltageSource { .. } => ComponentTypeId::DcVoltageSource,
             Self::Capacitor { .. } => ComponentTypeId::Capacitor,
+            Self::Inductor { .. } => ComponentTypeId::Inductor,
         }
     }
 
@@ -141,6 +181,16 @@ impl ComponentSpec {
                 )];
                 if let Some(value) = parameters.initial_voltage_volts {
                     values.push((ParameterId::InitialVoltageVolts, value));
+                }
+                values
+            }
+            Self::Inductor { parameters, .. } => {
+                let mut values = vec![(
+                    ParameterId::InductanceHenries,
+                    parameters.inductance_henries,
+                )];
+                if let Some(value) = parameters.initial_current_amps {
+                    values.push((ParameterId::InitialCurrentAmps, value));
                 }
                 values
             }
@@ -233,7 +283,9 @@ impl Schematic {
             );
 
             if let ComponentSpec::Resistor { rotation_deg, .. }
-            | ComponentSpec::DcVoltageSource { rotation_deg, .. } = component
+            | ComponentSpec::DcVoltageSource { rotation_deg, .. }
+            | ComponentSpec::Capacitor { rotation_deg, .. }
+            | ComponentSpec::Inductor { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(
@@ -243,17 +295,6 @@ impl Schematic {
                     }],
                 ));
             }
-            if let ComponentSpec::Capacitor { rotation_deg, .. } = component
-                && !matches!(rotation_deg, 0 | 90 | 180 | 270)
-            {
-                diagnostics.push(Diagnostic::error(
-                    DiagnosticCode::InvalidGeometry,
-                    vec![DiagnosticReference::Component {
-                        component_id: component.id().clone(),
-                    }],
-                ));
-            }
-
             let catalog_entry = catalog
                 .component_types
                 .iter()

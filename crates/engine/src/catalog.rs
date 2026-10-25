@@ -9,6 +9,7 @@ pub enum ComponentTypeId {
     Resistor,
     DcVoltageSource,
     Capacitor,
+    Inductor,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -37,6 +38,8 @@ pub enum ParameterId {
     InternalResistanceOhms,
     CapacitanceFarads,
     InitialVoltageVolts,
+    InductanceHenries,
+    InitialCurrentAmps,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -206,6 +209,31 @@ pub fn component_catalog() -> ComponentCatalog {
                         default_value: 0.0,
                         domain: NumericDomain::Finite,
                         description_key: "component.capacitor.initialVoltage".to_owned(),
+                        optional: true,
+                        initial_condition: true,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Inductor,
+                display_name_key: "component.inductor.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::InductanceHenries,
+                        unit: Unit::Henry,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.inductor.inductance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::InitialCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.inductor.initialCurrent".to_owned(),
                         optional: true,
                         initial_condition: true,
                     },

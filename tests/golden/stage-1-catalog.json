@@ -74,6 +74,34 @@
           "initialCondition": true
         }
       ]
+    },
+    {
+      "typeId": "inductor",
+      "displayNameKey": "component.inductor.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "inductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.inductor.inductance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "initialCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.inductor.initialCurrent",
+          "optional": true,
+          "initialCondition": true
+        }
+      ]
     }
   ]
 }

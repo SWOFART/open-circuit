@@ -14,15 +14,15 @@ use crate::{
     Schematic, SetParameterRequest, SetParameterResult, StableId, Unit,
     devices::{
         CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult,
-        ResistorDevice, Terminals, component_diagnostic,
+        InductorDevice, InductorMode, ResistorDevice, Terminals, component_diagnostic,
     },
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist},
     solver::SolverError,
 };
 use transient::{
-    CapacitorState, SolveMode, advance_public_steps, capacitor_states_from_results,
-    choose_internal_substeps,
+    CapacitorState, CircuitStates, InductorState, SolveMode, advance_public_steps,
+    choose_internal_substeps, circuit_states_from_results,
 };
 
 /// Owns the active compiled run and its latest valid result.
@@ -37,19 +37,13 @@ struct CompiledRun {
     geometry: GeometryEnvelope,
     layout: ResultLayout,
     snapshot: ResultSnapshot,
-    capacitor_states: HashMap<StableId, CapacitorState>,
-    step_start_capacitor_states: HashMap<StableId, CapacitorState>,
+    states: CircuitStates,
+    step_start_states: CircuitStates,
     internal_substeps: u32,
 }
 
-type InitializationOutcome = Result<
-    (
-        Vec<DeviceResult>,
-        HashMap<StableId, CapacitorState>,
-        Vec<Diagnostic>,
-    ),
-    Vec<Diagnostic>,
->;
+type InitializationOutcome =
+    Result<(Vec<DeviceResult>, CircuitStates, Vec<Diagnostic>), Vec<Diagnostic>>;
 
 #[derive(Clone)]
 struct DeviceSpec {
@@ -71,12 +65,16 @@ enum DeviceModel {
         capacitance_farads: f64,
         initial_voltage_volts: Option<f64>,
     },
+    Inductor {
+        inductance_henries: f64,
+        initial_current_amps: Option<f64>,
+    },
 }
 
 impl Engine {
     /// Validate, compile, and solve the operating point at simulation step zero.
     pub fn compile(&mut self, request: CompileRequest) -> CompileResult {
-        let (device_results, capacitor_states, mut diagnostics) =
+        let (device_results, states, mut diagnostics) =
             match initialize_circuit(&request.schematic, &request.geometry) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return CompileResult::Failure { diagnostics },
@@ -117,8 +115,8 @@ impl Engine {
             geometry: request.geometry,
             layout: layout.clone(),
             snapshot: snapshot.clone(),
-            step_start_capacitor_states: capacitor_states.clone(),
-            capacitor_states,
+            step_start_states: states.clone(),
+            states,
             internal_substeps,
         });
 
@@ -184,9 +182,9 @@ impl Engine {
         let layout = active.layout.clone();
         let simulation_step = active.snapshot.metadata.simulation_step;
         let document_revision = request.document_revision;
-        let previous_step_states = active.step_start_capacitor_states.clone();
+        let previous_step_states = active.step_start_states.clone();
         let (internal_substeps, limited) = choose_internal_substeps(&candidate, &geometry);
-        let (device_results, capacitor_states, mut diagnostics) = if simulation_step == 0 {
+        let (device_results, states, mut diagnostics) = if simulation_step == 0 {
             match initialize_circuit(&candidate, &geometry) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
@@ -245,9 +243,9 @@ impl Engine {
             .expect("active run was checked above");
         active.schematic = candidate;
         active.snapshot = snapshot.clone();
-        active.capacitor_states = capacitor_states.clone();
+        active.states = states.clone();
         if simulation_step == 0 {
-            active.step_start_capacitor_states = capacitor_states;
+            active.step_start_states = states;
         }
         active.internal_substeps = internal_substeps;
         SetParameterResult::Success {
@@ -302,22 +300,21 @@ impl Engine {
             )]);
         }
 
-        let (device_results, capacitor_states, step_start_states, _diagnostics) =
-            advance_public_steps(
-                &active.schematic,
-                &active.geometry,
-                active.capacitor_states.clone(),
-                active.internal_substeps,
-                request.step_count,
-            )?;
+        let (device_results, states, step_start_states, _diagnostics) = advance_public_steps(
+            &active.schematic,
+            &active.geometry,
+            active.states.clone(),
+            active.internal_substeps,
+            request.step_count,
+        )?;
         let values = values_for_layout(&active.layout, &device_results)?;
         let mut snapshot = active.snapshot.clone();
         snapshot.values = values;
         snapshot.metadata.simulation_step = simulation_step;
         snapshot.metadata.simulation_time_seconds = simulation_time_seconds;
         snapshot.metadata.frame_sequence = frame_sequence;
-        active.step_start_capacitor_states = step_start_states;
-        active.capacitor_states = capacitor_states;
+        active.step_start_states = step_start_states;
+        active.states = states;
         active.snapshot = snapshot.clone();
         Ok(snapshot)
     }
@@ -342,27 +339,39 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
             _ => None,
         })
         .collect::<Vec<_>>();
-    let has_explicit_initial_state = capacitors.iter().any(|(_, initial)| initial.is_some());
+    let inductors = schematic
+        .components
+        .iter()
+        .filter_map(|component| match component {
+            ComponentSpec::Inductor { id, parameters, .. } => {
+                Some((id.clone(), parameters.initial_current_amps))
+            }
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    let has_explicit_initial_state = capacitors.iter().any(|(_, initial)| initial.is_some())
+        || inductors.iter().any(|(_, initial)| initial.is_some());
 
     if !has_explicit_initial_state {
         let (results, diagnostics) =
             compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?;
-        let states = capacitor_states_from_results(schematic, &results);
+        let states = circuit_states_from_results(schematic, &results);
         return Ok((results, states, diagnostics));
     }
 
     let mut diagnostics = Vec::new();
-    let mut states = HashMap::new();
-    if capacitors.iter().any(|(_, initial)| initial.is_none()) {
+    let mut states = CircuitStates::default();
+    if capacitors.iter().any(|(_, initial)| initial.is_none())
+        || inductors.iter().any(|(_, initial)| initial.is_none())
+    {
         let (operating_point, operating_diagnostics) =
             compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?;
         diagnostics.extend(operating_diagnostics);
-        let operating_states = capacitor_states_from_results(schematic, &operating_point);
-        states.extend(operating_states);
+        states = circuit_states_from_results(schematic, &operating_point);
     }
     for (component_id, initial_voltage_volts) in &capacitors {
         if let Some(voltage_volts) = initial_voltage_volts {
-            states.insert(
+            states.capacitors.insert(
                 component_id.clone(),
                 CapacitorState {
                     voltage_volts: *voltage_volts,
@@ -371,11 +380,22 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
             );
         }
     }
+    for (component_id, initial_current_amps) in &inductors {
+        if let Some(current_amps) = initial_current_amps {
+            states.inductors.insert(
+                component_id.clone(),
+                InductorState {
+                    current_amps: *current_amps,
+                    voltage_volts: 0.0,
+                },
+            );
+        }
+    }
 
     let (results, initial_diagnostics) =
         compute_circuit(schematic, geometry, SolveMode::InitialState(&states))?;
     diagnostics.extend(initial_diagnostics);
-    let states = capacitor_states_from_results(schematic, &results);
+    let states = circuit_states_from_results(schematic, &results);
     sort_diagnostics(&mut diagnostics);
     Ok((results, states, diagnostics))
 }
@@ -396,7 +416,8 @@ fn compute_circuit(
         }
     };
 
-    let constraint_errors = check_ideal_source_constraints(&device_specs, netlist.nodes.len());
+    let constraint_errors =
+        check_ideal_voltage_constraints(&device_specs, netlist.nodes.len(), mode);
     if !constraint_errors.is_empty() {
         diagnostics.extend(constraint_errors);
         sort_diagnostics(&mut diagnostics);
@@ -449,7 +470,9 @@ fn compute_circuit(
             );
             let initial_capacitor = matches!(spec.model, DeviceModel::Capacitor { .. })
                 && matches!(mode, SolveMode::InitialState(_));
-            if ideal_source || initial_capacitor {
+            let operating_point_inductor = matches!(spec.model, DeviceModel::Inductor { .. })
+                && matches!(mode, SolveMode::OperatingPoint);
+            if ideal_source || initial_capacitor || operating_point_inductor {
                 branch_variables.insert(spec.component_id.as_str().to_owned(), next_variable);
                 next_variable += 1;
             }
@@ -575,6 +598,10 @@ fn build_device_specs(
                 capacitance_farads: parameters.capacitance_farads,
                 initial_voltage_volts: parameters.initial_voltage_volts,
             },
+            ComponentSpec::Inductor { parameters, .. } => DeviceModel::Inductor {
+                inductance_henries: parameters.inductance_henries,
+                initial_current_amps: parameters.initial_current_amps,
+            },
         };
         specs.push(DeviceSpec {
             component_id: component.id().clone(),
@@ -617,6 +644,7 @@ fn make_device(
                 SolveMode::OperatingPoint => CapacitorMode::Open,
                 SolveMode::InitialState(states) => {
                     let state = states
+                        .capacitors
                         .get(&spec.component_id)
                         .expect("every capacitor has an initialized state");
                     CapacitorMode::Initial {
@@ -630,6 +658,7 @@ fn make_device(
                     states,
                 } => {
                     let state = states
+                        .capacitors
                         .get(&spec.component_id)
                         .expect("every transient capacitor has a state");
                     CapacitorMode::Transient {
@@ -646,17 +675,62 @@ fn make_device(
                 capacitor_mode,
             ))
         }
+        DeviceModel::Inductor {
+            inductance_henries, ..
+        } => {
+            let inductor_mode = match mode {
+                SolveMode::OperatingPoint => InductorMode::Short {
+                    branch_variable: branch_variable
+                        .expect("operating-point inductors have branch variables"),
+                },
+                SolveMode::InitialState(states) => InductorMode::Initial {
+                    current_amps: states
+                        .inductors
+                        .get(&spec.component_id)
+                        .expect("every inductor has an initialized state")
+                        .current_amps,
+                },
+                SolveMode::Transient {
+                    step_seconds,
+                    states,
+                } => {
+                    let state = states
+                        .inductors
+                        .get(&spec.component_id)
+                        .expect("every transient inductor has a state");
+                    InductorMode::Transient {
+                        step_seconds,
+                        start_current_amps: state.current_amps,
+                        start_voltage_volts: state.voltage_volts,
+                    }
+                }
+            };
+            Box::new(InductorDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                inductance_henries,
+                inductor_mode,
+            ))
+        }
     }
 }
 
-fn check_ideal_source_constraints(specs: &[DeviceSpec], node_count: usize) -> Vec<Diagnostic> {
+fn check_ideal_voltage_constraints(
+    specs: &[DeviceSpec],
+    node_count: usize,
+    mode: SolveMode<'_>,
+) -> Vec<Diagnostic> {
     let mut adjacency = vec![Vec::<(usize, f64, StableId)>::new(); node_count];
     for spec in specs {
-        let DeviceModel::DcVoltageSource {
-            voltage_volts,
-            internal_resistance_ohms: 0.0,
-        } = spec.model
-        else {
+        let voltage = match spec.model {
+            DeviceModel::DcVoltageSource {
+                voltage_volts,
+                internal_resistance_ohms: 0.0,
+            } => Some(voltage_volts),
+            DeviceModel::Inductor { .. } if matches!(mode, SolveMode::OperatingPoint) => Some(0.0),
+            _ => None,
+        };
+        let Some(voltage_volts) = voltage else {
             continue;
         };
         adjacency[spec.terminals.pin1].push((
@@ -721,7 +795,7 @@ fn check_ideal_source_constraints(specs: &[DeviceSpec], node_count: usize) -> Ve
 
 fn check_initial_state_constraints(
     specs: &[DeviceSpec],
-    states: &HashMap<StableId, CapacitorState>,
+    states: &CircuitStates,
     node_count: usize,
     islands: &[ElectricalIsland],
 ) -> Vec<Diagnostic> {
@@ -760,6 +834,7 @@ fn check_initial_state_constraints(
                     initial_voltage_volts: None,
                     ..
                 } => states
+                    .capacitors
                     .get(&spec.component_id)
                     .map(|state| (state.voltage_volts, None)),
                 _ => None,
@@ -803,6 +878,87 @@ fn check_initial_state_constraints(
                 voltage_volts,
                 Some(spec.component_id.clone()),
             );
+        }
+    }
+
+    // During the initial-state solve, capacitors and ideal voltage sources
+    // constrain voltage while resistors and finite source resistance carry
+    // arbitrary current. Inductors are imposed current sources. Removing the
+    // current-source branches partitions the island into cuts; each partition
+    // must have zero net imposed current for KCL to hold.
+    for island in islands {
+        let component_ids = island
+            .component_ids
+            .iter()
+            .map(|id| id.as_str())
+            .collect::<HashSet<_>>();
+        let island_specs = specs
+            .iter()
+            .filter(|spec| component_ids.contains(spec.component_id.as_str()))
+            .collect::<Vec<_>>();
+        let mut adjacency = vec![Vec::<usize>::new(); node_count];
+        for spec in &island_specs {
+            if !matches!(spec.model, DeviceModel::Inductor { .. }) {
+                adjacency[spec.terminals.pin1].push(spec.terminals.pin2);
+                adjacency[spec.terminals.pin2].push(spec.terminals.pin1);
+            }
+        }
+        let mut groups = vec![usize::MAX; node_count];
+        let mut group_count = 0;
+        for start in 0..node_count {
+            if groups[start] != usize::MAX {
+                continue;
+            }
+            groups[start] = group_count;
+            let mut stack = vec![start];
+            while let Some(node) = stack.pop() {
+                for neighbor in &adjacency[node] {
+                    if groups[*neighbor] == usize::MAX {
+                        groups[*neighbor] = group_count;
+                        stack.push(*neighbor);
+                    }
+                }
+            }
+            group_count += 1;
+        }
+
+        let mut injections = vec![0.0_f64; group_count];
+        let mut scales = vec![0.0_f64; group_count];
+        for spec in &island_specs {
+            if !matches!(spec.model, DeviceModel::Inductor { .. }) {
+                continue;
+            }
+            let Some(state) = states.inductors.get(&spec.component_id) else {
+                continue;
+            };
+            let pin1_group = groups[spec.terminals.pin1];
+            let pin2_group = groups[spec.terminals.pin2];
+            injections[pin1_group] -= state.current_amps;
+            injections[pin2_group] += state.current_amps;
+            scales[pin1_group] += state.current_amps.abs();
+            scales[pin2_group] += state.current_amps.abs();
+        }
+        for (group, injection) in injections.iter().enumerate() {
+            let tolerance =
+                f64::EPSILON * (island_specs.len().max(1) as f64) * 32.0 * scales[group].max(1.0);
+            if injection.abs() > tolerance {
+                // Only explicit inductor states crossing the unbalanced cut
+                // are attributed to this initial-state conflict.
+                for spec in &island_specs {
+                    let DeviceModel::Inductor {
+                        initial_current_amps: Some(_),
+                        ..
+                    } = spec.model
+                    else {
+                        continue;
+                    };
+                    let pin1_group = groups[spec.terminals.pin1];
+                    let pin2_group = groups[spec.terminals.pin2];
+                    if (pin1_group == group) != (pin2_group == group) {
+                        conflicting_explicit_states.insert(spec.component_id.clone());
+                    }
+                }
+            }
         }
     }
 
@@ -1031,10 +1187,16 @@ fn update_parameter(
             }
             ParameterId::ResistanceOhms
             | ParameterId::CapacitanceFarads
-            | ParameterId::InitialVoltageVolts => return false,
+            | ParameterId::InitialVoltageVolts
+            | ParameterId::InductanceHenries
+            | ParameterId::InitialCurrentAmps => return false,
         },
         ComponentSpec::Capacitor { parameters, .. } => match parameter_id {
             ParameterId::CapacitanceFarads => parameters.capacitance_farads = value,
+            _ => return false,
+        },
+        ComponentSpec::Inductor { parameters, .. } => match parameter_id {
+            ParameterId::InductanceHenries => parameters.inductance_henries = value,
             _ => return false,
         },
     }

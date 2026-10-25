@@ -7,6 +7,7 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   resistor: "R",
   dc_voltage_source: "V",
   capacitor: "C",
+  inductor: "L",
 };
 
 /**

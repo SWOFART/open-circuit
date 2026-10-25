@@ -11,6 +11,9 @@ const messages: Readonly<Record<string, string>> = {
   "component.capacitor.name": "Capacitor",
   "component.capacitor.capacitance": "Capacitance",
   "component.capacitor.initialVoltage": "Initial voltage",
+  "component.inductor.name": "Inductor",
+  "component.inductor.inductance": "Inductance",
+  "component.inductor.initialCurrent": "Initial current",
   "diagnostic.invalidSchemaVersion":
     "The circuit file version is not supported.",
   "diagnostic.invalidGeometry": "The circuit geometry is invalid.",
@@ -28,7 +31,7 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.inconsistentIdealConstraint":
     "Ideal voltage sources in a loop conflict with each other.",
   "diagnostic.inconsistentState":
-    "The specified initial capacitor voltages conflict with ideal circuit constraints.",
+    "The specified initial capacitor voltages or inductor currents conflict with ideal circuit constraints.",
   "diagnostic.singularSystem": "The circuit cannot be solved as drawn.",
   "diagnostic.stepAccuracyLimited":
     "The circuit is too fast for the available internal step limit; simulation accuracy may be limited.",

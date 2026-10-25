@@ -3,4 +3,4 @@
 /**
  * Stable IDs are serialized exactly as specified by the Stage 1 contract.
  */
-export type ComponentTypeId = "resistor" | "dc_voltage_source" | "capacitor";
+export type ComponentTypeId = "resistor" | "dc_voltage_source" | "capacitor" | "inductor";

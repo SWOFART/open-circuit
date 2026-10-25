@@ -1,0 +1,9 @@
+{
+  "analyticalToleranceAmps": 0.001,
+  "ngspiceToleranceAmps": 0.002,
+  "analytical": [
+    { "timeSeconds": 0.01, "currentAmps": 0.367879441 },
+    { "timeSeconds": 0.02, "currentAmps": 0.135335283 },
+    { "timeSeconds": 0.03, "currentAmps": 0.049787068 }
+  ]
+}

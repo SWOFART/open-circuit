@@ -68,6 +68,7 @@ circuit-sim/
 │   │   │   │   ├── resistor.rs
 │   │   │   │   ├── source.rs
 │   │   │   │   ├── capacitor.rs
+│   │   │   │   ├── inductor.rs
 │   │   │   │   ├── lamp.rs
 │   │   │   │   ├── switch.rs
 │   │   │   │   ├── relay.rs

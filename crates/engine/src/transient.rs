@@ -12,8 +12,8 @@ use super::DeviceModel;
 type PublicStepOutcome = Result<
     (
         Vec<DeviceResult>,
-        HashMap<StableId, CapacitorState>,
-        HashMap<StableId, CapacitorState>,
+        CircuitStates,
+        CircuitStates,
         Vec<Diagnostic>,
     ),
     Vec<Diagnostic>,
@@ -25,25 +25,37 @@ pub(super) struct CapacitorState {
     pub(super) current_amps: f64,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct InductorState {
+    pub(super) current_amps: f64,
+    pub(super) voltage_volts: f64,
+}
+
+#[derive(Clone, Default)]
+pub(super) struct CircuitStates {
+    pub(super) capacitors: HashMap<StableId, CapacitorState>,
+    pub(super) inductors: HashMap<StableId, InductorState>,
+}
+
 #[derive(Clone, Copy)]
 pub(super) enum SolveMode<'a> {
     OperatingPoint,
-    InitialState(&'a HashMap<StableId, CapacitorState>),
+    InitialState(&'a CircuitStates),
     Transient {
         step_seconds: f64,
-        states: &'a HashMap<StableId, CapacitorState>,
+        states: &'a CircuitStates,
     },
 }
 
-pub(super) fn capacitor_states_from_results(
+pub(super) fn circuit_states_from_results(
     schematic: &Schematic,
     results: &[DeviceResult],
-) -> HashMap<StableId, CapacitorState> {
+) -> CircuitStates {
     let by_component = results
         .iter()
         .map(|result| (result.component_id.as_str(), result))
         .collect::<HashMap<_, _>>();
-    schematic
+    let capacitors = schematic
         .components
         .iter()
         .filter_map(|component| {
@@ -59,13 +71,34 @@ pub(super) fn capacitor_states_from_results(
                 },
             ))
         })
-        .collect()
+        .collect();
+    let inductors = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::Inductor { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            Some((
+                id.clone(),
+                InductorState {
+                    current_amps: result.current_amps,
+                    voltage_volts: result.voltage_volts,
+                },
+            ))
+        })
+        .collect();
+    CircuitStates {
+        capacitors,
+        inductors,
+    }
 }
 
 pub(super) fn advance_public_steps(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
-    mut capacitor_states: HashMap<StableId, CapacitorState>,
+    mut states: CircuitStates,
     internal_substeps: u32,
     public_step_count: u32,
 ) -> PublicStepOutcome {
@@ -79,25 +112,25 @@ pub(super) fn advance_public_steps(
 
     let mut results = Vec::new();
     let mut diagnostics = Vec::new();
-    let mut step_start_states = capacitor_states.clone();
+    let mut step_start_states = states.clone();
     for _ in 0..public_step_count {
-        step_start_states = capacitor_states.clone();
+        step_start_states = states.clone();
         for _ in 0..internal_substeps {
             let (step_results, step_diagnostics) = super::compute_circuit(
                 schematic,
                 geometry,
                 SolveMode::Transient {
                     step_seconds: internal_step_seconds,
-                    states: &capacitor_states,
+                    states: &states,
                 },
             )?;
-            capacitor_states = capacitor_states_from_results(schematic, &step_results);
+            states = circuit_states_from_results(schematic, &step_results);
             results = step_results;
             diagnostics.extend(step_diagnostics);
         }
     }
     sort_diagnostics(&mut diagnostics);
-    Ok((results, capacitor_states, step_start_states, diagnostics))
+    Ok((results, states, step_start_states, diagnostics))
 }
 
 pub(super) fn choose_internal_substeps(
@@ -105,7 +138,7 @@ pub(super) fn choose_internal_substeps(
     geometry: &GeometryEnvelope,
 ) -> (u32, bool) {
     const MAX_SUBSTEPS: u32 = 64;
-    let omega_hat = estimate_rc_rate_bound(schematic, geometry).unwrap_or(f64::MAX);
+    let omega_hat = estimate_transient_rate_bound(schematic, geometry).unwrap_or(f64::MAX);
     let limit = 0.03_f64.sqrt();
     let mut substeps = 1;
     while substeps < MAX_SUBSTEPS
@@ -117,11 +150,16 @@ pub(super) fn choose_internal_substeps(
     (substeps, limited)
 }
 
-/// Bounds the RC natural rates using the infinity norm of `C⁻¹G` after
-/// eliminating algebraic nodes. Ideal voltage sources collapse nodes in the
-/// small-signal circuit. Singular reductions deliberately return no estimate;
-/// the caller then selects the documented 64-step limit and reports a warning.
-fn estimate_rc_rate_bound(schematic: &Schematic, geometry: &GeometryEnvelope) -> Option<f64> {
+/// Bounds the RC/RL/RLC natural rates after eliminating algebraic nodes.
+/// Ideal voltage sources collapse nodes in the small-signal circuit. The
+/// energy-scaled state matrix uses a diagonal similarity transform; its
+/// infinity norm bounds the magnitudes of all natural rates. Singular
+/// reductions deliberately return no estimate and select the documented
+/// 64-step limit with a warning.
+fn estimate_transient_rate_bound(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+) -> Option<f64> {
     let netlist = derive_netlist(schematic, geometry).ok()?;
     let specs = super::build_device_specs(schematic, &netlist).ok()?;
     let mut maximum_rate: f64 = 0.0;
@@ -165,6 +203,12 @@ fn estimate_rc_rate_bound(schematic: &Schematic, geometry: &GeometryEnvelope) ->
         let dimension = root_to_variable.len();
         let mut conductance = vec![vec![0.0; dimension]; dimension];
         let mut capacitance = vec![vec![0.0; dimension]; dimension];
+        let inductor_specs = island_specs
+            .iter()
+            .filter(|spec| matches!(spec.model, DeviceModel::Inductor { .. }))
+            .copied()
+            .collect::<Vec<_>>();
+        let mut incidence = vec![vec![0.0; inductor_specs.len()]; dimension];
 
         for spec in &island_specs {
             let (pin1, pin2) = (
@@ -198,21 +242,45 @@ fn estimate_rc_rate_bound(schematic: &Schematic, geometry: &GeometryEnvelope) ->
                 } => {
                     add_laplacian(&mut capacitance, variable1, variable2, capacitance_farads)?;
                 }
+                DeviceModel::Inductor { .. } => {}
                 DeviceModel::DcVoltageSource { .. } => {}
             }
+        }
+        for (branch, spec) in inductor_specs.iter().enumerate() {
+            let pin1 = root_to_variable
+                .get(&sets.find(spec.terminals.pin1))
+                .copied();
+            let pin2 = root_to_variable
+                .get(&sets.find(spec.terminals.pin2))
+                .copied();
+            add_incidence(&mut incidence, pin1, pin2, branch)?;
         }
 
         let dynamic = (0..dimension)
             .filter(|index| capacitance[*index][*index] > 0.0)
             .collect::<Vec<_>>();
-        if dynamic.is_empty() {
-            continue;
-        }
         let algebraic = (0..dimension)
             .filter(|index| capacitance[*index][*index] == 0.0)
             .collect::<Vec<_>>();
+        let l_values = inductor_specs
+            .iter()
+            .map(|spec| match spec.model {
+                DeviceModel::Inductor {
+                    inductance_henries, ..
+                } => Some(inductance_henries),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()?;
+        if dynamic.is_empty() && l_values.is_empty() {
+            continue;
+        }
+
         let gdd = submatrix(&conductance, &dynamic, &dynamic);
+        let b_dynamic = submatrix_columns(&incidence, &dynamic);
+        let b_algebraic = submatrix_columns(&incidence, &algebraic);
         let mut reduced_g = gdd;
+        let mut reduced_b = b_dynamic;
+        let mut reduced_inductor_resistance = vec![vec![0.0; l_values.len()]; l_values.len()];
         if !algebraic.is_empty() {
             let gaa = submatrix(&conductance, &algebraic, &algebraic);
             let gad = submatrix(&conductance, &algebraic, &dynamic);
@@ -224,11 +292,67 @@ fn estimate_rc_rate_bound(schematic: &Schematic, geometry: &GeometryEnvelope) ->
                     reduced_g[row][column] -= eliminated[row][column];
                 }
             }
+            let eliminated_b =
+                multiply_matrices(&multiply_matrices(&gda, &inverse_gaa)?, &b_algebraic)?;
+            for row in 0..reduced_b.len() {
+                for column in 0..l_values.len() {
+                    reduced_b[row][column] -= eliminated_b[row][column];
+                }
+            }
+            let inverse_b = multiply_matrices(&inverse_gaa, &b_algebraic)?;
+            reduced_inductor_resistance = multiply_matrices(&transpose(&b_algebraic), &inverse_b)?;
         }
-        let reduced_c = submatrix(&capacitance, &dynamic, &dynamic);
-        let inverse_c = invert_matrix(reduced_c)?;
-        let normalized = multiply_matrices(&inverse_c, &reduced_g)?;
-        let norm = normalized
+
+        let mut state_matrix =
+            vec![vec![0.0; dynamic.len() + l_values.len()]; dynamic.len() + l_values.len()];
+        if !dynamic.is_empty() {
+            let reduced_c = submatrix(&capacitance, &dynamic, &dynamic);
+            let inverse_c = invert_matrix(reduced_c)?;
+            let voltage_g = multiply_matrices(&inverse_c, &reduced_g)?;
+            let voltage_b = multiply_matrices(&inverse_c, &reduced_b)?;
+            for row in 0..dynamic.len() {
+                for column in 0..dynamic.len() {
+                    state_matrix[row][column] = -voltage_g[row][column];
+                }
+                for column in 0..l_values.len() {
+                    state_matrix[row][dynamic.len() + column] = -voltage_b[row][column];
+                }
+            }
+            let branch_voltage_b = transpose(&reduced_b);
+            for row in 0..l_values.len() {
+                for column in 0..dynamic.len() {
+                    state_matrix[dynamic.len() + row][column] =
+                        branch_voltage_b[row][column] / l_values[row];
+                }
+            }
+        }
+        for row in 0..l_values.len() {
+            for column in 0..l_values.len() {
+                state_matrix[dynamic.len() + row][dynamic.len() + column] =
+                    -reduced_inductor_resistance[row][column] / l_values[row];
+            }
+        }
+
+        let scales = dynamic
+            .iter()
+            .map(|index| capacitance[*index][*index].sqrt())
+            .chain(l_values.iter().map(|inductance| inductance.sqrt()))
+            .collect::<Vec<_>>();
+        if scales
+            .iter()
+            .any(|scale| !scale.is_finite() || *scale <= 0.0)
+        {
+            return None;
+        }
+        for row in 0..state_matrix.len() {
+            for column in 0..state_matrix.len() {
+                state_matrix[row][column] *= scales[row] / scales[column];
+                if !state_matrix[row][column].is_finite() {
+                    return None;
+                }
+            }
+        }
+        let norm = state_matrix
             .iter()
             .map(|row| row.iter().map(|value| value.abs()).sum::<f64>())
             .fold(0.0_f64, f64::max);
@@ -238,6 +362,41 @@ fn estimate_rc_rate_bound(schematic: &Schematic, geometry: &GeometryEnvelope) ->
         maximum_rate = maximum_rate.max(norm * (1.0 + 1e-12));
     }
     Some(maximum_rate)
+}
+
+fn add_incidence(
+    matrix: &mut [Vec<f64>],
+    pin1: Option<usize>,
+    pin2: Option<usize>,
+    branch: usize,
+) -> Option<()> {
+    if pin1 == pin2 {
+        return Some(());
+    }
+    if let Some(pin1) = pin1 {
+        matrix
+            .get_mut(pin1)?
+            .get_mut(branch)
+            .map(|value| *value += 1.0)?;
+    }
+    if let Some(pin2) = pin2 {
+        matrix
+            .get_mut(pin2)?
+            .get_mut(branch)
+            .map(|value| *value -= 1.0)?;
+    }
+    Some(())
+}
+
+fn submatrix_columns(matrix: &[Vec<f64>], rows: &[usize]) -> Vec<Vec<f64>> {
+    rows.iter().map(|row| matrix[*row].clone()).collect()
+}
+
+fn transpose(matrix: &[Vec<f64>]) -> Vec<Vec<f64>> {
+    let columns = matrix.first().map_or(0, Vec::len);
+    (0..columns)
+        .map(|column| matrix.iter().map(|row| row[column]).collect())
+        .collect()
 }
 
 fn add_laplacian(

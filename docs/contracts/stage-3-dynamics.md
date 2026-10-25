@@ -206,8 +206,8 @@ fails in these ways, checked in this order:
 1. **The imposed states conflict with the ideal constraints**: capacitor
    voltages around a loop of ideal voltage constraints that do not add up, or
    inductor currents at a node (or any cut) that do not satisfy KCL. The Engine
-   reports `InconsistentState` and references every component that has an
-   explicit condition. It never changes the values. A conflict is
+   reports `InconsistentState` and references the explicit initial conditions
+   that participate in the conflict. It never changes the values. A conflict is
    `InconsistentState` only if the loop or cut contains at least one imposed
    state; a conflict among ideal sources alone (for example two unequal ideal
    sources in parallel, found when every state is explicit and no DC solve
@@ -285,9 +285,9 @@ Each public step is split into `n` equal internal steps, `h = 0.001 / n`.
    the largest magnitude of any natural frequency of the circuit's linear
    dynamics, and that depends only on the compiled circuit's values, never on
    wall-clock time, the frame rate, or the platform. A circuit with no
-   capacitor or inductor has `omegaHat = 0`. The estimator is recorded in
-   `docs/solver/stage-3-transient.md` by the Engine workstream; this contract
-   fixes only the properties above.
+   capacitor or inductor has `omegaHat = 0`. The Engine's estimator is
+   documented in `docs/solver/stage-3-transient.md`; this contract fixes only
+   the properties above.
 2. `n` is the smallest power of two, `1 <= n <= 64`, with
    `omegaHat x (0.001 / n) <= sqrt(0.03) = 0.1732`.
 3. For trapezoidal integration of an oscillation `omega` with step `h`, the
@@ -335,7 +335,7 @@ stage-1.md section 4:
 
 | Code | Severity | Meaning | References |
 |---|---|---|---|
-| `InconsistentState` | error | The capacitor voltages and inductor currents imposed at time zero (the explicit initial conditions, together with the DC values of the components left unspecified) cannot hold together with the circuit's ideal constraints (section 3.3). It is also what a live update at step 0 reports, since it runs the initialization again. | Every component with an explicit initial condition. |
+| `InconsistentState` | error | The capacitor voltages and inductor currents imposed at time zero (the explicit initial conditions, together with the DC values of the components left unspecified) cannot hold together with the circuit's ideal constraints (section 3.3). It is also what a live update at step 0 reports, since it runs the initialization again. | Explicit initial conditions that participate in the reported conflict. |
 | `StepAccuracyLimited` | warning | The circuit has dynamics faster than the 64-substep limit can resolve (section 4.2). | None. |
 | `InvalidParameter` | error | Also: a capacitance or inductance that is not finite and strictly positive, a non-finite initial condition, an initial-condition parameter set on a running circuit, or `null` for a parameter. | The component. |
 | `FloatingNode`, `InconsistentIdealConstraint`, `ShortCircuit`, `SingularSystem`, `NoGroundReference` | as in Stage 1 | Applied to the DC solve and the step-0 solve (sections 3.2 and 3.3) and to every later step. | As in Stage 1. |

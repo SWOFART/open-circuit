@@ -33,6 +33,7 @@ are described in the original [Ho, Ruehli, and Brennan paper](https://doi.org/10
 | Linear resistor                     | Implemented in Stage 1                  | `i = (V1 - V2) / R`                                                                                                                                                     | `resistanceOhms > 0`; default `1000 Ω`.                                                                  | Tolerance, temperature coefficient, noise, parasitic inductance/capacitance, thermal behavior.            |
 | Constant independent voltage source | Implemented in Stage 1                  | For `Rs > 0`, terminal relation is `v = Vs + Rs * i`, with current positive into `pin1`. For `Rs = 0`, enforce `v = Vs` and solve its branch current as an MNA unknown. | `voltageVolts` is finite and signed; `internalResistanceOhms >= 0`; defaults `5 V` and `0.1 Ω`.          | Time-varying waveform, battery chemistry, state of charge, polarization, temperature, and current limits. |
 | Ideal linear capacitor              | Implemented in Stage 3                  | `q = C * v`; `i = C * dv/dt`, integrated with the trapezoidal companion model.                                                                                          | Finite `capacitanceFarads > 0`; default `10 µF`; optional finite signed initial voltage.                 | ESR, leakage, ESL, voltage/temperature dependence, and manufacturer-specific profiles.                    |
+| Ideal linear inductor               | Implemented in Stage 3                  | `lambda = L * i`; `v = L * di/dt`, integrated with the trapezoidal companion model.                                                                                    | Finite `inductanceHenries > 0`; default `100 mH`; optional finite signed initial current.                | Winding resistance/capacitance, saturation, frequency-dependent loss, thermal behavior, and coupling.     |
 | Reference marker                    | Implemented as topology/solver metadata | Selects a shared reference potential; it is not an energy-storing or dissipative device.                                                                                | Explicit markers join marked nets; otherwise each island gets its own deterministic numerical reference. | A symbol or marker does not represent an earth connection unless the model explicitly says so.            |
 
 For finite source resistance, the Engine uses the Norton-equivalent MNA stamp while reporting
@@ -46,7 +47,6 @@ ordering follows [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 
 | Family                             | Planned relation or state                                                                                                                                       | Current decisions and open questions                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Inductor                           | For constant `L`, flux linkage `lambda = L * i` and `v = L * di/dt`; state can be inductor current or flux linkage. Ideal stored energy is `E = 1/2 * L * i^2`. | Agreed Stage 3 baseline: finite `L > 0`; optional finite signed initial current. Without a user value, initialize from the DC operating point. Zero and negative inductance are invalid for this component type. Start with an ideal linear model; add winding resistance only in a selected non-ideal model. Specified in the [Stage 3 contract](../contracts/stage-3-dynamics.md). |
 | Dependent linear sources           | Voltage or current is controlled by another voltage or current.                                                                                                 | Pin/control polarity, dimensionless versus dimensional gain, well-posedness, and matrix singularities.                                                                                                                                                                                                                                                                               |
 | Switches and relays                | A discrete state changes the connected electrical model; a relay adds a coil model, thresholds, and hysteresis.                                                 | Event ordering, contact resistance, initial state, chatter limits, and solver retry behavior. Architecture places relay/event behavior after C/L dynamics.                                                                                                                                                                                                                           |
 | Diodes                             | Nonlinear current-voltage relation; practical models may also include charge storage and series resistance.                                                     | Selected equation/model level, temperature dependence, limiting and convergence strategy, and parameter provenance.                                                                                                                                                                                                                                                                  |
@@ -194,13 +194,15 @@ At 10, 20, and 30 ms the 1 ms step gives 6.324275 V, 8.648904 V, and 9.503374 V
 for the charge, against the analytical 6.321206 V, 8.646647 V, and 9.502129 V.
 The RL fixtures have the same time constant and the same error.
 
-The Rust Engine verifies both RC fixtures against the analytical solution at
-every public step through 50 ms. It also checks the stored ngspice reference
-samples at 10, 20, and 30 ms. The checked-in netlists and CSVs are
-`stage-3-ngspice-rc-charge.cir` / `.csv` and
-`stage-3-ngspice-rc-discharge.cir` / `.csv` in `tests/golden/`; they were
-generated with ngspice 36 (Ubuntu package `36+ds-1ubuntu0.1`). The CSV values
-preserve ngspice's printed `meas` values.
+The Rust Engine verifies the RC and RL fixtures against the analytical
+solution at every public step through 50 ms. For the RC and RL fixtures it
+also checks the stored ngspice reference samples at 10, 20, and 30 ms. The LC
+test compares the period estimated from 200 public-step samples against both
+the analytical period and the corresponding ngspice voltage and current
+series. The checked-in netlists and CSVs are stored in `tests/golden/`; all
+were generated with ngspice 36 (Ubuntu package `36+ds-1ubuntu0.1`). The RL CSV
+values preserve ngspice's printed `meas` values, and the LC series are linearly
+interpolated onto 1 ms sample times.
 
 The DC fixtures must give the operating-point values with at most 1 µV in
 voltage and 1 nA in current (the Stage 1 tolerances), and must hold them, with
