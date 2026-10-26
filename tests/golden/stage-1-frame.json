@@ -1,5 +1,5 @@
 {
-  "description": "A Stage 1 frame in the OCF1 envelope (docs/contracts/stage-1.md section 8). The hex was produced by an independent encoder written from the spec; the Rust encoder and the TypeScript decoder must both agree with it.",
+  "description": "An OCF2 frame with no discrete states. The hex was independently encoded from docs/contracts/stage-4-components.md section 5.",
   "snapshot": {
     "metadata": {
       "runId": "00000000-0000-4000-8000-0000000000a0",
@@ -13,7 +13,8 @@
       2.4998750062496877,
       2.4998750062496877,
       -0.0024998750062496878
-    ]
+    ],
+    "states": []
   },
-  "hex": "4f4346310100000003000000000000001000000000000000fca9f1d24d62903f000000000000400080000000000000a0030000000b0000007265762d312d616263313200000000000f719f77beff03400f719f77beff0340d275ab2c9e7a64bf"
+  "hex": "4f4346320100000003000000000000001000000000000000fca9f1d24d62903f000000000000400080000000000000a003000000000000000b0000007265762d312d6162633132000f719f77beff03400f719f77beff0340d275ab2c9e7a64bf"
 }

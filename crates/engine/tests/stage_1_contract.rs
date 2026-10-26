@@ -115,7 +115,7 @@ fn rejects_invalid_component_rotations_and_wire_paths() {
 #[test]
 fn catalog_is_authoritative_for_defaults_units_and_domains() {
     let catalog: ComponentCatalog = component_catalog();
-    assert_eq!(catalog.component_types.len(), 4);
+    assert_eq!(catalog.component_types.len(), 5);
 
     let resistor = catalog
         .component_types
@@ -174,6 +174,28 @@ fn catalog_is_authoritative_for_defaults_units_and_domains() {
     assert!(inductor.parameters[1].initial_condition);
     assert_eq!(inductor.parameters[1].id, ParameterId::InitialCurrentAmps);
     assert_eq!(inductor.parameters[1].unit, Unit::Amp);
+
+    let relay = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::RelaySpdt)
+        .unwrap();
+    assert_eq!(relay.pins.len(), 5);
+    assert_eq!(relay.pins[0].id.as_str(), "coil_positive");
+    assert_eq!(relay.pins[1].id.as_str(), "coil_negative");
+    assert_eq!(relay.pins[2].id.as_str(), "common");
+    assert_eq!(relay.pins[3].id.as_str(), "normally_open");
+    assert_eq!(relay.pins[4].id.as_str(), "normally_closed");
+    assert_eq!(relay.parameters.len(), 5);
+    assert_eq!(relay.parameters[0].default_value, 100.0);
+    assert_eq!(relay.parameters[0].unit, Unit::Ohm);
+    assert_eq!(relay.parameters[1].default_value, 0.01);
+    assert_eq!(relay.parameters[1].unit, Unit::Henry);
+    assert_eq!(relay.parameters[2].default_value, 0.04);
+    assert_eq!(relay.parameters[2].unit, Unit::Amp);
+    assert_eq!(relay.parameters[3].default_value, 0.02);
+    assert_eq!(relay.parameters[4].default_value, 0.1);
+    assert_eq!(relay.parameters[4].unit, Unit::Ohm);
 
     assert!(NumericDomain::NonNegative.accepts(0.0));
     assert!(NumericDomain::Finite.accepts(-5.0));

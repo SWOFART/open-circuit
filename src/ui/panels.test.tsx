@@ -66,6 +66,7 @@ function readyState(values: number[]): SimulationState {
         frameSequence: 0n,
       },
       values,
+      states: [],
     },
   };
 }

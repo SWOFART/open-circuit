@@ -22,6 +22,8 @@ pub enum DiagnosticCode {
     InconsistentState,
     SingularSystem,
     StepAccuracyLimited,
+    EventChatter,
+    NonFiniteState,
     StaleRun,
     StaleDocumentRevision,
 }
@@ -43,6 +45,8 @@ impl DiagnosticCode {
             Self::InconsistentState => "diagnostic.inconsistentState",
             Self::SingularSystem => "diagnostic.singularSystem",
             Self::StepAccuracyLimited => "diagnostic.stepAccuracyLimited",
+            Self::EventChatter => "diagnostic.eventChatter",
+            Self::NonFiniteState => "diagnostic.nonFiniteState",
             Self::StaleRun => "diagnostic.staleRun",
             Self::StaleDocumentRevision => "diagnostic.staleDocumentRevision",
         }

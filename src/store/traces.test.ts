@@ -62,6 +62,7 @@ function snapshotAt(step: bigint): ResultSnapshot {
       frameSequence: step,
     },
     values: [],
+    states: [],
   };
 }
 

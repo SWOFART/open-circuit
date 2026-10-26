@@ -107,6 +107,8 @@ impl Device for DcVoltageSourceDevice {
             component_id: self.component_id.clone(),
             voltage_volts,
             current_amps,
+            extra_values: Vec::new(),
+            state: None,
         })
     }
 }

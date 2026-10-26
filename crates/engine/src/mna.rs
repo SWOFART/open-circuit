@@ -12,11 +12,12 @@ impl NodeVariables {
         node_count: usize,
         island_nodes: &[usize],
         reference_node: usize,
+        additional_reference_nodes: &std::collections::HashSet<usize>,
     ) -> Self {
         let mut node_to_variable = vec![None; node_count];
         let mut voltage_variable_count = 0;
         for node in island_nodes.iter().copied() {
-            if node != reference_node {
+            if node != reference_node && !additional_reference_nodes.contains(&node) {
                 node_to_variable[node] = Some(voltage_variable_count);
                 voltage_variable_count += 1;
             }
@@ -164,7 +165,7 @@ mod tests {
 
     #[test]
     fn conductance_stamp_uses_reference_node_and_symmetric_signs() {
-        let variables = NodeVariables::for_island(2, &[0, 1], 1);
+        let variables = NodeVariables::for_island(2, &[0, 1], 1, &std::collections::HashSet::new());
         let mut system = MnaSystem::new(1);
         assert!(system.stamp_conductance(&variables, 0, 1, 0.5));
         let solved = system.solve().unwrap();
@@ -173,7 +174,7 @@ mod tests {
 
     #[test]
     fn ideal_source_stamp_sets_terminal_voltage_with_pin1_current_sign() {
-        let variables = NodeVariables::for_island(2, &[0, 1], 1);
+        let variables = NodeVariables::for_island(2, &[0, 1], 1, &std::collections::HashSet::new());
         let mut system = MnaSystem::new(2);
         assert!(system.stamp_conductance(&variables, 0, 1, 1.0));
         assert!(system.stamp_ideal_voltage_source(&variables, 0, 1, 1, 5.0));

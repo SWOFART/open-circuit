@@ -1,6 +1,6 @@
 use crate::{Diagnostic, DiagnosticCode, StableId};
 
-use super::{Device, DeviceResult, Terminals, component_diagnostic};
+use super::{Device, DeviceResult, IntegrationMethod, Terminals, component_diagnostic};
 use crate::mna::{MnaSystem, NodeVariables};
 
 #[derive(Clone, Copy)]
@@ -14,6 +14,7 @@ pub(crate) enum CapacitorMode {
         step_seconds: f64,
         start_voltage_volts: f64,
         start_current_amps: f64,
+        integration_method: IntegrationMethod,
     },
 }
 
@@ -44,6 +45,7 @@ impl CapacitorDevice {
             step_seconds,
             start_voltage_volts,
             start_current_amps,
+            integration_method,
         } = self.mode
         else {
             return Err(component_diagnostic(
@@ -51,8 +53,19 @@ impl CapacitorDevice {
                 &self.component_id,
             ));
         };
-        let conductance = 2.0 * self.capacitance_farads / step_seconds;
-        let history_current = conductance * start_voltage_volts + start_current_amps;
+        let (conductance, history_current) = match integration_method {
+            IntegrationMethod::Trapezoidal => {
+                let conductance = 2.0 * self.capacitance_farads / step_seconds;
+                (
+                    conductance,
+                    conductance * start_voltage_volts + start_current_amps,
+                )
+            }
+            IntegrationMethod::BackwardEuler => {
+                let conductance = self.capacitance_farads / step_seconds;
+                (conductance, conductance * start_voltage_volts)
+            }
+        };
         if !conductance.is_finite() || conductance <= 0.0 || !history_current.is_finite() {
             return Err(component_diagnostic(
                 DiagnosticCode::InvalidParameter,
@@ -136,6 +149,29 @@ impl Device for CapacitorDevice {
             component_id: self.component_id.clone(),
             voltage_volts,
             current_amps,
+            extra_values: Vec::new(),
+            state: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backward_euler_companion_uses_the_previous_voltage_only() {
+        let device = CapacitorDevice::new(
+            StableId::parse("00000000-0000-4000-8000-000000000001").unwrap(),
+            Terminals { pin1: 0, pin2: 1 },
+            2.0,
+            CapacitorMode::Transient {
+                step_seconds: 0.5,
+                start_voltage_volts: 3.0,
+                start_current_amps: 7.0,
+                integration_method: IntegrationMethod::BackwardEuler,
+            },
+        );
+        assert_eq!(device.companion().unwrap(), (4.0, 12.0));
     }
 }

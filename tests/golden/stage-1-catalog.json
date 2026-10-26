@@ -102,6 +102,24 @@
           "initialCondition": true
         }
       ]
+    },
+    {
+      "typeId": "relay_spdt",
+      "displayNameKey": "component.relaySpdt.name",
+      "pins": [
+        { "id": "coil_positive", "role": "positive" },
+        { "id": "coil_negative", "role": "negative" },
+        { "id": "common", "role": "unpolarized" },
+        { "id": "normally_open", "role": "unpolarized" },
+        { "id": "normally_closed", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "coilResistanceOhms", "unit": "ohm", "defaultValue": 100.0, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.coilResistance", "optional": false, "initialCondition": false },
+        { "id": "coilInductanceHenries", "unit": "henry", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.coilInductance", "optional": false, "initialCondition": false },
+        { "id": "pickupCurrentAmps", "unit": "amp", "defaultValue": 0.04, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.pickupCurrent", "optional": false, "initialCondition": false },
+        { "id": "dropoutCurrentAmps", "unit": "amp", "defaultValue": 0.02, "domain": "non_negative", "descriptionKey": "component.relaySpdt.dropoutCurrent", "optional": false, "initialCondition": false },
+        { "id": "closedContactResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.closedContactResistance", "optional": false, "initialCondition": false }
+      ]
     }
   ]
 }

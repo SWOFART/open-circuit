@@ -53,6 +53,7 @@ function frame(
       frameSequence: sequence,
     },
     values: overrides.values ?? [value],
+    states: [],
   };
 }
 
@@ -212,7 +213,7 @@ describe("applying live frames", () => {
     const before = controller.getState().snapshot;
 
     adapter.emitFrameError(
-      new Error("The frame does not start with the OCF1 magic."),
+      new Error("The frame does not start with the OCF2 magic."),
     );
     const state = controller.getState();
 

@@ -3,13 +3,16 @@
 //! decoder test (`src/store/frameCodec.test.ts`) reads the same file.
 
 use open_circuit_app_lib::frame::{
-    FIXED_HEADER_LEN, FrameError, MAX_REVISION_BYTES, MAX_VALUE_COUNT, decode_frame, encode_frame,
-    payload_offset,
+    FIXED_HEADER_LEN, FrameError, MAX_REVISION_BYTES, MAX_STATE_COUNT, MAX_VALUE_COUNT,
+    decode_frame, encode_frame, payload_offset,
 };
-use open_circuit_engine::{FrameMetadata, ResultSnapshot, StableId};
+use open_circuit_engine::{
+    DeviceState, FrameMetadata, RelayContactState, ResultSnapshot, StableId,
+};
 use serde::Deserialize;
 
 const FIXTURE: &str = include_str!("../../../tests/golden/stage-1-frame.json");
+const STATE_FIXTURE: &str = include_str!("../../../tests/golden/stage-4-frame.json");
 const RUN_ID: &str = "00000000-0000-4000-8000-0000000000a0";
 
 #[derive(Deserialize)]
@@ -40,6 +43,7 @@ fn snapshot(revision: &str, values: Vec<f64>) -> ResultSnapshot {
             frame_sequence: 2,
         },
         values,
+        states: Vec::new(),
     }
 }
 
@@ -165,11 +169,11 @@ fn decoder_rejects_corrupted_frames() {
     ));
 
     let mut bad_padding = good.clone();
-    bad_padding[56 + 11] = 1;
+    bad_padding[60 + 11] = 1;
     assert_eq!(decode_frame(&bad_padding), Err(FrameError::NonZeroPadding));
 
     let mut bad_utf8 = good.clone();
-    bad_utf8[56] = 0xff;
+    bad_utf8[60] = 0xff;
     assert_eq!(decode_frame(&bad_utf8), Err(FrameError::InvalidRevision));
 }
 
@@ -203,14 +207,95 @@ fn decoder_rejects_headers_that_overstate_their_size() {
         })
     );
 
+    let mut huge_state_count = good.clone();
+    huge_state_count[52..56].copy_from_slice(&u32::MAX.to_le_bytes());
+    assert_eq!(
+        decode_frame(&huge_state_count),
+        Err(FrameError::TooManyStates {
+            count: u32::MAX as usize
+        })
+    );
+
     let mut huge_revision = good;
-    huge_revision[52..56].copy_from_slice(&u32::MAX.to_le_bytes());
+    huge_revision[56..60].copy_from_slice(&u32::MAX.to_le_bytes());
     assert_eq!(
         decode_frame(&huge_revision),
         Err(FrameError::RevisionTooLong {
             length: u32::MAX as usize
         })
     );
+}
+
+#[test]
+fn stage4_state_frame_matches_the_independent_golden() {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct FrameData {
+        layout_version: u32,
+        frame_sequence: u64,
+        simulation_step: u64,
+        simulation_time_seconds: f64,
+        run_id: String,
+        document_revision: String,
+        values: Vec<f64>,
+        states: Vec<DeviceState>,
+    }
+    #[derive(Deserialize)]
+    struct StateFixture {
+        frame: FrameData,
+        hex: String,
+    }
+    let fixture: StateFixture = serde_json::from_str(STATE_FIXTURE).unwrap();
+    let frame = ResultSnapshot {
+        metadata: FrameMetadata {
+            run_id: StableId::parse(fixture.frame.run_id).unwrap(),
+            document_revision: fixture.frame.document_revision,
+            layout_version: fixture.frame.layout_version,
+            simulation_step: fixture.frame.simulation_step,
+            simulation_time_seconds: fixture.frame.simulation_time_seconds,
+            frame_sequence: fixture.frame.frame_sequence,
+        },
+        values: fixture.frame.values,
+        states: fixture.frame.states,
+    };
+    let expected = from_hex(&fixture.hex);
+    assert_eq!(encode_frame(&frame).unwrap(), expected);
+    assert_eq!(decode_frame(&expected).unwrap(), frame);
+    assert!(matches!(
+        frame.states.as_slice(),
+        [DeviceState::Relay {
+            state: RelayContactState::Picked,
+            ..
+        }]
+    ));
+}
+
+#[test]
+fn state_encoder_rejects_unsorted_and_future_transitions() {
+    let mut frame = snapshot("rev", vec![]);
+    frame.states = vec![
+        DeviceState::Relay {
+            component_id: StableId::parse("00000000-0000-4000-8000-000000000002").unwrap(),
+            state: RelayContactState::Released,
+            last_transition_time_seconds: None,
+        },
+        DeviceState::Relay {
+            component_id: StableId::parse("00000000-0000-4000-8000-000000000001").unwrap(),
+            state: RelayContactState::Released,
+            last_transition_time_seconds: None,
+        },
+    ];
+    assert_eq!(encode_frame(&frame), Err(FrameError::UnsortedStates));
+    frame.states.reverse();
+    if let DeviceState::Relay {
+        last_transition_time_seconds,
+        ..
+    } = &mut frame.states[0]
+    {
+        *last_transition_time_seconds = Some(0.008);
+    }
+    assert_eq!(encode_frame(&frame), Err(FrameError::InvalidTransitionTime));
+    assert!(frame.states.len() <= MAX_STATE_COUNT);
 }
 
 #[test]

@@ -10,14 +10,20 @@ pub enum ComponentTypeId {
     DcVoltageSource,
     Capacitor,
     Inductor,
+    RelaySpdt,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "PinId.ts")]
 pub enum PinId {
     Pin1,
     Pin2,
+    CoilPositive,
+    CoilNegative,
+    Common,
+    NormallyOpen,
+    NormallyClosed,
 }
 
 impl PinId {
@@ -25,6 +31,11 @@ impl PinId {
         match self {
             Self::Pin1 => "pin1",
             Self::Pin2 => "pin2",
+            Self::CoilPositive => "coil_positive",
+            Self::CoilNegative => "coil_negative",
+            Self::Common => "common",
+            Self::NormallyOpen => "normally_open",
+            Self::NormallyClosed => "normally_closed",
         }
     }
 }
@@ -40,6 +51,11 @@ pub enum ParameterId {
     InitialVoltageVolts,
     InductanceHenries,
     InitialCurrentAmps,
+    CoilResistanceOhms,
+    CoilInductanceHenries,
+    PickupCurrentAmps,
+    DropoutCurrentAmps,
+    ClosedContactResistanceOhms,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -236,6 +252,79 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.inductor.initialCurrent".to_owned(),
                         optional: true,
                         initial_condition: true,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::RelaySpdt,
+                display_name_key: "component.relaySpdt.name".to_owned(),
+                pins: vec![
+                    PinDefinition {
+                        id: PinId::CoilPositive,
+                        role: PinRole::Positive,
+                    },
+                    PinDefinition {
+                        id: PinId::CoilNegative,
+                        role: PinRole::Negative,
+                    },
+                    PinDefinition {
+                        id: PinId::Common,
+                        role: PinRole::Unpolarized,
+                    },
+                    PinDefinition {
+                        id: PinId::NormallyOpen,
+                        role: PinRole::Unpolarized,
+                    },
+                    PinDefinition {
+                        id: PinId::NormallyClosed,
+                        role: PinRole::Unpolarized,
+                    },
+                ],
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::CoilResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 100.0,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.coilResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::CoilInductanceHenries,
+                        unit: Unit::Henry,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.coilInductance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::PickupCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.04,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.pickupCurrent".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::DropoutCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.02,
+                        domain: NumericDomain::NonNegative,
+                        description_key: "component.relaySpdt.dropoutCurrent".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::ClosedContactResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.closedContactResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
                     },
                 ],
             },

@@ -82,6 +82,17 @@ pub struct InductorParameters {
     pub initial_current_amps: Option<f64>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "RelayParameters.ts")]
+pub struct RelayParameters {
+    pub coil_resistance_ohms: f64,
+    pub coil_inductance_henries: f64,
+    pub pickup_current_amps: f64,
+    pub dropout_current_amps: f64,
+    pub closed_contact_resistance_ohms: f64,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct InductorParametersInput {
@@ -103,7 +114,8 @@ impl<'de> Deserialize<'de> for InductorParameters {
     }
 }
 
-/// Version 1 supports resistors, independent voltage sources, capacitors, and inductors.
+/// Saved schema version 1 supports resistors, independent voltage sources,
+/// capacitors, inductors, and the additive Stage 4 relay type.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -141,6 +153,13 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: InductorParameters,
     },
+    RelaySpdt {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: RelayParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -149,7 +168,8 @@ impl ComponentSpec {
             Self::Resistor { id, .. }
             | Self::DcVoltageSource { id, .. }
             | Self::Capacitor { id, .. }
-            | Self::Inductor { id, .. } => id,
+            | Self::Inductor { id, .. }
+            | Self::RelaySpdt { id, .. } => id,
         }
     }
 
@@ -159,6 +179,7 @@ impl ComponentSpec {
             Self::DcVoltageSource { .. } => ComponentTypeId::DcVoltageSource,
             Self::Capacitor { .. } => ComponentTypeId::Capacitor,
             Self::Inductor { .. } => ComponentTypeId::Inductor,
+            Self::RelaySpdt { .. } => ComponentTypeId::RelaySpdt,
         }
     }
 
@@ -194,6 +215,28 @@ impl ComponentSpec {
                 }
                 values
             }
+            Self::RelaySpdt { parameters, .. } => vec![
+                (
+                    ParameterId::CoilResistanceOhms,
+                    parameters.coil_resistance_ohms,
+                ),
+                (
+                    ParameterId::CoilInductanceHenries,
+                    parameters.coil_inductance_henries,
+                ),
+                (
+                    ParameterId::PickupCurrentAmps,
+                    parameters.pickup_current_amps,
+                ),
+                (
+                    ParameterId::DropoutCurrentAmps,
+                    parameters.dropout_current_amps,
+                ),
+                (
+                    ParameterId::ClosedContactResistanceOhms,
+                    parameters.closed_contact_resistance_ohms,
+                ),
+            ],
         }
     }
 }
@@ -285,7 +328,8 @@ impl Schematic {
             if let ComponentSpec::Resistor { rotation_deg, .. }
             | ComponentSpec::DcVoltageSource { rotation_deg, .. }
             | ComponentSpec::Capacitor { rotation_deg, .. }
-            | ComponentSpec::Inductor { rotation_deg, .. } = component
+            | ComponentSpec::Inductor { rotation_deg, .. }
+            | ComponentSpec::RelaySpdt { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(
@@ -332,6 +376,17 @@ impl Schematic {
                         }],
                     ));
                 }
+            }
+
+            if let ComponentSpec::RelaySpdt { parameters, .. } = component
+                && parameters.dropout_current_amps >= parameters.pickup_current_amps
+            {
+                diagnostics.push(Diagnostic::error(
+                    DiagnosticCode::InvalidParameter,
+                    vec![DiagnosticReference::Component {
+                        component_id: component.id().clone(),
+                    }],
+                ));
             }
         }
 

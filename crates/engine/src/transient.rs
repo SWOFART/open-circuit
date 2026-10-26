@@ -3,8 +3,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ComponentSpec, Diagnostic, DiagnosticCode, GeometryEnvelope, SIMULATION_TIMESTEP_SECONDS,
-    Schematic, StableId, devices::DeviceResult, netlist::derive_netlist,
+    ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, GeometryEnvelope, RelayContactState,
+    SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
+    devices::{DeviceResult, IntegrationMethod},
+    netlist::derive_netlist,
 };
 
 use super::DeviceModel;
@@ -31,10 +33,45 @@ pub(super) struct InductorState {
     pub(super) voltage_volts: f64,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct RelayState {
+    pub(super) current_amps: f64,
+    pub(super) voltage_volts: f64,
+    pub(super) state: RelayContactState,
+    pub(super) last_transition_time_seconds: Option<f64>,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct CircuitStates {
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
+    pub(super) relays: HashMap<StableId, RelayState>,
+    pub(super) simulation_time_seconds: f64,
+    pub(super) backward_euler_next_step: bool,
+}
+
+impl CircuitStates {
+    pub(super) fn device_states(&self) -> Vec<DeviceState> {
+        let mut states = self
+            .relays
+            .iter()
+            .map(|(component_id, relay)| DeviceState::Relay {
+                component_id: component_id.clone(),
+                state: relay.state,
+                last_transition_time_seconds: relay.last_transition_time_seconds,
+            })
+            .collect::<Vec<_>>();
+        states.sort_by(|left, right| state_component_id(left).cmp(state_component_id(right)));
+        states
+    }
+}
+
+fn state_component_id(state: &DeviceState) -> &str {
+    match state {
+        DeviceState::Relay { component_id, .. } | DeviceState::Fuse { component_id, .. } => {
+            component_id.as_str()
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -44,12 +81,14 @@ pub(super) enum SolveMode<'a> {
     Transient {
         step_seconds: f64,
         states: &'a CircuitStates,
+        integration_method: IntegrationMethod,
     },
 }
 
 pub(super) fn circuit_states_from_results(
     schematic: &Schematic,
     results: &[DeviceResult],
+    simulation_time_seconds: f64,
 ) -> CircuitStates {
     let by_component = results
         .iter()
@@ -89,9 +128,39 @@ pub(super) fn circuit_states_from_results(
             ))
         })
         .collect();
+    let relays = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::RelaySpdt { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let Some(DeviceState::Relay {
+                state,
+                last_transition_time_seconds,
+                ..
+            }) = &result.state
+            else {
+                return None;
+            };
+            Some((
+                id.clone(),
+                RelayState {
+                    current_amps: result.current_amps,
+                    voltage_volts: result.voltage_volts,
+                    state: *state,
+                    last_transition_time_seconds: *last_transition_time_seconds,
+                },
+            ))
+        })
+        .collect();
     CircuitStates {
         capacitors,
         inductors,
+        relays,
+        simulation_time_seconds,
+        backward_euler_next_step: false,
     }
 }
 
@@ -100,6 +169,7 @@ pub(super) fn advance_public_steps(
     geometry: &GeometryEnvelope,
     mut states: CircuitStates,
     internal_substeps: u32,
+    first_public_step: u64,
     public_step_count: u32,
 ) -> PublicStepOutcome {
     let internal_step_seconds = SIMULATION_TIMESTEP_SECONDS / f64::from(internal_substeps);
@@ -113,24 +183,179 @@ pub(super) fn advance_public_steps(
     let mut results = Vec::new();
     let mut diagnostics = Vec::new();
     let mut step_start_states = states.clone();
-    for _ in 0..public_step_count {
+    for public_step_offset in 0..public_step_count {
+        let Some(public_step_index) = first_public_step.checked_add(u64::from(public_step_offset))
+        else {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]);
+        };
+        let Some(previous_public_step) = public_step_index.checked_sub(1) else {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]);
+        };
+        let public_step_start_time = previous_public_step as f64 * SIMULATION_TIMESTEP_SECONDS;
+        let public_step_end_time = public_step_index as f64 * SIMULATION_TIMESTEP_SECONDS;
+        if !public_step_start_time.is_finite() || !public_step_end_time.is_finite() {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]);
+        }
+        states.simulation_time_seconds = public_step_start_time;
         step_start_states = states.clone();
-        for _ in 0..internal_substeps {
-            let (step_results, step_diagnostics) = super::compute_circuit(
+        for internal_step_index in 0..internal_substeps {
+            let step_end_time = if internal_step_index + 1 == internal_substeps {
+                public_step_end_time
+            } else {
+                public_step_start_time + internal_step_seconds * f64::from(internal_step_index + 1)
+            };
+            if !step_end_time.is_finite() {
+                return Err(vec![Diagnostic::error(
+                    DiagnosticCode::NonFiniteState,
+                    Vec::new(),
+                )]);
+            }
+            let integration_method = if states.backward_euler_next_step {
+                IntegrationMethod::BackwardEuler
+            } else {
+                IntegrationMethod::Trapezoidal
+            };
+            let (mut step_results, step_diagnostics) = super::compute_circuit(
                 schematic,
                 geometry,
                 SolveMode::Transient {
                     step_seconds: internal_step_seconds,
                     states: &states,
+                    integration_method,
                 },
             )?;
-            states = circuit_states_from_results(schematic, &step_results);
-            results = step_results;
             diagnostics.extend(step_diagnostics);
+            let mut candidate =
+                circuit_states_from_results(schematic, &step_results, step_end_time);
+            // The requested recovery method was consumed by this interval. A new
+            // relay transition below can schedule another backward-Euler interval.
+            candidate.backward_euler_next_step = false;
+            settle_relay_events(
+                schematic,
+                geometry,
+                &mut candidate,
+                &mut step_results,
+                step_end_time,
+                &mut diagnostics,
+            )?;
+            states = candidate;
+            results = step_results;
         }
     }
     sort_diagnostics(&mut diagnostics);
     Ok((results, states, step_start_states, diagnostics))
+}
+
+pub(super) fn settle_relay_events(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    states: &mut CircuitStates,
+    results: &mut Vec<DeviceResult>,
+    event_time_seconds: f64,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Result<(), Vec<Diagnostic>> {
+    const MAX_SAME_TIME_TRANSITIONS: usize = 16;
+    let mut seen = HashSet::new();
+    seen.insert(relay_state_vector(states));
+    let mut same_time_resolves = 0;
+    loop {
+        let mut changes = Vec::new();
+        for component in &schematic.components {
+            let ComponentSpec::RelaySpdt { id, parameters, .. } = component else {
+                continue;
+            };
+            let Some(relay) = states.relays.get(id) else {
+                continue;
+            };
+            let next_state = match relay.state {
+                RelayContactState::Released
+                    if relay.current_amps.abs() >= parameters.pickup_current_amps =>
+                {
+                    Some(RelayContactState::Picked)
+                }
+                RelayContactState::Picked
+                    if relay.current_amps.abs() <= parameters.dropout_current_amps =>
+                {
+                    Some(RelayContactState::Released)
+                }
+                _ => None,
+            };
+            if let Some(next_state) = next_state {
+                changes.push((id.clone(), next_state));
+            }
+        }
+        if changes.is_empty() {
+            return Ok(());
+        }
+        changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
+        let changed_ids = changes
+            .iter()
+            .map(|(component_id, _)| component_id.clone())
+            .collect::<Vec<_>>();
+        if same_time_resolves >= MAX_SAME_TIME_TRANSITIONS {
+            diagnostics.push(Diagnostic::error(
+                DiagnosticCode::EventChatter,
+                changed_ids
+                    .into_iter()
+                    .map(|component_id| crate::DiagnosticReference::Component { component_id })
+                    .collect(),
+            ));
+            sort_diagnostics(diagnostics);
+            return Err(diagnostics.clone());
+        }
+        for (component_id, next_state) in changes {
+            let relay = states
+                .relays
+                .get_mut(&component_id)
+                .expect("a proposed relay transition has a state");
+            relay.state = next_state;
+            relay.last_transition_time_seconds = Some(event_time_seconds);
+        }
+        states.backward_euler_next_step = true;
+        let state_vector = relay_state_vector(states);
+        if !seen.insert(state_vector) {
+            diagnostics.push(Diagnostic::error(
+                DiagnosticCode::EventChatter,
+                changed_ids
+                    .into_iter()
+                    .map(|component_id| crate::DiagnosticReference::Component { component_id })
+                    .collect(),
+            ));
+            sort_diagnostics(diagnostics);
+            return Err(diagnostics.clone());
+        }
+        let (resolved, event_diagnostics) =
+            super::compute_circuit(schematic, geometry, SolveMode::InitialState(states))?;
+        *results = resolved;
+        diagnostics.extend(event_diagnostics);
+        let mut resolved_states =
+            circuit_states_from_results(schematic, results, event_time_seconds);
+        // The event state is the state vector used to solve this reconfiguration; the
+        // device results carry that same vector and its exact transition times.
+        resolved_states.simulation_time_seconds = event_time_seconds;
+        resolved_states.backward_euler_next_step = states.backward_euler_next_step;
+        *states = resolved_states;
+        same_time_resolves += 1;
+    }
+}
+
+fn relay_state_vector(states: &CircuitStates) -> Vec<(String, RelayContactState)> {
+    let mut vector = states
+        .relays
+        .iter()
+        .map(|(id, relay)| (id.as_str().to_owned(), relay.state))
+        .collect::<Vec<_>>();
+    vector.sort_by(|left, right| left.0.cmp(&right.0));
+    vector
 }
 
 pub(super) fn choose_internal_substeps(
@@ -163,6 +388,16 @@ fn estimate_transient_rate_bound(
     let netlist = derive_netlist(schematic, geometry).ok()?;
     let specs = super::build_device_specs(schematic, &netlist).ok()?;
     let mut maximum_rate: f64 = 0.0;
+    for spec in &specs {
+        if let DeviceModel::RelaySpdt {
+            coil_resistance_ohms,
+            coil_inductance_henries,
+            ..
+        } = spec.model
+        {
+            maximum_rate = maximum_rate.max(coil_resistance_ohms / coil_inductance_henries);
+        }
+    }
 
     for island in &netlist.islands {
         let component_ids = island
@@ -243,6 +478,37 @@ fn estimate_transient_rate_bound(
                     add_laplacian(&mut capacitance, variable1, variable2, capacitance_farads)?;
                 }
                 DeviceModel::Inductor { .. } => {}
+                DeviceModel::RelaySpdt {
+                    coil_resistance_ohms,
+                    closed_contact_resistance_ohms,
+                    common_node,
+                    normally_open_node,
+                    normally_closed_node,
+                    ..
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / coil_resistance_ohms,
+                    )?;
+                    add_laplacian(
+                        &mut conductance,
+                        root_to_variable.get(&sets.find(common_node)).copied(),
+                        root_to_variable
+                            .get(&sets.find(normally_open_node))
+                            .copied(),
+                        1.0 / closed_contact_resistance_ohms,
+                    )?;
+                    add_laplacian(
+                        &mut conductance,
+                        root_to_variable.get(&sets.find(common_node)).copied(),
+                        root_to_variable
+                            .get(&sets.find(normally_closed_node))
+                            .copied(),
+                        1.0 / closed_contact_resistance_ohms,
+                    )?;
+                }
                 DeviceModel::DcVoltageSource { .. } => {}
             }
         }

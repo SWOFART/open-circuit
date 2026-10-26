@@ -532,6 +532,7 @@ describe("the oscilloscope following a real simulation", () => {
               frameSequence: 0n,
             },
             values: layout.slots.map(() => 0),
+            states: [],
           },
           diagnostics: [],
         };

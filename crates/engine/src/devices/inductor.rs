@@ -1,6 +1,6 @@
 use crate::{Diagnostic, DiagnosticCode, StableId};
 
-use super::{Device, DeviceResult, Terminals, component_diagnostic};
+use super::{Device, DeviceResult, IntegrationMethod, Terminals, component_diagnostic};
 use crate::mna::{MnaSystem, NodeVariables};
 
 #[derive(Clone, Copy)]
@@ -15,6 +15,7 @@ pub(crate) enum InductorMode {
         step_seconds: f64,
         start_current_amps: f64,
         start_voltage_volts: f64,
+        integration_method: IntegrationMethod,
     },
 }
 
@@ -45,6 +46,7 @@ impl InductorDevice {
             step_seconds,
             start_current_amps,
             start_voltage_volts,
+            integration_method,
         } = self.mode
         else {
             return Err(component_diagnostic(
@@ -52,8 +54,19 @@ impl InductorDevice {
                 &self.component_id,
             ));
         };
-        let conductance = step_seconds / (2.0 * self.inductance_henries);
-        let history_current = start_current_amps + conductance * start_voltage_volts;
+        let (conductance, history_current) = match integration_method {
+            IntegrationMethod::Trapezoidal => {
+                let conductance = step_seconds / (2.0 * self.inductance_henries);
+                (
+                    conductance,
+                    start_current_amps + conductance * start_voltage_volts,
+                )
+            }
+            IntegrationMethod::BackwardEuler => {
+                let conductance = step_seconds / self.inductance_henries;
+                (conductance, start_current_amps)
+            }
+        };
         if !conductance.is_finite() || conductance <= 0.0 || !history_current.is_finite() {
             return Err(component_diagnostic(
                 DiagnosticCode::InvalidParameter,
@@ -147,6 +160,29 @@ impl Device for InductorDevice {
             component_id: self.component_id.clone(),
             voltage_volts,
             current_amps,
+            extra_values: Vec::new(),
+            state: None,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn backward_euler_companion_uses_the_previous_current_only() {
+        let device = InductorDevice::new(
+            StableId::parse("00000000-0000-4000-8000-000000000001").unwrap(),
+            Terminals { pin1: 0, pin2: 1 },
+            2.0,
+            InductorMode::Transient {
+                step_seconds: 0.5,
+                start_current_amps: 3.0,
+                start_voltage_volts: 7.0,
+                integration_method: IntegrationMethod::BackwardEuler,
+            },
+        );
+        assert_eq!(device.companion().unwrap(), (0.25, 3.0));
     }
 }
