@@ -3,8 +3,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, GeometryEnvelope, RelayContactState,
-    SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
+    ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
+    RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
     devices::{DeviceResult, IntegrationMethod},
     netlist::derive_netlist,
 };
@@ -41,11 +41,20 @@ pub(super) struct RelayState {
     pub(super) last_transition_time_seconds: Option<f64>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct FuseRuntimeState {
+    pub(super) current_amps: f64,
+    pub(super) accumulated_i2t_ampere_squared_seconds: f64,
+    pub(super) state: FuseState,
+    pub(super) last_transition_time_seconds: Option<f64>,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct CircuitStates {
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
+    pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
     pub(super) simulation_time_seconds: f64,
     pub(super) backward_euler_next_step: bool,
 }
@@ -61,6 +70,15 @@ impl CircuitStates {
                 last_transition_time_seconds: relay.last_transition_time_seconds,
             })
             .collect::<Vec<_>>();
+        states.extend(
+            self.fuses
+                .iter()
+                .map(|(component_id, fuse)| DeviceState::Fuse {
+                    component_id: component_id.clone(),
+                    state: fuse.state,
+                    last_transition_time_seconds: fuse.last_transition_time_seconds,
+                }),
+        );
         states.sort_by(|left, right| state_component_id(left).cmp(state_component_id(right)));
         states
     }
@@ -155,10 +173,43 @@ pub(super) fn circuit_states_from_results(
             ))
         })
         .collect();
+    let fuses = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::Fuse { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let Some(DeviceState::Fuse {
+                state,
+                last_transition_time_seconds,
+                ..
+            }) = &result.state
+            else {
+                return None;
+            };
+            let accumulated_i2t_ampere_squared_seconds = result
+                .extra_values
+                .iter()
+                .find(|(key, _)| key == &format!("{id}/accumulated_i2t"))?
+                .1;
+            Some((
+                id.clone(),
+                FuseRuntimeState {
+                    current_amps: result.current_amps,
+                    accumulated_i2t_ampere_squared_seconds,
+                    state: *state,
+                    last_transition_time_seconds: *last_transition_time_seconds,
+                },
+            ))
+        })
+        .collect();
     CircuitStates {
         capacitors,
         inductors,
         relays,
+        fuses,
         simulation_time_seconds,
         backward_euler_next_step: false,
     }
@@ -219,6 +270,7 @@ pub(super) fn advance_public_steps(
                     Vec::new(),
                 )]);
             }
+            let interval_start_states = states.clone();
             let integration_method = if states.backward_euler_next_step {
                 IntegrationMethod::BackwardEuler
             } else {
@@ -239,11 +291,19 @@ pub(super) fn advance_public_steps(
             // The requested recovery method was consumed by this interval. A new
             // relay transition below can schedule another backward-Euler interval.
             candidate.backward_euler_next_step = false;
-            settle_relay_events(
+            let fuse_transitions = accumulate_fuse_i2t(
+                schematic,
+                &interval_start_states,
+                &mut candidate,
+                internal_step_seconds,
+                step_end_time,
+            )?;
+            settle_discrete_events(
                 schematic,
                 geometry,
                 &mut candidate,
                 &mut step_results,
+                fuse_transitions,
                 step_end_time,
                 &mut diagnostics,
             )?;
@@ -255,20 +315,66 @@ pub(super) fn advance_public_steps(
     Ok((results, states, step_start_states, diagnostics))
 }
 
-pub(super) fn settle_relay_events(
+fn accumulate_fuse_i2t(
+    schematic: &Schematic,
+    previous_states: &CircuitStates,
+    current_states: &mut CircuitStates,
+    step_seconds: f64,
+    event_time_seconds: f64,
+) -> Result<Vec<StableId>, Vec<Diagnostic>> {
+    let mut transitions = Vec::new();
+    for component in &schematic.components {
+        let ComponentSpec::Fuse { id, parameters, .. } = component else {
+            continue;
+        };
+        let previous = previous_states.fuses.get(id);
+        if previous.is_some_and(|state| state.state == FuseState::Tripped) {
+            continue;
+        }
+        let old_current = previous.map_or(0.0, |state| state.current_amps);
+        let Some(fuse) = current_states.fuses.get_mut(id) else {
+            continue;
+        };
+        let increment = 0.5
+            * step_seconds
+            * (old_current * old_current + fuse.current_amps * fuse.current_amps);
+        let accumulated = fuse.accumulated_i2t_ampere_squared_seconds + increment;
+        if !increment.is_finite() || !accumulated.is_finite() {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::NonFiniteState,
+                vec![crate::DiagnosticReference::Component {
+                    component_id: id.clone(),
+                }],
+            )]);
+        }
+        fuse.accumulated_i2t_ampere_squared_seconds = accumulated;
+        if fuse.state == FuseState::Intact
+            && accumulated >= parameters.trip_i2t_ampere_squared_seconds
+        {
+            fuse.state = FuseState::Tripped;
+            fuse.last_transition_time_seconds = Some(event_time_seconds);
+            transitions.push(id.clone());
+        }
+    }
+    transitions.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    Ok(transitions)
+}
+
+pub(super) fn settle_discrete_events(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
     states: &mut CircuitStates,
     results: &mut Vec<DeviceResult>,
+    mut fuse_transitions: Vec<StableId>,
     event_time_seconds: f64,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(), Vec<Diagnostic>> {
     const MAX_SAME_TIME_TRANSITIONS: usize = 16;
     let mut seen = HashSet::new();
-    seen.insert(relay_state_vector(states));
+    seen.insert(discrete_state_vector(states, &fuse_transitions));
     let mut same_time_resolves = 0;
     loop {
-        let mut changes = Vec::new();
+        let mut relay_changes = Vec::new();
         for component in &schematic.components {
             let ComponentSpec::RelaySpdt { id, parameters, .. } = component else {
                 continue;
@@ -290,17 +396,20 @@ pub(super) fn settle_relay_events(
                 _ => None,
             };
             if let Some(next_state) = next_state {
-                changes.push((id.clone(), next_state));
+                relay_changes.push((id.clone(), next_state));
             }
         }
-        if changes.is_empty() {
+        if relay_changes.is_empty() && fuse_transitions.is_empty() {
             return Ok(());
         }
-        changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
-        let changed_ids = changes
+        relay_changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
+        let mut changed_ids = relay_changes
             .iter()
             .map(|(component_id, _)| component_id.clone())
             .collect::<Vec<_>>();
+        changed_ids.append(&mut fuse_transitions);
+        changed_ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+        changed_ids.dedup();
         if same_time_resolves >= MAX_SAME_TIME_TRANSITIONS {
             diagnostics.push(Diagnostic::error(
                 DiagnosticCode::EventChatter,
@@ -312,7 +421,7 @@ pub(super) fn settle_relay_events(
             sort_diagnostics(diagnostics);
             return Err(diagnostics.clone());
         }
-        for (component_id, next_state) in changes {
+        for (component_id, next_state) in relay_changes {
             let relay = states
                 .relays
                 .get_mut(&component_id)
@@ -320,8 +429,9 @@ pub(super) fn settle_relay_events(
             relay.state = next_state;
             relay.last_transition_time_seconds = Some(event_time_seconds);
         }
+        fuse_transitions = Vec::new();
         states.backward_euler_next_step = true;
-        let state_vector = relay_state_vector(states);
+        let state_vector = discrete_state_vector(states, &[]);
         if !seen.insert(state_vector) {
             diagnostics.push(Diagnostic::error(
                 DiagnosticCode::EventChatter,
@@ -348,12 +458,27 @@ pub(super) fn settle_relay_events(
     }
 }
 
-fn relay_state_vector(states: &CircuitStates) -> Vec<(String, RelayContactState)> {
+fn discrete_state_vector(
+    states: &CircuitStates,
+    pending_fuse_transitions: &[StableId],
+) -> Vec<(String, u8)> {
     let mut vector = states
         .relays
         .iter()
-        .map(|(id, relay)| (id.as_str().to_owned(), relay.state))
+        .map(|(id, relay)| {
+            (
+                id.as_str().to_owned(),
+                u8::from(relay.state == RelayContactState::Picked),
+            )
+        })
         .collect::<Vec<_>>();
+    vector.extend(states.fuses.iter().map(|(id, fuse)| {
+        let pending = pending_fuse_transitions.iter().any(|pending| pending == id);
+        (
+            id.as_str().to_owned(),
+            u8::from(!pending && fuse.state == FuseState::Tripped),
+        )
+    }));
     vector.sort_by(|left, right| left.0.cmp(&right.0));
     vector
 }
@@ -459,6 +584,17 @@ fn estimate_transient_rate_bound(
                         variable1,
                         variable2,
                         1.0 / resistance_ohms,
+                    )?;
+                }
+                DeviceModel::Fuse {
+                    intact_resistance_ohms,
+                    ..
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / intact_resistance_ohms,
                     )?;
                 }
                 DeviceModel::DcVoltageSource {

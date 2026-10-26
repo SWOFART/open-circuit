@@ -115,7 +115,7 @@ fn rejects_invalid_component_rotations_and_wire_paths() {
 #[test]
 fn catalog_is_authoritative_for_defaults_units_and_domains() {
     let catalog: ComponentCatalog = component_catalog();
-    assert_eq!(catalog.component_types.len(), 5);
+    assert_eq!(catalog.component_types.len(), 6);
 
     let resistor = catalog
         .component_types
@@ -196,6 +196,24 @@ fn catalog_is_authoritative_for_defaults_units_and_domains() {
     assert_eq!(relay.parameters[3].default_value, 0.02);
     assert_eq!(relay.parameters[4].default_value, 0.1);
     assert_eq!(relay.parameters[4].unit, Unit::Ohm);
+
+    let fuse = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::Fuse)
+        .unwrap();
+    assert_eq!(fuse.pins.len(), 2);
+    assert_eq!(fuse.parameters[0].id, ParameterId::IntactResistanceOhms);
+    assert_eq!(fuse.parameters[0].unit, Unit::Ohm);
+    assert_eq!(fuse.parameters[0].default_value, 0.01);
+    assert_eq!(fuse.parameters[0].domain, NumericDomain::StrictlyPositive);
+    assert_eq!(
+        fuse.parameters[1].id,
+        ParameterId::TripI2tAmpereSquaredSeconds
+    );
+    assert_eq!(fuse.parameters[1].unit, Unit::AmpereSquaredSecond);
+    assert_eq!(fuse.parameters[1].default_value, 0.004);
+    assert_eq!(fuse.parameters[1].domain, NumericDomain::StrictlyPositive);
 
     assert!(NumericDomain::NonNegative.accepts(0.0));
     assert!(NumericDomain::Finite.accepts(-5.0));

@@ -109,6 +109,7 @@ fn divider_matches_golden_values_signs_kcl_and_power_balance() {
     assert!(layout.slots.iter().all(|slot| match slot.quantity {
         ResultQuantity::Voltage => slot.unit == Unit::Volt,
         ResultQuantity::Current => slot.unit == Unit::Amp,
+        ResultQuantity::AccumulatedI2t => slot.unit == Unit::AmpereSquaredSecond,
     }));
 
     let source_current = component_value(

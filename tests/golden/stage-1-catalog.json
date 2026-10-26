@@ -120,6 +120,18 @@
         { "id": "dropoutCurrentAmps", "unit": "amp", "defaultValue": 0.02, "domain": "non_negative", "descriptionKey": "component.relaySpdt.dropoutCurrent", "optional": false, "initialCondition": false },
         { "id": "closedContactResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.closedContactResistance", "optional": false, "initialCondition": false }
       ]
+    },
+    {
+      "typeId": "fuse",
+      "displayNameKey": "component.fuse.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "intactResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.fuse.intactResistance", "optional": false, "initialCondition": false },
+        { "id": "tripI2tAmpereSquaredSeconds", "unit": "ampere_squared_second", "defaultValue": 0.004, "domain": "strictly_positive", "descriptionKey": "component.fuse.tripI2t", "optional": false, "initialCondition": false }
+      ]
     }
   ]
 }

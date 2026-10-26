@@ -11,6 +11,7 @@ pub enum ComponentTypeId {
     Capacitor,
     Inductor,
     RelaySpdt,
+    Fuse,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -56,6 +57,8 @@ pub enum ParameterId {
     PickupCurrentAmps,
     DropoutCurrentAmps,
     ClosedContactResistanceOhms,
+    IntactResistanceOhms,
+    TripI2tAmpereSquaredSeconds,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -67,6 +70,7 @@ pub enum Unit {
     Amp,
     Farad,
     Henry,
+    AmpereSquaredSecond,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -323,6 +327,31 @@ pub fn component_catalog() -> ComponentCatalog {
                         default_value: 0.1,
                         domain: NumericDomain::StrictlyPositive,
                         description_key: "component.relaySpdt.closedContactResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Fuse,
+                display_name_key: "component.fuse.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::IntactResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.fuse.intactResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::TripI2tAmpereSquaredSeconds,
+                        unit: Unit::AmpereSquaredSecond,
+                        default_value: 0.004,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.fuse.tripI2t".to_owned(),
                         optional: false,
                         initial_condition: false,
                     },

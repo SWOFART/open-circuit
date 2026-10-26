@@ -45,6 +45,7 @@ describe("component palette", () => {
     expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(
       "relay_spdt",
     );
+    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain("fuse");
     expect(pressed(markup)).toEqual(["Select"]);
   });
 

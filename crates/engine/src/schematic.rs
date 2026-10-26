@@ -93,6 +93,14 @@ pub struct RelayParameters {
     pub closed_contact_resistance_ohms: f64,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "FuseParameters.ts")]
+pub struct FuseParameters {
+    pub intact_resistance_ohms: f64,
+    pub trip_i2t_ampere_squared_seconds: f64,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct InductorParametersInput {
@@ -115,7 +123,7 @@ impl<'de> Deserialize<'de> for InductorParameters {
 }
 
 /// Saved schema version 1 supports resistors, independent voltage sources,
-/// capacitors, inductors, and the additive Stage 4 relay type.
+/// capacitors, inductors, relays, and fuses.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -160,6 +168,13 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: RelayParameters,
     },
+    Fuse {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: FuseParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -169,7 +184,8 @@ impl ComponentSpec {
             | Self::DcVoltageSource { id, .. }
             | Self::Capacitor { id, .. }
             | Self::Inductor { id, .. }
-            | Self::RelaySpdt { id, .. } => id,
+            | Self::RelaySpdt { id, .. }
+            | Self::Fuse { id, .. } => id,
         }
     }
 
@@ -180,6 +196,7 @@ impl ComponentSpec {
             Self::Capacitor { .. } => ComponentTypeId::Capacitor,
             Self::Inductor { .. } => ComponentTypeId::Inductor,
             Self::RelaySpdt { .. } => ComponentTypeId::RelaySpdt,
+            Self::Fuse { .. } => ComponentTypeId::Fuse,
         }
     }
 
@@ -235,6 +252,16 @@ impl ComponentSpec {
                 (
                     ParameterId::ClosedContactResistanceOhms,
                     parameters.closed_contact_resistance_ohms,
+                ),
+            ],
+            Self::Fuse { parameters, .. } => vec![
+                (
+                    ParameterId::IntactResistanceOhms,
+                    parameters.intact_resistance_ohms,
+                ),
+                (
+                    ParameterId::TripI2tAmpereSquaredSeconds,
+                    parameters.trip_i2t_ampere_squared_seconds,
                 ),
             ],
         }
@@ -329,7 +356,8 @@ impl Schematic {
             | ComponentSpec::DcVoltageSource { rotation_deg, .. }
             | ComponentSpec::Capacitor { rotation_deg, .. }
             | ComponentSpec::Inductor { rotation_deg, .. }
-            | ComponentSpec::RelaySpdt { rotation_deg, .. } = component
+            | ComponentSpec::RelaySpdt { rotation_deg, .. }
+            | ComponentSpec::Fuse { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(

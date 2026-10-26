@@ -23,6 +23,7 @@ describe("parseSi", () => {
     ["3.3 V", "volt", 3.3],
     ["10uF", "farad", 0.00001],
     ["2 mH", "henry", 0.002],
+    ["0.004 A²·s", "ampere_squared_second", 0.004],
     ["1e3", "ohm", 1000],
     ["-5", "volt", -5],
     ["10 MOhm", "ohm", 10000000],
@@ -49,6 +50,7 @@ describe("parseSi", () => {
     ["1x", "ohm", "format"],
     ["1 kV", "ohm", "format"],
     ["1 kΩ", "volt", "format"],
+    ["4 mA²·s", "ampere_squared_second", "format"],
     ["1,000.5", "ohm", "format"],
     ["1e999", "ohm", "not-finite"],
     ["9e300 G", "ohm", "not-finite"],
@@ -72,6 +74,7 @@ describe("formatSi", () => {
     [0.000001, "volt", "1 µV"],
     [0.00001, "farad", "10 µF"],
     [0.002, "henry", "2 mH"],
+    [0.004, "ampere_squared_second", "0.004 A²·s"],
     [1.5e12, "ohm", "1500 GΩ"],
   ] as const)("formats %j %s as %j", (value, unit, expected) => {
     expect(formatSi(value, unit)).toBe(expected);

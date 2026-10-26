@@ -11,6 +11,7 @@ export const unitSymbols: Readonly<Record<Unit, string>> = {
   amp: "A",
   farad: "F",
   henry: "H",
+  ampere_squared_second: "A²·s",
 };
 
 const unitWords: Readonly<Record<Unit, readonly string[]>> = {
@@ -19,6 +20,11 @@ const unitWords: Readonly<Record<Unit, readonly string[]>> = {
   amp: ["a", "amp", "amps"],
   farad: ["f", "farad", "farads"],
   henry: ["h", "henry", "henries"],
+  ampere_squared_second: [
+    "a²·s",
+    "ampere squared second",
+    "ampere squared seconds",
+  ],
 };
 
 const prefixes = [
@@ -62,6 +68,10 @@ export const DISPLAY_SIGNIFICANT_DIGITS = 7;
 
 /** Formats an SI value with a prefix, such as `1 kΩ` or `2.499875 V`. */
 export function formatSi(value: number, unit: Unit): string {
+  if (unit === "ampere_squared_second") {
+    return formatWithoutPrefix(value, unitSymbols[unit]);
+  }
+
   return formatWithSymbol(value, unitSymbols[unit]);
 }
 
@@ -87,6 +97,14 @@ export function formatWithSymbol(value: number, symbol: string): string {
   );
 
   return `${mantissa} ${prefix.symbol}${symbol}`;
+}
+
+function formatWithoutPrefix(value: number, symbol: string): string {
+  if (!Number.isFinite(value)) {
+    return "—";
+  }
+
+  return `${Number(value.toPrecision(DISPLAY_SIGNIFICANT_DIGITS))} ${symbol}`;
 }
 
 export type ParseFailure = "empty" | "format" | "not-finite";
@@ -130,7 +148,7 @@ export function parseSi(text: string, unit: Unit): ParseResult {
 
   if (suffix === "" || isUnitWord(suffix, unit)) {
     prefixExponent = 0;
-  } else {
+  } else if (unit !== "ampere_squared_second") {
     const candidate = parsePrefixExponents[suffix.charAt(0)];
     const remainder = suffix.slice(1).trim();
 

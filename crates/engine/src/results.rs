@@ -11,6 +11,7 @@ pub const SIMULATION_TIMESTEP_SECONDS: f64 = 0.001;
 pub enum ResultQuantity {
     Voltage,
     Current,
+    AccumulatedI2t,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]

@@ -11,12 +11,12 @@ use uuid::Uuid;
 
 use crate::{
     AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, Diagnostic, DiagnosticCode,
-    DiagnosticReference, DiagnosticSeverity, GeometryEnvelope, ParameterId, PinId,
+    DiagnosticReference, DiagnosticSeverity, FuseState, GeometryEnvelope, ParameterId, PinId,
     RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
     ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, Schematic, SetParameterRequest,
     SetParameterResult, StableId, TraceBatch, TraceRequest, Unit,
     devices::{
-        CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult,
+        CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
         InductorDevice, InductorMode, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
         component_diagnostic,
     },
@@ -27,7 +27,7 @@ use crate::{
 use trace::TraceHistory;
 use transient::{
     CapacitorState, CircuitStates, InductorState, SolveMode, advance_public_steps,
-    choose_internal_substeps, circuit_states_from_results, settle_relay_events,
+    choose_internal_substeps, circuit_states_from_results, settle_discrete_events,
 };
 
 /// Owns the active compiled run and its latest valid result.
@@ -82,6 +82,9 @@ enum DeviceModel {
         common_node: usize,
         normally_open_node: usize,
         normally_closed_node: usize,
+    },
+    Fuse {
+        intact_resistance_ohms: f64,
     },
 }
 
@@ -514,11 +517,12 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
     };
     diagnostics.extend(initial_diagnostics);
     states = circuit_states_from_results(schematic, &results, 0.0);
-    settle_relay_events(
+    settle_discrete_events(
         schematic,
         geometry,
         &mut states,
         &mut results,
+        Vec::new(),
         0.0,
         &mut diagnostics,
     )?;
@@ -694,6 +698,18 @@ fn local_reference_nodes(
             DeviceModel::Resistor { .. } | DeviceModel::DcVoltageSource { .. } => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
             }
+            DeviceModel::Fuse { .. } => {
+                let fuse_state = match mode {
+                    SolveMode::OperatingPoint => FuseState::Intact,
+                    SolveMode::InitialState(states) | SolveMode::Transient { states, .. } => states
+                        .fuses
+                        .get(&spec.component_id)
+                        .map_or(FuseState::Intact, |state| state.state),
+                };
+                if fuse_state == FuseState::Intact {
+                    connect(spec.terminals.pin1, spec.terminals.pin2);
+                }
+            }
             DeviceModel::Capacitor { .. } if !matches!(mode, SolveMode::OperatingPoint) => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
             }
@@ -854,6 +870,9 @@ fn build_device_specs(
                     normally_closed_node,
                 }
             }
+            ComponentSpec::Fuse { parameters, .. } => DeviceModel::Fuse {
+                intact_resistance_ohms: parameters.intact_resistance_ohms,
+            },
         };
         specs.push(DeviceSpec {
             component_id: component.id().clone(),
@@ -1020,6 +1039,25 @@ fn make_device(
                 contact_state,
                 last_transition_time_seconds,
                 coil_mode,
+            ))
+        }
+        DeviceModel::Fuse {
+            intact_resistance_ohms,
+            ..
+        } => {
+            let state = match mode {
+                SolveMode::OperatingPoint => None,
+                SolveMode::InitialState(states) | SolveMode::Transient { states, .. } => {
+                    states.fuses.get(&spec.component_id)
+                }
+            };
+            Box::new(FuseDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                intact_resistance_ohms,
+                state.map_or(0.0, |state| state.accumulated_i2t_ampere_squared_seconds),
+                state.map_or(FuseState::Intact, |state| state.state),
+                state.and_then(|state| state.last_transition_time_seconds),
             ))
         }
     }
@@ -1428,6 +1466,27 @@ fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagno
                     ResultSignConvention::CurrentIntoPin1,
                 ),
             ]
+        } else if matches!(component, ComponentSpec::Fuse { .. }) {
+            vec![
+                (
+                    ResultQuantity::Voltage,
+                    Unit::Volt,
+                    "voltage",
+                    ResultSignConvention::VoltagePin1MinusPin2,
+                ),
+                (
+                    ResultQuantity::Current,
+                    Unit::Amp,
+                    "current",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+                (
+                    ResultQuantity::AccumulatedI2t,
+                    Unit::AmpereSquaredSecond,
+                    "accumulated_i2t",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+            ]
         } else {
             vec![
                 (
@@ -1445,7 +1504,9 @@ fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagno
             ]
         };
         for (quantity, unit, suffix, sign_convention) in definitions {
-            let key = if matches!(component, ComponentSpec::RelaySpdt { .. }) {
+            let key = if matches!(component, ComponentSpec::RelaySpdt { .. })
+                || (matches!(component, ComponentSpec::Fuse { .. }) && suffix == "accumulated_i2t")
+            {
                 format!("{}/{suffix}", component.id())
             } else {
                 format!("{}:{suffix}", component.id())
@@ -1499,6 +1560,7 @@ fn values_for_layout(
             .unwrap_or_else(|| match slot.quantity {
                 ResultQuantity::Voltage => result.voltage_volts,
                 ResultQuantity::Current => result.current_amps,
+                ResultQuantity::AccumulatedI2t => f64::NAN,
             });
         if value.is_finite() {
             values[slot.offset as usize] = value;
@@ -1558,6 +1620,15 @@ fn update_parameter(
             ParameterId::DropoutCurrentAmps => parameters.dropout_current_amps = value,
             ParameterId::ClosedContactResistanceOhms => {
                 parameters.closed_contact_resistance_ohms = value;
+            }
+            _ => return false,
+        },
+        ComponentSpec::Fuse { parameters, .. } => match parameter_id {
+            ParameterId::IntactResistanceOhms => {
+                parameters.intact_resistance_ohms = value;
+            }
+            ParameterId::TripI2tAmpereSquaredSeconds => {
+                parameters.trip_i2t_ampere_squared_seconds = value;
             }
             _ => return false,
         },
