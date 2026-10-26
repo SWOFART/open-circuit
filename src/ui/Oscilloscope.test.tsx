@@ -474,6 +474,24 @@ describe("a trace never shown for another circuit", () => {
     expect(html).not.toContain("<svg");
   });
 
+  it("says the trace is from the last accepted circuit while an edit is waiting for the engine", () => {
+    const waiting = render({ ...readySimulation(), updating: true }, tracing());
+    const settled = render(readySimulation(), tracing());
+
+    expect(waiting).toContain("has not accepted the latest change yet");
+    expect(waiting).toContain("last circuit it accepted");
+    expect(settled).not.toContain("has not accepted");
+  });
+
+  it("does not claim a pending edit when there is no trace to qualify", () => {
+    const html = render(
+      { ...readySimulation(), updating: true },
+      scopeState({ selectedKeys: [VC] }),
+    );
+
+    expect(html).not.toContain("has not accepted");
+  });
+
   it("still draws after a live parameter update, which keeps the run", () => {
     const html = render(readySimulation(RUN_ID, "rev-2"), tracing());
 
