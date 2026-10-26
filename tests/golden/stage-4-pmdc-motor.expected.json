@@ -1,0 +1,24 @@
+{
+  "fixtureId": "stage4.motor.pmdc_startup",
+  "description": "A permanent-magnet DC motor starts from rest with a zero initial armature current and zero external shaft torque.",
+  "circuit": {
+    "sourceVoltageVolts": 10.0,
+    "sourceInternalResistanceOhms": 0.0,
+    "armatureResistanceOhms": 2.0,
+    "armatureInductanceHenries": 0.1,
+    "motorConstantNewtonMetersPerAmp": 0.1,
+    "rotorInertiaKilogramMetersSquared": 0.01,
+    "viscousFrictionNewtonMeterSecondsPerRadian": 0.01,
+    "loadTorqueNewtonMeters": 0.0,
+    "initialAngularVelocityRadiansPerSecond": 0.0,
+    "initialArmatureCurrentAmps": 0.0
+  },
+  "reference": {
+    "method": "Closed-form solution of the coupled linear electrical/mechanical state equations.",
+    "timeSeconds": 8.0,
+    "angularVelocityRadiansPerSecond": 33.333492588830005,
+    "angularVelocityToleranceRadiansPerSecond": 0.01,
+    "armatureCurrentAmps": 3.3333247054507487,
+    "armatureCurrentToleranceAmps": 0.001
+  }
+}

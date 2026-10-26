@@ -341,6 +341,10 @@ The Rust encoder and decoder (`crates/app/src/frame.rs`) and the TypeScript deco
 written from this section.
 
 A change to this envelope is a contract change. An incompatible change gets a new magic.
+`OCF1` remains the Stage 1 frame format. Stage 4 adds discrete relay/fuse state
+records using the incompatible `OCF2` envelope specified in
+[`stage-4-components.md`](stage-4-components.md); an OCF1 reader must never
+interpret an OCF2 frame as OCF1.
 
 ### 8.3 Trace response envelope
 

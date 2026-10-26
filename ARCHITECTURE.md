@@ -95,7 +95,8 @@ circuit-sim/
 │   ├── contracts/              ← versioned cross-layer contracts
 │   │   ├── stage-1.md
 │   │   ├── stage-2-editor.md
-│   │   └── stage-3-dynamics.md
+│   │   ├── stage-3-dynamics.md
+│   │   └── stage-4-components.md
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -162,6 +163,7 @@ motors spin up. A phasor/AC-analysis mode can be added separately later.
 ### 3.4 Time and integration
 
 - C and L: **companion models** (resistor + source), trapezoidal rule.
+- The PMDC motor's armature current and rotor speed are solved together with the circuit using an **implicit trapezoidal** step. The next-step back EMF uses the next-step speed, and next-step torque uses the next-step current; coupling through only the previous state is not allowed. Its dynamic modes contribute to the existing deterministic internal-substep rate bound.
 - After an event (relay, switch), take one **backward Euler** step: otherwise the trapezoidal rule produces spurious ringing.
 - Start with a fixed physics step of **1 ms** (`timeStepSeconds = 0.001`), with sub-steps only if needed. "Slow down 100x" is the ratio of model time to wall-clock time, not a different step.
 - The lossless parallel LC regression fixture uses C = 100 µF, L = 100 mH,
@@ -178,6 +180,8 @@ motors spin up. A phasor/AC-analysis mode can be added separately later.
   [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md);
   the numerical acceptance of the C/L fixtures is in
   [`docs/physics/models.md`](docs/physics/models.md).
+- Stage 4's relay, fuse, motor, meter, state-frame, and known-answer decisions
+  are specified in [`docs/contracts/stage-4-components.md`](docs/contracts/stage-4-components.md).
 
 ### 3.5 Nonlinear elements
 
@@ -188,20 +192,35 @@ Newton–Raphson inside each step: limit voltage jumps across junctions, with a 
 
 Non-smooth behavior lives in state machines around the solver:
 
-1. step solved → each device gets `update_state(solution, dt)`;
-2. a relay compares coil current against thresholds (hysteresis) and switches its contacts;
-3. a lamp accumulates heat, a fuse integrates ∫I²dt;
-4. a state change → rebuild the matrix and repeat the step at the same point in time (with a retry limit against endless chattering).
+1. Solve an internal step, update continuous device state such as lamp heating,
+   then evaluate relay thresholds and fuse I²t using that accepted
+   pre-transition solution.
+2. Collect simultaneous transitions in canonical component-ID order and apply
+   them together at the same simulation time.
+3. Rebuild and resolve at that time until the discrete state is stable. A
+   repeated state vector or need for a 17th state-changing re-solve produces
+   `EventChatter`, retains the last committed snapshot, and stops the run.
+4. After a relay contact transition or fuse trip, use backward Euler for the
+   first internal step that advances time. Same-time re-solves do not consume
+   that step.
+
+The full event and fuse rules are in
+[`docs/contracts/stage-4-components.md`](docs/contracts/stage-4-components.md).
 
 ### 3.7 Motor
 
-An electromechanical pair. Angular velocity is an additional unknown **inside** the
-equation system: coupling through the previous step explicitly oscillates.
+The first motor is a linear permanent-magnet DC model with armature voltage
+`v = R i + L di/dt + k ω` and rotor equation
+`J dω/dt = k i − b ω + τ_external`. Angular velocity is an unknown inside the
+same equation system as the circuit. Solve the current and speed implicitly
+together each step; the shared SI constant `k` couples back EMF and torque.
+Initial speed/current, loading, units, and the analytical startup fixture are
+defined by [`docs/contracts/stage-4-components.md`](docs/contracts/stage-4-components.md).
 
 ### 3.8 Unrealistic circuits and diagnostics
 
 - Sources have a default internal resistance (e.g. 0.1 Ω): a short circuit produces a large current, not `NaN`. More physical, and it is exactly what students should learn.
-- Structured diagnostics: `ShortCircuit`, `FloatingNode`, `NoGroundReference`. Each unmarked electrical island gets its own local numerical reference; disconnected islands are never joined. The UI highlights the offending parts.
+- Structured diagnostics include `ShortCircuit`, `FloatingNode`, `NoGroundReference`, and Stage 4's `EventChatter` and `NonFiniteState`. Each unmarked electrical island gets its own local numerical reference; disconnected islands are never joined. The UI highlights the offending parts.
 
 ### 3.9 Wire currents (for animation)
 
@@ -212,11 +231,13 @@ not UI. The UI only draws moving dots.
 
 ### 3.10 Units
 
-SI everywhere in `f64` (V, A, Ω, F, H, s). Prefixes (kΩ, µF) only in UI input/display.
+SI everywhere in `f64` (V, A, Ω, F, H, s, rad/s, N·m, kg·m², and derived units).
+Prefixes (kΩ, µF) only in UI input/display.
 
 ### 3.11 Cross-layer contract types
 
-`crates/engine` owns serializable schematic, catalog, diagnostic, layout, and snapshot DTOs.
+`crates/engine` owns serializable schematic, catalog, diagnostic, layout, numeric snapshot,
+and discrete device-state DTOs.
 Generate their TypeScript declarations from the Rust definitions with `ts-rs`; check in
 the output under `src/generated/` and verify it with `pnpm types:check`. Do not hand-edit or
 duplicate these DTOs in TypeScript. The engine remains transport-independent: Tauri commands
@@ -235,17 +256,17 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
                                    ▼
                         latest-snapshot buffer
                                    │
-        Tauri Channel (binary) ────┘──▶ UI (Float64Array)
+        Tauri Channel (binary) ────┘──▶ UI (decoded numeric values + state)
 ```
 
 - Simulation runs in a **separate thread**; the UI never blocks physics.
 - Only the **latest** snapshot is kept: a lagging UI skips frames instead of building a queue.
 - UI delivery is throttled independently to at most **60 frames per wall-clock second** (nominally 16.67 ms). It never changes the 1 ms physics step; a frame may contain a later simulation step than the previous frame.
-- A frame is a binary `f64` array with a fixed layout. When a schematic is compiled, the UI receives a "component → offset" map once. No JSON per frame.
+- Frames use the versioned OCF2 binary envelope: a contiguous numeric `f64` payload plus a bounded typed state table for relays and fuses. When a schematic is compiled, the UI receives a "component → offset" map once. No JSON is sent per frame.
 - The Engine keeps a bounded per-run ring of signal samples at every public 1 ms step (up to 10,000 samples and 16 MiB of values; each retained document revision is at most 256 bytes). The app exposes history and incremental reads through a separate binary Tauri Channel; responses carry run/layout metadata, preserve peaks when decimated, and require acknowledgement before another response is sent.
 - Rust → TS types are generated automatically (`tauri-specta` or `ts-rs`). CI checks that `src/generated/` is up to date.
 - `set_param(id, value)`: a lightweight command that only rebuilds stamps.
-- Topology change: a fast recompile. **State transfer** keyed by component ID (capacitor charge, relay position) is deferred: through Stage 3 every successful compile starts a new run at time zero, initialized as described in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md) section 3.
+- Topology change: a fast recompile. **State transfer** keyed by component ID (capacitor charge, relay position, fuse I²t, and motor speed) is deferred: through Stage 4 every successful compile starts a new run at time zero, initialized as described in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md) and [`docs/contracts/stage-4-components.md`](docs/contracts/stage-4-components.md).
 
 > **Verify in the prototype (step 1):** how well binary transfer through the Tauri 2 `Channel`
 > works in the chosen version. Fallback: a shared buffer via a command returning `Vec<u8>`/`ArrayBuffer` on a timer.

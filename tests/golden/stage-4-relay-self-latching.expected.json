@@ -1,0 +1,37 @@
+{
+  "fixtureId": "stage4.relay.self_latching",
+  "description": "An SPDT relay picks from the start path, remains picked after that path is disabled, and releases after its supply is removed.",
+  "parameters": {
+    "supplyVoltageVolts": 5.0,
+    "triggerResistanceInitialOhms": 1.0,
+    "triggerResistanceAfterSeconds": 0.002,
+    "triggerResistanceAfterOhms": 1e12,
+    "supplyVoltageAfterSeconds": 0.006,
+    "supplyVoltageAfterVolts": 0.0,
+    "coilResistanceOhms": 100.0,
+    "coilInductanceHenries": 0.01,
+    "pickupCurrentAmps": 0.04,
+    "dropoutCurrentAmps": 0.02,
+    "closedContactResistanceOhms": 0.1
+  },
+  "expected": [
+    {
+      "timeSeconds": 0.0,
+      "contactState": "picked",
+      "reason": "The released-state DC solve supplies more than the pickup current; initialization resolves the event before returning the initial snapshot."
+    },
+    {
+      "timeSeconds": 0.005,
+      "contactState": "picked",
+      "coilCurrentAmps": 0.04995004995004995,
+      "coilCurrentToleranceAmps": 0.0001,
+      "reason": "The normally-open contact maintains coil current after the trigger resistance is raised."
+    },
+    {
+      "timeSeconds": 0.007,
+      "contactState": "released",
+      "coilCurrentAmps": 0.0,
+      "coilCurrentToleranceAmps": 0.0001
+    }
+  ]
+}

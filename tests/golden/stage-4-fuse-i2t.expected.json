@@ -1,0 +1,28 @@
+{
+  "fixtureId": "stage4.fuse.i2t_trip",
+  "description": "A constant 2 A current reaches the configured I2t threshold in exactly one 1 ms public step; the open fuse remains reported as tripped.",
+  "circuit": {
+    "sourceVoltageVolts": 2.02,
+    "sourceInternalResistanceOhms": 0.0,
+    "fuseIntactResistanceOhms": 0.01,
+    "fuseTripI2tAmpereSquaredSeconds": 0.004,
+    "loadResistanceOhms": 1.0
+  },
+  "expected": [
+    {
+      "timeSeconds": 0.001,
+      "fuseState": "tripped",
+      "accumulatedI2tAmpereSquaredSeconds": 0.004,
+      "tripTimeToleranceSeconds": 1e-12
+    },
+    {
+      "timeSeconds": 0.002,
+      "fuseState": "tripped",
+      "accumulatedI2tAmpereSquaredSeconds": 0.004,
+      "fuseCurrentAmps": 0.0,
+      "currentToleranceAmps": 1e-12,
+      "fuseVoltageVolts": 2.02,
+      "voltageToleranceVolts": 1e-9
+    }
+  ]
+}

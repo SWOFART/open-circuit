@@ -1,0 +1,22 @@
+{
+  "description": "Independent OCF2 encoding example: two numeric values followed by one relay state record. The UUIDs and values are synthetic and exist only to verify the contract layout.",
+  "frame": {
+    "layoutVersion": 1,
+    "frameSequence": 7,
+    "simulationStep": 10,
+    "simulationTimeSeconds": 0.01,
+    "runId": "00000000-0000-4000-8000-0000000000a0",
+    "documentRevision": "rev-4-abc12",
+    "values": [5.0, 0.05],
+    "states": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "kind": "relay",
+        "state": "picked",
+        "lastTransitionTimeSeconds": 0.0
+      }
+    ]
+  },
+  "encodedLengthBytes": 120,
+  "hex": "4f4346320100000007000000000000000a000000000000007b14ae47e17a843f000000000000400080000000000000a002000000010000000b0000007265762d342d61626331320000000000000014409a9999999999a93f0000000000004000800000000000000101010100000000000000000000000000"
+}

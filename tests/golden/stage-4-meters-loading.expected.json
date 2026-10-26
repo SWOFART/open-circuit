@@ -1,0 +1,22 @@
+{
+  "fixtureId": "stage4.meters.loading",
+  "description": "Finite meter resistance is part of the circuit and measurably changes both readings.",
+  "voltmeterCircuit": {
+    "sourceVoltageVolts": 10.0,
+    "sourceInternalResistanceOhms": 1000000.0,
+    "inputResistanceOhms": 10000000.0,
+    "expectedReadingVolts": 9.090909090909092,
+    "readingToleranceVolts": 1e-9,
+    "expectedInputCurrentAmps": 9.090909090909091e-7,
+    "currentToleranceAmps": 1e-12
+  },
+  "ammeterCircuit": {
+    "sourceVoltageVolts": 10.0,
+    "loadResistanceOhms": 10.0,
+    "burdenResistanceOhms": 1.0,
+    "expectedReadingAmps": 0.9090909090909091,
+    "readingToleranceAmps": 1e-9,
+    "expectedBurdenVoltageVolts": 0.9090909090909091,
+    "voltageToleranceVolts": 1e-9
+  }
+}
