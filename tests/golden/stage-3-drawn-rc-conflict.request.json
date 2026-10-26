@@ -1,0 +1,198 @@
+{
+  "schematic": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 4
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1000
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "typeId": "capacitor",
+        "position": {
+          "x": 8,
+          "y": 4
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "capacitanceFarads": 0.00001,
+          "initialVoltageVolts": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000003"
+      },
+      {
+        "typeId": "capacitor",
+        "position": {
+          "x": 8,
+          "y": 4
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "capacitanceFarads": 0.00001,
+          "initialVoltageVolts": 5
+        },
+        "id": "00000000-0000-4000-8000-000000000008"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "points": [
+          {
+            "x": 0,
+            "y": 3
+          },
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 3,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "points": [
+          {
+            "x": 5,
+            "y": 0
+          },
+          {
+            "x": 5,
+            "y": 3
+          },
+          {
+            "x": 8,
+            "y": 3
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "points": [
+          {
+            "x": 8,
+            "y": 5
+          },
+          {
+            "x": 0,
+            "y": 5
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "position": {
+          "x": 0,
+          "y": 5
+        }
+      }
+    ]
+  },
+  "geometry": {
+    "components": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 0,
+              "y": 3
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 0,
+              "y": 5
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000002",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 3,
+              "y": 0
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 5,
+              "y": 0
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000003",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 8,
+              "y": 3
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 8,
+              "y": 5
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000008",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 8,
+              "y": 3
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 8,
+              "y": 5
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "documentRevision": "rev-1"
+}

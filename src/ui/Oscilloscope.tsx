@@ -414,6 +414,12 @@ export function Oscilloscope({
               {notice.text}
             </p>
           )}
+          {data && status === "ready" && simulation.updating && (
+            <p className="panel-note" role="status">
+              The engine has not accepted the latest change yet. This trace is
+              from the last circuit it accepted.
+            </p>
+          )}
           {data && status === "ready" && (
             <ScopeDisplay
               data={data}

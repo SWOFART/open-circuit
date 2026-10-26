@@ -303,4 +303,133 @@ mod tests {
         assert!(write_project_file(&path, &divider()).is_err());
         assert!(read_project_file(&path).is_err());
     }
+
+    const STAGE_3_SCHEMATICS: [(&str, &str); 6] = [
+        (
+            "rc-charge",
+            include_str!("../../../tests/golden/stage-3-rc-charge.schematic.json"),
+        ),
+        (
+            "rc-discharge",
+            include_str!("../../../tests/golden/stage-3-rc-discharge.schematic.json"),
+        ),
+        (
+            "rl-rise",
+            include_str!("../../../tests/golden/stage-3-rl-rise.schematic.json"),
+        ),
+        (
+            "rl-decay",
+            include_str!("../../../tests/golden/stage-3-rl-decay.schematic.json"),
+        ),
+        (
+            "lossless-lc",
+            include_str!("../../../tests/golden/stage-3-lossless-lc.schematic.json"),
+        ),
+        (
+            "dc-inductor",
+            include_str!("../../../tests/golden/stage-3-dc-inductor.schematic.json"),
+        ),
+    ];
+
+    #[test]
+    fn capacitor_and_inductor_schematics_round_trip_with_their_initial_conditions() {
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+
+        for (name, contents) in STAGE_3_SCHEMATICS {
+            let path = project_path(&directory, name);
+            let expected: Schematic =
+                serde_json::from_str(contents).expect("the Stage 3 fixture should deserialize");
+
+            write_project_file(&path, &expected).expect("the schematic should save");
+
+            let serialized = fs::read_to_string(&path).expect("the project should be readable");
+            for computed in ["snapshot", "layout", "runId", "trace", "history", "values"] {
+                assert!(!serialized.contains(computed), "{name} stores {computed}");
+            }
+            assert_eq!(
+                read_project_file(&path).expect("the project should open"),
+                expected,
+                "{name} does not round-trip"
+            );
+        }
+    }
+
+    #[test]
+    fn an_explicit_zero_initial_condition_is_kept_and_an_unset_one_stays_absent() {
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let stage_3 = |name: &str| {
+            STAGE_3_SCHEMATICS
+                .iter()
+                .find(|(candidate, _)| *candidate == name)
+                .map(|(_, contents)| *contents)
+                .expect("a Stage 3 fixture")
+        };
+
+        // The RC charge capacitor starts at an explicit 0 V and the RL rise inductor at an
+        // explicit 0 A: zero is a value, not "not set".
+        for (name, key) in [
+            ("rc-charge", "initialVoltageVolts"),
+            ("rl-rise", "initialCurrentAmps"),
+        ] {
+            let path = project_path(&directory, name);
+            let schematic: Schematic = serde_json::from_str(stage_3(name)).unwrap();
+            write_project_file(&path, &schematic).unwrap();
+            let saved: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+            let parameters = saved["components"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find_map(|component| component["parameters"].get(key))
+                .unwrap_or_else(|| panic!("{name} lost its explicit {key}"));
+
+            assert_eq!(parameters, &serde_json::json!(0.0));
+            assert_eq!(read_project_file(&path).unwrap(), schematic);
+        }
+
+        // The DC inductor has no initial current: the saved file has no such key, and not
+        // a null either.
+        let path = project_path(&directory, "dc-inductor");
+        let schematic: Schematic = serde_json::from_str(stage_3("dc-inductor")).unwrap();
+        write_project_file(&path, &schematic).unwrap();
+        let serialized = fs::read_to_string(&path).unwrap();
+
+        assert!(!serialized.contains("initialCurrentAmps"));
+        assert!(!serialized.contains("null"));
+    }
+
+    #[test]
+    fn rejects_invalid_capacitor_and_inductor_parameters_on_open() {
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let path = project_path(&directory, "invalid-dynamics");
+        let rc: serde_json::Value = serde_json::from_str(STAGE_3_SCHEMATICS[0].1).unwrap();
+        let capacitor = |edit: &dyn Fn(&mut serde_json::Value)| {
+            let mut document = rc.clone();
+            let component = document["components"]
+                .as_array_mut()
+                .unwrap()
+                .iter_mut()
+                .find(|component| component["typeId"] == "capacitor")
+                .unwrap();
+            edit(&mut component["parameters"]);
+            document
+        };
+
+        for invalid in [
+            // A null initial condition is invalid; unset means absent.
+            capacitor(&|parameters| parameters["initialVoltageVolts"] = serde_json::Value::Null),
+            capacitor(&|parameters| parameters["capacitanceFarads"] = serde_json::json!(0)),
+            capacitor(&|parameters| parameters["capacitanceFarads"] = serde_json::json!(-1e-5)),
+            capacitor(&|parameters| parameters["initialVoltageVolts"] = serde_json::json!("0")),
+            // An inductor's key on a capacitor is unknown.
+            capacitor(&|parameters| parameters["initialCurrentAmps"] = serde_json::json!(0)),
+        ] {
+            fs::write(&path, serde_json::to_vec(&invalid).unwrap()).unwrap();
+
+            assert!(
+                read_project_file(&path).is_err(),
+                "an invalid capacitor was opened: {invalid}"
+            );
+        }
+    }
 }
