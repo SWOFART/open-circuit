@@ -115,7 +115,7 @@ fn rejects_invalid_component_rotations_and_wire_paths() {
 #[test]
 fn catalog_is_authoritative_for_defaults_units_and_domains() {
     let catalog: ComponentCatalog = component_catalog();
-    assert_eq!(catalog.component_types.len(), 6);
+    assert_eq!(catalog.component_types.len(), 7);
 
     let resistor = catalog
         .component_types
@@ -214,6 +214,39 @@ fn catalog_is_authoritative_for_defaults_units_and_domains() {
     assert_eq!(fuse.parameters[1].unit, Unit::AmpereSquaredSecond);
     assert_eq!(fuse.parameters[1].default_value, 0.004);
     assert_eq!(fuse.parameters[1].domain, NumericDomain::StrictlyPositive);
+
+    let motor = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::PmdcMotor)
+        .unwrap();
+    assert_eq!(motor.pins.len(), 2);
+    assert_eq!(motor.parameters[0].id, ParameterId::ArmatureResistanceOhms);
+    assert_eq!(motor.parameters[0].unit, Unit::Ohm);
+    assert_eq!(motor.parameters[0].default_value, 2.0);
+    assert_eq!(
+        motor.parameters[1].id,
+        ParameterId::ArmatureInductanceHenries
+    );
+    assert_eq!(motor.parameters[1].unit, Unit::Henry);
+    assert_eq!(motor.parameters[1].default_value, 0.1);
+    assert_eq!(
+        motor.parameters[2].id,
+        ParameterId::MotorConstantNewtonMetersPerAmp
+    );
+    assert_eq!(motor.parameters[2].unit, Unit::NewtonMeterPerAmp);
+    assert_eq!(motor.parameters[2].default_value, 0.1);
+    assert_eq!(
+        motor.parameters[3].id,
+        ParameterId::RotorInertiaKilogramMetersSquared
+    );
+    assert_eq!(motor.parameters[3].unit, Unit::KilogramMeterSquared);
+    assert_eq!(motor.parameters[3].default_value, 0.01);
+    assert_eq!(motor.parameters[4].domain, NumericDomain::NonNegative);
+    assert_eq!(motor.parameters[5].unit, Unit::NewtonMeter);
+    assert_eq!(motor.parameters[5].domain, NumericDomain::Finite);
+    assert!(motor.parameters[6].optional && motor.parameters[6].initial_condition);
+    assert!(motor.parameters[7].optional && motor.parameters[7].initial_condition);
 
     assert!(NumericDomain::NonNegative.accepts(0.0));
     assert!(NumericDomain::Finite.accepts(-5.0));

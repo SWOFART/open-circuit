@@ -132,6 +132,24 @@
         { "id": "intactResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.fuse.intactResistance", "optional": false, "initialCondition": false },
         { "id": "tripI2tAmpereSquaredSeconds", "unit": "ampere_squared_second", "defaultValue": 0.004, "domain": "strictly_positive", "descriptionKey": "component.fuse.tripI2t", "optional": false, "initialCondition": false }
       ]
+    },
+    {
+      "typeId": "pmdc_motor",
+      "displayNameKey": "component.pmdcMotor.name",
+      "pins": [
+        { "id": "pin1", "role": "positive" },
+        { "id": "pin2", "role": "negative" }
+      ],
+      "parameters": [
+        { "id": "armatureResistanceOhms", "unit": "ohm", "defaultValue": 2.0, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.armatureResistance", "optional": false, "initialCondition": false },
+        { "id": "armatureInductanceHenries", "unit": "henry", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.armatureInductance", "optional": false, "initialCondition": false },
+        { "id": "motorConstantNewtonMetersPerAmp", "unit": "newton_meter_per_amp", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.motorConstant", "optional": false, "initialCondition": false },
+        { "id": "rotorInertiaKilogramMetersSquared", "unit": "kilogram_meter_squared", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.rotorInertia", "optional": false, "initialCondition": false },
+        { "id": "viscousFrictionNewtonMeterSecondsPerRadian", "unit": "newton_meter_second_per_radian", "defaultValue": 0.01, "domain": "non_negative", "descriptionKey": "component.pmdcMotor.viscousFriction", "optional": false, "initialCondition": false },
+        { "id": "loadTorqueNewtonMeters", "unit": "newton_meter", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.loadTorque", "optional": false, "initialCondition": false },
+        { "id": "initialAngularVelocityRadiansPerSecond", "unit": "radian_per_second", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialAngularVelocity", "optional": true, "initialCondition": true },
+        { "id": "initialArmatureCurrentAmps", "unit": "amp", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialArmatureCurrent", "optional": true, "initialCondition": true }
+      ]
     }
   ]
 }

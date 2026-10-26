@@ -4,12 +4,13 @@ import type { DcVoltageSourceParameters } from "./DcVoltageSourceParameters";
 import type { FuseParameters } from "./FuseParameters";
 import type { GridPoint } from "./GridPoint";
 import type { InductorParameters } from "./InductorParameters";
+import type { PmdcMotorParameters } from "./PmdcMotorParameters";
 import type { RelayParameters } from "./RelayParameters";
 import type { ResistorParameters } from "./ResistorParameters";
 import type { StableId } from "./StableId";
 
 /**
  * Saved schema version 1 supports resistors, independent voltage sources,
- * capacitors, inductors, relays, and fuses.
+ * capacitors, inductors, relays, fuses, and permanent-magnet DC motors.
  */
-export type ComponentSpec = { "typeId": "resistor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: ResistorParameters, } | { "typeId": "dc_voltage_source", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: DcVoltageSourceParameters, } | { "typeId": "capacitor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: CapacitorParameters, } | { "typeId": "inductor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: InductorParameters, } | { "typeId": "relay_spdt", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: RelayParameters, } | { "typeId": "fuse", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: FuseParameters, };
+export type ComponentSpec = { "typeId": "resistor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: ResistorParameters, } | { "typeId": "dc_voltage_source", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: DcVoltageSourceParameters, } | { "typeId": "capacitor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: CapacitorParameters, } | { "typeId": "inductor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: InductorParameters, } | { "typeId": "relay_spdt", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: RelayParameters, } | { "typeId": "fuse", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: FuseParameters, } | { "typeId": "pmdc_motor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: PmdcMotorParameters, };

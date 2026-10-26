@@ -12,6 +12,7 @@ pub enum ComponentTypeId {
     Inductor,
     RelaySpdt,
     Fuse,
+    PmdcMotor,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -59,6 +60,14 @@ pub enum ParameterId {
     ClosedContactResistanceOhms,
     IntactResistanceOhms,
     TripI2tAmpereSquaredSeconds,
+    ArmatureResistanceOhms,
+    ArmatureInductanceHenries,
+    MotorConstantNewtonMetersPerAmp,
+    RotorInertiaKilogramMetersSquared,
+    ViscousFrictionNewtonMeterSecondsPerRadian,
+    LoadTorqueNewtonMeters,
+    InitialAngularVelocityRadiansPerSecond,
+    InitialArmatureCurrentAmps,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -71,6 +80,11 @@ pub enum Unit {
     Farad,
     Henry,
     AmpereSquaredSecond,
+    KilogramMeterSquared,
+    NewtonMeter,
+    NewtonMeterPerAmp,
+    NewtonMeterSecondPerRadian,
+    RadianPerSecond,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -354,6 +368,94 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.fuse.tripI2t".to_owned(),
                         optional: false,
                         initial_condition: false,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::PmdcMotor,
+                display_name_key: "component.pmdcMotor.name".to_owned(),
+                pins: vec![
+                    PinDefinition {
+                        id: PinId::Pin1,
+                        role: PinRole::Positive,
+                    },
+                    PinDefinition {
+                        id: PinId::Pin2,
+                        role: PinRole::Negative,
+                    },
+                ],
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::ArmatureResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 2.0,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.armatureResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::ArmatureInductanceHenries,
+                        unit: Unit::Henry,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.armatureInductance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::MotorConstantNewtonMetersPerAmp,
+                        unit: Unit::NewtonMeterPerAmp,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.motorConstant".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::RotorInertiaKilogramMetersSquared,
+                        unit: Unit::KilogramMeterSquared,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.rotorInertia".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::ViscousFrictionNewtonMeterSecondsPerRadian,
+                        unit: Unit::NewtonMeterSecondPerRadian,
+                        default_value: 0.01,
+                        domain: NumericDomain::NonNegative,
+                        description_key: "component.pmdcMotor.viscousFriction".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::LoadTorqueNewtonMeters,
+                        unit: Unit::NewtonMeter,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.pmdcMotor.loadTorque".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::InitialAngularVelocityRadiansPerSecond,
+                        unit: Unit::RadianPerSecond,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.pmdcMotor.initialAngularVelocity".to_owned(),
+                        optional: true,
+                        initial_condition: true,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::InitialArmatureCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.pmdcMotor.initialArmatureCurrent".to_owned(),
+                        optional: true,
+                        initial_condition: true,
                     },
                 ],
             },

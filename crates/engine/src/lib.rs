@@ -28,8 +28,8 @@ pub use results::{
 };
 pub use schematic::{
     ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, FuseParameters, GeometryEnvelope,
-    GridPoint, InductorParameters, JunctionSpec, ReferenceMarkerSpec, RelayParameters,
-    ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION, Schematic, WireSpec,
+    GridPoint, InductorParameters, JunctionSpec, PmdcMotorParameters, ReferenceMarkerSpec,
+    RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION, Schematic, WireSpec,
 };
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");

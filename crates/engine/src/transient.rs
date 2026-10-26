@@ -49,12 +49,20 @@ pub(super) struct FuseRuntimeState {
     pub(super) last_transition_time_seconds: Option<f64>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct MotorState {
+    pub(super) armature_current_amps: f64,
+    pub(super) angular_velocity_radians_per_second: f64,
+    pub(super) voltage_volts: f64,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct CircuitStates {
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
     pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
+    pub(super) motors: HashMap<StableId, MotorState>,
     pub(super) simulation_time_seconds: f64,
     pub(super) backward_euler_next_step: bool,
 }
@@ -205,11 +213,35 @@ pub(super) fn circuit_states_from_results(
             ))
         })
         .collect();
+    let motors = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::PmdcMotor { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let angular_velocity_radians_per_second = result
+                .extra_values
+                .iter()
+                .find(|(key, _)| key == &format!("{id}/angular_velocity"))?
+                .1;
+            Some((
+                id.clone(),
+                MotorState {
+                    armature_current_amps: result.current_amps,
+                    angular_velocity_radians_per_second,
+                    voltage_volts: result.voltage_volts,
+                },
+            ))
+        })
+        .collect();
     CircuitStates {
         capacitors,
         inductors,
         relays,
         fuses,
+        motors,
         simulation_time_seconds,
         backward_euler_next_step: false,
     }
@@ -522,6 +554,23 @@ fn estimate_transient_rate_bound(
         {
             maximum_rate = maximum_rate.max(coil_resistance_ohms / coil_inductance_henries);
         }
+        if let DeviceModel::PmdcMotor {
+            armature_resistance_ohms,
+            armature_inductance_henries,
+            motor_constant_newton_meters_per_amp,
+            rotor_inertia_kilogram_meters_squared,
+            viscous_friction_newton_meter_seconds_per_radian,
+            ..
+        } = spec.model
+        {
+            let coupling_rate = motor_constant_newton_meters_per_amp
+                / (armature_inductance_henries * rotor_inertia_kilogram_meters_squared).sqrt();
+            let electrical_rate = armature_resistance_ohms / armature_inductance_henries;
+            let mechanical_rate = viscous_friction_newton_meter_seconds_per_radian
+                / rotor_inertia_kilogram_meters_squared;
+            maximum_rate = maximum_rate.max(electrical_rate + coupling_rate);
+            maximum_rate = maximum_rate.max(mechanical_rate + coupling_rate);
+        }
     }
 
     for island in &netlist.islands {
@@ -565,7 +614,12 @@ fn estimate_transient_rate_bound(
         let mut capacitance = vec![vec![0.0; dimension]; dimension];
         let inductor_specs = island_specs
             .iter()
-            .filter(|spec| matches!(spec.model, DeviceModel::Inductor { .. }))
+            .filter(|spec| {
+                matches!(
+                    spec.model,
+                    DeviceModel::Inductor { .. } | DeviceModel::PmdcMotor { .. }
+                )
+            })
             .copied()
             .collect::<Vec<_>>();
         let mut incidence = vec![vec![0.0; inductor_specs.len()]; dimension];
@@ -614,6 +668,7 @@ fn estimate_transient_rate_bound(
                     add_laplacian(&mut capacitance, variable1, variable2, capacitance_farads)?;
                 }
                 DeviceModel::Inductor { .. } => {}
+                DeviceModel::PmdcMotor { .. } => {}
                 DeviceModel::RelaySpdt {
                     coil_resistance_ohms,
                     closed_contact_resistance_ohms,
@@ -670,9 +725,33 @@ fn estimate_transient_rate_bound(
                 DeviceModel::Inductor {
                     inductance_henries, ..
                 } => Some(inductance_henries),
+                DeviceModel::PmdcMotor {
+                    armature_inductance_henries,
+                    ..
+                } => Some(armature_inductance_henries),
                 _ => None,
             })
             .collect::<Option<Vec<_>>>()?;
+        let motor_branches = inductor_specs
+            .iter()
+            .enumerate()
+            .filter_map(|(branch, spec)| match spec.model {
+                DeviceModel::PmdcMotor {
+                    armature_resistance_ohms,
+                    motor_constant_newton_meters_per_amp,
+                    rotor_inertia_kilogram_meters_squared,
+                    viscous_friction_newton_meter_seconds_per_radian,
+                    ..
+                } => Some((
+                    branch,
+                    armature_resistance_ohms,
+                    motor_constant_newton_meters_per_amp,
+                    rotor_inertia_kilogram_meters_squared,
+                    viscous_friction_newton_meter_seconds_per_radian,
+                )),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         if dynamic.is_empty() && l_values.is_empty() {
             continue;
         }
@@ -704,9 +783,15 @@ fn estimate_transient_rate_bound(
             let inverse_b = multiply_matrices(&inverse_gaa, &b_algebraic)?;
             reduced_inductor_resistance = multiply_matrices(&transpose(&b_algebraic), &inverse_b)?;
         }
+        for (branch, armature_resistance_ohms, ..) in &motor_branches {
+            reduced_inductor_resistance[*branch][*branch] += *armature_resistance_ohms;
+        }
 
-        let mut state_matrix =
-            vec![vec![0.0; dynamic.len() + l_values.len()]; dynamic.len() + l_values.len()];
+        let motor_state_start = dynamic.len() + l_values.len();
+        let mut state_matrix = vec![
+            vec![0.0; motor_state_start + motor_branches.len()];
+            motor_state_start + motor_branches.len()
+        ];
         if !dynamic.is_empty() {
             let reduced_c = submatrix(&capacitance, &dynamic, &dynamic);
             let inverse_c = invert_matrix(reduced_c)?;
@@ -735,10 +820,26 @@ fn estimate_transient_rate_bound(
             }
         }
 
+        for (motor_index, (branch, _, motor_constant, rotor_inertia, viscous_friction)) in
+            motor_branches.iter().enumerate()
+        {
+            let motor_speed_state = motor_state_start + motor_index;
+            let branch_state = dynamic.len() + *branch;
+            state_matrix[branch_state][motor_speed_state] = -*motor_constant / l_values[*branch];
+            state_matrix[motor_speed_state][branch_state] = *motor_constant / *rotor_inertia;
+            state_matrix[motor_speed_state][motor_speed_state] =
+                -*viscous_friction / *rotor_inertia;
+        }
+
         let scales = dynamic
             .iter()
             .map(|index| capacitance[*index][*index].sqrt())
             .chain(l_values.iter().map(|inductance| inductance.sqrt()))
+            .chain(
+                motor_branches
+                    .iter()
+                    .map(|(_, _, _, inertia, _)| inertia.sqrt()),
+            )
             .collect::<Vec<_>>();
         if scales
             .iter()

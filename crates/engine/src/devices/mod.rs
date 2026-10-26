@@ -3,6 +3,7 @@
 mod capacitor;
 mod fuse;
 mod inductor;
+mod motor;
 mod relay;
 mod resistor;
 mod source;
@@ -14,6 +15,7 @@ use super::mna::{MnaSystem, NodeVariables};
 pub(crate) use capacitor::{CapacitorDevice, CapacitorMode};
 pub(crate) use fuse::FuseDevice;
 pub(crate) use inductor::{InductorDevice, InductorMode};
+pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};
 pub(crate) use relay::{RelayCoilMode, RelayDevice};
 pub(crate) use resistor::ResistorDevice;
 pub(crate) use source::DcVoltageSourceDevice;

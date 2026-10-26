@@ -144,6 +144,55 @@ impl MnaSystem {
         self.add_rhs(branch_variable, voltage_volts)
     }
 
+    /// Adds a branch-current unknown to terminal KCL equations without adding
+    /// any constitutive equation for that branch.
+    pub(crate) fn stamp_branch_current(
+        &mut self,
+        variables: &NodeVariables,
+        pin1_node: usize,
+        pin2_node: usize,
+        branch_variable: usize,
+    ) -> bool {
+        if branch_variable >= self.rhs.len() {
+            return false;
+        }
+        let pin1 = variables.voltage_variable(pin1_node);
+        let pin2 = variables.voltage_variable(pin2_node);
+        if let Some(pin1) = pin1
+            && !self.add_matrix(pin1, branch_variable, 1.0)
+        {
+            return false;
+        }
+        if let Some(pin2) = pin2
+            && !self.add_matrix(pin2, branch_variable, -1.0)
+        {
+            return false;
+        }
+        true
+    }
+
+    /// Adds a general linear equation over MNA unknowns, used by coupled
+    /// multiphysics devices with more than one state variable.
+    pub(crate) fn stamp_linear_equation(
+        &mut self,
+        row_variable: usize,
+        terms: &[(usize, f64)],
+        right_hand_side: f64,
+    ) -> bool {
+        if row_variable >= self.rhs.len() || !right_hand_side.is_finite() {
+            return false;
+        }
+        for (column, coefficient) in terms {
+            if *column >= self.rhs.len() {
+                return false;
+            }
+            if !self.add_matrix(row_variable, *column, *coefficient) {
+                return false;
+            }
+        }
+        self.add_rhs(row_variable, right_hand_side)
+    }
+
     pub(crate) fn solve(&self) -> Result<SolverSolution, SolverError> {
         DenseLuSolver::default().solve(&self.matrix, &self.rhs)
     }

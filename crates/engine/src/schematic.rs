@@ -101,6 +101,60 @@ pub struct FuseParameters {
     pub trip_i2t_ampere_squared_seconds: f64,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "PmdcMotorParameters.ts")]
+pub struct PmdcMotorParameters {
+    pub armature_resistance_ohms: f64,
+    pub armature_inductance_henries: f64,
+    pub motor_constant_newton_meters_per_amp: f64,
+    pub rotor_inertia_kilogram_meters_squared: f64,
+    pub viscous_friction_newton_meter_seconds_per_radian: f64,
+    pub load_torque_newton_meters: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub initial_angular_velocity_radians_per_second: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub initial_armature_current_amps: Option<f64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct PmdcMotorParametersInput {
+    armature_resistance_ohms: f64,
+    armature_inductance_henries: f64,
+    motor_constant_newton_meters_per_amp: f64,
+    rotor_inertia_kilogram_meters_squared: f64,
+    viscous_friction_newton_meter_seconds_per_radian: f64,
+    load_torque_newton_meters: f64,
+    #[serde(default, deserialize_with = "deserialize_optional_non_null_f64")]
+    initial_angular_velocity_radians_per_second: Option<f64>,
+    #[serde(default, deserialize_with = "deserialize_optional_non_null_f64")]
+    initial_armature_current_amps: Option<f64>,
+}
+
+impl<'de> Deserialize<'de> for PmdcMotorParameters {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let input = PmdcMotorParametersInput::deserialize(deserializer)?;
+        Ok(Self {
+            armature_resistance_ohms: input.armature_resistance_ohms,
+            armature_inductance_henries: input.armature_inductance_henries,
+            motor_constant_newton_meters_per_amp: input.motor_constant_newton_meters_per_amp,
+            rotor_inertia_kilogram_meters_squared: input.rotor_inertia_kilogram_meters_squared,
+            viscous_friction_newton_meter_seconds_per_radian: input
+                .viscous_friction_newton_meter_seconds_per_radian,
+            load_torque_newton_meters: input.load_torque_newton_meters,
+            initial_angular_velocity_radians_per_second: input
+                .initial_angular_velocity_radians_per_second,
+            initial_armature_current_amps: input.initial_armature_current_amps,
+        })
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct InductorParametersInput {
@@ -123,7 +177,7 @@ impl<'de> Deserialize<'de> for InductorParameters {
 }
 
 /// Saved schema version 1 supports resistors, independent voltage sources,
-/// capacitors, inductors, relays, and fuses.
+/// capacitors, inductors, relays, fuses, and permanent-magnet DC motors.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -175,6 +229,13 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: FuseParameters,
     },
+    PmdcMotor {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: PmdcMotorParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -185,7 +246,8 @@ impl ComponentSpec {
             | Self::Capacitor { id, .. }
             | Self::Inductor { id, .. }
             | Self::RelaySpdt { id, .. }
-            | Self::Fuse { id, .. } => id,
+            | Self::Fuse { id, .. }
+            | Self::PmdcMotor { id, .. } => id,
         }
     }
 
@@ -197,6 +259,7 @@ impl ComponentSpec {
             Self::Inductor { .. } => ComponentTypeId::Inductor,
             Self::RelaySpdt { .. } => ComponentTypeId::RelaySpdt,
             Self::Fuse { .. } => ComponentTypeId::Fuse,
+            Self::PmdcMotor { .. } => ComponentTypeId::PmdcMotor,
         }
     }
 
@@ -264,6 +327,41 @@ impl ComponentSpec {
                     parameters.trip_i2t_ampere_squared_seconds,
                 ),
             ],
+            Self::PmdcMotor { parameters, .. } => {
+                let mut values = vec![
+                    (
+                        ParameterId::ArmatureResistanceOhms,
+                        parameters.armature_resistance_ohms,
+                    ),
+                    (
+                        ParameterId::ArmatureInductanceHenries,
+                        parameters.armature_inductance_henries,
+                    ),
+                    (
+                        ParameterId::MotorConstantNewtonMetersPerAmp,
+                        parameters.motor_constant_newton_meters_per_amp,
+                    ),
+                    (
+                        ParameterId::RotorInertiaKilogramMetersSquared,
+                        parameters.rotor_inertia_kilogram_meters_squared,
+                    ),
+                    (
+                        ParameterId::ViscousFrictionNewtonMeterSecondsPerRadian,
+                        parameters.viscous_friction_newton_meter_seconds_per_radian,
+                    ),
+                    (
+                        ParameterId::LoadTorqueNewtonMeters,
+                        parameters.load_torque_newton_meters,
+                    ),
+                ];
+                if let Some(value) = parameters.initial_angular_velocity_radians_per_second {
+                    values.push((ParameterId::InitialAngularVelocityRadiansPerSecond, value));
+                }
+                if let Some(value) = parameters.initial_armature_current_amps {
+                    values.push((ParameterId::InitialArmatureCurrentAmps, value));
+                }
+                values
+            }
         }
     }
 }
@@ -357,7 +455,8 @@ impl Schematic {
             | ComponentSpec::Capacitor { rotation_deg, .. }
             | ComponentSpec::Inductor { rotation_deg, .. }
             | ComponentSpec::RelaySpdt { rotation_deg, .. }
-            | ComponentSpec::Fuse { rotation_deg, .. } = component
+            | ComponentSpec::Fuse { rotation_deg, .. }
+            | ComponentSpec::PmdcMotor { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(

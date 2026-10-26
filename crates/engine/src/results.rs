@@ -12,6 +12,7 @@ pub enum ResultQuantity {
     Voltage,
     Current,
     AccumulatedI2t,
+    AngularVelocity,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]

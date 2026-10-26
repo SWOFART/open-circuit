@@ -110,6 +110,7 @@ fn divider_matches_golden_values_signs_kcl_and_power_balance() {
         ResultQuantity::Voltage => slot.unit == Unit::Volt,
         ResultQuantity::Current => slot.unit == Unit::Amp,
         ResultQuantity::AccumulatedI2t => slot.unit == Unit::AmpereSquaredSecond,
+        ResultQuantity::AngularVelocity => slot.unit == Unit::RadianPerSecond,
     }));
 
     let source_current = component_value(
