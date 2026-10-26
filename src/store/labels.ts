@@ -8,6 +8,11 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   dc_voltage_source: "V",
   capacitor: "C",
   inductor: "L",
+  relay_spdt: "K",
+  fuse: "F",
+  pmdc_motor: "M",
+  voltmeter: "VM",
+  ammeter: "AM",
 };
 
 /**

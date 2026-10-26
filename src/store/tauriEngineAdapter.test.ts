@@ -280,7 +280,7 @@ describe("the frame stream", () => {
 
     expect(frames).toEqual([]);
     expect(errors).toHaveLength(1);
-    expect(errors[0]?.message).toMatch(/OCF1 magic/);
+    expect(errors[0]?.message).toMatch(/OCF2 magic/);
     expect(commandsCalled()).not.toContain("acknowledge_frame");
   });
 

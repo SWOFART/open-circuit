@@ -41,8 +41,11 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
-    // Every catalog type now has a symbol, so every one is offered.
-    expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
+    // Engine-only catalog entries remain unavailable until the editor has a symbol.
+    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(
+      "relay_spdt",
+    );
+    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain("fuse");
     expect(pressed(markup)).toEqual(["Select"]);
   });
 

@@ -1,42 +1,50 @@
 //! Binary frame envelope sent over the Tauri channel.
 //!
-//! The layout is specified in `docs/contracts/stage-1.md` section 8. All integers and
-//! floats are little-endian. A frame is a fixed 56-byte header, the UTF-8 document revision,
-//! zero padding up to a multiple of eight bytes, and then the numeric payload: exactly
-//! `value_count` IEEE-754 binary64 values with no header or padding of their own.
+//! The Stage 4 OCF2 layout is specified in `docs/contracts/stage-4-components.md` section 5.
+//! Numeric values and discrete device state share one frame and one sequence number.
 //!
 //! ```text
 //! offset size field
-//!      0    4 magic "OCF1" (frame format version 1)
+//!      0    4 magic "OCF2" (frame format version 2)
 //!      4    4 layoutVersion, u32
 //!      8    8 frameSequence, u64
 //!     16    8 simulationStep, u64
 //!     24    8 simulationTimeSeconds, f64
 //!     32   16 runId, the UUID as 16 raw bytes
 //!     48    4 valueCount, u32
-//!     52    4 revisionLength, u32 (UTF-8 bytes)
-//!     56    n documentRevision
-//!   56+n    p zero padding so the payload starts at a multiple of 8
+//!     52    4 stateCount, u32
+//!     56    4 revisionLength, u32 (UTF-8 bytes)
+//!     60    n documentRevision
+//!   60+n    p zero padding so the payload starts at a multiple of 8
 //!      …  8*c payload: valueCount f64 values
+//!      … 32*s payload: stateCount typed device-state records
 //! ```
 
 use std::fmt;
 
-use open_circuit_engine::{FrameMetadata, ResultSnapshot, StableId};
+use open_circuit_engine::{
+    DeviceState, FrameMetadata, FuseState, RelayContactState, ResultSnapshot, StableId,
+};
 use uuid::Uuid;
 
-pub const MAGIC: [u8; 4] = *b"OCF1";
-pub const FIXED_HEADER_LEN: usize = 56;
+pub const MAGIC: [u8; 4] = *b"OCF2";
+pub const FIXED_HEADER_LEN: usize = 60;
 /// Revision tokens are opaque; the bridge bounds them so a frame stays small.
 pub const MAX_REVISION_BYTES: usize = 256;
 /// Far above any Stage 1 layout; guards the length arithmetic and allocation.
 pub const MAX_VALUE_COUNT: usize = 65_536;
+pub const MAX_STATE_COUNT: usize = 32_768;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum FrameError {
     InvalidRunId,
     RevisionTooLong { length: usize },
     TooManyValues { count: usize },
+    TooManyStates { count: usize },
+    InvalidState,
+    UnsortedStates,
+    InvalidTransitionTime,
+    NonZeroReserved,
     NonFiniteValue,
     NonFiniteTime,
     Truncated { length: usize },
@@ -58,13 +66,26 @@ impl fmt::Display for FrameError {
                 formatter,
                 "the frame has {count} values; the limit is {MAX_VALUE_COUNT}"
             ),
+            Self::TooManyStates { count } => write!(
+                formatter,
+                "the frame has {count} state records; the limit is {MAX_STATE_COUNT}"
+            ),
+            Self::InvalidState => formatter.write_str("a device-state record is invalid"),
+            Self::UnsortedStates => formatter
+                .write_str("device-state records are duplicated or not ordered by UUID bytes"),
+            Self::InvalidTransitionTime => {
+                formatter.write_str("a device-state transition time is invalid or in the future")
+            }
+            Self::NonZeroReserved => {
+                formatter.write_str("a device-state reserved field is not zero")
+            }
             Self::NonFiniteValue => formatter.write_str("a frame value is not finite"),
             Self::NonFiniteTime => formatter.write_str("the simulation time is not finite"),
             Self::Truncated { length } => write!(
                 formatter,
                 "a frame needs at least {FIXED_HEADER_LEN} bytes, found {length}"
             ),
-            Self::BadMagic => formatter.write_str("the frame does not start with the OCF1 magic"),
+            Self::BadMagic => formatter.write_str("the frame does not start with the OCF2 magic"),
             Self::LengthMismatch { expected, actual } => write!(
                 formatter,
                 "the frame is {actual} bytes but its header describes {expected}"
@@ -101,6 +122,11 @@ pub fn encode_frame(snapshot: &ResultSnapshot) -> Result<Vec<u8>, FrameError> {
             count: snapshot.values.len(),
         });
     }
+    if snapshot.states.len() > MAX_STATE_COUNT {
+        return Err(FrameError::TooManyStates {
+            count: snapshot.states.len(),
+        });
+    }
 
     if !metadata.simulation_time_seconds.is_finite() {
         return Err(FrameError::NonFiniteTime);
@@ -111,7 +137,9 @@ pub fn encode_frame(snapshot: &ResultSnapshot) -> Result<Vec<u8>, FrameError> {
     }
 
     let payload_start = payload_offset(revision.len());
-    let mut bytes = Vec::with_capacity(payload_start + 8 * snapshot.values.len());
+    let state_bytes = encode_states(&snapshot.states, metadata.simulation_time_seconds)?;
+    let mut bytes =
+        Vec::with_capacity(payload_start + 8 * snapshot.values.len() + state_bytes.len());
     bytes.extend_from_slice(&MAGIC);
     bytes.extend_from_slice(&metadata.layout_version.to_le_bytes());
     bytes.extend_from_slice(&metadata.frame_sequence.to_le_bytes());
@@ -120,6 +148,7 @@ pub fn encode_frame(snapshot: &ResultSnapshot) -> Result<Vec<u8>, FrameError> {
     bytes.extend_from_slice(run_id.as_bytes());
     // Both lengths are bounded above, so they fit in u32.
     bytes.extend_from_slice(&(snapshot.values.len() as u32).to_le_bytes());
+    bytes.extend_from_slice(&(snapshot.states.len() as u32).to_le_bytes());
     bytes.extend_from_slice(&(revision.len() as u32).to_le_bytes());
     bytes.extend_from_slice(revision);
     bytes.resize(payload_start, 0);
@@ -127,8 +156,62 @@ pub fn encode_frame(snapshot: &ResultSnapshot) -> Result<Vec<u8>, FrameError> {
     for value in &snapshot.values {
         bytes.extend_from_slice(&value.to_le_bytes());
     }
+    bytes.extend_from_slice(&state_bytes);
 
     Ok(bytes)
+}
+
+fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>, FrameError> {
+    let mut encoded = Vec::with_capacity(states.len() * 32);
+    let mut previous = None;
+    for state in states {
+        let (component_id, kind, value, transition) = match state {
+            DeviceState::Relay {
+                component_id,
+                state,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                1_u8,
+                match state {
+                    RelayContactState::Released => 0_u8,
+                    RelayContactState::Picked => 1,
+                },
+                *last_transition_time_seconds,
+            ),
+            DeviceState::Fuse {
+                component_id,
+                state,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                2_u8,
+                match state {
+                    FuseState::Intact => 0_u8,
+                    FuseState::Tripped => 1,
+                },
+                *last_transition_time_seconds,
+            ),
+        };
+        let uuid = Uuid::parse_str(component_id.as_str()).map_err(|_| FrameError::InvalidState)?;
+        let bytes = *uuid.as_bytes();
+        if previous.is_some_and(|last| last >= bytes) {
+            return Err(FrameError::UnsortedStates);
+        }
+        previous = Some(bytes);
+        if transition.is_some_and(|time| !time.is_finite() || time > simulation_time || time < 0.0)
+        {
+            return Err(FrameError::InvalidTransitionTime);
+        }
+        encoded.extend_from_slice(&bytes);
+        encoded.push(kind);
+        encoded.push(value);
+        encoded
+            .extend_from_slice(&(if transition.is_some() { 1_u16 } else { 0_u16 }).to_le_bytes());
+        encoded.extend_from_slice(&[0; 4]);
+        encoded.extend_from_slice(&transition.unwrap_or(0.0).to_le_bytes());
+    }
+    Ok(encoded)
 }
 
 fn read_u32(bytes: &[u8], offset: usize) -> u32 {
@@ -160,7 +243,8 @@ pub fn decode_frame(bytes: &[u8]) -> Result<ResultSnapshot, FrameError> {
     }
 
     let value_count = read_u32(bytes, 48) as usize;
-    let revision_len = read_u32(bytes, 52) as usize;
+    let state_count = read_u32(bytes, 52) as usize;
+    let revision_len = read_u32(bytes, 56) as usize;
 
     if revision_len > MAX_REVISION_BYTES {
         return Err(FrameError::RevisionTooLong {
@@ -171,9 +255,12 @@ pub fn decode_frame(bytes: &[u8]) -> Result<ResultSnapshot, FrameError> {
     if value_count > MAX_VALUE_COUNT {
         return Err(FrameError::TooManyValues { count: value_count });
     }
+    if state_count > MAX_STATE_COUNT {
+        return Err(FrameError::TooManyStates { count: state_count });
+    }
 
     let payload_start = payload_offset(revision_len);
-    let expected = payload_start + 8 * value_count;
+    let expected = payload_start + 8 * value_count + 32 * state_count;
 
     if bytes.len() != expected {
         return Err(FrameError::LengthMismatch {
@@ -205,7 +292,8 @@ pub fn decode_frame(bytes: &[u8]) -> Result<ResultSnapshot, FrameError> {
     }
 
     // The length check above guarantees the payload is a whole number of 8-byte values.
-    let (chunks, _) = bytes[payload_start..].as_chunks::<8>();
+    let state_start = payload_start + 8 * value_count;
+    let (chunks, _) = bytes[payload_start..state_start].as_chunks::<8>();
     let values: Vec<f64> = chunks
         .iter()
         .map(|chunk| f64::from_le_bytes(*chunk))
@@ -214,6 +302,8 @@ pub fn decode_frame(bytes: &[u8]) -> Result<ResultSnapshot, FrameError> {
     if values.iter().any(|value| !value.is_finite()) {
         return Err(FrameError::NonFiniteValue);
     }
+
+    let states = decode_states(&bytes[state_start..], state_count, simulation_time_seconds)?;
 
     let run_id = Uuid::from_slice(&bytes[32..48])
         .ok()
@@ -230,5 +320,72 @@ pub fn decode_frame(bytes: &[u8]) -> Result<ResultSnapshot, FrameError> {
             frame_sequence: read_u64(bytes, 8),
         },
         values,
+        states,
     })
+}
+
+fn decode_states(
+    bytes: &[u8],
+    count: usize,
+    simulation_time: f64,
+) -> Result<Vec<DeviceState>, FrameError> {
+    let mut states = Vec::with_capacity(count);
+    let mut previous = None;
+    let (records, remainder) = bytes.as_chunks::<32>();
+    debug_assert!(
+        remainder.is_empty(),
+        "frame length is validated before state decoding"
+    );
+    for record in records {
+        let uuid_bytes: [u8; 16] = record[0..16]
+            .try_into()
+            .expect("state record length is fixed");
+        if previous.is_some_and(|last| last >= uuid_bytes) {
+            return Err(FrameError::UnsortedStates);
+        }
+        previous = Some(uuid_bytes);
+        let kind = record[16];
+        let value = record[17];
+        let flags = u16::from_le_bytes(record[18..20].try_into().expect("state record is fixed"));
+        if flags & !1 != 0 {
+            return Err(FrameError::InvalidState);
+        }
+        if record[20..24].iter().any(|byte| *byte != 0) {
+            return Err(FrameError::NonZeroReserved);
+        }
+        let time = f64::from_le_bytes(record[24..32].try_into().expect("state record is fixed"));
+        let has_time = flags & 1 != 0;
+        if (has_time && (!time.is_finite() || time < 0.0 || time > simulation_time))
+            || (!has_time && time.to_bits() != 0)
+        {
+            return Err(FrameError::InvalidTransitionTime);
+        }
+        let component_id = StableId::parse(Uuid::from_bytes(uuid_bytes).hyphenated().to_string())
+            .map_err(|_| FrameError::InvalidState)?;
+        let transition = has_time.then_some(time);
+        states.push(match (kind, value) {
+            (1, 0) => DeviceState::Relay {
+                component_id,
+                state: RelayContactState::Released,
+                last_transition_time_seconds: transition,
+            },
+            (1, 1) => DeviceState::Relay {
+                component_id,
+                state: RelayContactState::Picked,
+                last_transition_time_seconds: transition,
+            },
+            (2, 0) => DeviceState::Fuse {
+                component_id,
+                state: FuseState::Intact,
+                last_transition_time_seconds: transition,
+            },
+            (2, 1) => DeviceState::Fuse {
+                component_id,
+                state: FuseState::Tripped,
+                last_transition_time_seconds: transition,
+            },
+            _ => return Err(FrameError::InvalidState),
+        });
+    }
+    Ok(states)
 }

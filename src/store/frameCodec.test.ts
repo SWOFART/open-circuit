@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import frameFixture from "../../tests/golden/stage-1-frame.json";
+import stateFrameFixture from "../../tests/golden/stage-4-frame.json";
 import {
   FIXED_HEADER_LENGTH,
   FrameDecodeError,
   MAX_REVISION_BYTES,
+  MAX_STATE_COUNT,
   MAX_VALUE_COUNT,
   decodeFrame,
   payloadOffset,
@@ -31,14 +33,15 @@ function buildFrame(revision: string, values: number[]): ArrayBuffer {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
 
-  bytes.set([0x4f, 0x43, 0x46, 0x31], 0);
+  bytes.set([0x4f, 0x43, 0x46, 0x32], 0);
   view.setUint32(4, 1, true);
   view.setBigUint64(8, 2n, true);
   view.setBigUint64(16, 7n, true);
   view.setFloat64(24, 0.007, true);
   bytes.set([0, 0, 0, 0, 0, 0, 0x40, 0, 0x80, 0, 0, 0, 0, 0, 0, 0xa0], 32);
   view.setUint32(48, values.length, true);
-  view.setUint32(52, revisionBytes.length, true);
+  view.setUint32(52, 0, true);
+  view.setUint32(56, revisionBytes.length, true);
   bytes.set(revisionBytes, FIXED_HEADER_LENGTH);
   values.forEach((value, index) =>
     view.setFloat64(start + 8 * index, value, true),
@@ -72,6 +75,13 @@ describe("decoding the golden frame", () => {
       expected.metadata.simulationTimeSeconds,
     );
     expect(frame.values).toEqual(expected.values);
+    expect(frame.states).toEqual([]);
+  });
+
+  it("decodes the independently encoded OCF2 discrete-state record", () => {
+    const frame = decodeFrame(fromHex(stateFrameFixture.hex));
+    expect(frame.values).toEqual(stateFrameFixture.frame.values);
+    expect(frame.states).toEqual(stateFrameFixture.frame.states);
   });
 
   it("returns 64-bit counters as bigint so they never lose precision", () => {
@@ -134,7 +144,7 @@ describe("frame layout", () => {
 
 describe("refusing corrupted frames", () => {
   it("refuses frames shorter than the header", () => {
-    decodingFails(golden().subarray(0, FIXED_HEADER_LENGTH - 1), /at least 56/);
+    decodingFails(golden().subarray(0, FIXED_HEADER_LENGTH - 1), /at least 60/);
     expect(() => decodeFrame(new ArrayBuffer(0))).toThrow(FrameDecodeError);
   });
 
@@ -142,7 +152,7 @@ describe("refusing corrupted frames", () => {
     const bytes = golden();
     bytes[0] = 0x58;
 
-    decodingFails(bytes, /OCF1 magic/);
+    decodingFails(bytes, /OCF2 magic/);
   });
 
   it("refuses a frame whose length disagrees with its header", () => {
@@ -154,14 +164,14 @@ describe("refusing corrupted frames", () => {
 
   it("refuses non-zero padding", () => {
     const bytes = golden();
-    bytes[56 + 11] = 1;
+    bytes[60 + 11] = 1;
 
     decodingFails(bytes, /padding is not zero/);
   });
 
   it("refuses an invalid UTF-8 revision", () => {
     const bytes = golden();
-    bytes[56] = 0xff;
+    bytes[60] = 0xff;
 
     decodingFails(bytes, /not valid UTF-8/);
   });
@@ -188,8 +198,40 @@ describe("refusing corrupted frames", () => {
     decodingFails(hugeCount, new RegExp(`limit is ${MAX_VALUE_COUNT}`));
 
     const hugeRevision = golden();
-    new DataView(hugeRevision.buffer).setUint32(52, 0xffffffff, true);
+    new DataView(hugeRevision.buffer).setUint32(56, 0xffffffff, true);
     decodingFails(hugeRevision, /limit is 256/);
+
+    const hugeStateCount = golden();
+    new DataView(hugeStateCount.buffer).setUint32(52, 0xffffffff, true);
+    decodingFails(hugeStateCount, new RegExp(`limit is ${MAX_STATE_COUNT}`));
+  });
+
+  it("refuses malformed state records", () => {
+    const fixture = new Uint8Array(fromHex(stateFrameFixture.hex));
+    const stateOffset = payloadOffset(11) + 16;
+    for (const [relativeOffset, value] of [
+      [16, 3],
+      [17, 2],
+    ] as const) {
+      const bytes = fixture.slice();
+      bytes[stateOffset + relativeOffset] = value;
+      decodingFails(bytes, /unknown kind or value/);
+    }
+    const badFlags = fixture.slice();
+    new DataView(badFlags.buffer).setUint16(stateOffset + 18, 2, true);
+    decodingFails(badFlags, /unknown flag bits/);
+
+    const reserved = fixture.slice();
+    reserved[stateOffset + 20] = 1;
+    decodingFails(reserved, /reserved field is not zero/);
+
+    const futureTransition = fixture.slice();
+    new DataView(futureTransition.buffer).setFloat64(
+      stateOffset + 24,
+      0.02,
+      true,
+    );
+    decodingFails(futureTransition, /transition time is invalid/);
   });
 
   it("renders any 16 bytes as a lowercase hyphenated run ID", () => {

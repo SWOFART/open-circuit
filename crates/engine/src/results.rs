@@ -5,12 +5,14 @@ use crate::{Diagnostic, GeometryEnvelope, ParameterId, Schematic, StableId, Unit
 
 pub const SIMULATION_TIMESTEP_SECONDS: f64 = 0.001;
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "ResultQuantity.ts")]
 pub enum ResultQuantity {
     Voltage,
     Current,
+    AccumulatedI2t,
+    AngularVelocity,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -19,6 +21,48 @@ pub enum ResultQuantity {
 pub enum ResultSignConvention {
     VoltagePin1MinusPin2,
     CurrentIntoPin1,
+    PositiveRotationWithPositivePin1Current,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "RelayContactState.ts")]
+pub enum RelayContactState {
+    Released,
+    Picked,
+}
+
+/// Runtime-only discrete device state carried atomically with its result snapshot.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "DeviceState.ts")]
+pub enum DeviceState {
+    Relay {
+        component_id: StableId,
+        state: RelayContactState,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+    Fuse {
+        component_id: StableId,
+        state: FuseState,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "FuseState.ts")]
+pub enum FuseState {
+    Intact,
+    Tripped,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -61,6 +105,8 @@ pub struct FrameMetadata {
 pub struct ResultSnapshot {
     pub metadata: FrameMetadata,
     pub values: Vec<f64>,
+    #[serde(default)]
+    pub states: Vec<DeviceState>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]

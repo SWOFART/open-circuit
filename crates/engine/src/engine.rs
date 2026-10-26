@@ -11,12 +11,14 @@ use uuid::Uuid;
 
 use crate::{
     AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, Diagnostic, DiagnosticCode,
-    DiagnosticReference, DiagnosticSeverity, GeometryEnvelope, ParameterId, PinId, ResultLayout,
-    ResultQuantity, ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
-    Schematic, SetParameterRequest, SetParameterResult, StableId, TraceBatch, TraceRequest, Unit,
+    DiagnosticReference, DiagnosticSeverity, FuseState, GeometryEnvelope, ParameterId, PinId,
+    RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
+    ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, Schematic, SetParameterRequest,
+    SetParameterResult, StableId, TraceBatch, TraceRequest, Unit,
     devices::{
-        CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult,
-        InductorDevice, InductorMode, ResistorDevice, Terminals, component_diagnostic,
+        CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
+        InductorDevice, InductorMode, PmdcMotorDevice, PmdcMotorMode, RelayCoilMode, RelayDevice,
+        ResistorDevice, Terminals, component_diagnostic,
     },
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist},
@@ -24,8 +26,8 @@ use crate::{
 };
 use trace::TraceHistory;
 use transient::{
-    CapacitorState, CircuitStates, InductorState, SolveMode, advance_public_steps,
-    choose_internal_substeps, circuit_states_from_results,
+    CapacitorState, CircuitStates, InductorState, MotorState, SolveMode, advance_public_steps,
+    choose_internal_substeps, circuit_states_from_results, settle_discrete_events,
 };
 
 /// Owns the active compiled run and its latest valid result.
@@ -73,6 +75,27 @@ enum DeviceModel {
         inductance_henries: f64,
         initial_current_amps: Option<f64>,
     },
+    RelaySpdt {
+        coil_resistance_ohms: f64,
+        coil_inductance_henries: f64,
+        closed_contact_resistance_ohms: f64,
+        common_node: usize,
+        normally_open_node: usize,
+        normally_closed_node: usize,
+    },
+    Fuse {
+        intact_resistance_ohms: f64,
+    },
+    PmdcMotor {
+        armature_resistance_ohms: f64,
+        armature_inductance_henries: f64,
+        motor_constant_newton_meters_per_amp: f64,
+        rotor_inertia_kilogram_meters_squared: f64,
+        viscous_friction_newton_meter_seconds_per_radian: f64,
+        load_torque_newton_meters: f64,
+        initial_angular_velocity_radians_per_second: f64,
+        initial_armature_current_amps: Option<f64>,
+    },
 }
 
 impl Engine {
@@ -111,6 +134,7 @@ impl Engine {
                 frame_sequence: 0,
             },
             values,
+            states: states.device_states(),
         };
 
         let Some(mut trace_history) = TraceHistory::new(layout.value_count as usize) else {
@@ -220,6 +244,7 @@ impl Engine {
                 &geometry,
                 previous_step_states,
                 internal_substeps,
+                simulation_step,
                 1,
             ) {
                 Ok((results, states, _step_start_states, diagnostics)) => {
@@ -261,6 +286,7 @@ impl Engine {
                 frame_sequence,
             },
             values,
+            states: states.device_states(),
         };
         let active = self
             .compiled
@@ -358,16 +384,17 @@ impl Engine {
         let mut final_values = None;
 
         for offset in 1..=request.step_count {
+            let current_step = active.snapshot.metadata.simulation_step + u64::from(offset);
             let (device_results, next_states, next_step_start_states, _diagnostics) =
                 advance_public_steps(
                     &active.schematic,
                     &active.geometry,
                     states,
                     active.internal_substeps,
+                    current_step,
                     1,
                 )?;
             let values = values_for_layout(&active.layout, &device_results)?;
-            let current_step = active.snapshot.metadata.simulation_step + u64::from(offset);
             let simulation_time_seconds = current_step as f64 * SIMULATION_TIMESTEP_SECONDS;
             if !simulation_time_seconds.is_finite()
                 || samples
@@ -394,6 +421,7 @@ impl Engine {
         active.step_start_states = step_start_states;
         active.states = states;
         active.snapshot.values = final_values.expect("advance requires at least one step");
+        active.snapshot.states = active.states.device_states();
         active.snapshot.metadata.simulation_step = simulation_step;
         active.snapshot.metadata.simulation_time_seconds =
             simulation_step as f64 * SIMULATION_TIMESTEP_SECONDS;
@@ -452,53 +480,100 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
             _ => None,
         })
         .collect::<Vec<_>>();
+    let motors = schematic
+        .components
+        .iter()
+        .filter_map(|component| match component {
+            ComponentSpec::PmdcMotor { id, parameters, .. } => Some((
+                id.clone(),
+                parameters
+                    .initial_angular_velocity_radians_per_second
+                    .unwrap_or(0.0),
+                parameters
+                    .initial_angular_velocity_radians_per_second
+                    .is_some(),
+                parameters.initial_armature_current_amps,
+            )),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
     let has_explicit_initial_state = capacitors.iter().any(|(_, initial)| initial.is_some())
-        || inductors.iter().any(|(_, initial)| initial.is_some());
-
-    if !has_explicit_initial_state {
-        let (results, diagnostics) =
-            compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?;
-        let states = circuit_states_from_results(schematic, &results);
-        return Ok((results, states, diagnostics));
-    }
-
+        || inductors.iter().any(|(_, initial)| initial.is_some())
+        || motors.iter().any(|(_, _, initial_speed, initial_current)| {
+            *initial_speed || initial_current.is_some()
+        });
+    let has_uninitialized_state = capacitors.iter().any(|(_, initial)| initial.is_none())
+        || inductors.iter().any(|(_, initial)| initial.is_none())
+        || motors
+            .iter()
+            .any(|(_, _, _, initial_current)| initial_current.is_none());
+    let needs_operating_point = has_explicit_initial_state && has_uninitialized_state;
     let mut diagnostics = Vec::new();
     let mut states = CircuitStates::default();
-    if capacitors.iter().any(|(_, initial)| initial.is_none())
-        || inductors.iter().any(|(_, initial)| initial.is_none())
-    {
+
+    if needs_operating_point {
         let (operating_point, operating_diagnostics) =
             compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?;
         diagnostics.extend(operating_diagnostics);
-        states = circuit_states_from_results(schematic, &operating_point);
+        states = circuit_states_from_results(schematic, &operating_point, 0.0);
     }
-    for (component_id, initial_voltage_volts) in &capacitors {
-        if let Some(voltage_volts) = initial_voltage_volts {
-            states.capacitors.insert(
-                component_id.clone(),
-                CapacitorState {
-                    voltage_volts: *voltage_volts,
-                    current_amps: 0.0,
-                },
-            );
+
+    if has_explicit_initial_state {
+        for (component_id, initial_voltage_volts) in &capacitors {
+            if let Some(voltage_volts) = initial_voltage_volts {
+                states.capacitors.insert(
+                    component_id.clone(),
+                    CapacitorState {
+                        voltage_volts: *voltage_volts,
+                        current_amps: 0.0,
+                    },
+                );
+            }
         }
-    }
-    for (component_id, initial_current_amps) in &inductors {
-        if let Some(current_amps) = initial_current_amps {
-            states.inductors.insert(
-                component_id.clone(),
-                InductorState {
-                    current_amps: *current_amps,
-                    voltage_volts: 0.0,
-                },
-            );
+        for (component_id, initial_current_amps) in &inductors {
+            if let Some(current_amps) = initial_current_amps {
+                states.inductors.insert(
+                    component_id.clone(),
+                    InductorState {
+                        current_amps: *current_amps,
+                        voltage_volts: 0.0,
+                    },
+                );
+            }
+        }
+        for (component_id, angular_velocity, initial_speed, initial_current) in &motors {
+            if *initial_speed || initial_current.is_some() {
+                let motor_state = states.motors.get(component_id).copied();
+                states.motors.insert(
+                    component_id.clone(),
+                    MotorState {
+                        armature_current_amps: initial_current
+                            .or(motor_state.map(|state| state.armature_current_amps))
+                            .unwrap_or(0.0),
+                        angular_velocity_radians_per_second: *angular_velocity,
+                        voltage_volts: motor_state.map_or(0.0, |state| state.voltage_volts),
+                    },
+                );
+            }
         }
     }
 
-    let (results, initial_diagnostics) =
-        compute_circuit(schematic, geometry, SolveMode::InitialState(&states))?;
+    let (mut results, initial_diagnostics) = if has_explicit_initial_state {
+        compute_circuit(schematic, geometry, SolveMode::InitialState(&states))?
+    } else {
+        compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?
+    };
     diagnostics.extend(initial_diagnostics);
-    let states = circuit_states_from_results(schematic, &results);
+    states = circuit_states_from_results(schematic, &results, 0.0);
+    settle_discrete_events(
+        schematic,
+        geometry,
+        &mut states,
+        &mut results,
+        Vec::new(),
+        0.0,
+        &mut diagnostics,
+    )?;
     sort_diagnostics(&mut diagnostics);
     Ok((results, states, diagnostics))
 }
@@ -559,9 +634,21 @@ fn compute_circuit(
             continue;
         };
 
-        let variables =
-            NodeVariables::for_island(netlist.nodes.len(), &island.node_indices, reference_node);
+        let additional_reference_nodes = local_reference_nodes(
+            &island_specs,
+            island,
+            mode,
+            netlist.nodes.len(),
+            reference_node,
+        );
+        let variables = NodeVariables::for_island(
+            netlist.nodes.len(),
+            &island.node_indices,
+            reference_node,
+            &additional_reference_nodes,
+        );
         let mut branch_variables = HashMap::new();
+        let mut motor_speed_variables = HashMap::new();
         let mut next_variable = variables.voltage_variable_count();
         for spec in &island_specs {
             let ideal_source = matches!(
@@ -579,6 +666,20 @@ fn compute_circuit(
                 branch_variables.insert(spec.component_id.as_str().to_owned(), next_variable);
                 next_variable += 1;
             }
+            if matches!(spec.model, DeviceModel::PmdcMotor { .. }) {
+                if matches!(
+                    mode,
+                    SolveMode::OperatingPoint | SolveMode::Transient { .. }
+                ) {
+                    branch_variables.insert(spec.component_id.as_str().to_owned(), next_variable);
+                    next_variable += 1;
+                }
+                if matches!(mode, SolveMode::Transient { .. }) {
+                    motor_speed_variables
+                        .insert(spec.component_id.as_str().to_owned(), next_variable);
+                    next_variable += 1;
+                }
+            }
         }
 
         let devices = island_specs
@@ -587,6 +688,9 @@ fn compute_circuit(
                 make_device(
                     spec,
                     branch_variables.get(spec.component_id.as_str()).copied(),
+                    motor_speed_variables
+                        .get(spec.component_id.as_str())
+                        .copied(),
                     mode,
                 )
             })
@@ -639,6 +743,114 @@ fn compute_circuit(
     Ok((results, diagnostics))
 }
 
+/// A netlist island can contain electrically independent ports of a multi-port
+/// device (the relay coil and contacts are galvanically isolated). Give each
+/// disconnected matrix block its own gauge reference so one port cannot make
+/// another port singular or accidentally tie their potentials together.
+fn local_reference_nodes(
+    specs: &[&DeviceSpec],
+    island: &ElectricalIsland,
+    mode: SolveMode<'_>,
+    node_count: usize,
+    primary_reference: usize,
+) -> HashSet<usize> {
+    let mut adjacency = vec![Vec::new(); node_count];
+    let mut connect = |left: usize, right: usize| {
+        adjacency[left].push(right);
+        adjacency[right].push(left);
+    };
+    for spec in specs {
+        match spec.model {
+            DeviceModel::Resistor { .. } | DeviceModel::DcVoltageSource { .. } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+            }
+            DeviceModel::Fuse { .. } => {
+                let fuse_state = match mode {
+                    SolveMode::OperatingPoint => FuseState::Intact,
+                    SolveMode::InitialState(states) | SolveMode::Transient { states, .. } => states
+                        .fuses
+                        .get(&spec.component_id)
+                        .map_or(FuseState::Intact, |state| state.state),
+                };
+                if fuse_state == FuseState::Intact {
+                    connect(spec.terminals.pin1, spec.terminals.pin2);
+                }
+            }
+            DeviceModel::PmdcMotor { .. } => {
+                if !matches!(mode, SolveMode::InitialState(_)) {
+                    connect(spec.terminals.pin1, spec.terminals.pin2);
+                }
+            }
+            DeviceModel::Capacitor { .. } if !matches!(mode, SolveMode::OperatingPoint) => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+            }
+            DeviceModel::Inductor { .. }
+                if matches!(
+                    mode,
+                    SolveMode::OperatingPoint | SolveMode::Transient { .. }
+                ) =>
+            {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+            }
+            DeviceModel::RelaySpdt {
+                coil_resistance_ohms: _,
+                common_node,
+                normally_open_node,
+                normally_closed_node,
+                ..
+            } => {
+                let coil_has_conductance = match mode {
+                    SolveMode::OperatingPoint => true,
+                    SolveMode::InitialState(states) => {
+                        !states.relays.contains_key(&spec.component_id)
+                    }
+                    SolveMode::Transient { .. } => true,
+                };
+                if coil_has_conductance {
+                    connect(spec.terminals.pin1, spec.terminals.pin2);
+                }
+                let contact_state = match mode {
+                    SolveMode::OperatingPoint => RelayContactState::Released,
+                    SolveMode::InitialState(states) | SolveMode::Transient { states, .. } => states
+                        .relays
+                        .get(&spec.component_id)
+                        .map_or(RelayContactState::Released, |state| state.state),
+                };
+                let active = match contact_state {
+                    RelayContactState::Released => normally_closed_node,
+                    RelayContactState::Picked => normally_open_node,
+                };
+                connect(common_node, active);
+            }
+            DeviceModel::Capacitor { .. } | DeviceModel::Inductor { .. } => {}
+        }
+    }
+
+    let mut extra_references = HashSet::new();
+    let mut visited = vec![false; node_count];
+    for start in island.node_indices.iter().copied() {
+        if visited[start] {
+            continue;
+        }
+        let mut stack = vec![start];
+        let mut component = Vec::new();
+        visited[start] = true;
+        while let Some(node) = stack.pop() {
+            component.push(node);
+            for adjacent in adjacency[node].iter().copied() {
+                if !visited[adjacent] {
+                    visited[adjacent] = true;
+                    stack.push(adjacent);
+                }
+            }
+        }
+        if !component.contains(&primary_reference) {
+            extra_references.insert(*component.iter().min().expect("component is nonempty"));
+        }
+    }
+    extra_references
+}
+
 fn build_device_specs(
     schematic: &Schematic,
     netlist: &Netlist,
@@ -655,29 +867,38 @@ fn build_device_specs(
     let mut specs = Vec::with_capacity(components.len());
     let mut diagnostics = Vec::new();
     for component in components {
-        let pin1 = pin_to_node.get(&PinRef {
-            component_id: component.id().clone(),
-            pin_id: PinId::Pin1,
-        });
-        let pin2 = pin_to_node.get(&PinRef {
-            component_id: component.id().clone(),
-            pin_id: PinId::Pin2,
-        });
-        let (Some(pin1), Some(pin2)) = (pin1, pin2) else {
+        let node_for_pin = |pin_id| {
+            pin_to_node
+                .get(&PinRef {
+                    component_id: component.id().clone(),
+                    pin_id,
+                })
+                .copied()
+        };
+        let (primary_pin1, primary_pin2) = if matches!(component, ComponentSpec::RelaySpdt { .. }) {
+            (PinId::CoilPositive, PinId::CoilNegative)
+        } else {
+            (PinId::Pin1, PinId::Pin2)
+        };
+        let (Some(pin1), Some(pin2)) = (node_for_pin(primary_pin1), node_for_pin(primary_pin2))
+        else {
             diagnostics.push(component_diagnostic(
                 DiagnosticCode::InvalidGeometry,
                 component.id(),
             ));
             continue;
         };
-        let terminals = Terminals {
-            pin1: *pin1,
-            pin2: *pin2,
-        };
+        let terminals = Terminals { pin1, pin2 };
 
         let model = match component {
             ComponentSpec::Resistor { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.resistance_ohms,
+            },
+            ComponentSpec::Voltmeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.input_resistance_ohms,
+            },
+            ComponentSpec::Ammeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.burden_resistance_ohms,
             },
             ComponentSpec::DcVoltageSource { parameters, .. } => {
                 if parameters.internal_resistance_ohms == 0.0 && pin1 == pin2 {
@@ -705,6 +926,45 @@ fn build_device_specs(
                 inductance_henries: parameters.inductance_henries,
                 initial_current_amps: parameters.initial_current_amps,
             },
+            ComponentSpec::RelaySpdt { parameters, .. } => {
+                let (Some(common_node), Some(normally_open_node), Some(normally_closed_node)) = (
+                    node_for_pin(PinId::Common),
+                    node_for_pin(PinId::NormallyOpen),
+                    node_for_pin(PinId::NormallyClosed),
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::RelaySpdt {
+                    coil_resistance_ohms: parameters.coil_resistance_ohms,
+                    coil_inductance_henries: parameters.coil_inductance_henries,
+                    closed_contact_resistance_ohms: parameters.closed_contact_resistance_ohms,
+                    common_node,
+                    normally_open_node,
+                    normally_closed_node,
+                }
+            }
+            ComponentSpec::Fuse { parameters, .. } => DeviceModel::Fuse {
+                intact_resistance_ohms: parameters.intact_resistance_ohms,
+            },
+            ComponentSpec::PmdcMotor { parameters, .. } => DeviceModel::PmdcMotor {
+                armature_resistance_ohms: parameters.armature_resistance_ohms,
+                armature_inductance_henries: parameters.armature_inductance_henries,
+                motor_constant_newton_meters_per_amp: parameters
+                    .motor_constant_newton_meters_per_amp,
+                rotor_inertia_kilogram_meters_squared: parameters
+                    .rotor_inertia_kilogram_meters_squared,
+                viscous_friction_newton_meter_seconds_per_radian: parameters
+                    .viscous_friction_newton_meter_seconds_per_radian,
+                load_torque_newton_meters: parameters.load_torque_newton_meters,
+                initial_angular_velocity_radians_per_second: parameters
+                    .initial_angular_velocity_radians_per_second
+                    .unwrap_or(0.0),
+                initial_armature_current_amps: parameters.initial_armature_current_amps,
+            },
         };
         specs.push(DeviceSpec {
             component_id: component.id().clone(),
@@ -722,6 +982,7 @@ fn build_device_specs(
 fn make_device(
     spec: &DeviceSpec,
     branch_variable: Option<usize>,
+    motor_speed_variable: Option<usize>,
     mode: SolveMode<'_>,
 ) -> Box<dyn Device> {
     match spec.model {
@@ -759,6 +1020,7 @@ fn make_device(
                 SolveMode::Transient {
                     step_seconds,
                     states,
+                    integration_method,
                 } => {
                     let state = states
                         .capacitors
@@ -768,6 +1030,7 @@ fn make_device(
                         step_seconds,
                         start_voltage_volts: state.voltage_volts,
                         start_current_amps: state.current_amps,
+                        integration_method,
                     }
                 }
             };
@@ -796,6 +1059,7 @@ fn make_device(
                 SolveMode::Transient {
                     step_seconds,
                     states,
+                    integration_method,
                 } => {
                     let state = states
                         .inductors
@@ -805,6 +1069,7 @@ fn make_device(
                         step_seconds,
                         start_current_amps: state.current_amps,
                         start_voltage_volts: state.voltage_volts,
+                        integration_method,
                     }
                 }
             };
@@ -813,6 +1078,142 @@ fn make_device(
                 spec.terminals,
                 inductance_henries,
                 inductor_mode,
+            ))
+        }
+        DeviceModel::RelaySpdt {
+            coil_resistance_ohms,
+            coil_inductance_henries,
+            closed_contact_resistance_ohms,
+            common_node,
+            normally_open_node,
+            normally_closed_node,
+            ..
+        } => {
+            let (contact_state, last_transition_time_seconds) = match mode {
+                SolveMode::OperatingPoint => (RelayContactState::Released, None),
+                SolveMode::InitialState(states) | SolveMode::Transient { states, .. } => states
+                    .relays
+                    .get(&spec.component_id)
+                    .map(|state| (state.state, state.last_transition_time_seconds))
+                    .unwrap_or((RelayContactState::Released, None)),
+            };
+            let coil_mode = match mode {
+                SolveMode::OperatingPoint => RelayCoilMode::OperatingPoint,
+                SolveMode::InitialState(states) => states
+                    .relays
+                    .get(&spec.component_id)
+                    .map(|state| RelayCoilMode::Initial {
+                        current_amps: state.current_amps,
+                    })
+                    .unwrap_or(RelayCoilMode::OperatingPoint),
+                SolveMode::Transient {
+                    step_seconds,
+                    states,
+                    integration_method,
+                } => {
+                    let state = states.relays.get(&spec.component_id);
+                    RelayCoilMode::Transient {
+                        step_seconds,
+                        start_current_amps: state.map_or(0.0, |state| state.current_amps),
+                        start_voltage_volts: state.map_or(0.0, |state| state.voltage_volts),
+                        integration_method,
+                    }
+                }
+            };
+            Box::new(RelayDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                common_node,
+                normally_open_node,
+                normally_closed_node,
+                coil_resistance_ohms,
+                coil_inductance_henries,
+                closed_contact_resistance_ohms,
+                contact_state,
+                last_transition_time_seconds,
+                coil_mode,
+            ))
+        }
+        DeviceModel::Fuse {
+            intact_resistance_ohms,
+            ..
+        } => {
+            let state = match mode {
+                SolveMode::OperatingPoint => None,
+                SolveMode::InitialState(states) | SolveMode::Transient { states, .. } => {
+                    states.fuses.get(&spec.component_id)
+                }
+            };
+            Box::new(FuseDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                intact_resistance_ohms,
+                state.map_or(0.0, |state| state.accumulated_i2t_ampere_squared_seconds),
+                state.map_or(FuseState::Intact, |state| state.state),
+                state.and_then(|state| state.last_transition_time_seconds),
+            ))
+        }
+        DeviceModel::PmdcMotor {
+            armature_resistance_ohms,
+            armature_inductance_henries,
+            motor_constant_newton_meters_per_amp,
+            rotor_inertia_kilogram_meters_squared,
+            viscous_friction_newton_meter_seconds_per_radian,
+            load_torque_newton_meters,
+            initial_angular_velocity_radians_per_second,
+            ..
+        } => {
+            let motor_mode = match mode {
+                SolveMode::OperatingPoint => PmdcMotorMode::OperatingPoint {
+                    armature_current_variable: branch_variable
+                        .expect("operating-point motors have armature current variables"),
+                    angular_velocity_radians_per_second:
+                        initial_angular_velocity_radians_per_second,
+                },
+                SolveMode::InitialState(states) => {
+                    let state = states
+                        .motors
+                        .get(&spec.component_id)
+                        .expect("every initial-state motor has an initialized state");
+                    PmdcMotorMode::Initial {
+                        armature_current_amps: state.armature_current_amps,
+                        angular_velocity_radians_per_second: state
+                            .angular_velocity_radians_per_second,
+                    }
+                }
+                SolveMode::Transient {
+                    step_seconds,
+                    states,
+                    integration_method,
+                } => {
+                    let state = states
+                        .motors
+                        .get(&spec.component_id)
+                        .expect("every transient motor has a state");
+                    PmdcMotorMode::Transient {
+                        step_seconds,
+                        start_armature_current_amps: state.armature_current_amps,
+                        start_angular_velocity_radians_per_second: state
+                            .angular_velocity_radians_per_second,
+                        start_voltage_volts: state.voltage_volts,
+                        integration_method,
+                        armature_current_variable: branch_variable
+                            .expect("transient motors have armature current variables"),
+                        angular_velocity_variable: motor_speed_variable
+                            .expect("transient motors have angular-velocity variables"),
+                    }
+                }
+            };
+            Box::new(PmdcMotorDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                armature_resistance_ohms,
+                armature_inductance_henries,
+                motor_constant_newton_meters_per_amp,
+                rotor_inertia_kilogram_meters_squared,
+                viscous_friction_newton_meter_seconds_per_radian,
+                load_torque_newton_meters,
+                motor_mode,
             ))
         }
     }
@@ -1001,7 +1402,10 @@ fn check_initial_state_constraints(
             .collect::<Vec<_>>();
         let mut adjacency = vec![Vec::<usize>::new(); node_count];
         for spec in &island_specs {
-            if !matches!(spec.model, DeviceModel::Inductor { .. }) {
+            if !matches!(
+                spec.model,
+                DeviceModel::Inductor { .. } | DeviceModel::PmdcMotor { .. }
+            ) {
                 adjacency[spec.terminals.pin1].push(spec.terminals.pin2);
                 adjacency[spec.terminals.pin2].push(spec.terminals.pin1);
             }
@@ -1028,18 +1432,26 @@ fn check_initial_state_constraints(
         let mut injections = vec![0.0_f64; group_count];
         let mut scales = vec![0.0_f64; group_count];
         for spec in &island_specs {
-            if !matches!(spec.model, DeviceModel::Inductor { .. }) {
-                continue;
-            }
-            let Some(state) = states.inductors.get(&spec.component_id) else {
+            let current_amps = match spec.model {
+                DeviceModel::Inductor { .. } => states
+                    .inductors
+                    .get(&spec.component_id)
+                    .map(|state| state.current_amps),
+                DeviceModel::PmdcMotor { .. } => states
+                    .motors
+                    .get(&spec.component_id)
+                    .map(|state| state.armature_current_amps),
+                _ => None,
+            };
+            let Some(current_amps) = current_amps else {
                 continue;
             };
             let pin1_group = groups[spec.terminals.pin1];
             let pin2_group = groups[spec.terminals.pin2];
-            injections[pin1_group] -= state.current_amps;
-            injections[pin2_group] += state.current_amps;
-            scales[pin1_group] += state.current_amps.abs();
-            scales[pin2_group] += state.current_amps.abs();
+            injections[pin1_group] -= current_amps;
+            injections[pin2_group] += current_amps;
+            scales[pin1_group] += current_amps.abs();
+            scales[pin2_group] += current_amps.abs();
         }
         for (group, injection) in injections.iter().enumerate() {
             let tolerance =
@@ -1048,13 +1460,19 @@ fn check_initial_state_constraints(
                 // Only explicit inductor states crossing the unbalanced cut
                 // are attributed to this initial-state conflict.
                 for spec in &island_specs {
-                    let DeviceModel::Inductor {
-                        initial_current_amps: Some(_),
-                        ..
-                    } = spec.model
-                    else {
+                    let explicit_current = matches!(
+                        spec.model,
+                        DeviceModel::Inductor {
+                            initial_current_amps: Some(_),
+                            ..
+                        } | DeviceModel::PmdcMotor {
+                            initial_armature_current_amps: Some(_),
+                            ..
+                        }
+                    );
+                    if !explicit_current {
                         continue;
-                    };
+                    }
                     let pin1_group = groups[spec.terminals.pin1];
                     let pin2_group = groups[spec.terminals.pin2];
                     if (pin1_group == group) != (pin2_group == group) {
@@ -1178,38 +1596,119 @@ fn diagnostic_for_island(code: DiagnosticCode, island: &ElectricalIsland) -> Dia
 }
 
 fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagnostic>> {
-    let Some(value_count) = schematic
-        .components
-        .len()
-        .checked_mul(2)
-        .and_then(|count| u32::try_from(count).ok())
-    else {
-        return Err(vec![Diagnostic::error(
-            DiagnosticCode::InvalidGeometry,
-            Vec::new(),
-        )]);
-    };
-
     let mut components = schematic.components.iter().collect::<Vec<_>>();
     components.sort_by(|left, right| left.id().as_str().cmp(right.id().as_str()));
-    let mut slots = Vec::with_capacity(value_count as usize);
+    let mut slots = Vec::with_capacity(components.len().saturating_mul(2));
     for component in components {
-        for (quantity, unit, suffix, sign_convention) in [
-            (
-                ResultQuantity::Voltage,
-                Unit::Volt,
-                "voltage",
-                ResultSignConvention::VoltagePin1MinusPin2,
-            ),
-            (
-                ResultQuantity::Current,
-                Unit::Amp,
-                "current",
-                ResultSignConvention::CurrentIntoPin1,
-            ),
-        ] {
+        let definitions = if matches!(component, ComponentSpec::RelaySpdt { .. }) {
+            vec![
+                (
+                    ResultQuantity::Voltage,
+                    Unit::Volt,
+                    "coil/voltage",
+                    ResultSignConvention::VoltagePin1MinusPin2,
+                ),
+                (
+                    ResultQuantity::Current,
+                    Unit::Amp,
+                    "coil/current",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+                (
+                    ResultQuantity::Voltage,
+                    Unit::Volt,
+                    "normally_open/voltage",
+                    ResultSignConvention::VoltagePin1MinusPin2,
+                ),
+                (
+                    ResultQuantity::Current,
+                    Unit::Amp,
+                    "normally_open/current",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+                (
+                    ResultQuantity::Voltage,
+                    Unit::Volt,
+                    "normally_closed/voltage",
+                    ResultSignConvention::VoltagePin1MinusPin2,
+                ),
+                (
+                    ResultQuantity::Current,
+                    Unit::Amp,
+                    "normally_closed/current",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+            ]
+        } else if matches!(component, ComponentSpec::Fuse { .. }) {
+            vec![
+                (
+                    ResultQuantity::Voltage,
+                    Unit::Volt,
+                    "voltage",
+                    ResultSignConvention::VoltagePin1MinusPin2,
+                ),
+                (
+                    ResultQuantity::Current,
+                    Unit::Amp,
+                    "current",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+                (
+                    ResultQuantity::AccumulatedI2t,
+                    Unit::AmpereSquaredSecond,
+                    "accumulated_i2t",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+            ]
+        } else if matches!(component, ComponentSpec::PmdcMotor { .. }) {
+            vec![
+                (
+                    ResultQuantity::Voltage,
+                    Unit::Volt,
+                    "voltage",
+                    ResultSignConvention::VoltagePin1MinusPin2,
+                ),
+                (
+                    ResultQuantity::Current,
+                    Unit::Amp,
+                    "current",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+                (
+                    ResultQuantity::AngularVelocity,
+                    Unit::RadianPerSecond,
+                    "angular_velocity",
+                    ResultSignConvention::PositiveRotationWithPositivePin1Current,
+                ),
+            ]
+        } else {
+            vec![
+                (
+                    ResultQuantity::Voltage,
+                    Unit::Volt,
+                    "voltage",
+                    ResultSignConvention::VoltagePin1MinusPin2,
+                ),
+                (
+                    ResultQuantity::Current,
+                    Unit::Amp,
+                    "current",
+                    ResultSignConvention::CurrentIntoPin1,
+                ),
+            ]
+        };
+        for (quantity, unit, suffix, sign_convention) in definitions {
+            let key = if matches!(component, ComponentSpec::RelaySpdt { .. })
+                || (matches!(component, ComponentSpec::Fuse { .. }) && suffix == "accumulated_i2t")
+                || (matches!(component, ComponentSpec::PmdcMotor { .. })
+                    && suffix == "angular_velocity")
+            {
+                format!("{}/{suffix}", component.id())
+            } else {
+                format!("{}:{suffix}", component.id())
+            };
             slots.push(ResultSlot {
-                key: format!("{}:{suffix}", component.id()),
+                key,
                 component_id: component.id().clone(),
                 quantity,
                 unit,
@@ -1218,6 +1717,12 @@ fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagno
             });
         }
     }
+    let Some(value_count) = u32::try_from(slots.len()).ok() else {
+        return Err(vec![Diagnostic::error(
+            DiagnosticCode::InvalidGeometry,
+            Vec::new(),
+        )]);
+    };
     Ok(ResultLayout {
         layout_version: 1,
         value_count,
@@ -1243,10 +1748,17 @@ fn values_for_layout(
             ));
             continue;
         };
-        let value = match slot.quantity {
-            ResultQuantity::Voltage => result.voltage_volts,
-            ResultQuantity::Current => result.current_amps,
-        };
+        let value = result
+            .extra_values
+            .iter()
+            .find(|(key, _)| key == &slot.key)
+            .map(|(_, value)| *value)
+            .unwrap_or_else(|| match slot.quantity {
+                ResultQuantity::Voltage => result.voltage_volts,
+                ResultQuantity::Current => result.current_amps,
+                ResultQuantity::AccumulatedI2t => f64::NAN,
+                ResultQuantity::AngularVelocity => f64::NAN,
+            });
         if value.is_finite() {
             values[slot.offset as usize] = value;
         } else {
@@ -1283,16 +1795,24 @@ fn update_parameter(
             }
             parameters.resistance_ohms = value;
         }
+        ComponentSpec::Voltmeter { parameters, .. } => {
+            if parameter_id != ParameterId::InputResistanceOhms {
+                return false;
+            }
+            parameters.input_resistance_ohms = value;
+        }
+        ComponentSpec::Ammeter { parameters, .. } => {
+            if parameter_id != ParameterId::BurdenResistanceOhms {
+                return false;
+            }
+            parameters.burden_resistance_ohms = value;
+        }
         ComponentSpec::DcVoltageSource { parameters, .. } => match parameter_id {
             ParameterId::VoltageVolts => parameters.voltage_volts = value,
             ParameterId::InternalResistanceOhms => {
                 parameters.internal_resistance_ohms = value;
             }
-            ParameterId::ResistanceOhms
-            | ParameterId::CapacitanceFarads
-            | ParameterId::InitialVoltageVolts
-            | ParameterId::InductanceHenries
-            | ParameterId::InitialCurrentAmps => return false,
+            _ => return false,
         },
         ComponentSpec::Capacitor { parameters, .. } => match parameter_id {
             ParameterId::CapacitanceFarads => parameters.capacitance_farads = value,
@@ -1300,6 +1820,46 @@ fn update_parameter(
         },
         ComponentSpec::Inductor { parameters, .. } => match parameter_id {
             ParameterId::InductanceHenries => parameters.inductance_henries = value,
+            _ => return false,
+        },
+        ComponentSpec::RelaySpdt { parameters, .. } => match parameter_id {
+            ParameterId::CoilResistanceOhms => parameters.coil_resistance_ohms = value,
+            ParameterId::CoilInductanceHenries => parameters.coil_inductance_henries = value,
+            ParameterId::PickupCurrentAmps => parameters.pickup_current_amps = value,
+            ParameterId::DropoutCurrentAmps => parameters.dropout_current_amps = value,
+            ParameterId::ClosedContactResistanceOhms => {
+                parameters.closed_contact_resistance_ohms = value;
+            }
+            _ => return false,
+        },
+        ComponentSpec::Fuse { parameters, .. } => match parameter_id {
+            ParameterId::IntactResistanceOhms => {
+                parameters.intact_resistance_ohms = value;
+            }
+            ParameterId::TripI2tAmpereSquaredSeconds => {
+                parameters.trip_i2t_ampere_squared_seconds = value;
+            }
+            _ => return false,
+        },
+        ComponentSpec::PmdcMotor { parameters, .. } => match parameter_id {
+            ParameterId::ArmatureResistanceOhms => {
+                parameters.armature_resistance_ohms = value;
+            }
+            ParameterId::ArmatureInductanceHenries => {
+                parameters.armature_inductance_henries = value;
+            }
+            ParameterId::MotorConstantNewtonMetersPerAmp => {
+                parameters.motor_constant_newton_meters_per_amp = value;
+            }
+            ParameterId::RotorInertiaKilogramMetersSquared => {
+                parameters.rotor_inertia_kilogram_meters_squared = value;
+            }
+            ParameterId::ViscousFrictionNewtonMeterSecondsPerRadian => {
+                parameters.viscous_friction_newton_meter_seconds_per_radian = value;
+            }
+            ParameterId::LoadTorqueNewtonMeters => {
+                parameters.load_torque_newton_meters = value;
+            }
             _ => return false,
         },
     }

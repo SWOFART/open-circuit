@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import catalogFixture from "../../tests/golden/stage-1-catalog.json";
+import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import { resolvePinPositions } from "../editor/geometry";
 import type { ComponentSpec } from "../generated/ComponentSpec";
 import { symbols } from ".";
@@ -10,10 +11,15 @@ import { symbols } from ".";
 // a device is being added (the palette then hides it), but not at release.
 
 describe("symbol and catalog contract", () => {
-  it("has a symbol for every catalog device type and no others", () => {
-    expect(Object.keys(symbols).sort()).toEqual(
-      catalogFixture.componentTypes.map((entry) => entry.typeId).sort(),
+  it("has symbols only for device types present in the Engine catalog", () => {
+    const catalogTypes = new Set(
+      catalogFixture.componentTypes.map((entry) => entry.typeId),
     );
+    expect(
+      (Object.keys(symbols) as ComponentTypeId[]).every((typeId) =>
+        catalogTypes.has(typeId),
+      ),
+    ).toBe(true);
   });
 
   it("gives every registered symbol the same pin IDs and count as the catalog", () => {

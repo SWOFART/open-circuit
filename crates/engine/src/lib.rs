@@ -21,15 +21,16 @@ pub use engine::Engine;
 pub use ids::{InvalidStableId, StableId};
 pub use project::{ProjectDocumentError, decode_project_json, validate_project_schematic};
 pub use results::{
-    AdvanceRequest, CompileRequest, CompileResult, FrameMetadata, ResultLayout, ResultQuantity,
-    ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
-    SetParameterRequest, SetParameterResult, TraceBatch, TraceBatchMetadata, TracePoint,
-    TraceQuery, TraceRequest, TraceSignal,
+    AdvanceRequest, CompileRequest, CompileResult, DeviceState, FrameMetadata, FuseState,
+    RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
+    ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, SetParameterRequest, SetParameterResult,
+    TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery, TraceRequest, TraceSignal,
 };
 pub use schematic::{
-    ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, GeometryEnvelope, GridPoint,
-    InductorParameters, JunctionSpec, ReferenceMarkerSpec, ResistorParameters, ResolvedPinPosition,
-    SCHEMA_VERSION, Schematic, WireSpec,
+    AmmeterParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, FuseParameters,
+    GeometryEnvelope, GridPoint, InductorParameters, JunctionSpec, PmdcMotorParameters,
+    ReferenceMarkerSpec, RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
+    Schematic, VoltmeterParameters, WireSpec,
 };
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");

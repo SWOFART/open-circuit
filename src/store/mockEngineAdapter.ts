@@ -263,6 +263,7 @@ export function createDividerFixtureAdapter(): PredeterminedEngineAdapter {
         frameSequence,
       },
       values: [...match.values],
+      states: [],
     };
     frameSequence += 1n;
     return snapshot;

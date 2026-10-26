@@ -3,8 +3,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ComponentSpec, Diagnostic, DiagnosticCode, GeometryEnvelope, SIMULATION_TIMESTEP_SECONDS,
-    Schematic, StableId, devices::DeviceResult, netlist::derive_netlist,
+    ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
+    RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
+    devices::{DeviceResult, IntegrationMethod},
+    netlist::derive_netlist,
 };
 
 use super::DeviceModel;
@@ -31,10 +33,71 @@ pub(super) struct InductorState {
     pub(super) voltage_volts: f64,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(super) struct RelayState {
+    pub(super) current_amps: f64,
+    pub(super) voltage_volts: f64,
+    pub(super) state: RelayContactState,
+    pub(super) last_transition_time_seconds: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct FuseRuntimeState {
+    pub(super) current_amps: f64,
+    pub(super) accumulated_i2t_ampere_squared_seconds: f64,
+    pub(super) state: FuseState,
+    pub(super) last_transition_time_seconds: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) struct MotorState {
+    pub(super) armature_current_amps: f64,
+    pub(super) angular_velocity_radians_per_second: f64,
+    pub(super) voltage_volts: f64,
+}
+
 #[derive(Clone, Default)]
 pub(super) struct CircuitStates {
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
+    pub(super) relays: HashMap<StableId, RelayState>,
+    pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
+    pub(super) motors: HashMap<StableId, MotorState>,
+    pub(super) simulation_time_seconds: f64,
+    pub(super) backward_euler_next_step: bool,
+}
+
+impl CircuitStates {
+    pub(super) fn device_states(&self) -> Vec<DeviceState> {
+        let mut states = self
+            .relays
+            .iter()
+            .map(|(component_id, relay)| DeviceState::Relay {
+                component_id: component_id.clone(),
+                state: relay.state,
+                last_transition_time_seconds: relay.last_transition_time_seconds,
+            })
+            .collect::<Vec<_>>();
+        states.extend(
+            self.fuses
+                .iter()
+                .map(|(component_id, fuse)| DeviceState::Fuse {
+                    component_id: component_id.clone(),
+                    state: fuse.state,
+                    last_transition_time_seconds: fuse.last_transition_time_seconds,
+                }),
+        );
+        states.sort_by(|left, right| state_component_id(left).cmp(state_component_id(right)));
+        states
+    }
+}
+
+fn state_component_id(state: &DeviceState) -> &str {
+    match state {
+        DeviceState::Relay { component_id, .. } | DeviceState::Fuse { component_id, .. } => {
+            component_id.as_str()
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -44,12 +107,14 @@ pub(super) enum SolveMode<'a> {
     Transient {
         step_seconds: f64,
         states: &'a CircuitStates,
+        integration_method: IntegrationMethod,
     },
 }
 
 pub(super) fn circuit_states_from_results(
     schematic: &Schematic,
     results: &[DeviceResult],
+    simulation_time_seconds: f64,
 ) -> CircuitStates {
     let by_component = results
         .iter()
@@ -89,9 +154,96 @@ pub(super) fn circuit_states_from_results(
             ))
         })
         .collect();
+    let relays = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::RelaySpdt { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let Some(DeviceState::Relay {
+                state,
+                last_transition_time_seconds,
+                ..
+            }) = &result.state
+            else {
+                return None;
+            };
+            Some((
+                id.clone(),
+                RelayState {
+                    current_amps: result.current_amps,
+                    voltage_volts: result.voltage_volts,
+                    state: *state,
+                    last_transition_time_seconds: *last_transition_time_seconds,
+                },
+            ))
+        })
+        .collect();
+    let fuses = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::Fuse { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let Some(DeviceState::Fuse {
+                state,
+                last_transition_time_seconds,
+                ..
+            }) = &result.state
+            else {
+                return None;
+            };
+            let accumulated_i2t_ampere_squared_seconds = result
+                .extra_values
+                .iter()
+                .find(|(key, _)| key == &format!("{id}/accumulated_i2t"))?
+                .1;
+            Some((
+                id.clone(),
+                FuseRuntimeState {
+                    current_amps: result.current_amps,
+                    accumulated_i2t_ampere_squared_seconds,
+                    state: *state,
+                    last_transition_time_seconds: *last_transition_time_seconds,
+                },
+            ))
+        })
+        .collect();
+    let motors = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::PmdcMotor { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let angular_velocity_radians_per_second = result
+                .extra_values
+                .iter()
+                .find(|(key, _)| key == &format!("{id}/angular_velocity"))?
+                .1;
+            Some((
+                id.clone(),
+                MotorState {
+                    armature_current_amps: result.current_amps,
+                    angular_velocity_radians_per_second,
+                    voltage_volts: result.voltage_volts,
+                },
+            ))
+        })
+        .collect();
     CircuitStates {
         capacitors,
         inductors,
+        relays,
+        fuses,
+        motors,
+        simulation_time_seconds,
+        backward_euler_next_step: false,
     }
 }
 
@@ -100,6 +252,7 @@ pub(super) fn advance_public_steps(
     geometry: &GeometryEnvelope,
     mut states: CircuitStates,
     internal_substeps: u32,
+    first_public_step: u64,
     public_step_count: u32,
 ) -> PublicStepOutcome {
     let internal_step_seconds = SIMULATION_TIMESTEP_SECONDS / f64::from(internal_substeps);
@@ -113,24 +266,253 @@ pub(super) fn advance_public_steps(
     let mut results = Vec::new();
     let mut diagnostics = Vec::new();
     let mut step_start_states = states.clone();
-    for _ in 0..public_step_count {
+    for public_step_offset in 0..public_step_count {
+        let Some(public_step_index) = first_public_step.checked_add(u64::from(public_step_offset))
+        else {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]);
+        };
+        let Some(previous_public_step) = public_step_index.checked_sub(1) else {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]);
+        };
+        let public_step_start_time = previous_public_step as f64 * SIMULATION_TIMESTEP_SECONDS;
+        let public_step_end_time = public_step_index as f64 * SIMULATION_TIMESTEP_SECONDS;
+        if !public_step_start_time.is_finite() || !public_step_end_time.is_finite() {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            )]);
+        }
+        states.simulation_time_seconds = public_step_start_time;
         step_start_states = states.clone();
-        for _ in 0..internal_substeps {
-            let (step_results, step_diagnostics) = super::compute_circuit(
+        for internal_step_index in 0..internal_substeps {
+            let step_end_time = if internal_step_index + 1 == internal_substeps {
+                public_step_end_time
+            } else {
+                public_step_start_time + internal_step_seconds * f64::from(internal_step_index + 1)
+            };
+            if !step_end_time.is_finite() {
+                return Err(vec![Diagnostic::error(
+                    DiagnosticCode::NonFiniteState,
+                    Vec::new(),
+                )]);
+            }
+            let interval_start_states = states.clone();
+            let integration_method = if states.backward_euler_next_step {
+                IntegrationMethod::BackwardEuler
+            } else {
+                IntegrationMethod::Trapezoidal
+            };
+            let (mut step_results, step_diagnostics) = super::compute_circuit(
                 schematic,
                 geometry,
                 SolveMode::Transient {
                     step_seconds: internal_step_seconds,
                     states: &states,
+                    integration_method,
                 },
             )?;
-            states = circuit_states_from_results(schematic, &step_results);
-            results = step_results;
             diagnostics.extend(step_diagnostics);
+            let mut candidate =
+                circuit_states_from_results(schematic, &step_results, step_end_time);
+            // The requested recovery method was consumed by this interval. A new
+            // relay transition below can schedule another backward-Euler interval.
+            candidate.backward_euler_next_step = false;
+            let fuse_transitions = accumulate_fuse_i2t(
+                schematic,
+                &interval_start_states,
+                &mut candidate,
+                internal_step_seconds,
+                step_end_time,
+            )?;
+            settle_discrete_events(
+                schematic,
+                geometry,
+                &mut candidate,
+                &mut step_results,
+                fuse_transitions,
+                step_end_time,
+                &mut diagnostics,
+            )?;
+            states = candidate;
+            results = step_results;
         }
     }
     sort_diagnostics(&mut diagnostics);
     Ok((results, states, step_start_states, diagnostics))
+}
+
+fn accumulate_fuse_i2t(
+    schematic: &Schematic,
+    previous_states: &CircuitStates,
+    current_states: &mut CircuitStates,
+    step_seconds: f64,
+    event_time_seconds: f64,
+) -> Result<Vec<StableId>, Vec<Diagnostic>> {
+    let mut transitions = Vec::new();
+    for component in &schematic.components {
+        let ComponentSpec::Fuse { id, parameters, .. } = component else {
+            continue;
+        };
+        let previous = previous_states.fuses.get(id);
+        if previous.is_some_and(|state| state.state == FuseState::Tripped) {
+            continue;
+        }
+        let old_current = previous.map_or(0.0, |state| state.current_amps);
+        let Some(fuse) = current_states.fuses.get_mut(id) else {
+            continue;
+        };
+        let increment = 0.5
+            * step_seconds
+            * (old_current * old_current + fuse.current_amps * fuse.current_amps);
+        let accumulated = fuse.accumulated_i2t_ampere_squared_seconds + increment;
+        if !increment.is_finite() || !accumulated.is_finite() {
+            return Err(vec![Diagnostic::error(
+                DiagnosticCode::NonFiniteState,
+                vec![crate::DiagnosticReference::Component {
+                    component_id: id.clone(),
+                }],
+            )]);
+        }
+        fuse.accumulated_i2t_ampere_squared_seconds = accumulated;
+        if fuse.state == FuseState::Intact
+            && accumulated >= parameters.trip_i2t_ampere_squared_seconds
+        {
+            fuse.state = FuseState::Tripped;
+            fuse.last_transition_time_seconds = Some(event_time_seconds);
+            transitions.push(id.clone());
+        }
+    }
+    transitions.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    Ok(transitions)
+}
+
+pub(super) fn settle_discrete_events(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    states: &mut CircuitStates,
+    results: &mut Vec<DeviceResult>,
+    mut fuse_transitions: Vec<StableId>,
+    event_time_seconds: f64,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Result<(), Vec<Diagnostic>> {
+    const MAX_SAME_TIME_TRANSITIONS: usize = 16;
+    let mut seen = HashSet::new();
+    seen.insert(discrete_state_vector(states, &fuse_transitions));
+    let mut same_time_resolves = 0;
+    loop {
+        let mut relay_changes = Vec::new();
+        for component in &schematic.components {
+            let ComponentSpec::RelaySpdt { id, parameters, .. } = component else {
+                continue;
+            };
+            let Some(relay) = states.relays.get(id) else {
+                continue;
+            };
+            let next_state = match relay.state {
+                RelayContactState::Released
+                    if relay.current_amps.abs() >= parameters.pickup_current_amps =>
+                {
+                    Some(RelayContactState::Picked)
+                }
+                RelayContactState::Picked
+                    if relay.current_amps.abs() <= parameters.dropout_current_amps =>
+                {
+                    Some(RelayContactState::Released)
+                }
+                _ => None,
+            };
+            if let Some(next_state) = next_state {
+                relay_changes.push((id.clone(), next_state));
+            }
+        }
+        if relay_changes.is_empty() && fuse_transitions.is_empty() {
+            return Ok(());
+        }
+        relay_changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
+        let mut changed_ids = relay_changes
+            .iter()
+            .map(|(component_id, _)| component_id.clone())
+            .collect::<Vec<_>>();
+        changed_ids.append(&mut fuse_transitions);
+        changed_ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+        changed_ids.dedup();
+        if same_time_resolves >= MAX_SAME_TIME_TRANSITIONS {
+            diagnostics.push(Diagnostic::error(
+                DiagnosticCode::EventChatter,
+                changed_ids
+                    .into_iter()
+                    .map(|component_id| crate::DiagnosticReference::Component { component_id })
+                    .collect(),
+            ));
+            sort_diagnostics(diagnostics);
+            return Err(diagnostics.clone());
+        }
+        for (component_id, next_state) in relay_changes {
+            let relay = states
+                .relays
+                .get_mut(&component_id)
+                .expect("a proposed relay transition has a state");
+            relay.state = next_state;
+            relay.last_transition_time_seconds = Some(event_time_seconds);
+        }
+        fuse_transitions = Vec::new();
+        states.backward_euler_next_step = true;
+        let state_vector = discrete_state_vector(states, &[]);
+        if !seen.insert(state_vector) {
+            diagnostics.push(Diagnostic::error(
+                DiagnosticCode::EventChatter,
+                changed_ids
+                    .into_iter()
+                    .map(|component_id| crate::DiagnosticReference::Component { component_id })
+                    .collect(),
+            ));
+            sort_diagnostics(diagnostics);
+            return Err(diagnostics.clone());
+        }
+        let (resolved, event_diagnostics) =
+            super::compute_circuit(schematic, geometry, SolveMode::InitialState(states))?;
+        *results = resolved;
+        diagnostics.extend(event_diagnostics);
+        let mut resolved_states =
+            circuit_states_from_results(schematic, results, event_time_seconds);
+        // The event state is the state vector used to solve this reconfiguration; the
+        // device results carry that same vector and its exact transition times.
+        resolved_states.simulation_time_seconds = event_time_seconds;
+        resolved_states.backward_euler_next_step = states.backward_euler_next_step;
+        *states = resolved_states;
+        same_time_resolves += 1;
+    }
+}
+
+fn discrete_state_vector(
+    states: &CircuitStates,
+    pending_fuse_transitions: &[StableId],
+) -> Vec<(String, u8)> {
+    let mut vector = states
+        .relays
+        .iter()
+        .map(|(id, relay)| {
+            (
+                id.as_str().to_owned(),
+                u8::from(relay.state == RelayContactState::Picked),
+            )
+        })
+        .collect::<Vec<_>>();
+    vector.extend(states.fuses.iter().map(|(id, fuse)| {
+        let pending = pending_fuse_transitions.iter().any(|pending| pending == id);
+        (
+            id.as_str().to_owned(),
+            u8::from(!pending && fuse.state == FuseState::Tripped),
+        )
+    }));
+    vector.sort_by(|left, right| left.0.cmp(&right.0));
+    vector
 }
 
 pub(super) fn choose_internal_substeps(
@@ -163,6 +545,33 @@ fn estimate_transient_rate_bound(
     let netlist = derive_netlist(schematic, geometry).ok()?;
     let specs = super::build_device_specs(schematic, &netlist).ok()?;
     let mut maximum_rate: f64 = 0.0;
+    for spec in &specs {
+        if let DeviceModel::RelaySpdt {
+            coil_resistance_ohms,
+            coil_inductance_henries,
+            ..
+        } = spec.model
+        {
+            maximum_rate = maximum_rate.max(coil_resistance_ohms / coil_inductance_henries);
+        }
+        if let DeviceModel::PmdcMotor {
+            armature_resistance_ohms,
+            armature_inductance_henries,
+            motor_constant_newton_meters_per_amp,
+            rotor_inertia_kilogram_meters_squared,
+            viscous_friction_newton_meter_seconds_per_radian,
+            ..
+        } = spec.model
+        {
+            let coupling_rate = motor_constant_newton_meters_per_amp
+                / (armature_inductance_henries * rotor_inertia_kilogram_meters_squared).sqrt();
+            let electrical_rate = armature_resistance_ohms / armature_inductance_henries;
+            let mechanical_rate = viscous_friction_newton_meter_seconds_per_radian
+                / rotor_inertia_kilogram_meters_squared;
+            maximum_rate = maximum_rate.max(electrical_rate + coupling_rate);
+            maximum_rate = maximum_rate.max(mechanical_rate + coupling_rate);
+        }
+    }
 
     for island in &netlist.islands {
         let component_ids = island
@@ -205,7 +614,12 @@ fn estimate_transient_rate_bound(
         let mut capacitance = vec![vec![0.0; dimension]; dimension];
         let inductor_specs = island_specs
             .iter()
-            .filter(|spec| matches!(spec.model, DeviceModel::Inductor { .. }))
+            .filter(|spec| {
+                matches!(
+                    spec.model,
+                    DeviceModel::Inductor { .. } | DeviceModel::PmdcMotor { .. }
+                )
+            })
             .copied()
             .collect::<Vec<_>>();
         let mut incidence = vec![vec![0.0; inductor_specs.len()]; dimension];
@@ -226,6 +640,17 @@ fn estimate_transient_rate_bound(
                         1.0 / resistance_ohms,
                     )?;
                 }
+                DeviceModel::Fuse {
+                    intact_resistance_ohms,
+                    ..
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / intact_resistance_ohms,
+                    )?;
+                }
                 DeviceModel::DcVoltageSource {
                     internal_resistance_ohms,
                     ..
@@ -243,6 +668,38 @@ fn estimate_transient_rate_bound(
                     add_laplacian(&mut capacitance, variable1, variable2, capacitance_farads)?;
                 }
                 DeviceModel::Inductor { .. } => {}
+                DeviceModel::PmdcMotor { .. } => {}
+                DeviceModel::RelaySpdt {
+                    coil_resistance_ohms,
+                    closed_contact_resistance_ohms,
+                    common_node,
+                    normally_open_node,
+                    normally_closed_node,
+                    ..
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / coil_resistance_ohms,
+                    )?;
+                    add_laplacian(
+                        &mut conductance,
+                        root_to_variable.get(&sets.find(common_node)).copied(),
+                        root_to_variable
+                            .get(&sets.find(normally_open_node))
+                            .copied(),
+                        1.0 / closed_contact_resistance_ohms,
+                    )?;
+                    add_laplacian(
+                        &mut conductance,
+                        root_to_variable.get(&sets.find(common_node)).copied(),
+                        root_to_variable
+                            .get(&sets.find(normally_closed_node))
+                            .copied(),
+                        1.0 / closed_contact_resistance_ohms,
+                    )?;
+                }
                 DeviceModel::DcVoltageSource { .. } => {}
             }
         }
@@ -268,9 +725,33 @@ fn estimate_transient_rate_bound(
                 DeviceModel::Inductor {
                     inductance_henries, ..
                 } => Some(inductance_henries),
+                DeviceModel::PmdcMotor {
+                    armature_inductance_henries,
+                    ..
+                } => Some(armature_inductance_henries),
                 _ => None,
             })
             .collect::<Option<Vec<_>>>()?;
+        let motor_branches = inductor_specs
+            .iter()
+            .enumerate()
+            .filter_map(|(branch, spec)| match spec.model {
+                DeviceModel::PmdcMotor {
+                    armature_resistance_ohms,
+                    motor_constant_newton_meters_per_amp,
+                    rotor_inertia_kilogram_meters_squared,
+                    viscous_friction_newton_meter_seconds_per_radian,
+                    ..
+                } => Some((
+                    branch,
+                    armature_resistance_ohms,
+                    motor_constant_newton_meters_per_amp,
+                    rotor_inertia_kilogram_meters_squared,
+                    viscous_friction_newton_meter_seconds_per_radian,
+                )),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         if dynamic.is_empty() && l_values.is_empty() {
             continue;
         }
@@ -302,9 +783,15 @@ fn estimate_transient_rate_bound(
             let inverse_b = multiply_matrices(&inverse_gaa, &b_algebraic)?;
             reduced_inductor_resistance = multiply_matrices(&transpose(&b_algebraic), &inverse_b)?;
         }
+        for (branch, armature_resistance_ohms, ..) in &motor_branches {
+            reduced_inductor_resistance[*branch][*branch] += *armature_resistance_ohms;
+        }
 
-        let mut state_matrix =
-            vec![vec![0.0; dynamic.len() + l_values.len()]; dynamic.len() + l_values.len()];
+        let motor_state_start = dynamic.len() + l_values.len();
+        let mut state_matrix = vec![
+            vec![0.0; motor_state_start + motor_branches.len()];
+            motor_state_start + motor_branches.len()
+        ];
         if !dynamic.is_empty() {
             let reduced_c = submatrix(&capacitance, &dynamic, &dynamic);
             let inverse_c = invert_matrix(reduced_c)?;
@@ -333,10 +820,26 @@ fn estimate_transient_rate_bound(
             }
         }
 
+        for (motor_index, (branch, _, motor_constant, rotor_inertia, viscous_friction)) in
+            motor_branches.iter().enumerate()
+        {
+            let motor_speed_state = motor_state_start + motor_index;
+            let branch_state = dynamic.len() + *branch;
+            state_matrix[branch_state][motor_speed_state] = -*motor_constant / l_values[*branch];
+            state_matrix[motor_speed_state][branch_state] = *motor_constant / *rotor_inertia;
+            state_matrix[motor_speed_state][motor_speed_state] =
+                -*viscous_friction / *rotor_inertia;
+        }
+
         let scales = dynamic
             .iter()
             .map(|index| capacitance[*index][*index].sqrt())
             .chain(l_values.iter().map(|inductance| inductance.sqrt()))
+            .chain(
+                motor_branches
+                    .iter()
+                    .map(|(_, _, _, inertia, _)| inertia.sqrt()),
+            )
             .collect::<Vec<_>>();
         if scales
             .iter()

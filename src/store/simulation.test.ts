@@ -7,6 +7,7 @@ import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { Diagnostic } from "../generated/Diagnostic";
 import type { ResultLayout } from "../generated/ResultLayout";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
+import type { Schematic } from "../generated/Schematic";
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import {
@@ -222,6 +223,7 @@ describe("diagnostics", () => {
         frameSequence: sequence,
       },
       values: [1, 2],
+      states: [],
     };
   }
 
@@ -268,6 +270,7 @@ describe("diagnostics", () => {
             frameSequence: 0n,
           },
           values: [1, 2],
+          states: [],
         },
         diagnostics: [],
       }),
@@ -383,6 +386,7 @@ describe("unavailable backend", () => {
             frameSequence: 0n,
           },
           values: [Number.NaN],
+          states: [],
         },
         diagnostics: [],
       }),
@@ -424,6 +428,7 @@ describe("stale results", () => {
         frameSequence: overrides.frameSequence ?? 4n,
       },
       values: [...(overrides.values ?? [1, 2])],
+      states: [],
     };
   }
 
@@ -437,6 +442,54 @@ describe("stale results", () => {
     expect(isSnapshotCurrent(run, null, frame({ frameSequence: 0n }))).toBe(
       true,
     );
+  });
+
+  it("requires exactly the relay states named by the active schematic", () => {
+    const relayId = "00000000-0000-4000-8000-000000000010";
+    const schematic: Schematic = {
+      ...dividerSchematic,
+      components: [
+        ...dividerSchematic.components,
+        {
+          typeId: "relay_spdt",
+          id: relayId,
+          position: { x: 10, y: 0 },
+          rotationDeg: 0,
+          parameters: {
+            coilResistanceOhms: 100,
+            coilInductanceHenries: 0.01,
+            pickupCurrentAmps: 0.04,
+            dropoutCurrentAmps: 0.02,
+            closedContactResistanceOhms: 0.1,
+          },
+        },
+      ],
+    };
+    const relayFrame: ResultSnapshot = {
+      ...frame({}),
+      states: [{ componentId: relayId, kind: "relay", state: "released" }],
+    };
+
+    expect(isSnapshotCurrent(run, null, frame({}), schematic)).toBe(false);
+    expect(isSnapshotCurrent(run, null, relayFrame, schematic)).toBe(true);
+    expect(
+      isSnapshotCurrent(
+        run,
+        null,
+        {
+          ...relayFrame,
+          states: [
+            {
+              componentId: relayId,
+              kind: "relay",
+              state: "released",
+              lastTransitionTimeSeconds: 0.001,
+            },
+          ],
+        },
+        schematic,
+      ),
+    ).toBe(false);
   });
 
   it.each([
@@ -482,6 +535,7 @@ describe("stale results", () => {
             frameSequence: 0n,
           },
           values: [],
+          states: [],
         },
         diagnostics: [],
       }),
@@ -498,6 +552,7 @@ describe("stale results", () => {
             frameSequence: 1n,
           },
           values: [],
+          states: [],
         },
         diagnostics: [],
       }),
@@ -540,6 +595,7 @@ describe("rapid edits", () => {
           frameSequence,
         },
         values: [value],
+        states: [],
       };
     }
 
@@ -587,6 +643,7 @@ describe("rapid edits", () => {
           frameSequence: nextSequence(),
         },
         values: [request.value],
+        states: [],
       },
       diagnostics: [],
     };
@@ -697,6 +754,7 @@ describe("malformed engine answers", () => {
         frameSequence: 0n,
       },
       values: [1],
+      states: [],
     },
     diagnostics: [],
   });

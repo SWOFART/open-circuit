@@ -10,14 +10,24 @@ pub enum ComponentTypeId {
     DcVoltageSource,
     Capacitor,
     Inductor,
+    RelaySpdt,
+    Fuse,
+    PmdcMotor,
+    Voltmeter,
+    Ammeter,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 #[ts(export, export_to = "PinId.ts")]
 pub enum PinId {
     Pin1,
     Pin2,
+    CoilPositive,
+    CoilNegative,
+    Common,
+    NormallyOpen,
+    NormallyClosed,
 }
 
 impl PinId {
@@ -25,6 +35,11 @@ impl PinId {
         match self {
             Self::Pin1 => "pin1",
             Self::Pin2 => "pin2",
+            Self::CoilPositive => "coil_positive",
+            Self::CoilNegative => "coil_negative",
+            Self::Common => "common",
+            Self::NormallyOpen => "normally_open",
+            Self::NormallyClosed => "normally_closed",
         }
     }
 }
@@ -40,6 +55,23 @@ pub enum ParameterId {
     InitialVoltageVolts,
     InductanceHenries,
     InitialCurrentAmps,
+    CoilResistanceOhms,
+    CoilInductanceHenries,
+    PickupCurrentAmps,
+    DropoutCurrentAmps,
+    ClosedContactResistanceOhms,
+    IntactResistanceOhms,
+    TripI2tAmpereSquaredSeconds,
+    ArmatureResistanceOhms,
+    ArmatureInductanceHenries,
+    MotorConstantNewtonMetersPerAmp,
+    RotorInertiaKilogramMetersSquared,
+    ViscousFrictionNewtonMeterSecondsPerRadian,
+    LoadTorqueNewtonMeters,
+    InitialAngularVelocityRadiansPerSecond,
+    InitialArmatureCurrentAmps,
+    InputResistanceOhms,
+    BurdenResistanceOhms,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -51,6 +83,12 @@ pub enum Unit {
     Amp,
     Farad,
     Henry,
+    AmpereSquaredSecond,
+    KilogramMeterSquared,
+    NewtonMeter,
+    NewtonMeterPerAmp,
+    NewtonMeterSecondPerRadian,
+    RadianPerSecond,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -238,6 +276,220 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: true,
                     },
                 ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::RelaySpdt,
+                display_name_key: "component.relaySpdt.name".to_owned(),
+                pins: vec![
+                    PinDefinition {
+                        id: PinId::CoilPositive,
+                        role: PinRole::Positive,
+                    },
+                    PinDefinition {
+                        id: PinId::CoilNegative,
+                        role: PinRole::Negative,
+                    },
+                    PinDefinition {
+                        id: PinId::Common,
+                        role: PinRole::Unpolarized,
+                    },
+                    PinDefinition {
+                        id: PinId::NormallyOpen,
+                        role: PinRole::Unpolarized,
+                    },
+                    PinDefinition {
+                        id: PinId::NormallyClosed,
+                        role: PinRole::Unpolarized,
+                    },
+                ],
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::CoilResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 100.0,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.coilResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::CoilInductanceHenries,
+                        unit: Unit::Henry,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.coilInductance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::PickupCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.04,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.pickupCurrent".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::DropoutCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.02,
+                        domain: NumericDomain::NonNegative,
+                        description_key: "component.relaySpdt.dropoutCurrent".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::ClosedContactResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.relaySpdt.closedContactResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Fuse,
+                display_name_key: "component.fuse.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::IntactResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.fuse.intactResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::TripI2tAmpereSquaredSeconds,
+                        unit: Unit::AmpereSquaredSecond,
+                        default_value: 0.004,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.fuse.tripI2t".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::PmdcMotor,
+                display_name_key: "component.pmdcMotor.name".to_owned(),
+                pins: vec![
+                    PinDefinition {
+                        id: PinId::Pin1,
+                        role: PinRole::Positive,
+                    },
+                    PinDefinition {
+                        id: PinId::Pin2,
+                        role: PinRole::Negative,
+                    },
+                ],
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::ArmatureResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 2.0,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.armatureResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::ArmatureInductanceHenries,
+                        unit: Unit::Henry,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.armatureInductance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::MotorConstantNewtonMetersPerAmp,
+                        unit: Unit::NewtonMeterPerAmp,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.motorConstant".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::RotorInertiaKilogramMetersSquared,
+                        unit: Unit::KilogramMeterSquared,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.pmdcMotor.rotorInertia".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::ViscousFrictionNewtonMeterSecondsPerRadian,
+                        unit: Unit::NewtonMeterSecondPerRadian,
+                        default_value: 0.01,
+                        domain: NumericDomain::NonNegative,
+                        description_key: "component.pmdcMotor.viscousFriction".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::LoadTorqueNewtonMeters,
+                        unit: Unit::NewtonMeter,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.pmdcMotor.loadTorque".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::InitialAngularVelocityRadiansPerSecond,
+                        unit: Unit::RadianPerSecond,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.pmdcMotor.initialAngularVelocity".to_owned(),
+                        optional: true,
+                        initial_condition: true,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::InitialArmatureCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.0,
+                        domain: NumericDomain::Finite,
+                        description_key: "component.pmdcMotor.initialArmatureCurrent".to_owned(),
+                        optional: true,
+                        initial_condition: true,
+                    },
+                ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Voltmeter,
+                display_name_key: "component.voltmeter.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![ParameterDefinition {
+                    id: ParameterId::InputResistanceOhms,
+                    unit: Unit::Ohm,
+                    default_value: 10_000_000.0,
+                    domain: NumericDomain::StrictlyPositive,
+                    description_key: "component.voltmeter.inputResistance".to_owned(),
+                    optional: false,
+                    initial_condition: false,
+                }],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Ammeter,
+                display_name_key: "component.ammeter.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![ParameterDefinition {
+                    id: ParameterId::BurdenResistanceOhms,
+                    unit: Unit::Ohm,
+                    default_value: 0.1,
+                    domain: NumericDomain::StrictlyPositive,
+                    description_key: "component.ammeter.burdenResistance".to_owned(),
+                    optional: false,
+                    initial_condition: false,
+                }],
             },
         ],
     }

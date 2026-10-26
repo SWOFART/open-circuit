@@ -42,6 +42,7 @@ function success(request: CompileRequest, index: number): CompileResult {
         frameSequence: 0n,
       },
       values: [],
+      states: [],
     },
     diagnostics: [],
   };
@@ -85,6 +86,7 @@ function scriptedAdapter() {
           frameSequence: 1n,
         },
         values: [],
+        states: [],
       },
       diagnostics: [],
     }),

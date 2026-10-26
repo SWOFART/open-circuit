@@ -66,9 +66,11 @@ export function isSnapshotCurrent(
   run: ActiveRun | null,
   lastApplied: ResultSnapshot | null,
   snapshot: ResultSnapshot,
+  schematic?: Schematic,
 ): boolean {
   return (
     matchesRun(run, snapshot) &&
+    (schematic === undefined || statesMatchSchematic(snapshot, schematic)) &&
     (lastApplied === null ||
       snapshot.metadata.frameSequence > lastApplied.metadata.frameSequence)
   );
@@ -92,6 +94,57 @@ function matchesRun(run: ActiveRun | null, snapshot: ResultSnapshot): boolean {
   );
 }
 
+/** Checks that the discrete state side table is complete and belongs to this schematic. */
+function statesMatchSchematic(
+  snapshot: ResultSnapshot,
+  schematic: Schematic,
+): boolean {
+  const expected = new Map<string, "relay" | "fuse">();
+  for (const component of schematic.components) {
+    const typeId: string = component.typeId;
+    if (typeId === "relay_spdt") expected.set(component.id, "relay");
+    if (typeId === "fuse") expected.set(component.id, "fuse");
+  }
+
+  if (
+    !Array.isArray(snapshot.states) ||
+    snapshot.states.length !== expected.size
+  ) {
+    return false;
+  }
+  const stateIds: string[] = [];
+  for (const state of snapshot.states) {
+    const expectedKind = expected.get(state.componentId);
+    if (!expectedKind || state.kind !== expectedKind) return false;
+    if (
+      state.kind === "relay" &&
+      state.state !== "released" &&
+      state.state !== "picked"
+    ) {
+      return false;
+    }
+    if (
+      state.kind === "fuse" &&
+      state.state !== "intact" &&
+      state.state !== "tripped"
+    ) {
+      return false;
+    }
+    if (
+      state.lastTransitionTimeSeconds !== undefined &&
+      (!Number.isFinite(state.lastTransitionTimeSeconds) ||
+        state.lastTransitionTimeSeconds < 0 ||
+        state.lastTransitionTimeSeconds >
+          snapshot.metadata.simulationTimeSeconds)
+    ) {
+      return false;
+    }
+    stateIds.push(state.componentId);
+  }
+  const expectedIds = [...expected.keys()].sort();
+  return stateIds.every((id, index) => id === expectedIds[index]);
+}
+
 /**
  * A reply that arrived after a newer frame of the same revision was already
  * applied. Frames and invoke replies travel separately, so a frame produced right
@@ -102,11 +155,15 @@ export function isSnapshotSuperseded(
   run: ActiveRun | null,
   lastApplied: ResultSnapshot | null,
   snapshot: ResultSnapshot,
+  schematic?: Schematic,
 ): boolean {
   return (
     lastApplied !== null &&
     matchesRun(run, snapshot) &&
     matchesRun(run, lastApplied) &&
+    (schematic === undefined ||
+      (statesMatchSchematic(snapshot, schematic) &&
+        statesMatchSchematic(lastApplied, schematic))) &&
     lastApplied.metadata.frameSequence >= snapshot.metadata.frameSequence
   );
 }
@@ -398,7 +455,7 @@ export class SimulationController {
 
       if (
         !isLayoutCoherent(run.layout) ||
-        !isSnapshotCurrent(run, null, result.initialSnapshot)
+        !isSnapshotCurrent(run, null, result.initialSnapshot, schematic)
       ) {
         this.stopFrameStream();
         this.setState({
@@ -450,7 +507,14 @@ export class SimulationController {
       return;
     }
 
-    if (isSnapshotCurrent(this.state.run, this.state.snapshot, snapshot)) {
+    if (
+      isSnapshotCurrent(
+        this.state.run,
+        this.state.snapshot,
+        snapshot,
+        this.engineSchematic ?? undefined,
+      )
+    ) {
       this.setState({ snapshot });
     } else {
       this.setState({ discardedFrames: this.state.discardedFrames + 1 });
@@ -579,7 +643,15 @@ export class SimulationController {
         return false;
       }
 
-      if (isSnapshotSuperseded(sentRun, this.state.snapshot, result.snapshot)) {
+      const schematic = this.engineSchematic ?? undefined;
+      if (
+        isSnapshotSuperseded(
+          sentRun,
+          this.state.snapshot,
+          result.snapshot,
+          schematic,
+        )
+      ) {
         // A newer frame of this revision is already on screen, so the update is
         // confirmed; only the document has to follow.
         this.setState({
@@ -591,7 +663,14 @@ export class SimulationController {
         return true;
       }
 
-      if (!isSnapshotCurrent(sentRun, this.state.snapshot, result.snapshot)) {
+      if (
+        !isSnapshotCurrent(
+          sentRun,
+          this.state.snapshot,
+          result.snapshot,
+          schematic,
+        )
+      ) {
         // The engine may have applied the change, but its answer cannot be
         // trusted for this document, so the update is reported as unconfirmed.
         this.engineMayDifferFromDocument();

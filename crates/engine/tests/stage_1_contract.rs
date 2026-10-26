@@ -115,7 +115,7 @@ fn rejects_invalid_component_rotations_and_wire_paths() {
 #[test]
 fn catalog_is_authoritative_for_defaults_units_and_domains() {
     let catalog: ComponentCatalog = component_catalog();
-    assert_eq!(catalog.component_types.len(), 4);
+    assert_eq!(catalog.component_types.len(), 9);
 
     let resistor = catalog
         .component_types
@@ -174,6 +174,107 @@ fn catalog_is_authoritative_for_defaults_units_and_domains() {
     assert!(inductor.parameters[1].initial_condition);
     assert_eq!(inductor.parameters[1].id, ParameterId::InitialCurrentAmps);
     assert_eq!(inductor.parameters[1].unit, Unit::Amp);
+
+    let relay = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::RelaySpdt)
+        .unwrap();
+    assert_eq!(relay.pins.len(), 5);
+    assert_eq!(relay.pins[0].id.as_str(), "coil_positive");
+    assert_eq!(relay.pins[1].id.as_str(), "coil_negative");
+    assert_eq!(relay.pins[2].id.as_str(), "common");
+    assert_eq!(relay.pins[3].id.as_str(), "normally_open");
+    assert_eq!(relay.pins[4].id.as_str(), "normally_closed");
+    assert_eq!(relay.parameters.len(), 5);
+    assert_eq!(relay.parameters[0].default_value, 100.0);
+    assert_eq!(relay.parameters[0].unit, Unit::Ohm);
+    assert_eq!(relay.parameters[1].default_value, 0.01);
+    assert_eq!(relay.parameters[1].unit, Unit::Henry);
+    assert_eq!(relay.parameters[2].default_value, 0.04);
+    assert_eq!(relay.parameters[2].unit, Unit::Amp);
+    assert_eq!(relay.parameters[3].default_value, 0.02);
+    assert_eq!(relay.parameters[4].default_value, 0.1);
+    assert_eq!(relay.parameters[4].unit, Unit::Ohm);
+
+    let fuse = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::Fuse)
+        .unwrap();
+    assert_eq!(fuse.pins.len(), 2);
+    assert_eq!(fuse.parameters[0].id, ParameterId::IntactResistanceOhms);
+    assert_eq!(fuse.parameters[0].unit, Unit::Ohm);
+    assert_eq!(fuse.parameters[0].default_value, 0.01);
+    assert_eq!(fuse.parameters[0].domain, NumericDomain::StrictlyPositive);
+    assert_eq!(
+        fuse.parameters[1].id,
+        ParameterId::TripI2tAmpereSquaredSeconds
+    );
+    assert_eq!(fuse.parameters[1].unit, Unit::AmpereSquaredSecond);
+    assert_eq!(fuse.parameters[1].default_value, 0.004);
+    assert_eq!(fuse.parameters[1].domain, NumericDomain::StrictlyPositive);
+
+    let motor = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::PmdcMotor)
+        .unwrap();
+    assert_eq!(motor.pins.len(), 2);
+    assert_eq!(motor.parameters[0].id, ParameterId::ArmatureResistanceOhms);
+    assert_eq!(motor.parameters[0].unit, Unit::Ohm);
+    assert_eq!(motor.parameters[0].default_value, 2.0);
+    assert_eq!(
+        motor.parameters[1].id,
+        ParameterId::ArmatureInductanceHenries
+    );
+    assert_eq!(motor.parameters[1].unit, Unit::Henry);
+    assert_eq!(motor.parameters[1].default_value, 0.1);
+    assert_eq!(
+        motor.parameters[2].id,
+        ParameterId::MotorConstantNewtonMetersPerAmp
+    );
+    assert_eq!(motor.parameters[2].unit, Unit::NewtonMeterPerAmp);
+    assert_eq!(motor.parameters[2].default_value, 0.1);
+    assert_eq!(
+        motor.parameters[3].id,
+        ParameterId::RotorInertiaKilogramMetersSquared
+    );
+    assert_eq!(motor.parameters[3].unit, Unit::KilogramMeterSquared);
+    assert_eq!(motor.parameters[3].default_value, 0.01);
+    assert_eq!(motor.parameters[4].domain, NumericDomain::NonNegative);
+    assert_eq!(motor.parameters[5].unit, Unit::NewtonMeter);
+    assert_eq!(motor.parameters[5].domain, NumericDomain::Finite);
+    assert!(motor.parameters[6].optional && motor.parameters[6].initial_condition);
+    assert!(motor.parameters[7].optional && motor.parameters[7].initial_condition);
+
+    let voltmeter = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::Voltmeter)
+        .unwrap();
+    assert_eq!(voltmeter.pins.len(), 2);
+    assert_eq!(voltmeter.parameters[0].id, ParameterId::InputResistanceOhms);
+    assert_eq!(voltmeter.parameters[0].unit, Unit::Ohm);
+    assert_eq!(voltmeter.parameters[0].default_value, 10_000_000.0);
+    assert_eq!(
+        voltmeter.parameters[0].domain,
+        NumericDomain::StrictlyPositive
+    );
+
+    let ammeter = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::Ammeter)
+        .unwrap();
+    assert_eq!(ammeter.pins.len(), 2);
+    assert_eq!(ammeter.parameters[0].id, ParameterId::BurdenResistanceOhms);
+    assert_eq!(ammeter.parameters[0].unit, Unit::Ohm);
+    assert_eq!(ammeter.parameters[0].default_value, 0.1);
+    assert_eq!(
+        ammeter.parameters[0].domain,
+        NumericDomain::StrictlyPositive
+    );
 
     assert!(NumericDomain::NonNegative.accepts(0.0));
     assert!(NumericDomain::Finite.accepts(-5.0));

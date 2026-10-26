@@ -12,11 +12,12 @@ impl NodeVariables {
         node_count: usize,
         island_nodes: &[usize],
         reference_node: usize,
+        additional_reference_nodes: &std::collections::HashSet<usize>,
     ) -> Self {
         let mut node_to_variable = vec![None; node_count];
         let mut voltage_variable_count = 0;
         for node in island_nodes.iter().copied() {
-            if node != reference_node {
+            if node != reference_node && !additional_reference_nodes.contains(&node) {
                 node_to_variable[node] = Some(voltage_variable_count);
                 voltage_variable_count += 1;
             }
@@ -143,6 +144,55 @@ impl MnaSystem {
         self.add_rhs(branch_variable, voltage_volts)
     }
 
+    /// Adds a branch-current unknown to terminal KCL equations without adding
+    /// any constitutive equation for that branch.
+    pub(crate) fn stamp_branch_current(
+        &mut self,
+        variables: &NodeVariables,
+        pin1_node: usize,
+        pin2_node: usize,
+        branch_variable: usize,
+    ) -> bool {
+        if branch_variable >= self.rhs.len() {
+            return false;
+        }
+        let pin1 = variables.voltage_variable(pin1_node);
+        let pin2 = variables.voltage_variable(pin2_node);
+        if let Some(pin1) = pin1
+            && !self.add_matrix(pin1, branch_variable, 1.0)
+        {
+            return false;
+        }
+        if let Some(pin2) = pin2
+            && !self.add_matrix(pin2, branch_variable, -1.0)
+        {
+            return false;
+        }
+        true
+    }
+
+    /// Adds a general linear equation over MNA unknowns, used by coupled
+    /// multiphysics devices with more than one state variable.
+    pub(crate) fn stamp_linear_equation(
+        &mut self,
+        row_variable: usize,
+        terms: &[(usize, f64)],
+        right_hand_side: f64,
+    ) -> bool {
+        if row_variable >= self.rhs.len() || !right_hand_side.is_finite() {
+            return false;
+        }
+        for (column, coefficient) in terms {
+            if *column >= self.rhs.len() {
+                return false;
+            }
+            if !self.add_matrix(row_variable, *column, *coefficient) {
+                return false;
+            }
+        }
+        self.add_rhs(row_variable, right_hand_side)
+    }
+
     pub(crate) fn solve(&self) -> Result<SolverSolution, SolverError> {
         DenseLuSolver::default().solve(&self.matrix, &self.rhs)
     }
@@ -164,7 +214,7 @@ mod tests {
 
     #[test]
     fn conductance_stamp_uses_reference_node_and_symmetric_signs() {
-        let variables = NodeVariables::for_island(2, &[0, 1], 1);
+        let variables = NodeVariables::for_island(2, &[0, 1], 1, &std::collections::HashSet::new());
         let mut system = MnaSystem::new(1);
         assert!(system.stamp_conductance(&variables, 0, 1, 0.5));
         let solved = system.solve().unwrap();
@@ -173,7 +223,7 @@ mod tests {
 
     #[test]
     fn ideal_source_stamp_sets_terminal_voltage_with_pin1_current_sign() {
-        let variables = NodeVariables::for_island(2, &[0, 1], 1);
+        let variables = NodeVariables::for_island(2, &[0, 1], 1, &std::collections::HashSet::new());
         let mut system = MnaSystem::new(2);
         assert!(system.stamp_conductance(&variables, 0, 1, 1.0));
         assert!(system.stamp_ideal_voltage_source(&variables, 0, 1, 1, 5.0));
