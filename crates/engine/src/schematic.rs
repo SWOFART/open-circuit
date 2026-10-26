@@ -119,6 +119,20 @@ pub struct PmdcMotorParameters {
     pub initial_armature_current_amps: Option<f64>,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "VoltmeterParameters.ts")]
+pub struct VoltmeterParameters {
+    pub input_resistance_ohms: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "AmmeterParameters.ts")]
+pub struct AmmeterParameters {
+    pub burden_resistance_ohms: f64,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct PmdcMotorParametersInput {
@@ -177,7 +191,8 @@ impl<'de> Deserialize<'de> for InductorParameters {
 }
 
 /// Saved schema version 1 supports resistors, independent voltage sources,
-/// capacitors, inductors, relays, fuses, and permanent-magnet DC motors.
+/// capacitors, inductors, relays, fuses, permanent-magnet DC motors, voltmeters,
+/// and ammeters.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -236,6 +251,20 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: PmdcMotorParameters,
     },
+    Voltmeter {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: VoltmeterParameters,
+    },
+    Ammeter {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: AmmeterParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -247,7 +276,9 @@ impl ComponentSpec {
             | Self::Inductor { id, .. }
             | Self::RelaySpdt { id, .. }
             | Self::Fuse { id, .. }
-            | Self::PmdcMotor { id, .. } => id,
+            | Self::PmdcMotor { id, .. }
+            | Self::Voltmeter { id, .. }
+            | Self::Ammeter { id, .. } => id,
         }
     }
 
@@ -260,6 +291,8 @@ impl ComponentSpec {
             Self::RelaySpdt { .. } => ComponentTypeId::RelaySpdt,
             Self::Fuse { .. } => ComponentTypeId::Fuse,
             Self::PmdcMotor { .. } => ComponentTypeId::PmdcMotor,
+            Self::Voltmeter { .. } => ComponentTypeId::Voltmeter,
+            Self::Ammeter { .. } => ComponentTypeId::Ammeter,
         }
     }
 
@@ -362,6 +395,18 @@ impl ComponentSpec {
                 }
                 values
             }
+            Self::Voltmeter { parameters, .. } => {
+                vec![(
+                    ParameterId::InputResistanceOhms,
+                    parameters.input_resistance_ohms,
+                )]
+            }
+            Self::Ammeter { parameters, .. } => {
+                vec![(
+                    ParameterId::BurdenResistanceOhms,
+                    parameters.burden_resistance_ohms,
+                )]
+            }
         }
     }
 }
@@ -456,7 +501,9 @@ impl Schematic {
             | ComponentSpec::Inductor { rotation_deg, .. }
             | ComponentSpec::RelaySpdt { rotation_deg, .. }
             | ComponentSpec::Fuse { rotation_deg, .. }
-            | ComponentSpec::PmdcMotor { rotation_deg, .. } = component
+            | ComponentSpec::PmdcMotor { rotation_deg, .. }
+            | ComponentSpec::Voltmeter { rotation_deg, .. }
+            | ComponentSpec::Ammeter { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(

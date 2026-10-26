@@ -11,6 +11,8 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   relay_spdt: "K",
   fuse: "F",
   pmdc_motor: "M",
+  voltmeter: "VM",
+  ammeter: "AM",
 };
 
 /**

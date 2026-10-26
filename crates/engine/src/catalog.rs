@@ -13,6 +13,8 @@ pub enum ComponentTypeId {
     RelaySpdt,
     Fuse,
     PmdcMotor,
+    Voltmeter,
+    Ammeter,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -68,6 +70,8 @@ pub enum ParameterId {
     LoadTorqueNewtonMeters,
     InitialAngularVelocityRadiansPerSecond,
     InitialArmatureCurrentAmps,
+    InputResistanceOhms,
+    BurdenResistanceOhms,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -458,6 +462,34 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: true,
                     },
                 ],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Voltmeter,
+                display_name_key: "component.voltmeter.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![ParameterDefinition {
+                    id: ParameterId::InputResistanceOhms,
+                    unit: Unit::Ohm,
+                    default_value: 10_000_000.0,
+                    domain: NumericDomain::StrictlyPositive,
+                    description_key: "component.voltmeter.inputResistance".to_owned(),
+                    optional: false,
+                    initial_condition: false,
+                }],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Ammeter,
+                display_name_key: "component.ammeter.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![ParameterDefinition {
+                    id: ParameterId::BurdenResistanceOhms,
+                    unit: Unit::Ohm,
+                    default_value: 0.1,
+                    domain: NumericDomain::StrictlyPositive,
+                    description_key: "component.ammeter.burdenResistance".to_owned(),
+                    optional: false,
+                    initial_condition: false,
+                }],
             },
         ],
     }

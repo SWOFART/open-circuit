@@ -115,7 +115,7 @@ fn rejects_invalid_component_rotations_and_wire_paths() {
 #[test]
 fn catalog_is_authoritative_for_defaults_units_and_domains() {
     let catalog: ComponentCatalog = component_catalog();
-    assert_eq!(catalog.component_types.len(), 7);
+    assert_eq!(catalog.component_types.len(), 9);
 
     let resistor = catalog
         .component_types
@@ -247,6 +247,34 @@ fn catalog_is_authoritative_for_defaults_units_and_domains() {
     assert_eq!(motor.parameters[5].domain, NumericDomain::Finite);
     assert!(motor.parameters[6].optional && motor.parameters[6].initial_condition);
     assert!(motor.parameters[7].optional && motor.parameters[7].initial_condition);
+
+    let voltmeter = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::Voltmeter)
+        .unwrap();
+    assert_eq!(voltmeter.pins.len(), 2);
+    assert_eq!(voltmeter.parameters[0].id, ParameterId::InputResistanceOhms);
+    assert_eq!(voltmeter.parameters[0].unit, Unit::Ohm);
+    assert_eq!(voltmeter.parameters[0].default_value, 10_000_000.0);
+    assert_eq!(
+        voltmeter.parameters[0].domain,
+        NumericDomain::StrictlyPositive
+    );
+
+    let ammeter = catalog
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == ComponentTypeId::Ammeter)
+        .unwrap();
+    assert_eq!(ammeter.pins.len(), 2);
+    assert_eq!(ammeter.parameters[0].id, ParameterId::BurdenResistanceOhms);
+    assert_eq!(ammeter.parameters[0].unit, Unit::Ohm);
+    assert_eq!(ammeter.parameters[0].default_value, 0.1);
+    assert_eq!(
+        ammeter.parameters[0].domain,
+        NumericDomain::StrictlyPositive
+    );
 
     assert!(NumericDomain::NonNegative.accepts(0.0));
     assert!(NumericDomain::Finite.accepts(-5.0));

@@ -894,6 +894,12 @@ fn build_device_specs(
             ComponentSpec::Resistor { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.resistance_ohms,
             },
+            ComponentSpec::Voltmeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.input_resistance_ohms,
+            },
+            ComponentSpec::Ammeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.burden_resistance_ohms,
+            },
             ComponentSpec::DcVoltageSource { parameters, .. } => {
                 if parameters.internal_resistance_ohms == 0.0 && pin1 == pin2 {
                     diagnostics.push(Diagnostic::error(
@@ -1788,6 +1794,18 @@ fn update_parameter(
                 return false;
             }
             parameters.resistance_ohms = value;
+        }
+        ComponentSpec::Voltmeter { parameters, .. } => {
+            if parameter_id != ParameterId::InputResistanceOhms {
+                return false;
+            }
+            parameters.input_resistance_ohms = value;
+        }
+        ComponentSpec::Ammeter { parameters, .. } => {
+            if parameter_id != ParameterId::BurdenResistanceOhms {
+                return false;
+            }
+            parameters.burden_resistance_ohms = value;
         }
         ComponentSpec::DcVoltageSource { parameters, .. } => match parameter_id {
             ParameterId::VoltageVolts => parameters.voltage_volts = value,

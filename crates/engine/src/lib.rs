@@ -27,9 +27,10 @@ pub use results::{
     TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery, TraceRequest, TraceSignal,
 };
 pub use schematic::{
-    ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, FuseParameters, GeometryEnvelope,
-    GridPoint, InductorParameters, JunctionSpec, PmdcMotorParameters, ReferenceMarkerSpec,
-    RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION, Schematic, WireSpec,
+    AmmeterParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, FuseParameters,
+    GeometryEnvelope, GridPoint, InductorParameters, JunctionSpec, PmdcMotorParameters,
+    ReferenceMarkerSpec, RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
+    Schematic, VoltmeterParameters, WireSpec,
 };
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");

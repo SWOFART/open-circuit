@@ -150,6 +150,28 @@
         { "id": "initialAngularVelocityRadiansPerSecond", "unit": "radian_per_second", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialAngularVelocity", "optional": true, "initialCondition": true },
         { "id": "initialArmatureCurrentAmps", "unit": "amp", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialArmatureCurrent", "optional": true, "initialCondition": true }
       ]
+    },
+    {
+      "typeId": "voltmeter",
+      "displayNameKey": "component.voltmeter.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "inputResistanceOhms", "unit": "ohm", "defaultValue": 10000000.0, "domain": "strictly_positive", "descriptionKey": "component.voltmeter.inputResistance", "optional": false, "initialCondition": false }
+      ]
+    },
+    {
+      "typeId": "ammeter",
+      "displayNameKey": "component.ammeter.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "burdenResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.ammeter.burdenResistance", "optional": false, "initialCondition": false }
+      ]
     }
   ]
 }
