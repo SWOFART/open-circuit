@@ -11,8 +11,8 @@ use open_circuit_app_lib::simulation::{
     FrameSink, SimulationConfig, SimulationCore, SinkClosed, TraceSink,
 };
 use open_circuit_engine::{
-    CompileRequest, CompileResult, ResultLayout, ResultQuantity, ResultSnapshot, StableId,
-    TraceQuery, TraceRequest,
+    CompileRequest, CompileResult, ParameterId, ResultLayout, ResultQuantity, ResultSnapshot,
+    SetParameterRequest, SetParameterResult, StableId, TraceQuery, TraceRequest,
 };
 use serde_json::Value;
 
@@ -122,12 +122,32 @@ pub struct Run {
     frames: Capture,
     traces: Capture,
     now: Instant,
+    revision: u32,
+    /// Every frame delivered since the run started, as decoded and as sent.
+    pub delivered: Vec<(ResultSnapshot, Vec<u8>)>,
 }
 
 impl Run {
     /// Compiles `request` with the real Engine and opens the frame stream.
     pub fn start(request: CompileRequest) -> Self {
-        let mut core = SimulationCore::new(SimulationConfig::default());
+        Self::start_with(request, SimulationConfig::default())
+    }
+
+    /// Like `start`, but delivers a frame at every public step, so that the state at an
+    /// exact simulation time can be read without waiting for the 60 Hz cap.
+    pub fn start_every_step(request: CompileRequest) -> Self {
+        Self::start_with(
+            request,
+            SimulationConfig {
+                frame_interval: Duration::from_millis(1),
+                max_in_flight: 4,
+                ..SimulationConfig::default()
+            },
+        )
+    }
+
+    pub fn start_with(request: CompileRequest, config: SimulationConfig) -> Self {
+        let mut core = SimulationCore::new(config);
         let compile_result = core.compile(request);
         let CompileResult::Success {
             run_id,
@@ -155,6 +175,8 @@ impl Run {
             frames,
             traces: Capture::default(),
             now,
+            revision: 1,
+            delivered: Vec::new(),
         }
     }
 
@@ -171,10 +193,49 @@ impl Run {
                 let snapshot = decode_frame(&frame).expect("every delivered frame decodes");
                 newest = newest.max(snapshot.metadata.simulation_step);
                 self.core.acknowledge(snapshot.metadata.frame_sequence);
+                self.delivered.push((snapshot, frame));
             }
         }
 
         newest
+    }
+
+    /// The delivered frame for a public step, with its bytes.
+    pub fn frame_at(&self, step: u64) -> &(ResultSnapshot, Vec<u8>) {
+        self.delivered
+            .iter()
+            .find(|(snapshot, _)| snapshot.metadata.simulation_step == step)
+            .unwrap_or_else(|| panic!("no frame was delivered for step {step}"))
+    }
+
+    /// The document revision the next live update expects, as the application sends it.
+    pub fn revision(&self) -> String {
+        format!("rev-{}", self.revision)
+    }
+
+    /// A live parameter update, as the application sends it: it names the current
+    /// revision and adopts the next one.
+    pub fn set_parameter(
+        &mut self,
+        component: &str,
+        parameter: ParameterId,
+        value: f64,
+    ) -> (SetParameterRequest, SetParameterResult) {
+        let request = SetParameterRequest {
+            run_id: self.run_id.clone(),
+            expected_document_revision: self.revision(),
+            document_revision: format!("rev-{}", self.revision + 1),
+            component_id: StableId::parse(component).expect("a valid component ID"),
+            parameter_id: parameter,
+            value,
+        };
+        let result = self.core.set_parameter(request.clone());
+
+        if matches!(result, SetParameterResult::Success { .. }) {
+            self.revision += 1;
+        }
+
+        (request, result)
     }
 
     /// One bounded history read, parsed. The response is acknowledged so the next read
