@@ -152,6 +152,7 @@ fn compile(
         schematic,
         geometry,
         document_revision: "meters-test-1".to_owned(),
+        faults: None,
     })
     else {
         panic!("the meter circuit should compile");

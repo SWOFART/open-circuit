@@ -91,6 +91,7 @@ fn request(revision: &str) -> CompileRequest {
         schematic: serde_json::from_str(SCHEMATIC).expect("schematic fixture"),
         geometry: serde_json::from_str(GEOMETRY).expect("geometry fixture"),
         document_revision: revision.to_owned(),
+        faults: None,
     }
 }
 

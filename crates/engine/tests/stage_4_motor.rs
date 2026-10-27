@@ -92,6 +92,7 @@ fn compile_request(
         schematic,
         geometry,
         document_revision: "motor-test-1".to_owned(),
+        faults: None,
     }
 }
 
@@ -310,6 +311,7 @@ fn motor_coupling_contributes_to_the_deterministic_substep_rate_bound() {
         schematic,
         geometry,
         document_revision: "motor-rate-bound".to_owned(),
+        faults: None,
     })
     else {
         panic!("the high-coupling PMDC fixture should compile");

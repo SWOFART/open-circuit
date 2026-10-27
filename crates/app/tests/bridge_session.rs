@@ -175,6 +175,7 @@ fn a_real_engine_session_meets_the_golden_values_and_is_recorded_for_the_ui() {
         schematic: serde_json::from_str(SCHEMATIC).expect("schematic fixture"),
         geometry: serde_json::from_str(GEOMETRY).expect("geometry fixture"),
         document_revision: "rev-1".to_owned(),
+        faults: None,
     };
 
     let capture = Capture::default();

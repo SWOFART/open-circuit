@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::supported_fault_kinds;
+
 /// Stable IDs are serialized exactly as specified by the Stage 1 contract.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -153,6 +155,8 @@ pub struct ComponentCatalogEntry {
     pub display_name_key: String,
     pub pins: Vec<PinDefinition>,
     pub parameters: Vec<ParameterDefinition>,
+    // The fault kinds this type supports (docs/contracts/stage-5-assignments.md section 5.2).
+    pub fault_kinds: Vec<crate::FaultKind>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
@@ -192,6 +196,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     optional: false,
                     initial_condition: false,
                 }],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::Resistor).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::DcVoltageSource,
@@ -226,6 +231,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: false,
                     },
                 ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::DcVoltageSource).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Capacitor,
@@ -251,6 +257,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: true,
                     },
                 ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::Capacitor).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Inductor,
@@ -276,6 +283,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: true,
                     },
                 ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::Inductor).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::RelaySpdt,
@@ -349,6 +357,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: false,
                     },
                 ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::RelaySpdt).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Fuse,
@@ -374,6 +383,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: false,
                     },
                 ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::Fuse).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::PmdcMotor,
@@ -462,6 +472,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         initial_condition: true,
                     },
                 ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::PmdcMotor).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Voltmeter,
@@ -476,6 +487,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     optional: false,
                     initial_condition: false,
                 }],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::Voltmeter).to_vec(),
             },
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Ammeter,
@@ -490,6 +502,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     optional: false,
                     initial_condition: false,
                 }],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::Ammeter).to_vec(),
             },
         ],
     }

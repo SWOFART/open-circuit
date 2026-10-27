@@ -3,7 +3,7 @@
 //! This module builds conductor nodes and electrical islands only. It does not solve the
 //! circuit, distribute current through individual wire segments, or serialize derived state.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::{
     Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity, GeometryEnvelope,
@@ -55,6 +55,18 @@ pub struct Netlist {
 pub fn derive_netlist(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
+) -> Result<Netlist, Vec<Diagnostic>> {
+    derive_netlist_with_open(schematic, geometry, &HashSet::new())
+}
+
+/// Like `derive_netlist`, for a circuit in which the components of `open` have lost their
+/// branch (the `open` fault of docs/contracts/stage-5-assignments.md). An open component's
+/// pins stay in the netlist, so the voltage across them can be reported, but they no longer
+/// connect its nodes into one island.
+pub fn derive_netlist_with_open(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
 ) -> Result<Netlist, Vec<Diagnostic>> {
     let mut diagnostics = schematic.validate();
     diagnostics.extend(geometry.validate_for(schematic));
@@ -153,6 +165,9 @@ pub fn derive_netlist(
     let mut island_sets = DisjointSet::new(nodes.len());
     let mut component_nodes = Vec::<(StableId, Vec<usize>)>::new();
     for component in &schematic.components {
+        if open.contains(component.id()) {
+            continue;
+        }
         let mut component_pin_nodes = pins
             .iter()
             .filter(|pin| pin.reference.component_id == *component.id())

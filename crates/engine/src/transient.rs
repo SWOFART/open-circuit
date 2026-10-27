@@ -6,7 +6,7 @@ use crate::{
     ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
     RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
     devices::{DeviceResult, IntegrationMethod},
-    netlist::derive_netlist,
+    netlist::derive_netlist_with_open,
 };
 
 use super::DeviceModel;
@@ -250,6 +250,7 @@ pub(super) fn circuit_states_from_results(
 pub(super) fn advance_public_steps(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
     mut states: CircuitStates,
     internal_substeps: u32,
     first_public_step: u64,
@@ -311,6 +312,7 @@ pub(super) fn advance_public_steps(
             let (mut step_results, step_diagnostics) = super::compute_circuit(
                 schematic,
                 geometry,
+                open,
                 SolveMode::Transient {
                     step_seconds: internal_step_seconds,
                     states: &states,
@@ -331,8 +333,11 @@ pub(super) fn advance_public_steps(
                 step_end_time,
             )?;
             settle_discrete_events(
-                schematic,
-                geometry,
+                CircuitInput {
+                    schematic,
+                    geometry,
+                    open,
+                },
                 &mut candidate,
                 &mut step_results,
                 fuse_transitions,
@@ -392,15 +397,28 @@ fn accumulate_fuse_i2t(
     Ok(transitions)
 }
 
+/// The circuit that is solved: the schematic, its pin geometry, and the components whose
+/// branch a fault has removed.
+#[derive(Clone, Copy)]
+pub(super) struct CircuitInput<'a> {
+    pub schematic: &'a Schematic,
+    pub geometry: &'a GeometryEnvelope,
+    pub open: &'a HashSet<StableId>,
+}
+
 pub(super) fn settle_discrete_events(
-    schematic: &Schematic,
-    geometry: &GeometryEnvelope,
+    circuit: CircuitInput<'_>,
     states: &mut CircuitStates,
     results: &mut Vec<DeviceResult>,
     mut fuse_transitions: Vec<StableId>,
     event_time_seconds: f64,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(), Vec<Diagnostic>> {
+    let CircuitInput {
+        schematic,
+        geometry,
+        open,
+    } = circuit;
     const MAX_SAME_TIME_TRANSITIONS: usize = 16;
     let mut seen = HashSet::new();
     seen.insert(discrete_state_vector(states, &fuse_transitions));
@@ -476,7 +494,7 @@ pub(super) fn settle_discrete_events(
             return Err(diagnostics.clone());
         }
         let (resolved, event_diagnostics) =
-            super::compute_circuit(schematic, geometry, SolveMode::InitialState(states))?;
+            super::compute_circuit(schematic, geometry, open, SolveMode::InitialState(states))?;
         *results = resolved;
         diagnostics.extend(event_diagnostics);
         let mut resolved_states =
@@ -518,9 +536,10 @@ fn discrete_state_vector(
 pub(super) fn choose_internal_substeps(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
 ) -> (u32, bool) {
     const MAX_SUBSTEPS: u32 = 64;
-    let omega_hat = estimate_transient_rate_bound(schematic, geometry).unwrap_or(f64::MAX);
+    let omega_hat = estimate_transient_rate_bound(schematic, geometry, open).unwrap_or(f64::MAX);
     let limit = 0.03_f64.sqrt();
     let mut substeps = 1;
     while substeps < MAX_SUBSTEPS
@@ -541,9 +560,14 @@ pub(super) fn choose_internal_substeps(
 fn estimate_transient_rate_bound(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
 ) -> Option<f64> {
-    let netlist = derive_netlist(schematic, geometry).ok()?;
-    let specs = super::build_device_specs(schematic, &netlist).ok()?;
+    let netlist = derive_netlist_with_open(schematic, geometry, open).ok()?;
+    let specs = super::build_device_specs(schematic, &netlist)
+        .ok()?
+        .into_iter()
+        .filter(|spec| !open.contains(&spec.component_id))
+        .collect::<Vec<_>>();
     let mut maximum_rate: f64 = 0.0;
     for spec in &specs {
         if let DeviceModel::RelaySpdt {

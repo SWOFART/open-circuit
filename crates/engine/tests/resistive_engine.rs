@@ -15,6 +15,7 @@ fn divider_request() -> CompileRequest {
         schematic: from_str(SCHEMATIC_JSON).unwrap(),
         geometry: from_str(GEOMETRY_JSON).unwrap(),
         document_revision: "divider-1".to_owned(),
+        faults: None,
     }
 }
 
@@ -163,6 +164,7 @@ fn bridge_network_matches_analytical_node_voltages_and_conservation() {
         schematic: schematic.clone(),
         geometry: geometry.clone(),
         document_revision: "bridge-1".to_owned(),
+        faults: None,
     })
     else {
         panic!("the resistive bridge should compile");
@@ -309,6 +311,7 @@ fn ideal_source_conflicts_singular_loops_and_non_finite_values_fail_with_diagnos
         schematic: schematic.clone(),
         geometry: geometry.clone(),
         document_revision: "ideal-loop".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = consistent_ideal_loop else {
         panic!("parallel ideal-source currents are underdetermined");
@@ -330,6 +333,7 @@ fn ideal_source_conflicts_singular_loops_and_non_finite_values_fail_with_diagnos
         schematic: schematic.clone(),
         geometry: geometry.clone(),
         document_revision: "inconsistent-loop".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = inconsistent_loop else {
         panic!("conflicting ideal sources must fail");
@@ -349,6 +353,7 @@ fn ideal_source_conflicts_singular_loops_and_non_finite_values_fail_with_diagnos
         schematic: short_schematic.clone(),
         geometry: short_geometry,
         document_revision: "shorted-source".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = shorted_source else {
         panic!("an ideal source short must fail");
@@ -366,6 +371,7 @@ fn ideal_source_conflicts_singular_loops_and_non_finite_values_fail_with_diagnos
         schematic: short_schematic,
         geometry: bridge_fixture().1,
         document_revision: "invalid-resistance".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = invalid_resistance else {
         panic!("zero resistance must not be accepted");

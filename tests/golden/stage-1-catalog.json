@@ -17,6 +17,11 @@
           "optional": false,
           "initialCondition": false
         }
+      ],
+      "faultKinds": [
+        "open",
+        "short",
+        "parameter"
       ]
     },
     {
@@ -45,6 +50,10 @@
           "optional": false,
           "initialCondition": false
         }
+      ],
+      "faultKinds": [
+        "open",
+        "parameter"
       ]
     },
     {
@@ -73,6 +82,11 @@
           "optional": true,
           "initialCondition": true
         }
+      ],
+      "faultKinds": [
+        "open",
+        "short",
+        "parameter"
       ]
     },
     {
@@ -101,6 +115,11 @@
           "optional": true,
           "initialCondition": true
         }
+      ],
+      "faultKinds": [
+        "open",
+        "short",
+        "parameter"
       ]
     },
     {
@@ -119,6 +138,9 @@
         { "id": "pickupCurrentAmps", "unit": "amp", "defaultValue": 0.04, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.pickupCurrent", "optional": false, "initialCondition": false },
         { "id": "dropoutCurrentAmps", "unit": "amp", "defaultValue": 0.02, "domain": "non_negative", "descriptionKey": "component.relaySpdt.dropoutCurrent", "optional": false, "initialCondition": false },
         { "id": "closedContactResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.closedContactResistance", "optional": false, "initialCondition": false }
+      ],
+      "faultKinds": [
+        "parameter"
       ]
     },
     {
@@ -131,6 +153,9 @@
       "parameters": [
         { "id": "intactResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.fuse.intactResistance", "optional": false, "initialCondition": false },
         { "id": "tripI2tAmpereSquaredSeconds", "unit": "ampere_squared_second", "defaultValue": 0.004, "domain": "strictly_positive", "descriptionKey": "component.fuse.tripI2t", "optional": false, "initialCondition": false }
+      ],
+      "faultKinds": [
+        "parameter"
       ]
     },
     {
@@ -149,6 +174,9 @@
         { "id": "loadTorqueNewtonMeters", "unit": "newton_meter", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.loadTorque", "optional": false, "initialCondition": false },
         { "id": "initialAngularVelocityRadiansPerSecond", "unit": "radian_per_second", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialAngularVelocity", "optional": true, "initialCondition": true },
         { "id": "initialArmatureCurrentAmps", "unit": "amp", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialArmatureCurrent", "optional": true, "initialCondition": true }
+      ],
+      "faultKinds": [
+        "parameter"
       ]
     },
     {
@@ -160,6 +188,9 @@
       ],
       "parameters": [
         { "id": "inputResistanceOhms", "unit": "ohm", "defaultValue": 10000000.0, "domain": "strictly_positive", "descriptionKey": "component.voltmeter.inputResistance", "optional": false, "initialCondition": false }
+      ],
+      "faultKinds": [
+        "parameter"
       ]
     },
     {
@@ -171,6 +202,9 @@
       ],
       "parameters": [
         { "id": "burdenResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.ammeter.burdenResistance", "optional": false, "initialCondition": false }
+      ],
+      "faultKinds": [
+        "parameter"
       ]
     }
   ]
