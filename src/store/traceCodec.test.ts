@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import traceFixture from "../../tests/golden/stage-3-trace.json";
+import type { Unit } from "../generated/Unit";
 import {
   decodeTrace,
   MAX_HEADER_BYTES,
@@ -198,6 +199,58 @@ describe("a well-formed response", () => {
     );
 
     expect(decodeTrace(buffer).batch.points).toHaveLength(MAX_TRACE_POINTS);
+  });
+});
+
+describe("the units of the Stage 4 signals", () => {
+  it.each([
+    ["the motor's angular velocity", "radian_per_second"],
+    ["the fuse's accumulated I²t", "ampere_squared_second"],
+  ] as const)("accepts %s", (_name, unit) => {
+    const response = header();
+    response.signals = [
+      { key: "00000000-0000-4000-8000-000000000011/signal", unit },
+    ];
+
+    const decoded = decodeTrace(encode(response, onePoint));
+
+    expect(decoded.batch.signals).toEqual([
+      { key: "00000000-0000-4000-8000-000000000011/signal", unit },
+    ]);
+  });
+
+  it("accepts every unit of the generated type", () => {
+    const every: Record<Unit, true> = {
+      ohm: true,
+      volt: true,
+      amp: true,
+      farad: true,
+      henry: true,
+      ampere_squared_second: true,
+      kilogram_meter_squared: true,
+      newton_meter: true,
+      newton_meter_per_amp: true,
+      newton_meter_second_per_radian: true,
+      radian_per_second: true,
+    };
+
+    for (const unit of Object.keys(every) as Unit[]) {
+      const response = header();
+      response.signals = [{ key: KEY, unit }];
+
+      expect(
+        decodeTrace(encode(response, onePoint)).batch.signals[0]?.unit,
+      ).toBe(unit);
+    }
+  });
+
+  it("still refuses a name that is not a unit, even one that is an object property", () => {
+    for (const unit of ["newton", "constructor", "toString", "__proto__"]) {
+      const response = header();
+      response.signals = [{ key: KEY, unit }];
+
+      expectRejected(encode(response, onePoint), /unit/);
+    }
   });
 });
 

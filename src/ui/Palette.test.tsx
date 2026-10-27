@@ -34,6 +34,11 @@ describe("component palette", () => {
       "DC voltage source",
       "Capacitor",
       "Inductor",
+      "SPDT relay",
+      "Fuse",
+      "DC motor",
+      "Voltmeter",
+      "Ammeter",
       "Wire",
       "Junction",
       "Ground",
@@ -41,11 +46,8 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
-    // Engine-only catalog entries remain unavailable until the editor has a symbol.
-    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(
-      "relay_spdt",
-    );
-    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain("fuse");
+    // Every catalog type now has a symbol, so every one is offered.
+    expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
     expect(pressed(markup)).toEqual(["Select"]);
   });
 

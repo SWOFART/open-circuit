@@ -3,6 +3,7 @@ import type { DiagnosticReference } from "../generated/DiagnosticReference";
 import type { StableId } from "../generated/StableId";
 import { readSlot, type SimulationState } from "../store/simulation";
 import { describeDiagnostic } from "./messages";
+import { slotLabel } from "./slotLabels";
 import { formatSi } from "./units";
 
 export interface ResultPanelProps {
@@ -141,9 +142,7 @@ export function ResultPanel({
 
             return (
               <div key={slot.key} className="reading">
-                <dt>
-                  {labels.get(slot.componentId) ?? "Component"} {slot.quantity}
-                </dt>
+                <dt>{slotLabel(slot, labels)}</dt>
                 <dd>
                   {value === undefined ? "—" : formatSi(value, slot.unit)}
                 </dd>

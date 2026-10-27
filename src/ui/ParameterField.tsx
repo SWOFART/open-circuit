@@ -9,6 +9,8 @@ export interface ParameterFieldProps {
   /** The value currently stored in the editable schematic, in SI units. */
   readonly committedValue: number;
   readonly disabled: boolean;
+  /** A line of guidance shown under the field. */
+  readonly note?: string;
   /** Called with a validated SI number. Never called for an invalid field. */
   readonly onCommit: (value: number) => void;
 }
@@ -18,6 +20,7 @@ export function ParameterField({
   definition,
   committedValue,
   disabled,
+  note,
   onCommit,
 }: ParameterFieldProps) {
   const inputId = useId();
@@ -64,6 +67,7 @@ export function ParameterField({
           }
         }}
       />
+      {note !== undefined && <p className="parameter-hint">{note}</p>}
       {evaluation.state === "invalid" && (
         <p id={messageId} className="field-error" role="alert">
           {describeInvalidDraft(

@@ -18,7 +18,21 @@ const MAX_KEY_LENGTH = 256;
 const MAX_REVISION_BYTES = 256;
 
 const MAGIC = [0x4f, 0x43, 0x54, 0x31]; // "OCT1"
-const UNITS: readonly Unit[] = ["ohm", "volt", "amp", "farad", "henry"];
+// Every unit the Engine can name. Typed as a record so that a unit added to the generated
+// `Unit` type fails to compile here until the decoder accepts it.
+const UNITS: Readonly<Record<Unit, true>> = {
+  ohm: true,
+  volt: true,
+  amp: true,
+  farad: true,
+  henry: true,
+  ampere_squared_second: true,
+  kilogram_meter_squared: true,
+  newton_meter: true,
+  newton_meter_per_amp: true,
+  newton_meter_second_per_radian: true,
+  radian_per_second: true,
+};
 const STABLE_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const DECIMAL = /^(0|[1-9][0-9]*)$/;
@@ -171,7 +185,7 @@ function decodeSignals(value: unknown): TraceSignal[] {
       fail("A trace signal key is empty, too long, or repeated.");
     }
 
-    if (!UNITS.includes(unit as Unit)) {
+    if (!Object.hasOwn(UNITS, unit)) {
       fail(`The trace signal unit "${unit}" is not known.`);
     }
 

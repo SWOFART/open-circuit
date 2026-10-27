@@ -14,6 +14,28 @@ const messages: Readonly<Record<string, string>> = {
   "component.inductor.name": "Inductor",
   "component.inductor.inductance": "Inductance",
   "component.inductor.initialCurrent": "Initial current",
+  "component.relaySpdt.name": "SPDT relay",
+  "component.relaySpdt.coilResistance": "Coil resistance",
+  "component.relaySpdt.coilInductance": "Coil inductance",
+  "component.relaySpdt.pickupCurrent": "Pickup current",
+  "component.relaySpdt.dropoutCurrent": "Dropout current",
+  "component.relaySpdt.closedContactResistance": "Closed contact resistance",
+  "component.fuse.name": "Fuse",
+  "component.fuse.intactResistance": "Intact resistance",
+  "component.fuse.tripI2t": "I²t trip threshold",
+  "component.pmdcMotor.name": "DC motor",
+  "component.pmdcMotor.armatureResistance": "Armature resistance",
+  "component.pmdcMotor.armatureInductance": "Armature inductance",
+  "component.pmdcMotor.motorConstant": "Motor constant",
+  "component.pmdcMotor.rotorInertia": "Rotor inertia",
+  "component.pmdcMotor.viscousFriction": "Viscous friction",
+  "component.pmdcMotor.loadTorque": "Load torque",
+  "component.pmdcMotor.initialAngularVelocity": "Initial angular velocity",
+  "component.pmdcMotor.initialArmatureCurrent": "Initial armature current",
+  "component.voltmeter.name": "Voltmeter",
+  "component.voltmeter.inputResistance": "Input resistance",
+  "component.ammeter.name": "Ammeter",
+  "component.ammeter.burdenResistance": "Burden resistance",
   "diagnostic.invalidSchemaVersion":
     "The circuit file version is not supported.",
   "diagnostic.invalidGeometry": "The circuit geometry is invalid.",
@@ -33,6 +55,10 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.inconsistentState":
     "The specified initial capacitor voltages or inductor currents conflict with ideal circuit constraints.",
   "diagnostic.singularSystem": "The circuit cannot be solved as drawn.",
+  "diagnostic.eventChatter":
+    "A relay or fuse changes state again and again at the same instant, so the circuit cannot settle.",
+  "diagnostic.nonFiniteState":
+    "A device state, such as a fuse's accumulated I²t or a motor's speed, became too large to represent.",
   "diagnostic.stepAccuracyLimited":
     "The circuit is too fast for the available internal step limit; simulation accuracy may be limited.",
   "diagnostic.staleRun":

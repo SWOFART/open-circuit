@@ -1,5 +1,4 @@
 import { useId } from "react";
-import type { ResultSlot } from "../generated/ResultSlot";
 import type { StableId } from "../generated/StableId";
 import type { Unit } from "../generated/Unit";
 import type { SimulationState } from "../store/simulation";
@@ -18,6 +17,7 @@ import {
   valueRange,
   type TimeWindow,
 } from "./scopeAxis";
+import { axisName, slotLabel } from "./slotLabels";
 import { formatSi, formatWithSymbol, unitSymbols } from "./units";
 
 export interface OscilloscopeProps {
@@ -52,14 +52,6 @@ function colorAt(index: number): string {
 
 function formatSeconds(seconds: number): string {
   return formatWithSymbol(seconds, "s");
-}
-
-/** What a signal is called: its component's name and what is measured on it. */
-function signalLabel(
-  slot: ResultSlot,
-  labels: ReadonlyMap<StableId, string>,
-): string {
-  return `${labels.get(slot.componentId) ?? "Component"} ${slot.quantity}`;
 }
 
 interface LaneProps {
@@ -211,11 +203,7 @@ function ScopeLane({
         );
       })}
       <text className="scope-unit" x={4} y={MARGIN_TOP + 8}>
-        {unit === "volt"
-          ? "Voltage (V)"
-          : unit === "amp"
-            ? "Current (A)"
-            : unit}
+        {`${axisName(unit)} (${unitSymbols[unit]})`}
       </text>
     </svg>
   );
@@ -268,7 +256,7 @@ function ScopeDisplay({
                 style={{ background: colors.get(signal.key) }}
                 aria-hidden="true"
               />
-              {slot ? signalLabel(slot, labels) : signal.key} (
+              {slot ? slotLabel(slot, labels) : signal.key} (
               {unitSymbols[signal.unit]})
             </li>
           );
@@ -283,12 +271,12 @@ function ScopeDisplay({
           window={window}
           envelope={envelope}
           showTime={index === groups.length - 1}
-          description={`${group.unit === "volt" ? "Voltage" : "Current"} traces: ${group.signals
+          description={`${axisName(group.unit)} traces: ${group.signals
             .map((signal) => {
               const slot = slots.find(
                 (candidate) => candidate.key === signal.key,
               );
-              return slot ? signalLabel(slot, labels) : signal.key;
+              return slot ? slotLabel(slot, labels) : signal.key;
             })
             .join(", ")}`}
         />
@@ -380,7 +368,7 @@ export function Oscilloscope({
                       aria-hidden="true"
                     />
                   )}
-                  {signalLabel(slot, labels)}
+                  {slotLabel(slot, labels)}
                 </label>
               );
             })}
