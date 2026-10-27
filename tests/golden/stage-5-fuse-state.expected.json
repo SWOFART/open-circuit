@@ -1,0 +1,51 @@
+{
+  "fixtureId": "stage5.build.fuse_trip",
+  "description": "A build-a-circuit assignment that checks a device state: make the fuse trip within 2 ms. The starting circuit holds the locked ideal 2.02 V source V1, the locked fuse F1 (0.01 Ohm, trip threshold 0.004 A^2*s, the catalog defaults) and a ground marker; the student adds a load. The values are direct circuit equations (the same ones as the Stage 4 fuse fixture).",
+  "startingCircuit": {
+    "lockedComponents": ["V1", "F1"],
+    "sourceVoltageVolts": 2.02,
+    "fuseIntactResistanceOhms": 0.01,
+    "fuseTripI2tAmpereSquaredSeconds": 0.004
+  },
+  "criteria": [
+    {
+      "id": "trips",
+      "kind": "deviceState",
+      "component": "F1",
+      "state": "tripped",
+      "atSeconds": 0.002
+    }
+  ],
+  "attempts": [
+    {
+      "name": "one-ohm-load",
+      "description": "A 1 Ohm load: 2 A while intact, so the fuse reaches 0.004 A^2*s in one public step (1 ms).",
+      "steadyCurrentAmps": 2.0,
+      "expected": {
+        "outcome": "passed",
+        "verdicts": { "trips": "pass", "locked": "pass" },
+        "fuseState": "tripped"
+      }
+    },
+    {
+      "name": "ten-ohm-load",
+      "description": "A 10 Ohm load: 0.2017982 A, so after 2 ms the accumulated I2t is about 8.1e-5 A^2*s, far below the threshold.",
+      "steadyCurrentAmps": 0.2017982017982018,
+      "accumulatedI2tAt2msAmpereSquaredSecondsApprox": 8.1445e-5,
+      "expected": {
+        "outcome": "failed",
+        "verdicts": { "trips": "fail", "locked": "pass" },
+        "fuseState": "intact"
+      }
+    },
+    {
+      "name": "no-load",
+      "description": "Nothing added: the loop is open, no current flows, and the fuse stays intact.",
+      "expected": {
+        "outcome": "failed",
+        "verdicts": { "trips": "fail", "locked": "pass" },
+        "fuseState": "intact"
+      }
+    }
+  ]
+}

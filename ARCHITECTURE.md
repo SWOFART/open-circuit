@@ -96,7 +96,8 @@ circuit-sim/
 │   │   ├── stage-1.md
 │   │   ├── stage-2-editor.md
 │   │   ├── stage-3-dynamics.md
-│   │   └── stage-4-components.md
+│   │   ├── stage-4-components.md
+│   │   └── stage-5-assignments.md
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -267,6 +268,7 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 - Rust → TS types are generated automatically (`tauri-specta` or `ts-rs`). CI checks that `src/generated/` is up to date.
 - `set_param(id, value)`: a lightweight command that only rebuilds stamps.
 - Topology change: a fast recompile. **State transfer** keyed by component ID (capacitor charge, relay position, fuse I²t, and motor speed) is deferred: through Stage 4 every successful compile starts a new run at time zero, initialized as described in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md) and [`docs/contracts/stage-4-components.md`](docs/contracts/stage-4-components.md).
+- Assignments (Stage 5): an assignment is a separate versioned file (`.ocassignment`), never part of the saved project. The Engine validates it, applies **faults** as an optional overlay of the compile request (never saved into the schematic), evaluates **checks** on a student's circuit in a fresh run of its own, and compares a fault-finding diagnosis with the faults; the app carries the files and requests and runs a check on a separate Engine instance, never on the one that owns the live run; the UI presents the Engine's structured results and enforces editor restrictions. The rules are in [`docs/contracts/stage-5-assignments.md`](docs/contracts/stage-5-assignments.md).
 
 > **Verify in the prototype (step 1):** how well binary transfer through the Tauri 2 `Channel`
 > works in the chosen version. Fallback: a shared buffer via a command returning `Vec<u8>`/`ArrayBuffer` on a timer.
@@ -465,7 +467,7 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 - Adaptive time step.
 - State transfer across recompiles (through Stage 3 every compile restarts at time zero).
 - AC/phasor analysis.
-- Assignment mode, fault finding, AI explanations, collaboration, electro-pneumatics.
+- AI explanations, collaboration, electro-pneumatics. (Assignment mode and fault finding are Stage 5; see [`docs/contracts/stage-5-assignments.md`](docs/contracts/stage-5-assignments.md).)
 - Smart A* wire routing.
 
 ---
