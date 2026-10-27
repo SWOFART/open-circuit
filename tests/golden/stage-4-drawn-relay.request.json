@@ -1,0 +1,228 @@
+{
+  "schematic": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 8
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 5,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "relay_spdt",
+        "position": {
+          "x": 8,
+          "y": 4
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "coilResistanceOhms": 100,
+          "coilInductanceHenries": 0.01,
+          "pickupCurrentAmps": 0.04,
+          "dropoutCurrentAmps": 0.02,
+          "closedContactResistanceOhms": 0.1
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 14,
+          "y": 8
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "resistanceOhms": 1
+        },
+        "id": "00000000-0000-4000-8000-000000000003"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "points": [
+          {
+            "x": 0,
+            "y": 7
+          },
+          {
+            "x": 0,
+            "y": 3
+          },
+          {
+            "x": 5,
+            "y": 3
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "points": [
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 5,
+            "y": 4
+          },
+          {
+            "x": 9,
+            "y": 4
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "points": [
+          {
+            "x": 9,
+            "y": 4
+          },
+          {
+            "x": 9,
+            "y": 7
+          },
+          {
+            "x": 14,
+            "y": 7
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "points": [
+          {
+            "x": 0,
+            "y": 9
+          },
+          {
+            "x": 14,
+            "y": 9
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "points": [
+          {
+            "x": 11,
+            "y": 3
+          },
+          {
+            "x": 16,
+            "y": 3
+          },
+          {
+            "x": 16,
+            "y": 9
+          },
+          {
+            "x": 14,
+            "y": 9
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "position": {
+          "x": 0,
+          "y": 9
+        }
+      }
+    ]
+  },
+  "geometry": {
+    "components": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 0,
+              "y": 7
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 0,
+              "y": 9
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000002",
+        "pins": [
+          {
+            "pinId": "coil_positive",
+            "position": {
+              "x": 5,
+              "y": 3
+            }
+          },
+          {
+            "pinId": "coil_negative",
+            "position": {
+              "x": 5,
+              "y": 5
+            }
+          },
+          {
+            "pinId": "common",
+            "position": {
+              "x": 9,
+              "y": 4
+            }
+          },
+          {
+            "pinId": "normally_open",
+            "position": {
+              "x": 11,
+              "y": 3
+            }
+          },
+          {
+            "pinId": "normally_closed",
+            "position": {
+              "x": 11,
+              "y": 5
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000003",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 14,
+              "y": 7
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 14,
+              "y": 9
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "documentRevision": "rev-1"
+}
