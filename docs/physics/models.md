@@ -335,6 +335,37 @@ independently encoded OCF2 state-bearing frame. The motor reference is the
 closed-form solution of its linear state equations; meter and fuse values come
 from direct circuit equations.
 
+### Stage 5 fault models
+
+[`stage-5-assignments.md`](../contracts/stage-5-assignments.md) defines three
+static faults that the Engine applies when it compiles a circuit, without
+changing the schematic. They add no device model; each rewrites the branch of
+one component in the network that the existing models already solve:
+
+| Fault | Network change | Reported values |
+|---|---|---|
+| `open` | The component's branch is removed. | Current 0; voltage `V(pin1) - V(pin2)` of the nodes it would connect. |
+| `short` | The component's branch is replaced by a resistance `R_f = 0.001 Ohm`. | Voltage and current of that resistance. |
+| `parameter` | One parameter takes the fault's value in place of the schematic's. | As for the unfaulted component with that value. |
+
+A removed or replaced capacitor or inductor has no initial condition: the Stage 3
+initialization runs on the faulted network. The known-answer references are direct
+circuit equations, in `tests/golden/stage-5-*.expected.json`:
+
+- Divider with a meter: `V = Vs * (R2 || Rm) / (R1 + (R2 || Rm))` with
+  `Rm = 10 MOhm`. A 30 kOhm over 10 kOhm divider reads 2.498126405 V; two 10 kOhm
+  resistors read 4.997501249 V.
+- Fault finding: for a 10 V source, `R1 = R2 = 1 kOhm`, and a 10 MOhm voltmeter
+  across `R2`, the reading is 4.99975001 V healthy and `Vs * Rm / (R1 + Rm) =
+  9.99900010 V` with `R2` open. With `R2` replaced by `R_f` it is about
+  9.99999e-6 V, with `R1` open 0 V, and with `R1` replaced by `R_f` 9.99998999901 V.
+- Fuse state: a 2.02 V source, the 0.01 Ohm fuse, and a 1 Ohm load carry 2 A and trip in
+  one public step; with a 10 Ohm load the current is 0.2018 A and the accumulated
+  I²t after 2 ms is about 8.1e-5 A²·s, below the 0.004 A²·s threshold.
+
+These are educational network edits, not fault models of real parts: a real
+failure has partial and time-dependent modes that Stage 5 does not represent.
+
 ### Real-part profiles
 
 Keep generic electrical models separate from optional manufacturer-specific

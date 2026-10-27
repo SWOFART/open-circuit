@@ -1,0 +1,96 @@
+{
+  "fixtureId": "stage5.fault.open_r2",
+  "description": "A fault-finding assignment. The circuit is a 10 V ideal source V1, R1 = 1 kOhm, R2 = 1 kOhm in series, and a 10 Mohm voltmeter VM1 across R2, with a ground marker on V1's negative pin. All four parts are locked (the contract requires every faulted component to be locked); the student may rewire and add meters. The hidden fault is an open R2. The values are direct divider equations; a short uses the fixed 1 mOhm fault resistance of the contract.",
+  "circuit": {
+    "sourceVoltageVolts": 10.0,
+    "r1Ohms": 1000.0,
+    "r2Ohms": 1000.0,
+    "voltmeterInputResistanceOhms": 10000000.0,
+    "shortResistanceOhms": 0.001
+  },
+  "faults": [{ "id": "f1", "kind": "open", "component": "R2" }],
+  "measurements": [
+    {
+      "name": "healthy circuit (no fault)",
+      "voltmeterReadingVolts": 4.999750012499375,
+      "toleranceVolts": 1e-9
+    },
+    {
+      "name": "the fault of the assignment: R2 open",
+      "voltmeterReadingVolts": 9.99900009999,
+      "toleranceVolts": 1e-9,
+      "r1CurrentAmps": 9.99900009999e-7,
+      "r2CurrentAmps": 0.0,
+      "r2VoltageVolts": 9.99900009999,
+      "currentToleranceAmps": 1e-12
+    },
+    {
+      "name": "hypothesis: R2 short",
+      "voltmeterReadingVolts": 9.999989999010001e-6,
+      "toleranceVolts": 1e-12
+    },
+    {
+      "name": "hypothesis: R1 open",
+      "voltmeterReadingVolts": 0.0,
+      "toleranceVolts": 1e-12
+    },
+    {
+      "name": "hypothesis: R1 short",
+      "voltmeterReadingVolts": 9.999989999010001,
+      "toleranceVolts": 1e-9
+    }
+  ],
+  "diagnoses": [
+    {
+      "name": "correct",
+      "submitted": [{ "component": "R2", "kind": "open" }],
+      "expected": {
+        "outcome": "passed",
+        "entries": [{ "component": "R2", "kind": "open", "verdict": "correct" }],
+        "faults": [{ "id": "f1", "verdict": "found" }]
+      }
+    },
+    {
+      "name": "right-component-wrong-kind",
+      "submitted": [{ "component": "R2", "kind": "short" }],
+      "expected": {
+        "outcome": "partial",
+        "entries": [{ "component": "R2", "kind": "short", "verdict": "wrongKind" }],
+        "faults": [{ "id": "f1", "verdict": "missed" }]
+      }
+    },
+    {
+      "name": "right-fault-and-a-false-one",
+      "submitted": [
+        { "component": "R2", "kind": "open" },
+        { "component": "R1", "kind": "short" }
+      ],
+      "expected": {
+        "outcome": "partial",
+        "entries": [
+          { "component": "R2", "kind": "open", "verdict": "correct" },
+          { "component": "R1", "kind": "short", "verdict": "incorrect" }
+        ],
+        "faults": [{ "id": "f1", "verdict": "found" }]
+      }
+    },
+    {
+      "name": "wrong-component",
+      "submitted": [{ "component": "R1", "kind": "open" }],
+      "expected": {
+        "outcome": "failed",
+        "entries": [{ "component": "R1", "kind": "open", "verdict": "incorrect" }],
+        "faults": [{ "id": "f1", "verdict": "missed" }]
+      }
+    },
+    {
+      "name": "nothing-submitted",
+      "submitted": [],
+      "expected": {
+        "outcome": "failed",
+        "entries": [],
+        "faults": [{ "id": "f1", "verdict": "missed" }]
+      }
+    }
+  ]
+}

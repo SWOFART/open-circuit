@@ -1,0 +1,99 @@
+{
+  "fixtureId": "stage5.build.divider",
+  "description": "A build-a-circuit assignment: make a 10 V source and a 10 Mohm voltmeter read 2.5 V with exactly two resistors. The starting circuit holds the locked source V1 (ideal, 10 V), the locked voltmeter VM1 (10 Mohm) wired from the output node to ground, and a ground marker; the student adds the resistors. The values come from the divider equation with the meter's 10 Mohm in parallel with the bottom resistor, not from Engine output.",
+  "startingCircuit": {
+    "lockedComponents": ["V1", "VM1"],
+    "sourceVoltageVolts": 10.0,
+    "voltmeterInputResistanceOhms": 10000000.0
+  },
+  "criteria": [
+    {
+      "id": "reading",
+      "kind": "value",
+      "signal": "VM1 voltage",
+      "unit": "volt",
+      "atSeconds": 0.0,
+      "expected": 2.5,
+      "toleranceAbs": 0.025,
+      "toleranceRel": 0.0
+    },
+    {
+      "id": "stable",
+      "kind": "range",
+      "signal": "VM1 voltage",
+      "unit": "volt",
+      "fromSeconds": 0.0,
+      "toSeconds": 0.01,
+      "min": 2.4,
+      "max": 2.6
+    },
+    {
+      "id": "two-resistors",
+      "kind": "componentCount",
+      "typeId": "resistor",
+      "min": 2,
+      "max": 2
+    }
+  ],
+  "attempts": [
+    {
+      "name": "correct",
+      "description": "R_top 30 kOhm from V1+ to the output node, R_bottom 10 kOhm from the output node to ground.",
+      "voltmeterReadingVolts": 2.498126405196103,
+      "readingToleranceVolts": 1e-9,
+      "expected": {
+        "outcome": "passed",
+        "verdicts": { "reading": "pass", "stable": "pass", "two-resistors": "pass", "locked": "pass" }
+      }
+    },
+    {
+      "name": "three-resistors",
+      "description": "The top resistor is 20 kOhm in series with 10 kOhm and the bottom one is 10 kOhm: the same 2.498126405 V, but three resistors.",
+      "voltmeterReadingVolts": 2.498126405196103,
+      "readingToleranceVolts": 1e-9,
+      "expected": {
+        "outcome": "partial",
+        "verdicts": { "reading": "pass", "stable": "pass", "two-resistors": "fail", "locked": "pass" }
+      }
+    },
+    {
+      "name": "equal-resistors",
+      "description": "R_top and R_bottom both 10 kOhm: two resistors, wrong ratio.",
+      "voltmeterReadingVolts": 4.997501249375313,
+      "readingToleranceVolts": 1e-9,
+      "expected": {
+        "outcome": "partial",
+        "verdicts": { "reading": "fail", "stable": "fail", "two-resistors": "pass", "locked": "pass" }
+      }
+    },
+    {
+      "name": "no-resistors",
+      "description": "Nothing added: the output node is held at ground by the voltmeter alone, so it reads 0 V.",
+      "voltmeterReadingVolts": 0.0,
+      "readingToleranceVolts": 1e-12,
+      "expected": {
+        "outcome": "failed",
+        "verdicts": { "reading": "fail", "stable": "fail", "two-resistors": "fail", "locked": "pass" }
+      }
+    },
+    {
+      "name": "locked-part-changed",
+      "description": "The correct 30 kOhm and 10 kOhm resistors, but the locked source was set to 20 V in a modified file or editor. The reading is no longer right and the integrity check reports the change.",
+      "expected": {
+        "outcome": "failed",
+        "verdicts": { "locked": "fail" },
+        "note": "A failed integrity check makes the outcome failed whatever the other criteria say."
+      }
+    },
+    {
+      "name": "source-shorted",
+      "description": "The correct 30 kOhm and 10 kOhm resistors are present, and a wire is drawn across the ideal source: the circuit does not compile.",
+      "expected": {
+        "outcome": "notEvaluated",
+        "diagnostics": ["ShortCircuit"],
+        "verdicts": { "reading": "notEvaluated", "stable": "notEvaluated", "two-resistors": "pass", "locked": "pass" },
+        "note": "The two criteria that read the schematic are still evaluated."
+      }
+    }
+  ]
+}
