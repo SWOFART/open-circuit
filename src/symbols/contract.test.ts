@@ -110,4 +110,108 @@ describe("symbol and catalog contract", () => {
       expect(symbol.primitives.length).toBeGreaterThan(0);
     }
   });
+
+  describe("the Stage 4 devices", () => {
+    const entryFor = (typeId: string) =>
+      catalogFixture.componentTypes.find((entry) => entry.typeId === typeId);
+
+    it.each([
+      "relay_spdt",
+      "fuse",
+      "pmdc_motor",
+      "voltmeter",
+      "ammeter",
+    ] as const)(
+      "has a %s symbol whose pins are the catalog's pins, in the catalog's order",
+      (typeId) => {
+        const symbol = symbols[typeId];
+
+        expect(symbol).toBeDefined();
+        expect(symbol?.pins.map((pin) => pin.id)).toEqual(
+          entryFor(typeId)?.pins.map((pin) => pin.id),
+        );
+      },
+    );
+
+    it.each(["fuse", "pmdc_motor", "voltmeter", "ammeter"] as const)(
+      "puts the two %s pins a symbol length apart on a row, like the resistor",
+      (typeId) => {
+        expect(symbols[typeId]?.pins).toEqual(symbols.resistor?.pins);
+      },
+    );
+
+    it("lays the relay out with the coil on the left and the contacts on the right", () => {
+      const at = (id: string) =>
+        symbols.relay_spdt?.pins.find((pin) => pin.id === id)?.local;
+      const coilPositive = at("coil_positive");
+      const coilNegative = at("coil_negative");
+      const common = at("common");
+      const open = at("normally_open");
+      const closed = at("normally_closed");
+
+      expect(coilPositive?.x).toBe(coilNegative?.x);
+      expect(coilPositive!.y).toBeLessThan(coilNegative!.y);
+      expect(open?.x).toBe(closed?.x);
+      // The normally open contact is above the normally closed one, with the hinge
+      // between them and left of both.
+      expect(open!.y).toBeLessThan(common!.y);
+      expect(common!.y).toBeLessThan(closed!.y);
+      expect(common!.x).toBeLessThan(open!.x);
+      expect(coilPositive!.x).toBeLessThan(common!.x);
+    });
+
+    it.each(["pmdc_motor", "voltmeter", "ammeter", "relay_spdt"] as const)(
+      "marks the reference pin of the %s with a small plus",
+      (typeId) => {
+        const symbol = symbols[typeId];
+        const reference = symbol?.pins[0]?.local;
+        const strokes = (symbol?.primitives ?? []).flatMap((primitive) =>
+          primitive.kind === "polyline" && primitive.points.length === 2
+            ? [primitive.points]
+            : [],
+        );
+        // A plus is a horizontal and a vertical stroke crossing above the reference pin.
+        const near = (point: { x: number; y: number }) =>
+          Math.abs(point.x - reference!.x) <= 0.4 &&
+          point.y < reference!.y &&
+          point.y >= reference!.y - 0.7;
+        const marks = strokes.filter(([a, b]) => near(a!) && near(b!));
+
+        expect(marks).toHaveLength(2);
+        const [first, second] = marks;
+        const horizontal = (stroke: typeof first) =>
+          stroke![0]!.y === stroke![1]!.y;
+        expect(horizontal(first) !== horizontal(second)).toBe(true);
+      },
+    );
+
+    it("draws the meters, the motor, and the fuse inside the span of their pins", () => {
+      for (const typeId of [
+        "fuse",
+        "pmdc_motor",
+        "voltmeter",
+        "ammeter",
+      ] as const) {
+        for (const primitive of symbols[typeId]?.primitives ?? []) {
+          const points =
+            primitive.kind === "polyline"
+              ? primitive.points
+              : [
+                  {
+                    x: primitive.center.x - primitive.radius,
+                    y: primitive.center.y,
+                  },
+                  {
+                    x: primitive.center.x + primitive.radius,
+                    y: primitive.center.y,
+                  },
+                ];
+
+          for (const point of points) {
+            expect(Math.abs(point.x)).toBeLessThanOrEqual(1);
+          }
+        }
+      }
+    });
+  });
 });

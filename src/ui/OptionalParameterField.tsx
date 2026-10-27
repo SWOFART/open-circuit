@@ -1,8 +1,8 @@
 import { useId } from "react";
 import type { ParameterDefinition } from "../generated/ParameterDefinition";
-import type { Unit } from "../generated/Unit";
 import { message } from "./messages";
 import { ParameterField } from "./ParameterField";
+import { signHint, unsetHint } from "./parameterHints";
 
 export interface OptionalParameterFieldProps {
   /** The component's display name, such as `C1`. */
@@ -29,18 +29,6 @@ export function optionalToggle(
   return checked
     ? { kind: "set", value: definition.defaultValue }
     : { kind: "clear" };
-}
-
-/** What the sign of an initial value refers to, from the parameter's unit. */
-function signReference(unit: Unit): string {
-  switch (unit) {
-    case "volt":
-      return "Voltage V(pin1) − V(pin2) at time zero.";
-    case "amp":
-      return "Current entering pin1 at time zero.";
-    default:
-      return "Value at time zero.";
-  }
 }
 
 /**
@@ -90,11 +78,9 @@ export function OptionalParameterField({
           onCommit={onCommit}
         />
       ) : (
-        <p className="parameter-hint">
-          Not set: starts from the operating point.
-        </p>
+        <p className="parameter-hint">{unsetHint(definition)}</p>
       )}
-      <p className="parameter-hint">{signReference(definition.unit)}</p>
+      <p className="parameter-hint">{signHint(definition)}</p>
     </div>
   );
 }

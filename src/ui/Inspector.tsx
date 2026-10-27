@@ -4,6 +4,7 @@ import type { StableId } from "../generated/StableId";
 import type { SimulationState } from "../store/simulation";
 import { OptionalParameterField } from "./OptionalParameterField";
 import { ParameterField } from "./ParameterField";
+import { parameterNote } from "./parameterHints";
 
 export interface InspectorProps {
   readonly state: SimulationState;
@@ -82,6 +83,7 @@ export function Inspector({
                 definition={definition}
                 committedValue={value}
                 disabled={!editable}
+                note={parameterNote(definition)}
                 onCommit={(next) => onCommit(component.id, definition.id, next)}
               />
             );

@@ -1,9 +1,14 @@
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
+import { ammeterSymbol } from "./ammeter";
 import { capacitorSymbol } from "./capacitor";
 import { dcVoltageSourceSymbol } from "./dcVoltageSource";
+import { fuseSymbol } from "./fuse";
 import { inductorSymbol } from "./inductor";
+import { pmdcMotorSymbol } from "./motor";
+import { relaySpdtSymbol } from "./relay";
 import { resistorSymbol } from "./resistor";
 import type { SymbolDefinition } from "./types";
+import { voltmeterSymbol } from "./voltmeter";
 
 export type { LocalPoint, SymbolDefinition, SymbolPrimitive } from "./types";
 
@@ -20,6 +25,11 @@ export const symbols: SymbolRegistry = {
   dc_voltage_source: dcVoltageSourceSymbol,
   capacitor: capacitorSymbol,
   inductor: inductorSymbol,
+  relay_spdt: relaySpdtSymbol,
+  fuse: fuseSymbol,
+  pmdc_motor: pmdcMotorSymbol,
+  voltmeter: voltmeterSymbol,
+  ammeter: ammeterSymbol,
 };
 
 /** Returns a drawing symbol or explains why a component cannot be placed yet. */

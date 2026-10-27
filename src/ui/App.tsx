@@ -27,6 +27,7 @@ import {
   projectShortcutFromEvent,
   type ProjectShortcut,
 } from "./projectShortcuts";
+import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
 import { Palette, toolHint } from "./Palette";
@@ -489,6 +490,11 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
             state={state}
             labels={labels}
             outputComponentId={DIVIDER_OUTPUT_COMPONENT_ID}
+          />
+          <DevicePanel
+            state={state}
+            schematic={document.schematic}
+            labels={labels}
           />
         </aside>
 
