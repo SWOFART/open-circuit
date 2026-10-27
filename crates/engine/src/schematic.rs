@@ -282,6 +282,34 @@ impl ComponentSpec {
         }
     }
 
+    pub fn position(&self) -> GridPoint {
+        match self {
+            Self::Resistor { position, .. }
+            | Self::DcVoltageSource { position, .. }
+            | Self::Capacitor { position, .. }
+            | Self::Inductor { position, .. }
+            | Self::RelaySpdt { position, .. }
+            | Self::Fuse { position, .. }
+            | Self::PmdcMotor { position, .. }
+            | Self::Voltmeter { position, .. }
+            | Self::Ammeter { position, .. } => *position,
+        }
+    }
+
+    pub fn rotation_deg(&self) -> u16 {
+        match self {
+            Self::Resistor { rotation_deg, .. }
+            | Self::DcVoltageSource { rotation_deg, .. }
+            | Self::Capacitor { rotation_deg, .. }
+            | Self::Inductor { rotation_deg, .. }
+            | Self::RelaySpdt { rotation_deg, .. }
+            | Self::Fuse { rotation_deg, .. }
+            | Self::PmdcMotor { rotation_deg, .. }
+            | Self::Voltmeter { rotation_deg, .. }
+            | Self::Ammeter { rotation_deg, .. } => *rotation_deg,
+        }
+    }
+
     pub const fn type_id(&self) -> ComponentTypeId {
         match self {
             Self::Resistor { .. } => ComponentTypeId::Resistor,

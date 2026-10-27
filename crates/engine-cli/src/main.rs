@@ -33,6 +33,7 @@ fn run() -> Result<(), String> {
         schematic,
         geometry,
         document_revision: "engine-cli-divider-1".to_owned(),
+        faults: None,
     })
     else {
         return Err("canonical divider failed to compile".to_owned());

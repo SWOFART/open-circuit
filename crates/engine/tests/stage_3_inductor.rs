@@ -46,6 +46,7 @@ fn compile_fixture(
         schematic: from_str(schematic_json).unwrap(),
         geometry: from_str(geometry_json).unwrap(),
         document_revision: revision.to_owned(),
+        faults: None,
     });
     let CompileResult::Success {
         run_id,
@@ -328,6 +329,7 @@ fn inductor_requires_positive_inductance_and_optional_initial_current_rejects_nu
         schematic,
         geometry: from_str(RL_RISE_GEOMETRY).unwrap(),
         document_revision: "invalid-inductance".to_owned(),
+        faults: None,
     });
     assert!(matches!(
         result,
@@ -344,6 +346,7 @@ fn inductor_requires_positive_inductance_and_optional_initial_current_rejects_nu
         schematic: negative,
         geometry: from_str(RL_RISE_GEOMETRY).unwrap(),
         document_revision: "negative-inductance".to_owned(),
+        faults: None,
     });
     assert!(matches!(
         result,
@@ -437,6 +440,7 @@ fn unequal_explicit_currents_in_series_inductors_report_inconsistent_state() {
         schematic: from_value(schematic_json).unwrap(),
         geometry: from_value(geometry_json).unwrap(),
         document_revision: "conflicting-inductor-currents".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = result else {
         panic!("incompatible current states must not be silently accepted");
@@ -504,6 +508,7 @@ fn explicit_inductor_current_is_checked_against_unspecified_dc_state() {
         schematic: from_value(schematic_json).unwrap(),
         geometry: from_value(geometry_json).unwrap(),
         document_revision: "one-explicit-series-current".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = result else {
         panic!("the explicit current must conflict with the DC state of L2");
@@ -559,6 +564,7 @@ fn dc_inductor_short_conflicting_with_an_ideal_source_reports_constraint_error()
         schematic: from_value(schematic).unwrap(),
         geometry: from_value(geometry).unwrap(),
         document_revision: "source-across-unspecified-inductor".to_owned(),
+        faults: None,
     });
     assert!(matches!(
         result,

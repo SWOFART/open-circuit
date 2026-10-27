@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use crate::{
     AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, Diagnostic, DiagnosticCode,
-    DiagnosticReference, DiagnosticSeverity, FuseState, GeometryEnvelope, ParameterId, PinId,
-    RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
+    DiagnosticReference, DiagnosticSeverity, FaultSpec, FuseState, GeometryEnvelope, ParameterId,
+    PinId, RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
     ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, Schematic, SetParameterRequest,
     SetParameterResult, StableId, TraceBatch, TraceRequest, Unit,
     devices::{
@@ -20,14 +20,16 @@ use crate::{
         InductorDevice, InductorMode, PmdcMotorDevice, PmdcMotorMode, RelayCoilMode, RelayDevice,
         ResistorDevice, Terminals, component_diagnostic,
     },
+    faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
-    netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist},
+    netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
     solver::SolverError,
 };
 use trace::TraceHistory;
 use transient::{
-    CapacitorState, CircuitStates, InductorState, MotorState, SolveMode, advance_public_steps,
-    choose_internal_substeps, circuit_states_from_results, settle_discrete_events,
+    CapacitorState, CircuitInput, CircuitStates, InductorState, MotorState, SolveMode,
+    advance_public_steps, choose_internal_substeps, circuit_states_from_results,
+    settle_discrete_events,
 };
 
 /// Owns the active compiled run and its latest valid result.
@@ -38,7 +40,12 @@ pub struct Engine {
 
 struct CompiledRun {
     run_id: StableId,
+    /// The document's schematic, as sent. Faults are not part of it.
     schematic: Schematic,
+    /// The faults of the compile request, applied for the whole run.
+    faults: Vec<FaultSpec>,
+    /// The circuit that is solved: the schematic with the faults applied.
+    overlay: FaultOverlay,
     geometry: GeometryEnvelope,
     layout: ResultLayout,
     snapshot: ResultSnapshot,
@@ -101,13 +108,18 @@ enum DeviceModel {
 impl Engine {
     /// Validate, compile, and solve the operating point at simulation step zero.
     pub fn compile(&mut self, request: CompileRequest) -> CompileResult {
+        let faults = request.faults.clone().unwrap_or_default();
+        let overlay = match FaultOverlay::new(&request.schematic, &faults) {
+            Ok(overlay) => overlay,
+            Err(diagnostics) => return CompileResult::Failure { diagnostics },
+        };
         let (device_results, states, mut diagnostics) =
-            match initialize_circuit(&request.schematic, &request.geometry) {
+            match initialize_circuit(&overlay.schematic, &request.geometry, &overlay.open) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return CompileResult::Failure { diagnostics },
             };
         let (internal_substeps, limited) =
-            choose_internal_substeps(&request.schematic, &request.geometry);
+            choose_internal_substeps(&overlay.schematic, &request.geometry, &overlay.open);
         if limited {
             diagnostics.push(Diagnostic::warning(
                 DiagnosticCode::StepAccuracyLimited,
@@ -160,6 +172,8 @@ impl Engine {
         self.compiled = Some(CompiledRun {
             run_id: run_id.clone(),
             schematic: request.schematic,
+            faults,
+            overlay,
             geometry: request.geometry,
             layout: layout.clone(),
             snapshot: snapshot.clone(),
@@ -226,22 +240,37 @@ impl Engine {
             };
         }
 
+        // A parameter a fault overrides keeps the fault's value: the overlay is built again
+        // from the edited schematic and the same faults, so such an update changes nothing.
+        let candidate_overlay = match FaultOverlay::new(&candidate, &active.faults) {
+            Ok(overlay) => overlay,
+            Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+        };
         let geometry = active.geometry.clone();
         let run_id = active.run_id.clone();
         let layout = active.layout.clone();
         let simulation_step = active.snapshot.metadata.simulation_step;
         let document_revision = request.document_revision;
         let previous_step_states = active.step_start_states.clone();
-        let (internal_substeps, limited) = choose_internal_substeps(&candidate, &geometry);
+        let (internal_substeps, limited) = choose_internal_substeps(
+            &candidate_overlay.schematic,
+            &geometry,
+            &candidate_overlay.open,
+        );
         let (device_results, states, mut diagnostics) = if simulation_step == 0 {
-            match initialize_circuit(&candidate, &geometry) {
+            match initialize_circuit(
+                &candidate_overlay.schematic,
+                &geometry,
+                &candidate_overlay.open,
+            ) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             }
         } else {
             match advance_public_steps(
-                &candidate,
+                &candidate_overlay.schematic,
                 &geometry,
+                &candidate_overlay.open,
                 previous_step_states,
                 internal_substeps,
                 simulation_step,
@@ -311,6 +340,7 @@ impl Engine {
             };
         }
         active.schematic = candidate;
+        active.overlay = candidate_overlay;
         active.snapshot = snapshot.clone();
         active.states = states.clone();
         if simulation_step == 0 {
@@ -387,8 +417,9 @@ impl Engine {
             let current_step = active.snapshot.metadata.simulation_step + u64::from(offset);
             let (device_results, next_states, next_step_start_states, _diagnostics) =
                 advance_public_steps(
-                    &active.schematic,
+                    &active.overlay.schematic,
                     &active.geometry,
+                    &active.overlay.open,
                     states,
                     active.internal_substeps,
                     current_step,
@@ -459,12 +490,16 @@ impl Engine {
     }
 }
 
-fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> InitializationOutcome {
+fn initialize_circuit(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
+) -> InitializationOutcome {
     let capacitors = schematic
         .components
         .iter()
         .filter_map(|component| match component {
-            ComponentSpec::Capacitor { id, parameters, .. } => {
+            ComponentSpec::Capacitor { id, parameters, .. } if !open.contains(id) => {
                 Some((id.clone(), parameters.initial_voltage_volts))
             }
             _ => None,
@@ -474,7 +509,7 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
         .components
         .iter()
         .filter_map(|component| match component {
-            ComponentSpec::Inductor { id, parameters, .. } => {
+            ComponentSpec::Inductor { id, parameters, .. } if !open.contains(id) => {
                 Some((id.clone(), parameters.initial_current_amps))
             }
             _ => None,
@@ -513,7 +548,7 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
 
     if needs_operating_point {
         let (operating_point, operating_diagnostics) =
-            compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?;
+            compute_circuit(schematic, geometry, open, SolveMode::OperatingPoint)?;
         diagnostics.extend(operating_diagnostics);
         states = circuit_states_from_results(schematic, &operating_point, 0.0);
     }
@@ -559,15 +594,18 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
     }
 
     let (mut results, initial_diagnostics) = if has_explicit_initial_state {
-        compute_circuit(schematic, geometry, SolveMode::InitialState(&states))?
+        compute_circuit(schematic, geometry, open, SolveMode::InitialState(&states))?
     } else {
-        compute_circuit(schematic, geometry, SolveMode::OperatingPoint)?
+        compute_circuit(schematic, geometry, open, SolveMode::OperatingPoint)?
     };
     diagnostics.extend(initial_diagnostics);
     states = circuit_states_from_results(schematic, &results, 0.0);
     settle_discrete_events(
-        schematic,
-        geometry,
+        CircuitInput {
+            schematic,
+            geometry,
+            open,
+        },
         &mut states,
         &mut results,
         Vec::new(),
@@ -581,9 +619,10 @@ fn initialize_circuit(schematic: &Schematic, geometry: &GeometryEnvelope) -> Ini
 fn compute_circuit(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
     mode: SolveMode<'_>,
 ) -> Result<(Vec<DeviceResult>, Vec<Diagnostic>), Vec<Diagnostic>> {
-    let netlist = derive_netlist(schematic, geometry)?;
+    let netlist = derive_netlist_with_open(schematic, geometry, open)?;
     let mut diagnostics = netlist.diagnostics.clone();
     let device_specs = match build_device_specs(schematic, &netlist) {
         Ok(specs) => specs,
@@ -593,6 +632,11 @@ fn compute_circuit(
             return Err(diagnostics);
         }
     };
+    // An open component has no branch: it gets no device, and its result is made below.
+    let device_specs = device_specs
+        .into_iter()
+        .filter(|spec| !open.contains(&spec.component_id))
+        .collect::<Vec<_>>();
 
     let constraint_errors =
         check_ideal_voltage_constraints(&device_specs, netlist.nodes.len(), mode);
@@ -615,8 +659,10 @@ fn compute_circuit(
         }
     }
 
-    let mut results = Vec::with_capacity(device_specs.len());
-    for island in &netlist.islands {
+    let mut results = Vec::with_capacity(device_specs.len() + open.len());
+    // Node -> (island, voltage), for the voltage across an open part's pins.
+    let mut solved_nodes = HashMap::<usize, (usize, f64)>::new();
+    for (island_index, island) in netlist.islands.iter().enumerate() {
         let island_component_ids = island
             .component_ids
             .iter()
@@ -727,6 +773,9 @@ fn compute_circuit(
                 node_voltages[node] = solved.values[variable];
             }
         }
+        for node in island.node_indices.iter().copied() {
+            solved_nodes.insert(node, (island_index, node_voltages[node]));
+        }
         for device in devices {
             match device.result(&node_voltages, &solved.values) {
                 Ok(result) => results.push(result),
@@ -739,8 +788,53 @@ fn compute_circuit(
     if has_errors(&diagnostics) {
         return Err(diagnostics);
     }
+    results.extend(open_results(&netlist, open, &solved_nodes));
     results.sort_by(|left, right| left.component_id.as_str().cmp(right.component_id.as_str()));
     Ok((results, diagnostics))
+}
+
+/// The results of the open components: no current, and the voltage between the nodes their
+/// pins touch. When the two pins lie in different electrical islands, or one of them touches
+/// nothing else, the Stage 1 local references cannot be compared and the voltage is 0
+/// (docs/contracts/stage-5-assignments.md section 5.2). Inside one island the two nodes are
+/// compared as they are solved; an island whose matrix has separate blocks with their own gauge
+/// references (relay ports) would give a gauge-dependent difference, as it already does for any
+/// quantity read across such blocks.
+fn open_results(
+    netlist: &Netlist,
+    open: &HashSet<StableId>,
+    solved_nodes: &HashMap<usize, (usize, f64)>,
+) -> Vec<DeviceResult> {
+    let mut pin_nodes = HashMap::<(StableId, PinId), usize>::new();
+    for node in &netlist.nodes {
+        for pin in &node.pins {
+            if open.contains(&pin.component_id) {
+                pin_nodes.insert((pin.component_id.clone(), pin.pin_id), node.index);
+            }
+        }
+    }
+    let mut ids = open.iter().cloned().collect::<Vec<_>>();
+    ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    ids.into_iter()
+        .map(|component_id| {
+            let at = |pin_id| {
+                pin_nodes
+                    .get(&(component_id.clone(), pin_id))
+                    .and_then(|node| solved_nodes.get(node))
+            };
+            let voltage_volts = match (at(PinId::Pin1), at(PinId::Pin2)) {
+                (Some((first, left)), Some((second, right))) if first == second => left - right,
+                _ => 0.0,
+            };
+            DeviceResult {
+                component_id,
+                voltage_volts,
+                current_amps: 0.0,
+                extra_values: Vec::new(),
+                state: None,
+            }
+        })
+        .collect()
 }
 
 /// A netlist island can contain electrically independent ports of a multi-port
@@ -1775,7 +1869,7 @@ fn values_for_layout(
     }
 }
 
-fn update_parameter(
+pub(crate) fn update_parameter(
     schematic: &mut Schematic,
     component_id: &StableId,
     parameter_id: ParameterId,
@@ -2224,6 +2318,7 @@ mod tests {
             ))
             .unwrap(),
             document_revision: "revision-1".to_owned(),
+            faults: None,
         }
     }
 }

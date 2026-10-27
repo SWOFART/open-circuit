@@ -53,6 +53,7 @@ fn request(schematic: &str, geometry: &str) -> CompileRequest {
         schematic: serde_json::from_str(schematic).expect("a schematic fixture"),
         geometry: serde_json::from_str(geometry).expect("a geometry fixture"),
         document_revision: "rev-1".to_owned(),
+        faults: None,
     }
 }
 

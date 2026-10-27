@@ -4,6 +4,7 @@ pub mod catalog;
 mod devices;
 pub mod diagnostics;
 pub mod engine;
+pub mod faults;
 pub mod ids;
 mod mna;
 pub mod netlist;
@@ -18,6 +19,7 @@ pub use catalog::{
 };
 pub use diagnostics::{Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity};
 pub use engine::Engine;
+pub use faults::{FaultKind, FaultSpec, SHORT_FAULT_RESISTANCE_OHMS, supported_fault_kinds};
 pub use ids::{InvalidStableId, StableId};
 pub use project::{ProjectDocumentError, decode_project_json, validate_project_schematic};
 pub use results::{

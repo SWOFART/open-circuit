@@ -86,6 +86,7 @@ fn compile_request(trip_i2t_ampere_squared_seconds: f64) -> CompileRequest {
         schematic,
         geometry,
         document_revision: "fuse-test-1".to_owned(),
+        faults: None,
     }
 }
 

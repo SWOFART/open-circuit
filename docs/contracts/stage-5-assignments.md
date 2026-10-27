@@ -209,7 +209,7 @@ A fault on a combination marked "no" is `InvalidFault`. A valid fault can still 
 Faults are an input to compile, never part of the schematic:
 
 - The compile request has an optional `faults` list (section 1.2), validated with the rest of the request. A successful compile starts a new run as always; the faults are part of that run, and a recompile without them starts an unfaulted run.
-- The Engine validates every fault before it solves: the component exists in the schematic, the kind is supported for its type (section 5.2), no component has two faults, and a `parameter` fault names an existing, non-initial-condition parameter with a value inside its domain. Any violation is the error `InvalidFault` with a reference to the component, and compilation has no usable result.
+- The Engine validates every fault before it solves: the component exists in the schematic, the kind is supported for its type (section 5.2), no component has two faults, no two faults share an ID, and a `parameter` fault names an existing, non-initial-condition parameter with a value inside its domain. Any violation is the error `InvalidFault` with a reference to the component, and compilation has no usable result.
 - The saved project is never changed, and faults are never added to it (section 2.6).
 
 ### 5.4 Faults and live updates
@@ -256,7 +256,7 @@ Stage 5 adds one diagnostic code to the Stage 1 structure (a stable code, a seve
 
 | Code | Severity | Meaning | References |
 |---|---|---|---|
-| `InvalidFault` | error | A fault names a missing component, a combination that is not supported (section 5.2), a component that already has a fault, or a parameter that is missing, an initial condition, or outside its domain. | The component. |
+| `InvalidFault` | error | A fault names a missing component, a combination that is not supported (section 5.2), a component that already has a fault, a fault ID that is used twice, or a parameter that is missing, an initial condition, or outside its domain. | The component. |
 
 ### 7.2 Assignment file errors
 

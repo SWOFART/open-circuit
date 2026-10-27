@@ -24,6 +24,7 @@ pub enum DiagnosticCode {
     StepAccuracyLimited,
     EventChatter,
     NonFiniteState,
+    InvalidFault,
     StaleRun,
     StaleDocumentRevision,
 }
@@ -47,6 +48,7 @@ impl DiagnosticCode {
             Self::StepAccuracyLimited => "diagnostic.stepAccuracyLimited",
             Self::EventChatter => "diagnostic.eventChatter",
             Self::NonFiniteState => "diagnostic.nonFiniteState",
+            Self::InvalidFault => "diagnostic.invalidFault",
             Self::StaleRun => "diagnostic.staleRun",
             Self::StaleDocumentRevision => "diagnostic.staleDocumentRevision",
         }

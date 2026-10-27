@@ -104,6 +104,7 @@ fn compile(engine: &mut Engine) -> (StableId, ResultLayout, ResultSnapshot) {
         schematic,
         geometry,
         document_revision: "relay-test-1".to_owned(),
+        faults: None,
     })
     else {
         panic!("relay fixture should compile");
@@ -285,6 +286,7 @@ fn relay_remains_released_below_pickup_and_uses_the_nc_contact() {
         schematic,
         geometry,
         document_revision: "relay-nc".to_owned(),
+        faults: None,
     })
     else {
         panic!("below-pickup relay fixture should compile");
@@ -340,6 +342,7 @@ fn disconnected_coil_and_contact_ports_compile_as_separate_matrix_blocks() {
         schematic,
         geometry,
         document_revision: "isolated-relay-ports".to_owned(),
+        faults: None,
     })
     else {
         panic!("galvanically separate relay ports should compile independently");
@@ -415,6 +418,7 @@ fn explicit_capacitor_initial_state_does_not_ground_an_unconnected_relay_coil_te
         schematic,
         geometry,
         document_revision: "explicit-capacitor-state".to_owned(),
+        faults: None,
     })
     else {
         panic!("the explicit-capacitor initial-state circuit should compile");
@@ -463,6 +467,7 @@ fn an_open_relay_coil_terminal_stays_floating_during_transient_steps() {
         schematic,
         geometry,
         document_revision: "open-coil-transient".to_owned(),
+        faults: None,
     })
     else {
         panic!("an open relay coil should compile without a false return path");
@@ -550,6 +555,7 @@ fn relay_coil_rises_to_the_analytical_rl_response_and_can_switch_at_the_public_b
         schematic,
         geometry,
         document_revision: "relay-response-1".to_owned(),
+        faults: None,
     })
     else {
         panic!("the unpowered relay response fixture should compile");
@@ -604,6 +610,7 @@ fn relay_rejects_missing_hysteresis_gap() {
         schematic,
         geometry,
         document_revision: "invalid-relay".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = result else {
         panic!("the relay with no hysteresis gap must be refused");

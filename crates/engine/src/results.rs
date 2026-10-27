@@ -116,6 +116,11 @@ pub struct CompileRequest {
     pub schematic: Schematic,
     pub geometry: GeometryEnvelope,
     pub document_revision: String,
+    // Faults of the Stage 5 contract. An absent list means no faults. They are an input of
+    // this compile only and are never part of the schematic.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub faults: Option<Vec<crate::FaultSpec>>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]

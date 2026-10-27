@@ -38,6 +38,7 @@ fn compile_fixture(
         schematic: from_str(schematic_json).unwrap(),
         geometry: from_str(geometry_json).unwrap(),
         document_revision: revision.to_owned(),
+        faults: None,
     });
     let CompileResult::Success {
         run_id,
@@ -252,6 +253,7 @@ fn capacitor_parameter_is_optional_but_null_and_non_positive_capacitance_are_inv
         schematic: invalid,
         geometry: from_str(CHARGE_GEOMETRY).unwrap(),
         document_revision: "invalid-capacitance".to_owned(),
+        faults: None,
     });
     assert!(matches!(
         result,
@@ -307,6 +309,7 @@ fn incompatible_explicit_capacitor_voltage_reports_inconsistent_state() {
         schematic,
         geometry,
         document_revision: "inconsistent-ic".to_owned(),
+        faults: None,
     });
     let CompileResult::Failure { diagnostics } = result else {
         panic!("the incompatible explicit voltage should fail compilation");
@@ -367,6 +370,7 @@ fn signed_initial_voltage_is_valid_and_a_fast_rc_rate_emits_accuracy_warning() {
         schematic: fast_schematic,
         geometry: from_str(CHARGE_GEOMETRY).unwrap(),
         document_revision: "fast-rc-1".to_owned(),
+        faults: None,
     });
     let CompileResult::Success {
         internal_substeps,
