@@ -48,7 +48,7 @@ ordering follows [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 | Family                             | Planned relation or state                                                                                                                                       | Current decisions and open questions                                                                                                                                                                                                                                                                                                                                                 |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Dependent linear sources           | Voltage or current is controlled by another voltage or current.                                                                                                 | Pin/control polarity, dimensionless versus dimensional gain, well-posedness, and matrix singularities.                                                                                                                                                                                                                                                                               |
-| Switches and relays                | A discrete state changes the connected electrical model; the Stage 4 baseline is one hysteretic SPDT relay with a resistive/inductive coil and finite closed-contact resistance. | The model, initial state, threshold behavior, event ordering, chatter limit, and result reporting are fixed in the [Stage 4 contract](../contracts/stage-4-components.md). A generic interactive manual-switch catalog entry remains future work. |
+| Switches and relays                | A discrete state changes the connected electrical model; the Stage 4 baseline is one hysteretic SPDT relay with a resistive/inductive coil and finite closed-contact resistance. | The model, initial state, threshold behavior, event ordering, chatter limit, and result reporting are fixed in the [Stage 4 contract](../contracts/stage-4-components.md). Interactive switches, push buttons, and a contactor are specified by the [Stage 6 contract](../contracts/stage-6-control-circuits.md). |
 | Fuses                              | The Stage 4 baseline is a one-shot thermal proxy based on accumulated `∫i²dt`, followed by an open circuit.                                                        | The [Stage 4 contract](../contracts/stage-4-components.md) fixes its threshold, trip timing, reset semantics, and diagnostics/results. It is not a manufacturer time-current curve or a detailed thermal model. |
 | PMDC motor                         | A linear armature circuit is coupled to one rotor speed state by a shared SI torque/back-EMF constant.                                                         | The [Stage 4 contract](../contracts/stage-4-components.md) fixes the coupled equations, initialization, implicit trapezoidal step, and analytical startup fixture. |
 | Voltmeter and ammeter              | Passive two-terminal resistive meters with finite input/burden resistance.                                                                                     | The [Stage 4 contract](../contracts/stage-4-components.md) fixes loading and sign/readout conventions. Accuracy, ranges, AC response, and manufacturer profiles are omitted. |
@@ -334,6 +334,26 @@ loading. [`stage-4-frame.json`](../../tests/golden/stage-4-frame.json) fixes one
 independently encoded OCF2 state-bearing frame. The motor reference is the
 closed-form solution of its linear state equations; meter and fuse values come
 from direct circuit equations.
+
+### Stage 6 model baseline
+
+The latching switch, the two push buttons, and the contactor are specified by
+[`stage-6-control-circuits.md`](../contracts/stage-6-control-circuits.md). A
+switch or push button is a contact with a finite closed resistance
+(`closedResistanceOhms`, default 0.01 Ω) and no conduction when open; its
+position is operator state, an input of a run that the user changes while it
+goes, applied from the start of the current public step like a live parameter
+update. The contactor is the Stage 4 relay coil model with two isolated
+auxiliary contacts (one normally open, one normally closed). These are
+proposed simulator models, not implemented behavior or manufacturer
+profiles; contact bounce, arcing, and make and break delays are omitted.
+
+The independent fixture references are in `tests/golden/stage-6-*.expected.json`:
+a switch in a divider and a normally closed push button holding a capacitor
+(direct circuit equations and the closed-form RC solution), and a start/stop
+circuit latching through a contactor (series-resistance coil currents).
+[`stage-6-frame.json`](../../tests/golden/stage-6-frame.json) fixes one
+independently encoded OCF2 frame with the three new state kinds.
 
 ### Stage 5 fault models
 

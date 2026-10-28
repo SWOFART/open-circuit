@@ -97,7 +97,8 @@ circuit-sim/
 │   │   ├── stage-2-editor.md
 │   │   ├── stage-3-dynamics.md
 │   │   ├── stage-4-components.md
-│   │   └── stage-5-assignments.md
+│   │   ├── stage-5-assignments.md
+│   │   └── stage-6-control-circuits.md
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -269,6 +270,7 @@ UI ──commands──▶ [queue] ──▶ simulation thread (owns Engine)
 - `set_param(id, value)`: a lightweight command that only rebuilds stamps.
 - Topology change: a fast recompile. **State transfer** keyed by component ID (capacitor charge, relay position, fuse I²t, and motor speed) is deferred: through Stage 4 every successful compile starts a new run at time zero, initialized as described in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md) and [`docs/contracts/stage-4-components.md`](docs/contracts/stage-4-components.md).
 - Assignments (Stage 5): an assignment is a separate versioned file (`.ocassignment`), never part of the saved project. The Engine validates it, applies **faults** as an optional overlay of the compile request (never saved into the schematic), evaluates **checks** on a student's circuit in a fresh run of its own, and compares a fault-finding diagnosis with the faults; the app carries the files and requests and runs a check on a separate Engine instance, never on the one that owns the live run; the UI presents the Engine's structured results and enforces editor restrictions. The rules are in [`docs/contracts/stage-5-assignments.md`](docs/contracts/stage-5-assignments.md).
+- Operator state (Stage 6): the position of a switch or push button is an input of a run, owned by the Engine's run, changed through a `set_operator_state` command that follows the `set_parameter` rules (the same run, revision, and stale-frame handling, taking effect from the start of the current public step). It is never a schematic parameter, never an undo entry, and never saved; a project stores only a switch's optional initial position. The interface sends requests and shows the position and `conducting` state the Engine reports; it never decides what conducts. The same contract adds, additively, the catalog unit `dimensionless`, the numeric domain `zero_or_one`, and three discrete state kinds (and a second flag bit) to the OCF2 frame, whose magic stays `OCF2` because the application and its interface ship together and no frame is stored. The rules are in [`docs/contracts/stage-6-control-circuits.md`](docs/contracts/stage-6-control-circuits.md).
 
 > **Verify in the prototype (step 1):** how well binary transfer through the Tauri 2 `Channel`
 > works in the chosen version. Fallback: a shared buffer via a command returning `Vec<u8>`/`ArrayBuffer` on a timer.

@@ -1,0 +1,103 @@
+{
+  "fixtureId": "stage6.control.start_stop_latching",
+  "description": "A control circuit: an ideal 5 V source feeds, in series, a normally closed STOP button, the parallel pair of a normally open START button and the contactor's NO contact, and the contactor coil back to ground. All three contacts have closed resistance 0.01 Ohm (the contactor's NO contact 0.1 Ohm, its default), and the coil has the catalog defaults (100 Ohm, 10 mH, pickup 40 mA, dropout 20 mA). The coil current is the source voltage over the series resistance of the energized path; the coil's L/R time constant (0.1 ms) is far inside one public step, so each sample is the settled value. The wired-wrong variant is listed below.",
+  "parameters": {
+    "sourceVoltageVolts": 5,
+    "stopClosedResistanceOhms": 0.01,
+    "startClosedResistanceOhms": 0.01,
+    "contactClosedResistanceOhms": 0.1,
+    "coilResistanceOhms": 100,
+    "coilInductanceHenries": 0.01,
+    "pickupCurrentAmps": 0.04,
+    "dropoutCurrentAmps": 0.02
+  },
+  "operatorEvents": [
+    {
+      "sentWhenNewestStep": 5,
+      "component": "START",
+      "position": "pressed",
+      "effectiveFromStep": 4
+    },
+    {
+      "sentWhenNewestStep": 10,
+      "component": "START",
+      "position": "released",
+      "effectiveFromStep": 9
+    },
+    {
+      "sentWhenNewestStep": 15,
+      "component": "STOP",
+      "position": "pressed",
+      "effectiveFromStep": 14
+    },
+    {
+      "sentWhenNewestStep": 20,
+      "component": "STOP",
+      "position": "released",
+      "effectiveFromStep": 19
+    }
+  ],
+  "expected": [
+    {
+      "step": 0,
+      "contactor": "released",
+      "coilCurrentAmps": 0,
+      "note": "No current flows: START is open and the NO contact is open."
+    },
+    {
+      "step": 3,
+      "contactor": "released",
+      "coilCurrentAmps": 0
+    },
+    {
+      "step": 5,
+      "contactor": "picked",
+      "coilCurrentAmps": 0.04999045636742077,
+      "note": "START held: the coil picks within the step, and the closed NO contact is in parallel with START (0.01 Ohm || 0.1 Ohm)."
+    },
+    {
+      "step": 8,
+      "contactor": "picked",
+      "coilCurrentAmps": 0.04999045636742077
+    },
+    {
+      "step": 12,
+      "contactor": "picked",
+      "coilCurrentAmps": 0.04994506043352313,
+      "note": "START is released: the coil is held through the NO contact alone."
+    },
+    {
+      "step": 15,
+      "contactor": "released",
+      "coilCurrentAmps": 0,
+      "note": "STOP pressed (open): the coil current decays and drops below the dropout current within the step."
+    },
+    {
+      "step": 25,
+      "contactor": "released",
+      "coilCurrentAmps": 0,
+      "note": "STOP is released again, and START is not pressed: the circuit stays off."
+    }
+  ],
+  "coilCurrentToleranceAmps": 0.0001,
+  "wrongVariants": [
+    {
+      "name": "no seal-in contact",
+      "description": "The contactor's NO contact is not wired: START alone feeds the coil, so the circuit does not latch. The operator events are those of the correct circuit.",
+      "expected": [
+        {
+          "step": 5,
+          "contactor": "picked",
+          "coilCurrentAmps": 0.04999000199960008,
+          "note": "START held: the coil picks."
+        },
+        {
+          "step": 12,
+          "contactor": "released",
+          "coilCurrentAmps": 0,
+          "note": "START is released and nothing holds the coil."
+        }
+      ]
+    }
+  ]
+}
