@@ -1,5 +1,6 @@
 //! Transport-independent Stage 1 types and catalog for the circuit engine.
 
+pub mod assignment;
 pub mod catalog;
 pub mod checks;
 mod devices;
@@ -12,8 +13,17 @@ pub mod netlist;
 pub mod project;
 pub mod results;
 pub mod schematic;
+mod slots;
 pub mod solver;
 
+pub use assignment::{
+    ASSIGNMENT_SCHEMA_VERSION, Assignment, AssignmentDecoded, AssignmentError, AssignmentErrorCode,
+    AssignmentSaveOutcome, AssignmentTask, DiagnosisChecked, DiagnosisEntry, DiagnosisEntryResult,
+    DiagnosisEntryVerdict, DiagnosisFaultResult, DiagnosisFaultVerdict, DiagnosisOutcome,
+    DiagnosisResult, MAX_ASSIGNMENT_BYTES, MAX_ASSIGNMENT_ERRORS, MAX_ASSIGNMENT_FAULTS,
+    Restrictions, RevealPolicy, check_diagnosis, decode_assignment_json, encode_assignment_json,
+    validate_assignment, validate_assignment_value,
+};
 pub use catalog::{
     ComponentCatalog, ComponentCatalogEntry, ComponentTypeId, NumericDomain, ParameterDefinition,
     ParameterId, PinDefinition, PinId, PinRole, Unit, component_catalog,

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "id": "00000000-0000-4000-8000-0000000005a2",
+  "title": "Make the fuse trip",
+  "instructions": "Add a load that trips the fuse within 2 ms.",
+  "task": {
+    "kind": "build"
+  },
+  "startingCircuit": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "voltageVolts": 2.02,
+          "internalResistanceOhms": 0
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "typeId": "fuse",
+        "position": {
+          "x": 2,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "intactResistanceOhms": 0.01,
+          "tripI2tAmpereSquaredSeconds": 0.004
+        }
+      }
+    ],
+    "wires": [],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000f0",
+        "position": {
+          "x": 2,
+          "y": 2
+        }
+      }
+    ]
+  },
+  "restrictions": {
+    "allowedComponentTypes": [
+      "resistor"
+    ],
+    "lockedComponents": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000003"
+    ]
+  },
+  "checks": [
+    {
+      "kind": "deviceState",
+      "id": "00000000-0000-4000-8000-0000000000c4",
+      "componentId": "00000000-0000-4000-8000-000000000003",
+      "state": "tripped",
+      "atSeconds": 0.002
+    }
+  ],
+  "reference": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "voltageVolts": 2.02,
+          "internalResistanceOhms": 0
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "typeId": "fuse",
+        "position": {
+          "x": 2,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "intactResistanceOhms": 0.01,
+          "tripI2tAmpereSquaredSeconds": 0.004
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "typeId": "resistor",
+        "position": {
+          "x": 4,
+          "y": 4
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1
+        }
+      }
+    ],
+    "wires": [],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000f0",
+        "position": {
+          "x": 2,
+          "y": 2
+        }
+      }
+    ]
+  }
+}

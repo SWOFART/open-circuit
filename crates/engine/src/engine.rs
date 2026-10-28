@@ -12,9 +12,9 @@ use uuid::Uuid;
 use crate::{
     AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, Diagnostic, DiagnosticCode,
     DiagnosticReference, DiagnosticSeverity, FaultSpec, FuseState, GeometryEnvelope, ParameterId,
-    PinId, RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
-    ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, Schematic, SetParameterRequest,
-    SetParameterResult, StableId, TraceBatch, TraceRequest, Unit,
+    PinId, RelayContactState, ResultLayout, ResultQuantity, ResultSlot, ResultSnapshot,
+    SIMULATION_TIMESTEP_SECONDS, Schematic, SetParameterRequest, SetParameterResult, StableId,
+    TraceBatch, TraceRequest,
     devices::{
         CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
         InductorDevice, InductorMode, PmdcMotorDevice, PmdcMotorMode, RelayCoilMode, RelayDevice,
@@ -23,6 +23,7 @@ use crate::{
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
+    slots::slot_definitions,
     solver::SolverError,
 };
 use trace::TraceHistory;
@@ -1694,119 +1695,13 @@ fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagno
     components.sort_by(|left, right| left.id().as_str().cmp(right.id().as_str()));
     let mut slots = Vec::with_capacity(components.len().saturating_mul(2));
     for component in components {
-        let definitions = if matches!(component, ComponentSpec::RelaySpdt { .. }) {
-            vec![
-                (
-                    ResultQuantity::Voltage,
-                    Unit::Volt,
-                    "coil/voltage",
-                    ResultSignConvention::VoltagePin1MinusPin2,
-                ),
-                (
-                    ResultQuantity::Current,
-                    Unit::Amp,
-                    "coil/current",
-                    ResultSignConvention::CurrentIntoPin1,
-                ),
-                (
-                    ResultQuantity::Voltage,
-                    Unit::Volt,
-                    "normally_open/voltage",
-                    ResultSignConvention::VoltagePin1MinusPin2,
-                ),
-                (
-                    ResultQuantity::Current,
-                    Unit::Amp,
-                    "normally_open/current",
-                    ResultSignConvention::CurrentIntoPin1,
-                ),
-                (
-                    ResultQuantity::Voltage,
-                    Unit::Volt,
-                    "normally_closed/voltage",
-                    ResultSignConvention::VoltagePin1MinusPin2,
-                ),
-                (
-                    ResultQuantity::Current,
-                    Unit::Amp,
-                    "normally_closed/current",
-                    ResultSignConvention::CurrentIntoPin1,
-                ),
-            ]
-        } else if matches!(component, ComponentSpec::Fuse { .. }) {
-            vec![
-                (
-                    ResultQuantity::Voltage,
-                    Unit::Volt,
-                    "voltage",
-                    ResultSignConvention::VoltagePin1MinusPin2,
-                ),
-                (
-                    ResultQuantity::Current,
-                    Unit::Amp,
-                    "current",
-                    ResultSignConvention::CurrentIntoPin1,
-                ),
-                (
-                    ResultQuantity::AccumulatedI2t,
-                    Unit::AmpereSquaredSecond,
-                    "accumulated_i2t",
-                    ResultSignConvention::CurrentIntoPin1,
-                ),
-            ]
-        } else if matches!(component, ComponentSpec::PmdcMotor { .. }) {
-            vec![
-                (
-                    ResultQuantity::Voltage,
-                    Unit::Volt,
-                    "voltage",
-                    ResultSignConvention::VoltagePin1MinusPin2,
-                ),
-                (
-                    ResultQuantity::Current,
-                    Unit::Amp,
-                    "current",
-                    ResultSignConvention::CurrentIntoPin1,
-                ),
-                (
-                    ResultQuantity::AngularVelocity,
-                    Unit::RadianPerSecond,
-                    "angular_velocity",
-                    ResultSignConvention::PositiveRotationWithPositivePin1Current,
-                ),
-            ]
-        } else {
-            vec![
-                (
-                    ResultQuantity::Voltage,
-                    Unit::Volt,
-                    "voltage",
-                    ResultSignConvention::VoltagePin1MinusPin2,
-                ),
-                (
-                    ResultQuantity::Current,
-                    Unit::Amp,
-                    "current",
-                    ResultSignConvention::CurrentIntoPin1,
-                ),
-            ]
-        };
-        for (quantity, unit, suffix, sign_convention) in definitions {
-            let key = if matches!(component, ComponentSpec::RelaySpdt { .. })
-                || (matches!(component, ComponentSpec::Fuse { .. }) && suffix == "accumulated_i2t")
-                || (matches!(component, ComponentSpec::PmdcMotor { .. })
-                    && suffix == "angular_velocity")
-            {
-                format!("{}/{suffix}", component.id())
-            } else {
-                format!("{}:{suffix}", component.id())
-            };
+        for definition in slot_definitions(component.type_id()) {
             slots.push(ResultSlot {
-                key,
+                key: definition.key(component.id().as_str()),
                 component_id: component.id().clone(),
-                quantity,
-                unit,
-                sign_convention,
+                quantity: definition.quantity,
+                unit: definition.unit,
+                sign_convention: definition.sign_convention,
                 offset: slots.len() as u32,
             });
         }

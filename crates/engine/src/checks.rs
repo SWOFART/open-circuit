@@ -612,7 +612,7 @@ fn same_kind_and_parameters(left: &ComponentSpec, right: &ComponentSpec) -> bool
 
 /// The public step of a time (section 4.2), or `None` if the time is not a non-negative
 /// multiple of the public step of at most 60 s.
-fn step_of(seconds: f64) -> Option<u64> {
+pub(crate) fn step_of(seconds: f64) -> Option<u64> {
     if !seconds.is_finite() || !(0.0..=MAX_CHECK_SECONDS).contains(&seconds) {
         return None;
     }

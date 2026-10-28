@@ -2,13 +2,19 @@
 
 use std::sync::Arc;
 
+use open_circuit_app_lib::assignment::{
+    ASSIGNMENT_EXTENSION, AssignmentSession, normalize_save_path, write_assignment_file,
+};
+use open_circuit_app_lib::checks::CheckService;
 use open_circuit_app_lib::project::ProjectSession;
 use open_circuit_app_lib::simulation::{
     FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed, TraceSink,
 };
 use open_circuit_engine::{
-    CompileRequest, CompileResult, ComponentCatalog, Schematic, SetParameterRequest,
-    SetParameterResult, StableId, TraceRequest, component_catalog,
+    Assignment, AssignmentDecoded, AssignmentSaveOutcome, CheckRequest, CheckResult,
+    CompileRequest, CompileResult, ComponentCatalog, DiagnosisChecked, Schematic,
+    SetParameterRequest, SetParameterResult, StableId, TraceRequest, check_diagnosis,
+    component_catalog, validate_assignment_value,
 };
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Manager, RunEvent, State, WindowEvent};
@@ -143,7 +149,161 @@ fn choose_project_save_path(app: &tauri::AppHandle) -> Result<Option<std::path::
     Ok(Some(path))
 }
 
-/// Compiles the schematic into a new run. Layout, diagnostics, and the initial snapshot
+/// Opens a native file picker and replaces the active assignment path only after the file
+/// has been validated. A file the Engine refuses comes back as its list of errors.
+#[tauri::command]
+async fn open_assignment(
+    app: tauri::AppHandle,
+    session: State<'_, AssignmentSession>,
+) -> Result<Option<AssignmentDecoded>, String> {
+    let selected = app
+        .dialog()
+        .file()
+        .set_title("Open Open Circuit assignment")
+        .add_filter("Open Circuit assignment", &[ASSIGNMENT_EXTENSION])
+        .blocking_pick_file();
+    let Some(selected) = selected else {
+        return Ok(None);
+    };
+    let path = selected
+        .into_path()
+        .map_err(|error| format!("Could not use the selected assignment file: {error}"))?;
+    let assignment_session = session.inner().clone();
+    let decoded = run_project_blocking(move || assignment_session.load(&path)).await?;
+    Ok(Some(decoded))
+}
+
+/// Validates an assignment document with the Engine's rules, without touching any file.
+#[tauri::command]
+async fn validate_assignment(assignment: serde_json::Value) -> Result<AssignmentDecoded, String> {
+    run_project_blocking(move || {
+        Ok(AssignmentDecoded::from_result(validate_assignment_value(
+            &assignment,
+        )))
+    })
+    .await
+}
+
+/// Saves to the current assignment path, or asks for a path when there is none. An invalid
+/// document is refused with its errors before any dialog opens.
+#[tauri::command]
+async fn save_assignment(
+    app: tauri::AppHandle,
+    session: State<'_, AssignmentSession>,
+    assignment: serde_json::Value,
+) -> Result<AssignmentSaveOutcome, String> {
+    let assignment = match validate_assignment_value(&assignment) {
+        Ok(assignment) => assignment,
+        Err(errors) => return Ok(AssignmentSaveOutcome::Invalid { errors }),
+    };
+    let path = match session.current_path()? {
+        Some(path) => Some(path),
+        None => choose_assignment_save_path(&app, "Save Open Circuit assignment", "Untitled")?,
+    };
+    save_assignment_to(session.inner().clone(), path, assignment).await
+}
+
+/// Saves the assignment to a path selected with the native Save As dialog.
+#[tauri::command]
+async fn save_assignment_as(
+    app: tauri::AppHandle,
+    session: State<'_, AssignmentSession>,
+    assignment: serde_json::Value,
+) -> Result<AssignmentSaveOutcome, String> {
+    let assignment = match validate_assignment_value(&assignment) {
+        Ok(assignment) => assignment,
+        Err(errors) => return Ok(AssignmentSaveOutcome::Invalid { errors }),
+    };
+    let path = choose_assignment_save_path(&app, "Save Open Circuit assignment", "Untitled")?;
+    save_assignment_to(session.inner().clone(), path, assignment).await
+}
+
+/// Writes the student's copy (the assignment without its reference, section 2.3) to a path
+/// selected with the native dialog. The active assignment path does not change.
+#[tauri::command]
+async fn export_student_copy(
+    app: tauri::AppHandle,
+    assignment: serde_json::Value,
+) -> Result<AssignmentSaveOutcome, String> {
+    let assignment = match validate_assignment_value(&assignment) {
+        Ok(assignment) => assignment.student_copy(),
+        Err(errors) => return Ok(AssignmentSaveOutcome::Invalid { errors }),
+    };
+    let Some(path) =
+        choose_assignment_save_path(&app, "Export Open Circuit student copy", "Student copy")?
+    else {
+        return Ok(AssignmentSaveOutcome::Cancelled);
+    };
+    run_project_blocking(move || write_assignment_file(&path, &assignment)).await
+}
+
+/// Clears the Rust-owned assignment location after a new assignment is started.
+#[tauri::command]
+fn clear_assignment_path(session: State<'_, AssignmentSession>) -> Result<(), String> {
+    session.clear_path()
+}
+
+async fn save_assignment_to(
+    session: AssignmentSession,
+    path: Option<std::path::PathBuf>,
+    assignment: Assignment,
+) -> Result<AssignmentSaveOutcome, String> {
+    let Some(path) = path else {
+        return Ok(AssignmentSaveOutcome::Cancelled);
+    };
+    run_project_blocking(move || session.save_to(&path, &assignment)).await
+}
+
+fn choose_assignment_save_path(
+    app: &tauri::AppHandle,
+    title: &str,
+    name: &str,
+) -> Result<Option<std::path::PathBuf>, String> {
+    let Some(file_path) = app
+        .dialog()
+        .file()
+        .set_title(title)
+        .set_file_name(format!("{name}.{ASSIGNMENT_EXTENSION}"))
+        .add_filter("Open Circuit assignment", &[ASSIGNMENT_EXTENSION])
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    let path = file_path
+        .into_path()
+        .map_err(|error| format!("Could not use the selected assignment path: {error}"))?;
+    normalize_save_path(&path).map(Some)
+}
+
+/// Evaluates an assignment's checks on a student's schematic. The check has an Engine of its
+/// own and runs away from the simulation thread, so it never delays or changes the live run.
+/// The result carries the request's document revision.
+#[tauri::command]
+async fn check_assignment(
+    checks: State<'_, Arc<CheckService>>,
+    request: CheckRequest,
+) -> Result<CheckResult, String> {
+    let checks = Arc::clone(checks.inner());
+    run_project_blocking(move || checks.run(request)).await
+}
+
+/// Compares a fault-finding diagnosis with the assignment's faults. No circuit is solved.
+#[tauri::command]
+async fn check_fault_diagnosis(
+    assignment: Assignment,
+    diagnosis: serde_json::Value,
+) -> Result<DiagnosisChecked, String> {
+    run_project_blocking(move || {
+        Ok(DiagnosisChecked::from_result(check_diagnosis(
+            &assignment,
+            &diagnosis,
+        )))
+    })
+    .await
+}
+
+/// Compiles the schematic into a new run, with the request's optional faults applied to that
+/// run only (they are never part of the schematic). Layout, diagnostics, and the initial snapshot
 /// come back once, as JSON; frames follow only after `start_simulation`.
 #[tauri::command]
 async fn compile_circuit(
@@ -238,6 +398,8 @@ fn main() {
     tauri::Builder::default()
         .manage(simulation)
         .manage(ProjectSession::default())
+        .manage(AssignmentSession::default())
+        .manage(Arc::new(CheckService::default()))
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_component_catalog,
@@ -245,6 +407,14 @@ fn main() {
             save_project,
             save_project_as,
             clear_project_path,
+            open_assignment,
+            validate_assignment,
+            save_assignment,
+            save_assignment_as,
+            export_student_copy,
+            clear_assignment_path,
+            check_assignment,
+            check_fault_diagnosis,
             compile_circuit,
             set_parameter,
             start_simulation,

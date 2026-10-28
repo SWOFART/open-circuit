@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "id": "00000000-0000-4000-8000-0000000005a3",
+  "title": "Find the fault",
+  "instructions": "The voltmeter does not read what the divider should give. Find the faulty part.",
+  "task": {
+    "kind": "findFault",
+    "reveal": "afterCheck"
+  },
+  "startingCircuit": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "typeId": "resistor",
+        "position": {
+          "x": 0,
+          "y": 4
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1000
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "typeId": "resistor",
+        "position": {
+          "x": 2,
+          "y": 4
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1000
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "typeId": "voltmeter",
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "inputResistanceOhms": 10000000
+        }
+      }
+    ],
+    "wires": [],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000f0",
+        "position": {
+          "x": 2,
+          "y": 2
+        }
+      }
+    ]
+  },
+  "restrictions": {
+    "allowedComponentTypes": [
+      "voltmeter",
+      "ammeter"
+    ],
+    "lockedComponents": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003",
+      "00000000-0000-4000-8000-000000000004"
+    ]
+  },
+  "faults": [
+    {
+      "id": "00000000-0000-4000-8000-0000000000a1",
+      "kind": "open",
+      "componentId": "00000000-0000-4000-8000-000000000003"
+    }
+  ]
+}
