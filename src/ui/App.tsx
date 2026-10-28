@@ -8,6 +8,7 @@ import {
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { EditorCommand } from "../editor/commands";
+import type { Schematic } from "../generated/Schematic";
 import { EditorCore } from "../editor/EditorCore";
 import type { EditorStatus } from "../editor/interaction";
 import {
@@ -15,6 +16,12 @@ import {
   dividerSchematic,
 } from "../store/fixtures";
 import { SchematicDocumentStore } from "../store/document";
+import { AssignmentAuthoring } from "../store/assignmentAuthoring";
+import {
+  tauriAssignments,
+  type AssignmentPort,
+} from "../store/assignmentBridge";
+import { AssignmentDraftStore } from "../store/assignmentDraft";
 import { tauriProjectFiles, type ProjectFilePort } from "../store/projectFiles";
 import {
   ProjectWorkflow,
@@ -27,6 +34,7 @@ import {
   projectShortcutFromEvent,
   type ProjectShortcut,
 } from "./projectShortcuts";
+import { AssignmentPanel } from "./assignment/AssignmentPanel";
 import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
@@ -48,13 +56,20 @@ const IDLE_STATUS: EditorStatus = {
 
 interface AppProps {
   readonly projectFiles?: ProjectFilePort;
+  readonly assignments?: AssignmentPort;
 }
 
-export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
+export function App({
+  projectFiles = tauriProjectFiles,
+  assignments = tauriAssignments,
+}: AppProps = {}) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorCore | null>(null);
   const allowNextCloseRef = useRef(false);
   const pendingActionRef = useRef<ProjectAction | "close" | null>(null);
+  // The circuit a "show in the editor" request is waiting to load, while the unsaved prompt
+  // is open.
+  const pendingCircuitRef = useRef<Schematic | null>(null);
   const projectShortcutHandler = useRef<(shortcut: ProjectShortcut) => void>(
     () => {},
   );
@@ -66,6 +81,8 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
     ProjectAction | "close" | null
   >(null);
   const [documentName, setDocumentName] = useState("Example");
+  const [authoringOpen, setAuthoringOpen] = useState(false);
+  const [faultViewShown, setFaultViewShown] = useState(false);
   const [status, setStatus] = useState<EditorStatus>(IDLE_STATUS);
   const documentStore = useMemo(
     () => new SchematicDocumentStore(dividerSchematic),
@@ -74,6 +91,17 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
   const projectWorkflow = useMemo(
     () => new ProjectWorkflow(documentStore, projectFiles),
     [documentStore, projectFiles],
+  );
+  // The teacher's draft is authoring state of its own, apart from the document and editor.
+  const draftStore = useMemo(() => new AssignmentDraftStore(), []);
+  const authoring = useMemo(
+    () => new AssignmentAuthoring(draftStore, assignments),
+    [draftStore, assignments],
+  );
+  const draftState = useSyncExternalStore(
+    draftStore.subscribe,
+    draftStore.getState,
+    draftStore.getState,
   );
   pendingActionRef.current = pendingAction;
   const document = useSyncExternalStore(
@@ -123,14 +151,19 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
   ): Promise<boolean> => {
     setProjectError(null);
     try {
-      const performed = await projectWorkflow.perform(action);
+      const performed = await projectWorkflow.perform(
+        action,
+        pendingCircuitRef.current ?? undefined,
+      );
       if (performed) {
         setDocumentName(
           action === "new"
             ? "Untitled"
             : action === "example"
               ? "Example"
-              : "Project",
+              : action === "circuit"
+                ? "Assignment circuit"
+                : "Project",
         );
         editorRef.current?.setTool(IDLE_STATUS.tool);
       }
@@ -160,6 +193,11 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
       return;
     }
     void performProjectActionDirectly(action);
+  };
+
+  const showAssignmentCircuit = (schematic: Schematic): void => {
+    pendingCircuitRef.current = schematic;
+    requestProjectAction("circuit");
   };
 
   const closeWindow = async (): Promise<boolean> => {
@@ -306,6 +344,19 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
     void controller?.syncDocument(document.schematic);
   }, [controller, document.schematic]);
 
+  // A different assignment (a file was opened, or a new one started) starts without the
+  // faulted view; and the faults are applied only while the panel shows a fault task.
+  useEffect(() => {
+    setFaultViewShown(false);
+  }, [draftState.draft.id]);
+  const draftFaults =
+    authoringOpen && faultViewShown && draftState.draft.taskKind === "findFault"
+      ? draftState.draft.faults
+      : null;
+  useEffect(() => {
+    void controller?.setFaults(draftFaults);
+  }, [controller, draftFaults]);
+
   return (
     <main className="workspace">
       <header className="app-header">
@@ -313,10 +364,26 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
           <p className="eyebrow">OPEN CIRCUIT</p>
           <h1>Circuit workspace</h1>
         </div>
-        <p className="shell-status">Desktop shell ready</p>
+        <div className="header-actions">
+          <button
+            type="button"
+            className="toolbar-button"
+            aria-pressed={authoringOpen}
+            onClick={() => setAuthoringOpen((open) => !open)}
+          >
+            Author assignment
+          </button>
+          <p className="shell-status">Desktop shell ready</p>
+        </div>
       </header>
 
-      <div className="workspace-body">
+      <div
+        className={
+          authoringOpen
+            ? "workspace-body workspace-body-authoring"
+            : "workspace-body"
+        }
+      >
         <section className="editor-panel" aria-label="Circuit editor">
           <div className="editor-toolbar">
             <Palette
@@ -497,6 +564,25 @@ export function App({ projectFiles = tauriProjectFiles }: AppProps = {}) {
             labels={labels}
           />
         </aside>
+
+        {authoringOpen && (
+          <AssignmentPanel
+            draftStore={draftStore}
+            authoring={authoring}
+            catalog={state.catalog}
+            document={document.schematic}
+            layout={state.run?.layout ?? null}
+            disabled={projectOperationLocked}
+            onShowCircuit={showAssignmentCircuit}
+            faultView={{
+              shown: faultViewShown,
+              failed: state.status === "failed",
+              diagnostics: state.diagnostics,
+            }}
+            onFaultViewChange={setFaultViewShown}
+            onClose={() => setAuthoringOpen(false)}
+          />
+        )}
 
         <Oscilloscope
           simulation={state}

@@ -36,6 +36,39 @@ const messages: Readonly<Record<string, string>> = {
   "component.voltmeter.inputResistance": "Input resistance",
   "component.ammeter.name": "Ammeter",
   "component.ammeter.burdenResistance": "Burden resistance",
+  "assignment.error.malformed": "The file is not a valid assignment.",
+  "assignment.error.unsupportedVersion":
+    "This assignment file version is not supported.",
+  "assignment.error.unknownField":
+    "This field is not part of the assignment format.",
+  "assignment.error.invalidField": "This value is not valid.",
+  "assignment.error.duplicateId": "This ID is already used.",
+  "assignment.error.unknownReference":
+    "This refers to a part, part type, or signal that the starting circuit does not have.",
+  "assignment.error.taskMismatch":
+    "This does not fit the kind of task, or a field the task needs is missing.",
+  "assignment.error.tooLarge":
+    "There are too many entries, or the file is too large.",
+  "check.value.pass": "The value is within the tolerance.",
+  "check.value.fail": "The value is outside the tolerance.",
+  "check.value.notEvaluated": "The value could not be checked.",
+  "check.range.pass": "The value stayed within the range.",
+  "check.range.fail": "The value left the range.",
+  "check.range.notEvaluated": "The range could not be checked.",
+  "check.deviceState.pass": "The part is in the expected state.",
+  "check.deviceState.fail": "The part is not in the expected state.",
+  "check.deviceState.notEvaluated": "The state could not be checked.",
+  "check.componentCount.pass": "The number of parts is right.",
+  "check.componentCount.fail": "The number of parts is wrong.",
+  "check.componentCount.notEvaluated": "The parts could not be counted.",
+  "check.locked.pass": "The locked parts are unchanged.",
+  "check.locked.fail": "A locked part was changed or removed.",
+  "check.outcome.passed": "Every check passed.",
+  "check.outcome.partial": "Some checks passed.",
+  "check.outcome.failed": "The circuit does not meet the task.",
+  "check.outcome.notEvaluated": "The circuit could not be checked.",
+  "diagnostic.invalidFault":
+    "A fault names a missing part, a kind of fault the part cannot have, or a value outside its range.",
   "diagnostic.invalidSchemaVersion":
     "The circuit file version is not supported.",
   "diagnostic.invalidGeometry": "The circuit geometry is invalid.",
