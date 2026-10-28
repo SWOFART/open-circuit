@@ -490,4 +490,15 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 | 3 | Dynamics: C, L, oscilloscope | The RC curve matches ngspice within tolerance |
 | 4 | Relay, motor, fuse, measuring instruments | A relay self-latching circuit works; voltmeter and ammeter show correct values |
 | 5 | Assignments and fault finding | A teacher creates an assignment, a student completes it and gets checked |
-| 6 | Diodes, transistors, extended models | Golden tests on nonlinear circuits pass |
+| 6 | Switches, push buttons, and controlled contacts (control circuits) | A start/stop self-latching circuit with push buttons and a contactor works, with the operator's switch state shown and recalculated by the Engine |
+| 7 | Diodes, transistors, extended models | Golden tests on nonlinear circuits pass |
+| 8 | Supply rails (L1, L2, L3, N, PE) and cabinet-style drawing | A control circuit is drawn between named rails and solves like the same circuit drawn with wires; three-phase supply waits for AC analysis |
+
+Stages 6 to 8 are planned, not accepted: each needs a contract (a `docs/contracts/` document) and an acceptance record, as Stages 1 to 5 have, before implementation. Their scope is only what the table says; the notes below are the intent that the contracts will settle.
+
+- **Stage 6, switches and buttons.** A switch or push button is a contact that is closed or open, with a small closed resistance and no conduction when open. The operator's position (a held push button, a latching switch) is interactive state, like a fuse's state but set by the user, so the contract must decide what is saved in a project, how a change reaches a running simulation without a recompile, and how it is shown. A contact driven by a relay or contactor coil (symbols in the style of `-Q1` with coil pins A1 and A2) follows the relay model of Stage 4. Symbols follow the electrical-schematic convention.
+- **Stage 8, supply rails.** A rail is a named node that wires attach to (L1, L2, L3, N, PE), drawn as a long vertical line. For direct current it is a named node with a source; phases and the protective earth have no meaning without AC or phasor analysis, which is deferred (section 10), so the three-phase part of this stage depends on that analysis being accepted first.
+
+### Editor features outside the stages
+
+- **Editable part names.** The names `R1`, `K1` are today numbered by the editor and are not saved (`src/store/labels.ts`). Letting the user rename a part (for example by double-clicking it) means saving the name, so it is a change to the project format (an optional field or a new version, to be decided by a contract), with rules for duplicates and for how assignments refer to parts (they use stable IDs, not names). It can be built at any time and does not wait for a stage.
