@@ -140,12 +140,15 @@ A check takes the assignment's `checks`, `restrictions`, and `startingCircuit`, 
 2. compiles the student's schematic, with no faults, in a fresh run that is independent of the run the user is watching. If an error-severity diagnostic exists, every criterion that needs a run has the verdict `notEvaluated`, and the diagnostics are returned;
 3. otherwise advances that run through the public steps up to the latest step any criterion needs, and evaluates each criterion at its steps, in file order.
 
-If the run stops early (`EventChatter` or `NonFiniteState`, stage-4-components.md section 4), criteria that need a later step are `notEvaluated` and the diagnostic is returned. The result depends only on the assignment and the schematic: not on the frame rate, the wall-clock, a trace history, or earlier checks. A check never starts a live stream and never changes the live run. Its cost is bounded by 64 criteria and 60 s of model time (60 000 public steps).
+The circuit is compiled even when no criterion needs a run, because the outcome depends on it (section 4.7). If the run stops early (`EventChatter` or `NonFiniteState`, stage-4-components.md section 4), criteria that need a later step are `notEvaluated` and the diagnostic is returned. The result depends only on the assignment and the schematic: not on the frame rate, the wall-clock, a trace history, or earlier checks. A check never starts a live stream and never changes the live run. Its cost is bounded by 64 criteria and 60 s of model time (60 000 public steps).
+
+File validation (section 2.5) rejects a criterion whose fields are out of bounds, so the following only guards a request that bypassed it: a criterion with a time that is not a multiple of the public step or is outside 0 to 60 s, a tolerance that is negative or not finite, reversed or non-finite bounds, count bounds outside 0 to 1000, or a signal whose unit differs from the unit of the key in the layout has the verdict `notEvaluated`, and only the first 64 criteria of a request are evaluated (any further one is `notEvaluated`). Numbers that are not finite are never echoed: a result shows `0` for them.
 
 ### 4.7 The result
 
 ```json
 {
+  "documentRevision": "...",
   "outcome": "passed" | "partial" | "failed" | "notEvaluated",
   "counts": { "pass": 2, "fail": 1, "notEvaluated": 0 },
   "criteria": [ { "id": "...", "kind": "value", "verdict": "pass" | "fail" | "notEvaluated",
@@ -157,6 +160,7 @@ If the run stops early (`EventChatter` or `NonFiniteState`, stage-4-components.m
 }
 ```
 
+- `documentRevision` is the revision the check request carried, so that the application can discard a stale result (section 6). The Engine uses it for nothing else.
 - `criteria` has one entry per authored criterion, in file order, and repeats the criterion's own numbers so that a result can be shown without the file:
 
   | Kind | Fields besides `id`, `kind`, `verdict`, `messageKey`, `references` |
@@ -166,15 +170,15 @@ If the run stops early (`EventChatter` or `NonFiniteState`, stage-4-components.m
   | `deviceState` | `atSeconds`, `measured` (the state), `expected` (the state) |
   | `componentCount` | `measured` (the count), `min`, `max` (absent when unbounded) |
 
-  `measured` is the value found and is absent when the verdict is `notEvaluated`: a JSON number for `value` and `range` (for a `range`, the value with the smallest margin to a bound, negative when outside, and `atSeconds` is its time; on a tie, the earliest step), an integer for `componentCount`, and a string (the state) for `deviceState`; the `kind` says which. Every number is finite.
-- `references` are the Stage 1 diagnostic references (component IDs) that the verdict concerns.
+  `measured` is the value found and is absent when the verdict is `notEvaluated`: a JSON number for `value` and `range` (for a `range`, the value with the smallest margin to a bound, negative when outside, and `atSeconds` is its time; on a tie, the earliest step), an integer for `componentCount`, and a string (the state) for `deviceState`; the `kind` says which. For a `range`, the margin of a value is `min(value - min, max - value)`: `measured` is the signal value at the step with the smallest margin, and the criterion passes when that margin is not negative. Every number is finite.
+- `references` are the Stage 1 diagnostic references (component IDs) that the verdict concerns: the component of the signal for `value` and `range`, the named component for `deviceState`, and the counted components (in ID order) for `componentCount`.
 - `messageKey` is `check.<kind>.<verdict>` (`check.value.pass`, `check.range.fail`, `check.deviceState.notEvaluated`, ...); `locked.messageKey` is `check.locked.<verdict>` and `outcomeKey` is `check.outcome.<outcome>`. User-facing prose lives in the UI.
 - `outcome`, in this order of precedence: `failed` when `locked` fails (even if the circuit does not compile); otherwise `notEvaluated` when the circuit did not compile; otherwise `failed` when no authored criterion passes, `passed` when every authored criterion passes, and `partial` in every other case. A task with no authored criteria has the outcome `passed` when `locked` passes.
 - There is no score, weight, or grade: only the counts and the outcome. Anything more is a later contract.
 
 ### 4.8 The `locked` criterion
 
-Every check evaluates, without being authored, that each `lockedComponents` entry is present in the student's schematic with the type and all parameter values it has in the starting circuit. Its result is reported separately, as `locked`. A failure is shown to the student in words; it is not a compile diagnostic.
+Every check evaluates, without being authored, that each `lockedComponents` entry is present in the student's schematic with the type and all parameter values it has in the starting circuit. Its result is reported separately, as `locked`. A failure is shown to the student in words; it is not a compile diagnostic. A locked component that is not in the starting circuit cannot be compared, so it fails (file validation rejects such an assignment). Moving or rotating a part is not a change. `locked.references` are the locked components that are missing or changed, and are empty when the verdict is `pass`.
 
 ## 5. Faults
 
