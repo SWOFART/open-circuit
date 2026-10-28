@@ -9,6 +9,12 @@ import type {
   SchematicDocumentStore,
 } from "../store/document";
 import type { ParameterUpdate } from "../store/simulation";
+import {
+  commandVerdict,
+  parameterVerdict,
+  type EditorRestrictions,
+  type Verdict,
+} from "../store/studentAssignment";
 
 /**
  * A new component's parameters: every required catalog parameter at its
@@ -127,4 +133,60 @@ export function applyEditorCommand(
       store.redo();
       return;
   }
+}
+
+/**
+ * Applies a canvas command unless the open assignment's restrictions refuse it. A refused
+ * command leaves the document untouched and says why; the document store's own rules are not
+ * changed and still apply to a command that is allowed (it throws, as `applyEditorCommand`
+ * does, when the store refuses it).
+ */
+export function applyRestrictedCommand(
+  store: SchematicDocumentStore,
+  command: EditorCommand,
+  catalog: ComponentCatalog | null,
+  restrictions: EditorRestrictions | null,
+): Verdict {
+  const verdict = commandVerdict(command, restrictions);
+
+  if (verdict.allowed) {
+    applyEditorCommand(store, command, catalog);
+  }
+
+  return verdict;
+}
+
+/** Sets a parameter unless the assignment locks the part. */
+export function setRestrictedParameter(
+  store: SchematicDocumentStore,
+  componentId: StableId,
+  parameterId: ParameterId,
+  value: number,
+  catalog: ComponentCatalog,
+  restrictions: EditorRestrictions | null,
+): Verdict {
+  const verdict = parameterVerdict(componentId, restrictions);
+
+  if (verdict.allowed) {
+    store.setParameter(componentId, parameterId, value, catalog);
+  }
+
+  return verdict;
+}
+
+/** Clears an optional parameter unless the assignment locks the part. */
+export function clearRestrictedParameter(
+  store: SchematicDocumentStore,
+  componentId: StableId,
+  parameterId: ParameterId,
+  catalog: ComponentCatalog,
+  restrictions: EditorRestrictions | null,
+): Verdict {
+  const verdict = parameterVerdict(componentId, restrictions);
+
+  if (verdict.allowed) {
+    store.clearParameter(componentId, parameterId, catalog);
+  }
+
+  return verdict;
 }

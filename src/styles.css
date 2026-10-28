@@ -705,3 +705,16 @@ input {
     max-height: none;
   }
 }
+
+.student-title {
+  margin: 12px 0 8px;
+  font-size: 16px;
+  color: #e5e7eb;
+}
+
+.student-instructions {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #cbd5e1;
+  white-space: pre-wrap;
+}

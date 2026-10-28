@@ -33,6 +33,17 @@ describe("application shell", () => {
     expect(markup).toContain('class="workspace-body"');
   });
 
+  it("offers the student's assignment panel, closed until it is asked for", () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toMatch(
+      /<button[^>]*aria-pressed="false"[^>]*>Student assignment<\/button>/,
+    );
+    expect(markup).not.toContain('aria-label="Student assignment"');
+    // Without an assignment nothing is locked and the palette is not limited.
+    expect(markup).not.toContain("locked by the assignment");
+  });
+
   it("waits for the backend before showing any reading", () => {
     const markup = renderToStaticMarkup(<App />);
 

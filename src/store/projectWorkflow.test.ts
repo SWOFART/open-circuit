@@ -210,3 +210,48 @@ describe("ProjectWorkflow with a circuit of an assignment", () => {
     expect(files.clearPath).not.toHaveBeenCalled();
   });
 });
+
+describe("ProjectWorkflow with a student's assignment", () => {
+  it("reads the starting circuit only when the action runs, and replaces the document with it", async () => {
+    const files = createFiles();
+    const store = new SchematicDocumentStore(dividerSchematic);
+    store.moveComponent(R1, { x: 40, y: 40 });
+    const workflow = new ProjectWorkflow(store, files);
+    const load = vi
+      .fn<() => Promise<Schematic | null>>()
+      .mockResolvedValue(blankSchematic);
+
+    expect(load).not.toHaveBeenCalled();
+    await expect(workflow.perform("assignment", load)).resolves.toBe(true);
+
+    expect(load).toHaveBeenCalledOnce();
+    expect(files.clearPath).toHaveBeenCalledOnce();
+    expect(store.getState()).toMatchObject({
+      schematic: blankSchematic,
+      canUndo: false,
+      isDirty: false,
+    });
+  });
+
+  it("keeps the document and the project path when the file is cancelled or refused", async () => {
+    const files = createFiles();
+    const store = new SchematicDocumentStore(dividerSchematic);
+    store.moveComponent(R1, { x: 40, y: 40 });
+    const before = store.getState();
+    const workflow = new ProjectWorkflow(store, files);
+
+    await expect(
+      workflow.perform("assignment", () => Promise.resolve(null)),
+    ).resolves.toBe(false);
+    expect(store.getState()).toBe(before);
+    expect(files.clearPath).not.toHaveBeenCalled();
+
+    await expect(
+      workflow.perform("assignment", () =>
+        Promise.reject(new Error("Could not read assignment file.")),
+      ),
+    ).rejects.toThrow("Could not read assignment file.");
+    expect(store.getState()).toBe(before);
+    expect(files.clearPath).not.toHaveBeenCalled();
+  });
+});

@@ -3,8 +3,16 @@ import { dividerSchematic } from "./fixtures";
 import type { SchematicDocumentStore } from "./document";
 import type { ProjectFilePort } from "./projectFiles";
 
-/** `circuit` replaces the document with a circuit of an assignment. */
-export type ProjectAction = "new" | "open" | "example" | "circuit";
+/**
+ * `circuit` replaces the document with a circuit of an assignment the teacher is editing;
+ * `assignment` with the starting circuit of an assignment the student opens, which is read from
+ * a file only after the unsaved-changes prompt.
+ */
+export type ProjectAction =
+  "new" | "open" | "example" | "circuit" | "assignment";
+
+/** Where a replacement circuit comes from: given, or read when the action runs (null: none). */
+export type CircuitSource = Schematic | (() => Promise<Schematic | null>);
 export type UnsavedChoice = "save" | "discard" | "cancel";
 
 export const blankSchematic: Schematic = {
@@ -33,7 +41,10 @@ export class ProjectWorkflow {
     return !this.document.getState().isDirty;
   }
 
-  async perform(action: ProjectAction, circuit?: Schematic): Promise<boolean> {
+  async perform(
+    action: ProjectAction,
+    source?: CircuitSource,
+  ): Promise<boolean> {
     switch (action) {
       case "new":
         await this.files.clearPath();
@@ -44,10 +55,13 @@ export class ProjectWorkflow {
         this.document.replaceDocument(dividerSchematic);
         return true;
       case "circuit":
-        if (circuit === undefined) return false;
+      case "assignment": {
+        const circuit = typeof source === "function" ? await source() : source;
+        if (circuit === undefined || circuit === null) return false;
         await this.files.clearPath();
         this.document.replaceDocument(circuit);
         return true;
+      }
       case "open": {
         const schematic = await this.files.open();
         if (schematic === null) return false;

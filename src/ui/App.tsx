@@ -8,6 +8,7 @@ import {
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { EditorCommand } from "../editor/commands";
+import type { AssignmentError } from "../generated/AssignmentError";
 import type { Schematic } from "../generated/Schematic";
 import { EditorCore } from "../editor/EditorCore";
 import type { EditorStatus } from "../editor/interaction";
@@ -22,6 +23,14 @@ import {
   type AssignmentPort,
 } from "../store/assignmentBridge";
 import { AssignmentDraftStore } from "../store/assignmentDraft";
+import {
+  allowedCatalog,
+  faultsOf,
+  openStudentAssignment,
+  restrictionsOf,
+  StudentSessionStore,
+  type StudentOpenOutcome,
+} from "../store/studentAssignment";
 import { tauriProjectFiles, type ProjectFilePort } from "../store/projectFiles";
 import {
   ProjectWorkflow,
@@ -29,12 +38,18 @@ import {
   type ProjectAction,
   type UnsavedChoice,
 } from "../store/projectWorkflow";
-import { applyEditorCommand, liveParameterUpdate } from "./editorCommands";
+import {
+  applyRestrictedCommand,
+  clearRestrictedParameter,
+  liveParameterUpdate,
+  setRestrictedParameter,
+} from "./editorCommands";
 import {
   projectShortcutFromEvent,
   type ProjectShortcut,
 } from "./projectShortcuts";
 import { AssignmentPanel } from "./assignment/AssignmentPanel";
+import { StudentPanel } from "./assignment/StudentPanel";
 import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
@@ -81,7 +96,14 @@ export function App({
     ProjectAction | "close" | null
   >(null);
   const [documentName, setDocumentName] = useState("Example");
-  const [authoringOpen, setAuthoringOpen] = useState(false);
+  // Which assignment panel is open: the teacher's, the student's, or none.
+  const [assignmentPanel, setAssignmentPanel] = useState<
+    "none" | "author" | "student"
+  >("none");
+  const authoringOpen = assignmentPanel === "author";
+  const [studentFileErrors, setStudentFileErrors] = useState<
+    AssignmentError[] | null
+  >(null);
   const [faultViewShown, setFaultViewShown] = useState(false);
   const [status, setStatus] = useState<EditorStatus>(IDLE_STATUS);
   const documentStore = useMemo(
@@ -102,6 +124,17 @@ export function App({
     draftStore.subscribe,
     draftStore.getState,
     draftStore.getState,
+  );
+  // The student's side: the assignment as the student's copy, and the diagnosis being composed.
+  const sessionStore = useMemo(() => new StudentSessionStore(), []);
+  const session = useSyncExternalStore(
+    sessionStore.subscribe,
+    sessionStore.getState,
+    sessionStore.getState,
+  );
+  const restrictions = useMemo(
+    () => (session.assignment ? restrictionsOf(session.assignment) : null),
+    [session.assignment],
   );
   pendingActionRef.current = pendingAction;
   const document = useSyncExternalStore(
@@ -151,9 +184,23 @@ export function App({
   ): Promise<boolean> => {
     setProjectError(null);
     try {
+      // A student's assignment file is read only now, after the unsaved-changes prompt, and
+      // the session starts only if the document was replaced with its starting circuit.
+      const opened: { outcome: StudentOpenOutcome | null } = { outcome: null };
       const performed = await projectWorkflow.perform(
         action,
-        pendingCircuitRef.current ?? undefined,
+        action === "assignment"
+          ? async () => {
+              // An earlier refusal is not the answer to this attempt.
+              setStudentFileErrors(null);
+              const outcome = await openStudentAssignment(assignments);
+              opened.outcome = outcome;
+              setStudentFileErrors(
+                outcome.status === "invalid" ? outcome.errors : null,
+              );
+              return outcome.status === "opened" ? outcome.circuit : null;
+            }
+          : (pendingCircuitRef.current ?? undefined),
       );
       if (performed) {
         setDocumentName(
@@ -163,9 +210,15 @@ export function App({
               ? "Example"
               : action === "circuit"
                 ? "Assignment circuit"
-                : "Project",
+                : action === "assignment"
+                  ? "Assignment"
+                  : "Project",
         );
         editorRef.current?.setTool(IDLE_STATUS.tool);
+        if (opened.outcome?.status === "opened") {
+          sessionStore.start(opened.outcome.assignment);
+          setAssignmentPanel("student");
+        }
       }
       return performed;
     } catch (error) {
@@ -303,8 +356,14 @@ export function App({
     commandHandler.current = (command) => {
       if (projectBusy || pendingActionRef.current !== null) return;
       try {
-        applyEditorCommand(documentStore, command, state.catalog);
-        setEditError(null);
+        // The assignment's restrictions are checked before the document's own rules apply.
+        const verdict = applyRestrictedCommand(
+          documentStore,
+          command,
+          state.catalog,
+          restrictions,
+        );
+        setEditError(verdict.allowed ? null : verdict.reason);
       } catch (error) {
         setEditError(error instanceof Error ? error.message : String(error));
       }
@@ -353,9 +412,12 @@ export function App({
     authoringOpen && faultViewShown && draftState.draft.taskKind === "findFault"
       ? draftState.draft.faults
       : null;
+  // A student's fault-finding task always runs the circuit with its faults; the Engine applies
+  // them and nothing in the interface names them.
+  const activeFaults = faultsOf(session.assignment) ?? draftFaults;
   useEffect(() => {
-    void controller?.setFaults(draftFaults);
-  }, [controller, draftFaults]);
+    void controller?.setFaults(activeFaults);
+  }, [controller, activeFaults]);
 
   return (
     <main className="workspace">
@@ -369,9 +431,32 @@ export function App({
             type="button"
             className="toolbar-button"
             aria-pressed={authoringOpen}
-            onClick={() => setAuthoringOpen((open) => !open)}
+            disabled={session.assignment !== null}
+            title={
+              session.assignment !== null
+                ? "Close the student assignment first."
+                : undefined
+            }
+            onClick={() =>
+              setAssignmentPanel((panel) =>
+                panel === "author" ? "none" : "author",
+              )
+            }
           >
             Author assignment
+          </button>
+          <button
+            type="button"
+            className="toolbar-button"
+            aria-pressed={assignmentPanel === "student"}
+            disabled={authoringOpen}
+            onClick={() =>
+              setAssignmentPanel((panel) =>
+                panel === "student" ? "none" : "student",
+              )
+            }
+          >
+            Student assignment
           </button>
           <p className="shell-status">Desktop shell ready</p>
         </div>
@@ -379,7 +464,7 @@ export function App({
 
       <div
         className={
-          authoringOpen
+          assignmentPanel !== "none"
             ? "workspace-body workspace-body-authoring"
             : "workspace-body"
         }
@@ -387,7 +472,7 @@ export function App({
         <section className="editor-panel" aria-label="Circuit editor">
           <div className="editor-toolbar">
             <Palette
-              catalog={state.catalog}
+              catalog={allowedCatalog(state.catalog, restrictions)}
               tool={status.tool}
               disabled={projectOperationLocked}
               onSelectTool={(next) => editorRef.current?.setTool(next)}
@@ -502,16 +587,23 @@ export function App({
             schematic={document.schematic}
             labels={labels}
             disabled={projectOperationLocked}
+            lockedComponents={restrictions?.locked}
             onCommit={(componentId, parameterId, value) => {
               if (projectOperationLocked) return;
               if (!state.catalog) return;
               try {
-                documentStore.setParameter(
+                const verdict = setRestrictedParameter(
+                  documentStore,
                   componentId,
                   parameterId,
                   value,
                   state.catalog,
+                  restrictions,
                 );
+                if (!verdict.allowed) {
+                  setEditError(verdict.reason);
+                  return;
+                }
                 setEditError(null);
               } catch (error) {
                 setEditError(
@@ -537,11 +629,17 @@ export function App({
               if (projectOperationLocked) return;
               if (!state.catalog) return;
               try {
-                documentStore.clearParameter(
+                const verdict = clearRestrictedParameter(
+                  documentStore,
                   componentId,
                   parameterId,
                   state.catalog,
+                  restrictions,
                 );
+                if (!verdict.allowed) {
+                  setEditError(verdict.reason);
+                  return;
+                }
                 setEditError(null);
               } catch (error) {
                 setEditError(
@@ -580,7 +678,29 @@ export function App({
               diagnostics: state.diagnostics,
             }}
             onFaultViewChange={setFaultViewShown}
-            onClose={() => setAuthoringOpen(false)}
+            onClose={() => setAssignmentPanel("none")}
+          />
+        )}
+        {assignmentPanel === "student" && (
+          <StudentPanel
+            sessionStore={sessionStore}
+            port={assignments}
+            catalog={state.catalog}
+            document={document.schematic}
+            labels={labels}
+            disabled={projectOperationLocked}
+            fileErrors={studentFileErrors}
+            circuit={{
+              failed: state.status === "failed",
+              diagnostics: state.diagnostics,
+            }}
+            onOpen={() => requestProjectAction("assignment")}
+            onClose={() => {
+              sessionStore.close();
+              setStudentFileErrors(null);
+              setAssignmentPanel("none");
+              editorRef.current?.setTool(IDLE_STATUS.tool);
+            }}
           />
         )}
 

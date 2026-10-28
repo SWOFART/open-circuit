@@ -11,6 +11,8 @@ export interface InspectorProps {
   readonly schematic: Schematic;
   readonly labels: ReadonlyMap<StableId, string>;
   readonly disabled?: boolean;
+  /** Parts an assignment locks: their parameters are shown but cannot be edited. */
+  readonly lockedComponents?: ReadonlySet<StableId>;
   readonly onCommit: (
     componentId: StableId,
     parameterId: ParameterId,
@@ -29,6 +31,7 @@ export function Inspector({
   schematic,
   labels,
   disabled = false,
+  lockedComponents,
   onCommit,
   onClear = () => {},
 }: InspectorProps) {
@@ -38,6 +41,11 @@ export function Inspector({
   return (
     <section className="side-panel" aria-labelledby="inspector-heading">
       <h2 id="inspector-heading">Inspector</h2>
+      {lockedComponents !== undefined && lockedComponents.size > 0 && (
+        <p className="parameter-hint">
+          Parts locked by the assignment cannot be edited.
+        </p>
+      )}
       {catalog === null ? (
         <p className="panel-note">
           {state.status === "unavailable" || state.status === "failed"
@@ -59,6 +67,7 @@ export function Inspector({
             const value = values[definition.id];
             const label = labels.get(component.id) ?? component.typeId;
             const key = `${component.id}:${definition.id}`;
+            const locked = lockedComponents?.has(component.id) ?? false;
 
             if (definition.optional) {
               return (
@@ -67,7 +76,7 @@ export function Inspector({
                   label={label}
                   definition={definition}
                   committedValue={value}
-                  disabled={!editable}
+                  disabled={!editable || locked}
                   onCommit={(next) =>
                     onCommit(component.id, definition.id, next)
                   }
@@ -82,7 +91,7 @@ export function Inspector({
                 label={label}
                 definition={definition}
                 committedValue={value}
-                disabled={!editable}
+                disabled={!editable || locked}
                 note={parameterNote(definition)}
                 onCommit={(next) => onCommit(component.id, definition.id, next)}
               />

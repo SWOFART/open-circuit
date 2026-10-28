@@ -67,6 +67,14 @@ const messages: Readonly<Record<string, string>> = {
   "check.outcome.partial": "Some checks passed.",
   "check.outcome.failed": "The circuit does not meet the task.",
   "check.outcome.notEvaluated": "The circuit could not be checked.",
+  "diagnosis.entry.correct": "That part has that fault.",
+  "diagnosis.entry.wrongKind": "That part is faulty, but not in that way.",
+  "diagnosis.entry.incorrect": "That part has no fault.",
+  "diagnosis.fault.found": "You found this fault.",
+  "diagnosis.fault.missed": "You did not find this fault.",
+  "diagnosis.outcome.passed": "You found every fault and named no wrong one.",
+  "diagnosis.outcome.partial": "You found part of the problem.",
+  "diagnosis.outcome.failed": "None of your findings were right.",
   "diagnostic.invalidFault":
     "A fault names a missing part, a kind of fault the part cannot have, or a value outside its range.",
   "diagnostic.invalidSchemaVersion":
