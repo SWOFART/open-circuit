@@ -1,0 +1,158 @@
+{
+  "schemaVersion": 1,
+  "id": "00000000-0000-4000-8000-0000000005a1",
+  "title": "Divider to 2.5 V",
+  "instructions": "Add two resistors so that the voltmeter reads 2.5 V.\nThe source and the voltmeter are locked.",
+  "task": {
+    "kind": "build"
+  },
+  "startingCircuit": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "typeId": "voltmeter",
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "inputResistanceOhms": 10000000
+        }
+      }
+    ],
+    "wires": [],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000f0",
+        "position": {
+          "x": 2,
+          "y": 2
+        }
+      }
+    ]
+  },
+  "restrictions": {
+    "allowedComponentTypes": [
+      "resistor"
+    ],
+    "lockedComponents": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002"
+    ]
+  },
+  "checks": [
+    {
+      "kind": "value",
+      "id": "00000000-0000-4000-8000-0000000000c1",
+      "label": "Reading",
+      "signal": {
+        "key": "00000000-0000-4000-8000-000000000002:voltage",
+        "unit": "volt"
+      },
+      "atSeconds": 0,
+      "expected": 2.5,
+      "toleranceAbs": 0.025,
+      "toleranceRel": 0
+    },
+    {
+      "kind": "range",
+      "id": "00000000-0000-4000-8000-0000000000c2",
+      "signal": {
+        "key": "00000000-0000-4000-8000-000000000002:voltage",
+        "unit": "volt"
+      },
+      "fromSeconds": 0,
+      "toSeconds": 0.01,
+      "min": 2.4,
+      "max": 2.6
+    },
+    {
+      "kind": "componentCount",
+      "id": "00000000-0000-4000-8000-0000000000c3",
+      "typeId": "resistor",
+      "min": 2,
+      "max": 2
+    }
+  ],
+  "reference": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "typeId": "voltmeter",
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "inputResistanceOhms": 10000000
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000011",
+        "typeId": "resistor",
+        "position": {
+          "x": 0,
+          "y": 4
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 30000
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000012",
+        "typeId": "resistor",
+        "position": {
+          "x": 2,
+          "y": 4
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 10000
+        }
+      }
+    ],
+    "wires": [],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000f0",
+        "position": {
+          "x": 2,
+          "y": 2
+        }
+      }
+    ]
+  }
+}

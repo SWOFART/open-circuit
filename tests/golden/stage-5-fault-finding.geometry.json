@@ -1,0 +1,80 @@
+{
+  "components": [
+    {
+      "componentId": "00000000-0000-4000-8000-000000000001",
+      "pins": [
+        {
+          "pinId": "pin1",
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "pinId": "pin2",
+          "position": {
+            "x": 2,
+            "y": 2
+          }
+        }
+      ]
+    },
+    {
+      "componentId": "00000000-0000-4000-8000-000000000002",
+      "pins": [
+        {
+          "pinId": "pin1",
+          "position": {
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "pinId": "pin2",
+          "position": {
+            "x": 4,
+            "y": 0
+          }
+        }
+      ]
+    },
+    {
+      "componentId": "00000000-0000-4000-8000-000000000003",
+      "pins": [
+        {
+          "pinId": "pin1",
+          "position": {
+            "x": 4,
+            "y": 0
+          }
+        },
+        {
+          "pinId": "pin2",
+          "position": {
+            "x": 2,
+            "y": 2
+          }
+        }
+      ]
+    },
+    {
+      "componentId": "00000000-0000-4000-8000-000000000004",
+      "pins": [
+        {
+          "pinId": "pin1",
+          "position": {
+            "x": 4,
+            "y": 0
+          }
+        },
+        {
+          "pinId": "pin2",
+          "position": {
+            "x": 2,
+            "y": 2
+          }
+        }
+      ]
+    }
+  ]
+}

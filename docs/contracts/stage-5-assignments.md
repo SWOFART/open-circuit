@@ -79,7 +79,8 @@ Two more limits are part of the design and not defects. The Engine's answer is a
 - The Engine validates an assignment without solving any circuit, so a file that describes a faulty or incomplete circuit still opens. It rejects, with a file error (section 7.2) that names the field by its JSON pointer: malformed JSON, a missing, malformed, or unsupported `schemaVersion` (never read as version 1), unknown fields, invalid or duplicate stable IDs (the components, wires, junctions, and markers of one schematic are unique among themselves as for projects; `startingCircuit` and `reference` are separate schematics and `reference` keeps the IDs of the starting circuit's parts, which is how the `locked` check and the reference check find them; criterion and fault IDs are unique among themselves and differ from every ID in `startingCircuit` and in `reference`), values outside a limit, a `startingCircuit` or `reference` that is not a valid version 1 schematic, and references that do not resolve (a criterion or fault that names a component that is not in the starting circuit, a `lockedComponents` entry that is not in it, or an unknown component type ID).
 - Limits: the file is at most 4 MiB; `checks` at most 64; `faults` at most 8; `allowedComponentTypes` at most the number of catalog types; every `id` is a stable ID; every number is finite.
 - Any later schema version needs an explicit, deterministic, sequential, tested migration, as for projects (stage-2-editor.md section 5).
-- Native file access, atomic save, and leaving the open assignment untouched when a load or save fails belong to `crates/app`, on the same rules as stage-2-editor.md section 5.
+- Native file access, atomic save, and leaving the open assignment untouched when a load or save fails belong to `crates/app`, on the same rules as stage-2-editor.md section 5. The application accepts only the extension `.ocassignment` (a save may leave it out and gets it added, and may not name another one), reads at most 4 MiB, and refuses an oversized file as a `TooLarge` result before decoding it. The limit is on the bytes of the file: a save writes readable, indented JSON and refuses a document whose file would exceed it, so a compact hand-made file near the limit can open and then be refused on save.
+- The Engine reports errors in the order of the field table in section 2.1 (so those of `reference`, the last field, come last), and inside a list in list order, and reports at most 32 errors. A pointer names the field. For a problem inside a schematic it names the schematic part (`/startingCircuit/components/2`) or the schematic itself, and not the field inside it, except for unknown top-level schematic fields and repeated IDs, which name the field.
 
 ### 2.6 What is never stored
 
@@ -237,7 +238,7 @@ A `build` task has no faults. The check of section 4.6 compiles without faults.
   - per submitted entry, a verdict: `correct` (a fault with the same component, kind, and, for `parameter`, parameter ID), `wrongKind` (a fault on that component of another kind, or of kind `parameter` on another parameter), or `incorrect` (no fault on that component);
   - per fault, a verdict: `found` (some entry is `correct` for it) or `missed`;
   - the outcome: `passed` when every fault is `found` and no entry is `incorrect` or `wrongKind`; `failed` when no entry is `correct` or `wrongKind`; `partial` otherwise. (Duplicate entries for one fault count once.)
-- A diagnosis result has message keys `diagnosis.entry.<verdict>`, `diagnosis.fault.<verdict>`, and `diagnosis.outcome.<outcome>`.
+- A diagnosis result has message keys `diagnosis.entry.<verdict>`, `diagnosis.fault.<verdict>`, and `diagnosis.outcome.<outcome>`. Its shape is `{ "outcome", "entries": [ { "entry", "verdict", "messageKey" } ], "faults": [ { "faultId", "verdict", "messageKey" } ], "outcomeKey" }`: the entries in the order submitted, the faults in file order. A diagnosis that is refused returns its errors instead, and a diagnosis of a `build` task is a `TaskMismatch` at `/task/kind`.
 - `task.reveal` governs what the application shows of the result. With `afterCheck` it shows each entry's and each fault's verdict and may then show the faults; with `never` it shows only the outcome and never the faults. The Engine's result always carries the full detail, so this is a presentation policy of the local application, not a protection. Repeated submissions are allowed and the contract keeps no attempt counter, so a student can find the faults by submitting one entry at a time; this is the oracle of section 2.4, accepted as a limit.
 - A diagnostic about a faulted run (for example `FloatingNode` for a fault that is valid but makes the network unsolvable) references components as usual and can therefore point at the faulted part; the authoring workflow rejects such tasks (section 5.2), so only the student's own edits can cause it.
 
@@ -249,6 +250,21 @@ A `build` task has no faults. The check of section 4.6 compiles without faults.
 - Enforce the restrictions of section 3 in the editor and document store, and show the `locked` result in words when it fails.
 
 The Engine's operations, as semantics rather than command spellings, are: **validate an assignment** (text to an assignment, or the errors of section 7.2); **compile** (stage-1.md section 4, with the optional `faults`); **check** (assignment, student's schematic with its pin geometry, and document revision, to the result of section 4.7); and **check a diagnosis** (assignment and diagnosis, to the result of section 5.7). The app carries each of them as a typed command and adds file open, save, and export of assignments.
+
+The application carries these operations as typed commands:
+
+| Command | Request | Result |
+|---|---|---|
+| `open_assignment` | none (native file dialog) | `null` if cancelled, else `{ status: "valid", assignment }` or `{ status: "invalid", errors }` |
+| `validate_assignment` | `assignment` (a document, valid or not) | the same, with no file involved |
+| `save_assignment`, `save_assignment_as` | `assignment` | `{ status: "saved" }`, `"cancelled"` (the dialog was closed), or `{ status: "invalid", errors }` (nothing is written, and no dialog opens) |
+| `export_student_copy` | `assignment` | the same; writes the student's copy and does not change the active path |
+| `clear_assignment_path` | none | nothing |
+| `check_assignment` | the check request of section 4.6 plus `documentRevision` | the result of section 4.7 |
+| `check_fault_diagnosis` | `assignment`, `diagnosis` | `{ status: "checked", result }` or `{ status: "invalid", errors }` |
+| `compile_circuit` | the Stage 1 compile request, with the optional `faults` | the Stage 1 compile result, for a faulted run as for any run |
+
+A file or command that cannot be read or reached at all is an error string, as for projects. A check request with more than 64 criteria is refused with an error and not evaluated, and the application runs one check at a time, on an Engine instance of its own. A faulted run is an ordinary run: its frames, traces, and stale-run rules are those of any run, and a recompile without the faults replaces it.
 
 The catalog entry of every component type gains one additive field, `faultKinds`: the subset of `open`, `short`, and `parameter` that the type supports (section 5.2), so the authoring interface reads the support table from the Engine instead of keeping a copy. The parameters a `parameter` fault may name are the entry's parameters that are not initial conditions. The Engine types (assignment, criteria, faults, diagnosis, requests, results, and file errors) are generated for TypeScript from Rust with the existing generator, and `src/generated/**` is never edited by hand.
 
@@ -264,7 +280,7 @@ Stage 5 adds one diagnostic code to the Stage 1 structure (a stable code, a seve
 
 ### 7.2 Assignment file errors
 
-A file that cannot be accepted is reported with one error per problem, each `{ "code": <code>, "path": <JSON pointer>, "messageKey": "assignment.error.<code>" }`, in document order, at most 32 of them:
+A file that cannot be accepted is reported with one error per problem, each `{ "code": <code>, "path": <JSON pointer>, "messageKey": "assignment.error.<code>" }`, in the order of section 2.5, at most 32 of them. The code is spelled in PascalCase (`UnknownField`) and the key in camelCase, as the diagnostic keys are (`assignment.error.unknownField`):
 
 | Code | Meaning |
 |---|---|
@@ -279,7 +295,7 @@ A file that cannot be accepted is reported with one error per problem, each `{ "
 
 ## 8. Canonical fixtures
 
-The normative circuits and expected outcomes are in `tests/golden/stage-5-*.expected.json`; schematics and assignment files for them are added with the Engine and bridge issues under `tests/golden/stage-5-*`. All reference values come from direct circuit equations, not from Engine output.
+The normative circuits and expected outcomes are in `tests/golden/stage-5-*.expected.json`; the assignment files (`tests/golden/stage-5-*.ocassignment`) and the pin geometry of their reference or starting circuits (`tests/golden/stage-5-*.geometry.json`) are the Engine and bridge tests' inputs. The files give their parts arbitrary positions, as the earlier fixtures do, and their geometry files carry the pins. All reference values come from direct circuit equations, not from Engine output.
 
 | Fixture | Circuit and attempts | Expected |
 |---|---|---|
