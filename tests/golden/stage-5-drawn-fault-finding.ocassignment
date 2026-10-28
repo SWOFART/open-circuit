@@ -1,0 +1,168 @@
+{
+  "schemaVersion": 1,
+  "id": "00000000-0000-4000-8000-000000000510",
+  "title": "Find the fault",
+  "instructions": "The voltmeter does not read what the divider should give. Find the faulty part.",
+  "task": {
+    "kind": "findFault",
+    "reveal": "afterCheck"
+  },
+  "startingCircuit": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 4,
+          "y": 5
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1000
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 7,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "resistanceOhms": 1000
+        },
+        "id": "00000000-0000-4000-8000-000000000003"
+      },
+      {
+        "typeId": "voltmeter",
+        "position": {
+          "x": 10,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "inputResistanceOhms": 10000000
+        },
+        "id": "00000000-0000-4000-8000-000000000004"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "points": [
+          {
+            "x": 0,
+            "y": 5
+          },
+          {
+            "x": 3,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "points": [
+          {
+            "x": 5,
+            "y": 5
+          },
+          {
+            "x": 7,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "points": [
+          {
+            "x": 7,
+            "y": 5
+          },
+          {
+            "x": 10,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "points": [
+          {
+            "x": 0,
+            "y": 7
+          },
+          {
+            "x": 0,
+            "y": 9
+          },
+          {
+            "x": 10,
+            "y": 9
+          },
+          {
+            "x": 10,
+            "y": 7
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "points": [
+          {
+            "x": 7,
+            "y": 7
+          },
+          {
+            "x": 7,
+            "y": 9
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-00000000000a",
+        "position": {
+          "x": 0,
+          "y": 7
+        }
+      }
+    ]
+  },
+  "restrictions": {
+    "allowedComponentTypes": [
+      "voltmeter",
+      "ammeter"
+    ],
+    "lockedComponents": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003",
+      "00000000-0000-4000-8000-000000000004"
+    ]
+  },
+  "faults": [
+    {
+      "id": "00000000-0000-4000-8000-0000000000a1",
+      "kind": "open",
+      "componentId": "00000000-0000-4000-8000-000000000003"
+    }
+  ]
+}

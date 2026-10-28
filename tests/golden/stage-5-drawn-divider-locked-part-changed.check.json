@@ -1,0 +1,323 @@
+{
+  "checks": [
+    {
+      "kind": "value",
+      "id": "00000000-0000-4000-8000-000000000501",
+      "label": "Reading",
+      "signal": {
+        "key": "00000000-0000-4000-8000-000000000002:voltage",
+        "unit": "volt"
+      },
+      "atSeconds": 0,
+      "expected": 2.5,
+      "toleranceAbs": 0.025,
+      "toleranceRel": 0
+    },
+    {
+      "kind": "range",
+      "id": "00000000-0000-4000-8000-000000000502",
+      "signal": {
+        "key": "00000000-0000-4000-8000-000000000002:voltage",
+        "unit": "volt"
+      },
+      "fromSeconds": 0,
+      "toSeconds": 0.01,
+      "min": 2.4,
+      "max": 2.6
+    },
+    {
+      "kind": "componentCount",
+      "id": "00000000-0000-4000-8000-000000000503",
+      "typeId": "resistor",
+      "min": 2,
+      "max": 2
+    }
+  ],
+  "lockedComponents": [
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002"
+  ],
+  "startingCircuit": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "voltmeter",
+        "position": {
+          "x": 11,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "inputResistanceOhms": 10000000
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "points": [
+          {
+            "x": 0,
+            "y": 7
+          },
+          {
+            "x": 0,
+            "y": 9
+          },
+          {
+            "x": 11,
+            "y": 9
+          },
+          {
+            "x": 11,
+            "y": 7
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "position": {
+          "x": 0,
+          "y": 7
+        }
+      }
+    ]
+  },
+  "schematic": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 20,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "voltmeter",
+        "position": {
+          "x": 11,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "inputResistanceOhms": 10000000
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 5,
+          "y": 5
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 30000
+        },
+        "id": "00000000-0000-4000-8000-000000000005"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 8,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "resistanceOhms": 10000
+        },
+        "id": "00000000-0000-4000-8000-000000000006"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "points": [
+          {
+            "x": 0,
+            "y": 7
+          },
+          {
+            "x": 0,
+            "y": 9
+          },
+          {
+            "x": 11,
+            "y": 9
+          },
+          {
+            "x": 11,
+            "y": 7
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "points": [
+          {
+            "x": 0,
+            "y": 5
+          },
+          {
+            "x": 4,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "points": [
+          {
+            "x": 6,
+            "y": 5
+          },
+          {
+            "x": 8,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "points": [
+          {
+            "x": 8,
+            "y": 5
+          },
+          {
+            "x": 11,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000000a",
+        "points": [
+          {
+            "x": 8,
+            "y": 7
+          },
+          {
+            "x": 8,
+            "y": 9
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "position": {
+          "x": 0,
+          "y": 7
+        }
+      }
+    ]
+  },
+  "geometry": {
+    "components": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 0,
+              "y": 5
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 0,
+              "y": 7
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000002",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 11,
+              "y": 5
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 11,
+              "y": 7
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000005",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 4,
+              "y": 5
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 6,
+              "y": 5
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000006",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 8,
+              "y": 5
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 8,
+              "y": 7
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "documentRevision": "check-1"
+}
