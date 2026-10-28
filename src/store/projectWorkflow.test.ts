@@ -177,3 +177,36 @@ describe("unsaved-change decision", () => {
     expect(proceed).toHaveBeenCalledOnce();
   });
 });
+
+describe("ProjectWorkflow with a circuit of an assignment", () => {
+  it("replaces the document with the circuit after clearing the project path", async () => {
+    const files = createFiles();
+    const store = new SchematicDocumentStore(dividerSchematic);
+    store.moveComponent(R1, { x: 40, y: 40 });
+    const workflow = new ProjectWorkflow(store, files);
+
+    await expect(workflow.perform("circuit", blankSchematic)).resolves.toBe(
+      true,
+    );
+
+    expect(files.clearPath).toHaveBeenCalledOnce();
+    expect(store.getState()).toMatchObject({
+      schematic: blankSchematic,
+      canUndo: false,
+      isDirty: false,
+    });
+  });
+
+  it("leaves the document alone when there is no circuit to show", async () => {
+    const files = createFiles();
+    const store = new SchematicDocumentStore(dividerSchematic);
+    store.moveComponent(R1, { x: 40, y: 40 });
+    const before = store.getState();
+    const workflow = new ProjectWorkflow(store, files);
+
+    await expect(workflow.perform("circuit")).resolves.toBe(false);
+
+    expect(store.getState()).toBe(before);
+    expect(files.clearPath).not.toHaveBeenCalled();
+  });
+});

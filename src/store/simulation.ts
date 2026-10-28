@@ -1,6 +1,7 @@
 import { buildGeometryEnvelope } from "../editor/geometry";
 import type { CompileResult } from "../generated/CompileResult";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
+import type { FaultSpec } from "../generated/FaultSpec";
 import type { Diagnostic } from "../generated/Diagnostic";
 import type { ParameterId } from "../generated/ParameterId";
 import type { ResultLayout } from "../generated/ResultLayout";
@@ -251,6 +252,8 @@ export class SimulationController {
   /** The newest document the engine was asked to adopt. */
   private engineSchematic: Schematic | null = null;
   private compiling: Promise<void> | null = null;
+  /** Faults applied to every compile, or none. They are never part of the document. */
+  private faults: readonly FaultSpec[] | null = null;
   /**
    * Queued updates come from `syncDocument`, so a failed one must bring the
    * engine back to the document. Updates requested directly through
@@ -344,6 +347,30 @@ export class SimulationController {
   }
 
   /**
+   * Compiles the document with `faults` applied (or without any, for `null`), the way the
+   * Engine applies a fault overlay (docs/contracts/stage-5-assignments.md section 5.3). The
+   * faults belong to the controller, not to the document, and a change recompiles at once.
+   */
+  setFaults(faults: readonly FaultSpec[] | null): Promise<void> {
+    const next = faults === null || faults.length === 0 ? null : faults;
+
+    if (this.disposed || JSON.stringify(next) === JSON.stringify(this.faults)) {
+      return Promise.resolve();
+    }
+
+    this.faults = next;
+
+    if (!this.started || this.state.catalog === null) {
+      // start() compiles with whatever faults are set when the catalog arrives.
+      return Promise.resolve();
+    }
+
+    // The engine's run was compiled without or with other faults: make it stale.
+    this.engineSchematic = null;
+    return this.requestCompile();
+  }
+
+  /**
    * Requests a parameter change in SI units. Resolves once this edit, and any
    * edit made while it was in flight, has been answered.
    */
@@ -408,6 +435,7 @@ export class SimulationController {
   /** Returns false when the engine could not be reached. */
   private async compileDocument(schematic: Schematic): Promise<boolean> {
     const documentRevision = this.createRevision();
+    const faults = this.faults;
     let result: CompileResult;
 
     if (this.state.status === "ready") {
@@ -419,6 +447,7 @@ export class SimulationController {
         schematic,
         geometry: buildGeometryEnvelope(schematic, this.registry),
         documentRevision,
+        ...(faults ? { faults: [...faults] } : {}),
       });
     } catch (error) {
       this.stopFrameStream();
@@ -427,8 +456,12 @@ export class SimulationController {
       return false;
     }
 
-    if (this.disposed || schematic !== this.syncedSchematic) {
-      // A newer document is waiting; the loop compiles it next.
+    if (
+      this.disposed ||
+      schematic !== this.syncedSchematic ||
+      faults !== this.faults
+    ) {
+      // A newer document, or other faults, are waiting; the loop compiles them next.
       return true;
     }
 

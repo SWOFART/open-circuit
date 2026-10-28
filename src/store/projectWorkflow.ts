@@ -3,7 +3,8 @@ import { dividerSchematic } from "./fixtures";
 import type { SchematicDocumentStore } from "./document";
 import type { ProjectFilePort } from "./projectFiles";
 
-export type ProjectAction = "new" | "open" | "example";
+/** `circuit` replaces the document with a circuit of an assignment. */
+export type ProjectAction = "new" | "open" | "example" | "circuit";
 export type UnsavedChoice = "save" | "discard" | "cancel";
 
 export const blankSchematic: Schematic = {
@@ -32,7 +33,7 @@ export class ProjectWorkflow {
     return !this.document.getState().isDirty;
   }
 
-  async perform(action: ProjectAction): Promise<boolean> {
+  async perform(action: ProjectAction, circuit?: Schematic): Promise<boolean> {
     switch (action) {
       case "new":
         await this.files.clearPath();
@@ -41,6 +42,11 @@ export class ProjectWorkflow {
       case "example":
         await this.files.clearPath();
         this.document.replaceDocument(dividerSchematic);
+        return true;
+      case "circuit":
+        if (circuit === undefined) return false;
+        await this.files.clearPath();
+        this.document.replaceDocument(circuit);
         return true;
       case "open": {
         const schematic = await this.files.open();

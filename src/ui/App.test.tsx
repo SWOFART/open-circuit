@@ -23,6 +23,16 @@ describe("application shell", () => {
     expect(markup).toContain("Results");
   });
 
+  it("offers the assignment authoring panel, closed until it is asked for", () => {
+    const markup = renderToStaticMarkup(<App />);
+
+    expect(markup).toMatch(
+      /<button[^>]*aria-pressed="false"[^>]*>Author assignment<\/button>/,
+    );
+    expect(markup).not.toContain('aria-label="Assignment authoring"');
+    expect(markup).toContain('class="workspace-body"');
+  });
+
   it("waits for the backend before showing any reading", () => {
     const markup = renderToStaticMarkup(<App />);
 
