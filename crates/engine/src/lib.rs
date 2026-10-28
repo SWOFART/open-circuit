@@ -1,6 +1,7 @@
 //! Transport-independent Stage 1 types and catalog for the circuit engine.
 
 pub mod catalog;
+pub mod checks;
 mod devices;
 pub mod diagnostics;
 pub mod engine;
@@ -16,6 +17,11 @@ pub mod solver;
 pub use catalog::{
     ComponentCatalog, ComponentCatalogEntry, ComponentTypeId, NumericDomain, ParameterDefinition,
     ParameterId, PinDefinition, PinId, PinRole, Unit, component_catalog,
+};
+pub use checks::{
+    CheckCounts, CheckCriterion, CheckOutcome, CheckRequest, CheckResult, CheckSignal,
+    CheckVerdict, CriterionResult, DeviceStateName, LockedResult, MAX_CHECK_CRITERIA,
+    MAX_CHECK_SECONDS, MAX_COMPONENT_COUNT, evaluate_checks,
 };
 pub use diagnostics::{Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity};
 pub use engine::Engine;
