@@ -1,0 +1,38 @@
+{
+  "description": "Independent OCF2 encoding example for the Stage 6 state kinds: one latching switch (closed, conducting, changed at 4 ms), one push button (released, conducting, never changed), and one contactor (picked, since 4.1 ms), after two numeric values. The UUIDs and values are synthetic and exist only to verify the contract layout.",
+  "frame": {
+    "layoutVersion": 1,
+    "frameSequence": 3,
+    "simulationStep": 5,
+    "simulationTimeSeconds": 0.005,
+    "runId": "00000000-0000-4000-8000-0000000000a0",
+    "documentRevision": "rev-2-xyz",
+    "values": [
+      5,
+      0.0499
+    ],
+    "states": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "kind": "switch",
+        "position": "closed",
+        "conducting": true,
+        "lastTransitionTimeSeconds": 0.004
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000002",
+        "kind": "pushButton",
+        "position": "released",
+        "conducting": true
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000003",
+        "kind": "contactor",
+        "state": "picked",
+        "lastTransitionTimeSeconds": 0.0041
+      }
+    ]
+  },
+  "encodedLengthBytes": 184,
+  "hex": "4f43463201000000030000000000000005000000000000007b14ae47e17a743f000000000000400080000000000000a00200000003000000090000007265762d322d78797a0000000000000000001440780b24287e8ca93f000000000000400080000000000000010301030000000000fca9f1d24d62703f0000000000004000800000000000000204000200000000000000000000000000000000000000400080000000000000030501010000000000091b9e5e29cb703f"
+}

@@ -1,0 +1,97 @@
+{
+  "fixtureId": "stage6.button.capacitor_hold",
+  "description": "An ideal 10 V source, a normally closed push button (closed resistance 0.01 Ohm), a 1 kOhm resistor, and a 100 uF capacitor with an explicit 0 V initial voltage, in series. Pressing the button opens it; the ideal capacitor then keeps its voltage; releasing it lets the capacitor charge on with the same time constant. The values are the closed-form RC solution with tau = (1000 + 0.01) x 100 uF = 0.100001 s.",
+  "parameters": {
+    "sourceVoltageVolts": 10,
+    "buttonClosedResistanceOhms": 0.01,
+    "resistorOhms": 1000,
+    "capacitanceFarads": 0.0001,
+    "initialCapacitorVoltageVolts": 0,
+    "timeConstantSeconds": 0.100001
+  },
+  "operatorEvents": [
+    {
+      "sentWhenNewestStep": 50,
+      "component": "SB1",
+      "position": "pressed",
+      "effectiveFromStep": 49
+    },
+    {
+      "sentWhenNewestStep": 100,
+      "component": "SB1",
+      "position": "released",
+      "effectiveFromStep": 99
+    }
+  ],
+  "expected": [
+    {
+      "step": 0,
+      "buttonPosition": "released",
+      "buttonConducting": true,
+      "capacitorVolts": 0,
+      "toleranceVolts": 1e-9
+    },
+    {
+      "step": 40,
+      "buttonPosition": "released",
+      "buttonConducting": true,
+      "capacitorVolts": 3.2967727270562666,
+      "toleranceVolts": 0.005
+    },
+    {
+      "step": 49,
+      "buttonPosition": "released",
+      "buttonConducting": true,
+      "capacitorVolts": 3.8737060396891634,
+      "toleranceVolts": 0.005,
+      "note": "The request was sent when step 50 was the newest: the button is open from the end of step 49, so step 49 is the last unchanged sample."
+    },
+    {
+      "step": 50,
+      "buttonPosition": "pressed",
+      "buttonConducting": false,
+      "capacitorVolts": 3.8737060396891634,
+      "toleranceVolts": 0.005,
+      "note": "Step 50 was recomputed with the button open: no current flowed in its span, so the capacitor holds its value."
+    },
+    {
+      "step": 75,
+      "buttonPosition": "pressed",
+      "buttonConducting": false,
+      "capacitorVolts": 3.8737060396891634,
+      "toleranceVolts": 0.005,
+      "currentAmps": 0,
+      "currentToleranceAmps": 1e-12
+    },
+    {
+      "step": 99,
+      "buttonPosition": "pressed",
+      "buttonConducting": false,
+      "capacitorVolts": 3.8737060396891634,
+      "toleranceVolts": 0.005,
+      "note": "The last unchanged sample before the release."
+    },
+    {
+      "step": 100,
+      "buttonPosition": "released",
+      "buttonConducting": true,
+      "capacitorVolts": 3.9346630765681274,
+      "toleranceVolts": 0.005,
+      "note": "Step 100 was recomputed with the button closed again, from the held voltage."
+    },
+    {
+      "step": 150,
+      "buttonPosition": "released",
+      "buttonConducting": true,
+      "capacitorVolts": 6.321168800525397,
+      "toleranceVolts": 0.005
+    },
+    {
+      "step": 200,
+      "buttonPosition": "released",
+      "buttonConducting": true,
+      "capacitorVolts": 7.768664929075354,
+      "toleranceVolts": 0.005
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "fixtureId": "stage6.switch.divider",
+  "description": "An ideal 10 V source, a latching switch (closed resistance 0.01 Ohm), and two 1 kOhm resistors in series; the output is the voltage across the second resistor. The switch starts open (initialClosed omitted). The values are the divider equation, not Engine output.",
+  "parameters": {
+    "sourceVoltageVolts": 10,
+    "switchClosedResistanceOhms": 0.01,
+    "resistor1Ohms": 1000,
+    "resistor2Ohms": 1000
+  },
+  "operatorEvents": [
+    {
+      "sentWhenNewestStep": 3,
+      "component": "SW1",
+      "position": "closed",
+      "effectiveFromStep": 2
+    },
+    {
+      "sentWhenNewestStep": 6,
+      "component": "SW1",
+      "position": "open",
+      "effectiveFromStep": 5
+    }
+  ],
+  "expected": [
+    {
+      "step": 0,
+      "switchPosition": "open",
+      "switchConducting": false,
+      "outputVolts": 0,
+      "currentAmps": 0,
+      "voltToleranceVolts": 1e-12,
+      "currentToleranceAmps": 1e-12
+    },
+    {
+      "step": 2,
+      "switchPosition": "open",
+      "switchConducting": false,
+      "outputVolts": 0,
+      "currentAmps": 0,
+      "voltToleranceVolts": 1e-12,
+      "currentToleranceAmps": 1e-12,
+      "note": "Step 2 is the last step before the effective time; it is not changed."
+    },
+    {
+      "step": 3,
+      "switchPosition": "closed",
+      "switchConducting": true,
+      "outputVolts": 4.999975000125,
+      "currentAmps": 0.004999975000124999,
+      "voltToleranceVolts": 1e-9,
+      "currentToleranceAmps": 1e-12,
+      "note": "The request was sent when step 3 was the newest, so its sample is replaced."
+    },
+    {
+      "step": 5,
+      "switchPosition": "closed",
+      "switchConducting": true,
+      "outputVolts": 4.999975000125,
+      "currentAmps": 0.004999975000124999,
+      "voltToleranceVolts": 1e-9,
+      "currentToleranceAmps": 1e-12
+    },
+    {
+      "step": 6,
+      "switchPosition": "open",
+      "switchConducting": false,
+      "outputVolts": 0,
+      "currentAmps": 0,
+      "voltToleranceVolts": 1e-12,
+      "currentToleranceAmps": 1e-12,
+      "note": "The request was sent when step 6 was the newest, so its sample is replaced."
+    },
+    {
+      "step": 9,
+      "switchPosition": "open",
+      "switchConducting": false,
+      "outputVolts": 0,
+      "currentAmps": 0,
+      "voltToleranceVolts": 1e-12,
+      "currentToleranceAmps": 1e-12
+    }
+  ]
+}
