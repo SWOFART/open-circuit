@@ -10,6 +10,7 @@ pub mod faults;
 pub mod ids;
 mod mna;
 pub mod netlist;
+mod operator;
 pub mod project;
 pub mod results;
 pub mod schematic;
@@ -40,15 +41,18 @@ pub use ids::{InvalidStableId, StableId};
 pub use project::{ProjectDocumentError, decode_project_json, validate_project_schematic};
 pub use results::{
     AdvanceRequest, CompileRequest, CompileResult, DeviceState, FrameMetadata, FuseState,
-    RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
-    ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, SetParameterRequest, SetParameterResult,
-    TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery, TraceRequest, TraceSignal,
+    OperatorPosition, PushButtonPosition, RelayContactState, ResultLayout, ResultQuantity,
+    ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
+    SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
+    SwitchPosition, TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery, TraceRequest,
+    TraceSignal,
 };
 pub use schematic::{
     AmmeterParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, FuseParameters,
     GeometryEnvelope, GridPoint, InductorParameters, JunctionSpec, PmdcMotorParameters,
-    ReferenceMarkerSpec, RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
-    Schematic, VoltmeterParameters, WireSpec,
+    PushButtonParameters, ReferenceMarkerSpec, RelayParameters, ResistorParameters,
+    ResolvedPinPosition, SCHEMA_VERSION, Schematic, SwitchParameters, VoltmeterParameters,
+    WireSpec,
 };
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");

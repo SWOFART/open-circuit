@@ -17,6 +17,9 @@ pub enum ComponentTypeId {
     PmdcMotor,
     Voltmeter,
     Ammeter,
+    SwitchSpst,
+    PushButtonNo,
+    PushButtonNc,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -74,6 +77,8 @@ pub enum ParameterId {
     InitialArmatureCurrentAmps,
     InputResistanceOhms,
     BurdenResistanceOhms,
+    ClosedResistanceOhms,
+    InitialClosed,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -91,6 +96,7 @@ pub enum Unit {
     NewtonMeterPerAmp,
     NewtonMeterSecondPerRadian,
     RadianPerSecond,
+    Dimensionless,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -110,6 +116,7 @@ pub enum NumericDomain {
     Finite,
     StrictlyPositive,
     NonNegative,
+    ZeroOrOne,
 }
 
 impl NumericDomain {
@@ -122,6 +129,7 @@ impl NumericDomain {
             Self::Finite => true,
             Self::StrictlyPositive => value > 0.0,
             Self::NonNegative => value >= 0.0,
+            Self::ZeroOrOne => value == 0.0 || value == 1.0,
         }
     }
 }
@@ -503,6 +511,62 @@ pub fn component_catalog() -> ComponentCatalog {
                     initial_condition: false,
                 }],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Ammeter).to_vec(),
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::SwitchSpst,
+                display_name_key: "component.switchSpst.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::ClosedResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.switchSpst.closedResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::InitialClosed,
+                        unit: Unit::Dimensionless,
+                        default_value: 0.0,
+                        domain: NumericDomain::ZeroOrOne,
+                        description_key: "component.switchSpst.initialClosed".to_owned(),
+                        optional: true,
+                        initial_condition: true,
+                    },
+                ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::SwitchSpst).to_vec(),
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::PushButtonNo,
+                display_name_key: "component.pushButtonNo.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![ParameterDefinition {
+                    id: ParameterId::ClosedResistanceOhms,
+                    unit: Unit::Ohm,
+                    default_value: 0.01,
+                    domain: NumericDomain::StrictlyPositive,
+                    description_key: "component.pushButtonNo.closedResistance".to_owned(),
+                    optional: false,
+                    initial_condition: false,
+                }],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNo).to_vec(),
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::PushButtonNc,
+                display_name_key: "component.pushButtonNc.name".to_owned(),
+                pins: two_unpolarized_pins(),
+                parameters: vec![ParameterDefinition {
+                    id: ParameterId::ClosedResistanceOhms,
+                    unit: Unit::Ohm,
+                    default_value: 0.01,
+                    domain: NumericDomain::StrictlyPositive,
+                    description_key: "component.pushButtonNc.closedResistance".to_owned(),
+                    optional: false,
+                    initial_condition: false,
+                }],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
             },
         ],
     }

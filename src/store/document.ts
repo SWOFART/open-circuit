@@ -186,6 +186,8 @@ function matchesDomain(
       return value > 0;
     case "non_negative":
       return value >= 0;
+    case "zero_or_one":
+      return value === 0 || value === 1;
   }
 }
 

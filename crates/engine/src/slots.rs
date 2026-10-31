@@ -113,7 +113,10 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
         | ComponentTypeId::Capacitor
         | ComponentTypeId::Inductor
         | ComponentTypeId::Voltmeter
-        | ComponentTypeId::Ammeter => vec![voltage, current],
+        | ComponentTypeId::Ammeter
+        | ComponentTypeId::SwitchSpst
+        | ComponentTypeId::PushButtonNo
+        | ComponentTypeId::PushButtonNc => vec![voltage, current],
     }
 }
 

@@ -46,8 +46,18 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
-    // Every catalog type now has a symbol, so every one is offered.
-    expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
+    // A type is offered once it has a symbol. The Stage 6 switches and push buttons are in
+    // the catalog before their symbols exist (issue #99), so they are not offered yet.
+    expect(placeableTypes.map((entry) => entry.typeId)).toEqual(
+      catalog.componentTypes
+        .map((entry) => entry.typeId)
+        .filter(
+          (typeId) =>
+            !["switch_spst", "push_button_no", "push_button_nc"].includes(
+              typeId,
+            ),
+        ),
+    );
     expect(pressed(markup)).toEqual(["Select"]);
   });
 
