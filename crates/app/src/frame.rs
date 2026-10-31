@@ -23,7 +23,8 @@
 use std::fmt;
 
 use open_circuit_engine::{
-    DeviceState, FrameMetadata, FuseState, RelayContactState, ResultSnapshot, StableId,
+    DeviceState, FrameMetadata, FuseState, PushButtonPosition, RelayContactState, ResultSnapshot,
+    StableId, SwitchPosition,
 };
 use uuid::Uuid;
 
@@ -165,7 +166,7 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
     let mut encoded = Vec::with_capacity(states.len() * 32);
     let mut previous = None;
     for state in states {
-        let (component_id, kind, value, transition) = match state {
+        let (component_id, kind, value, transition, conducting) = match state {
             DeviceState::Relay {
                 component_id,
                 state,
@@ -178,6 +179,7 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
                     RelayContactState::Picked => 1,
                 },
                 *last_transition_time_seconds,
+                false,
             ),
             DeviceState::Fuse {
                 component_id,
@@ -191,6 +193,37 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
                     FuseState::Tripped => 1,
                 },
                 *last_transition_time_seconds,
+                false,
+            ),
+            DeviceState::Switch {
+                component_id,
+                position,
+                conducting,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                3_u8,
+                match position {
+                    SwitchPosition::Open => 0_u8,
+                    SwitchPosition::Closed => 1,
+                },
+                *last_transition_time_seconds,
+                *conducting,
+            ),
+            DeviceState::PushButton {
+                component_id,
+                position,
+                conducting,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                4_u8,
+                match position {
+                    PushButtonPosition::Released => 0_u8,
+                    PushButtonPosition::Pressed => 1,
+                },
+                *last_transition_time_seconds,
+                *conducting,
             ),
         };
         let uuid = Uuid::parse_str(component_id.as_str()).map_err(|_| FrameError::InvalidState)?;
@@ -206,8 +239,8 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
         encoded.extend_from_slice(&bytes);
         encoded.push(kind);
         encoded.push(value);
-        encoded
-            .extend_from_slice(&(if transition.is_some() { 1_u16 } else { 0_u16 }).to_le_bytes());
+        let flags = u16::from(transition.is_some()) | (u16::from(conducting) << 1);
+        encoded.extend_from_slice(&flags.to_le_bytes());
         encoded.extend_from_slice(&[0; 4]);
         encoded.extend_from_slice(&transition.unwrap_or(0.0).to_le_bytes());
     }
@@ -347,7 +380,10 @@ fn decode_states(
         let kind = record[16];
         let value = record[17];
         let flags = u16::from_le_bytes(record[18..20].try_into().expect("state record is fixed"));
-        if flags & !1 != 0 {
+        // Bit 0: a transition time is present. Bit 1: the contact conducts, defined only for
+        // the switch (kind 3) and the push button (kind 4).
+        let conducting = flags & 2 != 0;
+        if flags & !3 != 0 || (conducting && !matches!(kind, 3 | 4)) {
             return Err(FrameError::InvalidState);
         }
         if record[20..24].iter().any(|byte| *byte != 0) {
@@ -382,6 +418,26 @@ fn decode_states(
             (2, 1) => DeviceState::Fuse {
                 component_id,
                 state: FuseState::Tripped,
+                last_transition_time_seconds: transition,
+            },
+            (3, 0 | 1) => DeviceState::Switch {
+                component_id,
+                position: if value == 0 {
+                    SwitchPosition::Open
+                } else {
+                    SwitchPosition::Closed
+                },
+                conducting,
+                last_transition_time_seconds: transition,
+            },
+            (4, 0 | 1) => DeviceState::PushButton {
+                component_id,
+                position: if value == 0 {
+                    PushButtonPosition::Released
+                } else {
+                    PushButtonPosition::Pressed
+                },
+                conducting,
                 last_transition_time_seconds: transition,
             },
             _ => return Err(FrameError::InvalidState),

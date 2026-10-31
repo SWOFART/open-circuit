@@ -190,9 +190,49 @@ impl<'de> Deserialize<'de> for InductorParameters {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "SwitchParameters.ts")]
+pub struct SwitchParameters {
+    pub closed_resistance_ohms: f64,
+    // An initial condition: 1 draws the switch closed, 0 or absent open (Stage 6 contract
+    // section 4.5). The position reached while running is never a parameter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub initial_closed: Option<f64>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct SwitchParametersInput {
+    closed_resistance_ohms: f64,
+    #[serde(default, deserialize_with = "deserialize_optional_non_null_f64")]
+    initial_closed: Option<f64>,
+}
+
+impl<'de> Deserialize<'de> for SwitchParameters {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let input = SwitchParametersInput::deserialize(deserializer)?;
+        Ok(Self {
+            closed_resistance_ohms: input.closed_resistance_ohms,
+            initial_closed: input.initial_closed,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "PushButtonParameters.ts")]
+pub struct PushButtonParameters {
+    pub closed_resistance_ohms: f64,
+}
+
 /// Saved schema version 1 supports resistors, independent voltage sources,
 /// capacitors, inductors, relays, fuses, permanent-magnet DC motors, voltmeters,
-/// and ammeters.
+/// ammeters, latching switches, and push buttons.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -265,6 +305,27 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: AmmeterParameters,
     },
+    SwitchSpst {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: SwitchParameters,
+    },
+    PushButtonNo {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: PushButtonParameters,
+    },
+    PushButtonNc {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: PushButtonParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -278,7 +339,10 @@ impl ComponentSpec {
             | Self::Fuse { id, .. }
             | Self::PmdcMotor { id, .. }
             | Self::Voltmeter { id, .. }
-            | Self::Ammeter { id, .. } => id,
+            | Self::Ammeter { id, .. }
+            | Self::SwitchSpst { id, .. }
+            | Self::PushButtonNo { id, .. }
+            | Self::PushButtonNc { id, .. } => id,
         }
     }
 
@@ -292,7 +356,10 @@ impl ComponentSpec {
             | Self::Fuse { position, .. }
             | Self::PmdcMotor { position, .. }
             | Self::Voltmeter { position, .. }
-            | Self::Ammeter { position, .. } => *position,
+            | Self::Ammeter { position, .. }
+            | Self::SwitchSpst { position, .. }
+            | Self::PushButtonNo { position, .. }
+            | Self::PushButtonNc { position, .. } => *position,
         }
     }
 
@@ -306,7 +373,10 @@ impl ComponentSpec {
             | Self::Fuse { rotation_deg, .. }
             | Self::PmdcMotor { rotation_deg, .. }
             | Self::Voltmeter { rotation_deg, .. }
-            | Self::Ammeter { rotation_deg, .. } => *rotation_deg,
+            | Self::Ammeter { rotation_deg, .. }
+            | Self::SwitchSpst { rotation_deg, .. }
+            | Self::PushButtonNo { rotation_deg, .. }
+            | Self::PushButtonNc { rotation_deg, .. } => *rotation_deg,
         }
     }
 
@@ -321,6 +391,9 @@ impl ComponentSpec {
             Self::PmdcMotor { .. } => ComponentTypeId::PmdcMotor,
             Self::Voltmeter { .. } => ComponentTypeId::Voltmeter,
             Self::Ammeter { .. } => ComponentTypeId::Ammeter,
+            Self::SwitchSpst { .. } => ComponentTypeId::SwitchSpst,
+            Self::PushButtonNo { .. } => ComponentTypeId::PushButtonNo,
+            Self::PushButtonNc { .. } => ComponentTypeId::PushButtonNc,
         }
     }
 
@@ -435,6 +508,22 @@ impl ComponentSpec {
                     parameters.burden_resistance_ohms,
                 )]
             }
+            Self::SwitchSpst { parameters, .. } => {
+                let mut values = vec![(
+                    ParameterId::ClosedResistanceOhms,
+                    parameters.closed_resistance_ohms,
+                )];
+                if let Some(value) = parameters.initial_closed {
+                    values.push((ParameterId::InitialClosed, value));
+                }
+                values
+            }
+            Self::PushButtonNo { parameters, .. } | Self::PushButtonNc { parameters, .. } => {
+                vec![(
+                    ParameterId::ClosedResistanceOhms,
+                    parameters.closed_resistance_ohms,
+                )]
+            }
         }
     }
 }
@@ -531,7 +620,10 @@ impl Schematic {
             | ComponentSpec::Fuse { rotation_deg, .. }
             | ComponentSpec::PmdcMotor { rotation_deg, .. }
             | ComponentSpec::Voltmeter { rotation_deg, .. }
-            | ComponentSpec::Ammeter { rotation_deg, .. } = component
+            | ComponentSpec::Ammeter { rotation_deg, .. }
+            | ComponentSpec::SwitchSpst { rotation_deg, .. }
+            | ComponentSpec::PushButtonNo { rotation_deg, .. }
+            | ComponentSpec::PushButtonNc { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(

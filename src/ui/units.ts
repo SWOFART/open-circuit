@@ -17,6 +17,7 @@ export const unitSymbols: Readonly<Record<Unit, string>> = {
   newton_meter_per_amp: "N·m/A",
   newton_meter_second_per_radian: "N·m·s/rad",
   radian_per_second: "rad/s",
+  dimensionless: "",
 };
 
 const unitWords: Readonly<Record<Unit, readonly string[]>> = {
@@ -42,6 +43,7 @@ const unitWords: Readonly<Record<Unit, readonly string[]>> = {
     "newton meter second per radian",
   ],
   radian_per_second: ["rad/s", "radian per second", "radians per second"],
+  dimensionless: [],
 };
 
 const prefixes = [
@@ -205,6 +207,8 @@ export function domainAccepts(domain: NumericDomain, value: number): boolean {
       return value > 0;
     case "non_negative":
       return value >= 0;
+    case "zero_or_one":
+      return value === 0 || value === 1;
   }
 }
 

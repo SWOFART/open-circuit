@@ -206,6 +206,43 @@
       "faultKinds": [
         "parameter"
       ]
+    },
+    {
+      "typeId": "switch_spst",
+      "displayNameKey": "component.switchSpst.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "closedResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.switchSpst.closedResistance", "optional": false, "initialCondition": false },
+        { "id": "initialClosed", "unit": "dimensionless", "defaultValue": 0.0, "domain": "zero_or_one", "descriptionKey": "component.switchSpst.initialClosed", "optional": true, "initialCondition": true }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "push_button_no",
+      "displayNameKey": "component.pushButtonNo.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "closedResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.pushButtonNo.closedResistance", "optional": false, "initialCondition": false }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "push_button_nc",
+      "displayNameKey": "component.pushButtonNc.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "closedResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.pushButtonNc.closedResistance", "optional": false, "initialCondition": false }
+      ],
+      "faultKinds": []
     }
   ]
 }
