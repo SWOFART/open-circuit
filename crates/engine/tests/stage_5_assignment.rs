@@ -854,9 +854,13 @@ fn limits_on_lists_are_too_large_and_never_a_partial_read() {
             );
         })
     };
-    assert_eq!(errors(&types(9)), vec![]);
+    // The limit is the number of types in the catalog.
+    let type_count = open_circuit_engine::component_catalog()
+        .component_types
+        .len();
+    assert_eq!(errors(&types(type_count)), vec![]);
     assert_eq!(
-        errors(&types(10)),
+        errors(&types(type_count + 1)),
         vec![at(TooLarge, "/restrictions/allowedComponentTypes")]
     );
     // `null` is every type.

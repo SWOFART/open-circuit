@@ -7,7 +7,8 @@ use open_circuit_app_lib::frame::{
     decode_frame, encode_frame, payload_offset,
 };
 use open_circuit_engine::{
-    DeviceState, FrameMetadata, RelayContactState, ResultSnapshot, StableId,
+    DeviceState, FrameMetadata, PushButtonPosition, RelayContactState, ResultSnapshot, StableId,
+    SwitchPosition,
 };
 use serde::Deserialize;
 
@@ -310,4 +311,61 @@ fn decoder_renders_any_16_byte_run_id_in_canonical_form() {
         decoded.metadata.run_id.as_str(),
         "ffffffff-ffff-ffff-ffff-ffffffffffff"
     );
+}
+
+#[test]
+fn switch_and_push_button_records_carry_the_conducting_flag() {
+    let switch_id = StableId::parse("00000000-0000-4000-8000-000000000001").unwrap();
+    let button_id = StableId::parse("00000000-0000-4000-8000-000000000002").unwrap();
+    let mut frame = snapshot("rev", vec![1.5]);
+    frame.states = vec![
+        DeviceState::Switch {
+            component_id: switch_id,
+            position: SwitchPosition::Closed,
+            conducting: true,
+            last_transition_time_seconds: Some(0.004),
+        },
+        DeviceState::PushButton {
+            component_id: button_id,
+            position: PushButtonPosition::Released,
+            conducting: true,
+            last_transition_time_seconds: None,
+        },
+    ];
+    let bytes = encode_frame(&frame).unwrap();
+    assert_eq!(decode_frame(&bytes).unwrap(), frame);
+
+    // Stage 6 contract section 5.2: kind 3 switch, kind 4 push button; flags bit 0 is a
+    // transition time and bit 1 is `conducting`.
+    let records = payload_offset("rev".len()) + 8;
+    let record = |index: usize| &bytes[records + 32 * index..records + 32 * (index + 1)];
+    assert_eq!(&record(0)[16..20], &[3, 1, 3, 0]);
+    assert_eq!(&record(0)[24..32], &0.004_f64.to_le_bytes());
+    assert_eq!(&record(1)[16..20], &[4, 0, 2, 0]);
+    assert_eq!(&record(1)[24..32], &[0; 8]);
+}
+
+#[test]
+fn the_conducting_flag_is_defined_only_for_switches_and_push_buttons() {
+    let mut frame = snapshot("rev", vec![]);
+    frame.states = vec![DeviceState::Relay {
+        component_id: StableId::parse("00000000-0000-4000-8000-000000000001").unwrap(),
+        state: RelayContactState::Released,
+        last_transition_time_seconds: None,
+    }];
+    let bytes = encode_frame(&frame).unwrap();
+    let flags = payload_offset("rev".len()) + 18;
+    let mut with_conducting = bytes.clone();
+    with_conducting[flags] = 2;
+    assert_eq!(
+        decode_frame(&with_conducting),
+        Err(FrameError::InvalidState)
+    );
+    // Bits above the two defined ones stay rejected, and kind 5 is not defined yet.
+    let mut unknown_bit = bytes.clone();
+    unknown_bit[flags] = 4;
+    assert_eq!(decode_frame(&unknown_bit), Err(FrameError::InvalidState));
+    let mut unknown_kind = bytes;
+    unknown_kind[flags - 2] = 5;
+    assert_eq!(decode_frame(&unknown_kind), Err(FrameError::InvalidState));
 }

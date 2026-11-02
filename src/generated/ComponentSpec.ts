@@ -6,14 +6,16 @@ import type { FuseParameters } from "./FuseParameters";
 import type { GridPoint } from "./GridPoint";
 import type { InductorParameters } from "./InductorParameters";
 import type { PmdcMotorParameters } from "./PmdcMotorParameters";
+import type { PushButtonParameters } from "./PushButtonParameters";
 import type { RelayParameters } from "./RelayParameters";
 import type { ResistorParameters } from "./ResistorParameters";
 import type { StableId } from "./StableId";
+import type { SwitchParameters } from "./SwitchParameters";
 import type { VoltmeterParameters } from "./VoltmeterParameters";
 
 /**
  * Saved schema version 1 supports resistors, independent voltage sources,
  * capacitors, inductors, relays, fuses, permanent-magnet DC motors, voltmeters,
- * and ammeters.
+ * ammeters, latching switches, and push buttons.
  */
-export type ComponentSpec = { "typeId": "resistor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: ResistorParameters, } | { "typeId": "dc_voltage_source", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: DcVoltageSourceParameters, } | { "typeId": "capacitor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: CapacitorParameters, } | { "typeId": "inductor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: InductorParameters, } | { "typeId": "relay_spdt", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: RelayParameters, } | { "typeId": "fuse", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: FuseParameters, } | { "typeId": "pmdc_motor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: PmdcMotorParameters, } | { "typeId": "voltmeter", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: VoltmeterParameters, } | { "typeId": "ammeter", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: AmmeterParameters, };
+export type ComponentSpec = { "typeId": "resistor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: ResistorParameters, } | { "typeId": "dc_voltage_source", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: DcVoltageSourceParameters, } | { "typeId": "capacitor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: CapacitorParameters, } | { "typeId": "inductor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: InductorParameters, } | { "typeId": "relay_spdt", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: RelayParameters, } | { "typeId": "fuse", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: FuseParameters, } | { "typeId": "pmdc_motor", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: PmdcMotorParameters, } | { "typeId": "voltmeter", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: VoltmeterParameters, } | { "typeId": "ammeter", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: AmmeterParameters, } | { "typeId": "switch_spst", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: SwitchParameters, } | { "typeId": "push_button_no", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: PushButtonParameters, } | { "typeId": "push_button_nc", id: StableId, position: GridPoint, rotationDeg: 0 | 90 | 180 | 270, parameters: PushButtonParameters, };

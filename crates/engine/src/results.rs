@@ -32,6 +32,33 @@ pub enum RelayContactState {
     Picked,
 }
 
+/// A position the operator can put a switch or a push button in (Stage 6 contract section 4.2).
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "OperatorPosition.ts")]
+pub enum OperatorPosition {
+    Open,
+    Closed,
+    Released,
+    Pressed,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "SwitchPosition.ts")]
+pub enum SwitchPosition {
+    Open,
+    Closed,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "PushButtonPosition.ts")]
+pub enum PushButtonPosition {
+    Released,
+    Pressed,
+}
+
 /// Runtime-only discrete device state carried atomically with its result snapshot.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
@@ -55,6 +82,34 @@ pub enum DeviceState {
         #[ts(optional)]
         last_transition_time_seconds: Option<f64>,
     },
+    Switch {
+        component_id: StableId,
+        position: SwitchPosition,
+        // Whether the contact is closed. The Engine decides it; a reader never infers it.
+        conducting: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+    PushButton {
+        component_id: StableId,
+        position: PushButtonPosition,
+        conducting: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+}
+
+impl DeviceState {
+    pub fn component_id(&self) -> &StableId {
+        match self {
+            Self::Relay { component_id, .. }
+            | Self::Fuse { component_id, .. }
+            | Self::Switch { component_id, .. }
+            | Self::PushButton { component_id, .. } => component_id,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -163,6 +218,37 @@ pub struct SetParameterRequest {
 )]
 #[ts(export, export_to = "SetParameterResult.ts")]
 pub enum SetParameterResult {
+    Success {
+        snapshot: ResultSnapshot,
+        internal_substeps: u32,
+        diagnostics: Vec<Diagnostic>,
+    },
+    Failure {
+        diagnostics: Vec<Diagnostic>,
+    },
+}
+
+/// Moves one switch or push button of the active run (Stage 6 contract section 4.2). It
+/// follows `SetParameterRequest`: the same run and revision rules.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "SetOperatorStateRequest.ts")]
+pub struct SetOperatorStateRequest {
+    pub run_id: StableId,
+    pub expected_document_revision: String,
+    pub document_revision: String,
+    pub component_id: StableId,
+    pub position: OperatorPosition,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(
+    tag = "status",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "SetOperatorStateResult.ts")]
+pub enum SetOperatorStateResult {
     Success {
         snapshot: ResultSnapshot,
         internal_substeps: u32,

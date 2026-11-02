@@ -10,11 +10,12 @@ use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
 
 use crate::{
-    AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, Diagnostic, DiagnosticCode,
-    DiagnosticReference, DiagnosticSeverity, FaultSpec, FuseState, GeometryEnvelope, ParameterId,
-    PinId, RelayContactState, ResultLayout, ResultQuantity, ResultSlot, ResultSnapshot,
-    SIMULATION_TIMESTEP_SECONDS, Schematic, SetParameterRequest, SetParameterResult, StableId,
-    TraceBatch, TraceRequest,
+    AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, DeviceState, Diagnostic,
+    DiagnosticCode, DiagnosticReference, DiagnosticSeverity, FaultSpec, FuseState,
+    GeometryEnvelope, ParameterId, PinId, RelayContactState, ResultLayout, ResultQuantity,
+    ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, Schematic, SetOperatorStateRequest,
+    SetOperatorStateResult, SetParameterRequest, SetParameterResult, StableId, TraceBatch,
+    TraceRequest,
     devices::{
         CapacitorDevice, CapacitorMode, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
         InductorDevice, InductorMode, PmdcMotorDevice, PmdcMotorMode, RelayCoilMode, RelayDevice,
@@ -23,6 +24,7 @@ use crate::{
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
+    operator::OperatorState,
     slots::slot_definitions,
     solver::SolverError,
 };
@@ -47,6 +49,11 @@ struct CompiledRun {
     faults: Vec<FaultSpec>,
     /// The circuit that is solved: the schematic with the faults applied.
     overlay: FaultOverlay,
+    /// The positions of the switches and push buttons (Stage 6 contract section 4).
+    operator: OperatorState,
+    /// The components whose branch is left out: the open faults and every contact that does not
+    /// conduct in its position.
+    open: HashSet<StableId>,
     geometry: GeometryEnvelope,
     layout: ResultLayout,
     snapshot: ResultSnapshot,
@@ -114,13 +121,15 @@ impl Engine {
             Ok(overlay) => overlay,
             Err(diagnostics) => return CompileResult::Failure { diagnostics },
         };
+        let operator = OperatorState::new(&request.schematic);
+        let open = operator.effective_open(&overlay.open);
         let (device_results, states, mut diagnostics) =
-            match initialize_circuit(&overlay.schematic, &request.geometry, &overlay.open) {
+            match initialize_circuit(&overlay.schematic, &request.geometry, &open) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return CompileResult::Failure { diagnostics },
             };
         let (internal_substeps, limited) =
-            choose_internal_substeps(&overlay.schematic, &request.geometry, &overlay.open);
+            choose_internal_substeps(&overlay.schematic, &request.geometry, &open);
         if limited {
             diagnostics.push(Diagnostic::warning(
                 DiagnosticCode::StepAccuracyLimited,
@@ -147,7 +156,7 @@ impl Engine {
                 frame_sequence: 0,
             },
             values,
-            states: states.device_states(),
+            states: snapshot_states(&states, &operator),
         };
 
         let Some(mut trace_history) = TraceHistory::new(layout.value_count as usize) else {
@@ -175,6 +184,8 @@ impl Engine {
             schematic: request.schematic,
             faults,
             overlay,
+            operator,
+            open,
             geometry: request.geometry,
             layout: layout.clone(),
             snapshot: snapshot.clone(),
@@ -247,23 +258,17 @@ impl Engine {
             Ok(overlay) => overlay,
             Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
         };
+        let candidate_open = active.operator.effective_open(&candidate_overlay.open);
         let geometry = active.geometry.clone();
         let run_id = active.run_id.clone();
         let layout = active.layout.clone();
         let simulation_step = active.snapshot.metadata.simulation_step;
         let document_revision = request.document_revision;
         let previous_step_states = active.step_start_states.clone();
-        let (internal_substeps, limited) = choose_internal_substeps(
-            &candidate_overlay.schematic,
-            &geometry,
-            &candidate_overlay.open,
-        );
+        let (internal_substeps, limited) =
+            choose_internal_substeps(&candidate_overlay.schematic, &geometry, &candidate_open);
         let (device_results, states, mut diagnostics) = if simulation_step == 0 {
-            match initialize_circuit(
-                &candidate_overlay.schematic,
-                &geometry,
-                &candidate_overlay.open,
-            ) {
+            match initialize_circuit(&candidate_overlay.schematic, &geometry, &candidate_open) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             }
@@ -271,7 +276,7 @@ impl Engine {
             match advance_public_steps(
                 &candidate_overlay.schematic,
                 &geometry,
-                &candidate_overlay.open,
+                &candidate_open,
                 previous_step_states,
                 internal_substeps,
                 simulation_step,
@@ -316,7 +321,7 @@ impl Engine {
                 frame_sequence,
             },
             values,
-            states: states.device_states(),
+            states: snapshot_states(&states, &active.operator),
         };
         let active = self
             .compiled
@@ -342,6 +347,7 @@ impl Engine {
         }
         active.schematic = candidate;
         active.overlay = candidate_overlay;
+        active.open = candidate_open;
         active.snapshot = snapshot.clone();
         active.states = states.clone();
         if simulation_step == 0 {
@@ -349,6 +355,154 @@ impl Engine {
         }
         active.internal_substeps = internal_substeps;
         SetParameterResult::Success {
+            snapshot,
+            internal_substeps,
+            diagnostics,
+        }
+    }
+
+    /// Move one switch or push button of the active run and recalculate the step that is
+    /// newest, as `set_parameter` does (docs/contracts/stage-6-control-circuits.md section 4).
+    /// A refusal leaves the run, its positions, and its revision as they were.
+    pub fn set_operator_state(
+        &mut self,
+        request: SetOperatorStateRequest,
+    ) -> SetOperatorStateResult {
+        let Some(active) = self.compiled.as_ref() else {
+            return SetOperatorStateResult::Failure {
+                diagnostics: vec![Diagnostic::error(DiagnosticCode::StaleRun, Vec::new())],
+            };
+        };
+        if request.run_id != active.run_id {
+            return SetOperatorStateResult::Failure {
+                diagnostics: vec![Diagnostic::error(DiagnosticCode::StaleRun, Vec::new())],
+            };
+        }
+        if request.expected_document_revision != active.snapshot.metadata.document_revision
+            || request.document_revision == active.snapshot.metadata.document_revision
+        {
+            return SetOperatorStateResult::Failure {
+                diagnostics: vec![component_diagnostic(
+                    DiagnosticCode::StaleDocumentRevision,
+                    &request.component_id,
+                )],
+            };
+        }
+        let invalid = || SetOperatorStateResult::Failure {
+            diagnostics: vec![component_diagnostic(
+                DiagnosticCode::InvalidParameter,
+                &request.component_id,
+            )],
+        };
+        let Some(frame_sequence) = active.snapshot.metadata.frame_sequence.checked_add(1) else {
+            return invalid();
+        };
+
+        let simulation_step = active.snapshot.metadata.simulation_step;
+        // The position conducts from the start of the newest step; step 0 has no earlier step.
+        let transition_time_seconds = simulation_step
+            .checked_sub(1)
+            .map_or(0.0, |earlier| earlier as f64 * SIMULATION_TIMESTEP_SECONDS);
+        let simulation_time_seconds = simulation_step as f64 * SIMULATION_TIMESTEP_SECONDS;
+        if !simulation_time_seconds.is_finite() {
+            return invalid();
+        }
+        let mut operator = active.operator.clone();
+        let Ok(changed) = operator.set_position(
+            &request.component_id,
+            request.position,
+            transition_time_seconds,
+        ) else {
+            return invalid();
+        };
+
+        let geometry = active.geometry.clone();
+        let layout = active.layout.clone();
+        let open = operator.effective_open(&active.overlay.open);
+        let (internal_substeps, limited) =
+            choose_internal_substeps(&active.overlay.schematic, &geometry, &open);
+        let (values, states, mut diagnostics) = if !changed {
+            // The position is the one it already has: nothing is recomputed.
+            (
+                active.snapshot.values.clone(),
+                active.states.clone(),
+                Vec::new(),
+            )
+        } else {
+            let computed = if simulation_step == 0 {
+                initialize_circuit(&active.overlay.schematic, &geometry, &open)
+            } else {
+                // The circuit changed, so the first internal step that advances time is a
+                // backward-Euler step, as after a relay transition.
+                let mut previous_step_states = active.step_start_states.clone();
+                previous_step_states.backward_euler_next_step = true;
+                advance_public_steps(
+                    &active.overlay.schematic,
+                    &geometry,
+                    &open,
+                    previous_step_states,
+                    internal_substeps,
+                    simulation_step,
+                    1,
+                )
+                .map(|(results, states, _step_start_states, diagnostics)| {
+                    (results, states, diagnostics)
+                })
+            };
+            let (device_results, states, diagnostics) = match computed {
+                Ok(computed) => computed,
+                Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
+            };
+            let values = match values_for_layout(&layout, &device_results) {
+                Ok(values) => values,
+                Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
+            };
+            (values, states, diagnostics)
+        };
+        if limited {
+            diagnostics.push(Diagnostic::warning(
+                DiagnosticCode::StepAccuracyLimited,
+                Vec::new(),
+            ));
+            sort_diagnostics(&mut diagnostics);
+        }
+
+        let snapshot = ResultSnapshot {
+            metadata: crate::FrameMetadata {
+                run_id: active.run_id.clone(),
+                document_revision: request.document_revision.clone(),
+                layout_version: layout.layout_version,
+                simulation_step,
+                simulation_time_seconds,
+                frame_sequence,
+            },
+            values,
+            states: snapshot_states(&states, &operator),
+        };
+        let active = self
+            .compiled
+            .as_mut()
+            .expect("active run was checked above");
+        if active
+            .trace_history
+            .replace_latest(
+                simulation_step,
+                &snapshot.metadata.document_revision,
+                &snapshot.values,
+            )
+            .is_err()
+        {
+            return invalid();
+        }
+        active.operator = operator;
+        active.open = open;
+        active.snapshot = snapshot.clone();
+        active.states = states.clone();
+        if changed && simulation_step == 0 {
+            active.step_start_states = states;
+        }
+        active.internal_substeps = internal_substeps;
+        SetOperatorStateResult::Success {
             snapshot,
             internal_substeps,
             diagnostics,
@@ -420,7 +574,7 @@ impl Engine {
                 advance_public_steps(
                     &active.overlay.schematic,
                     &active.geometry,
-                    &active.overlay.open,
+                    &active.open,
                     states,
                     active.internal_substeps,
                     current_step,
@@ -453,7 +607,7 @@ impl Engine {
         active.step_start_states = step_start_states;
         active.states = states;
         active.snapshot.values = final_values.expect("advance requires at least one step");
-        active.snapshot.states = active.states.device_states();
+        active.snapshot.states = snapshot_states(&active.states, &active.operator);
         active.snapshot.metadata.simulation_step = simulation_step;
         active.snapshot.metadata.simulation_time_seconds =
             simulation_step as f64 * SIMULATION_TIMESTEP_SECONDS;
@@ -489,6 +643,19 @@ impl Engine {
             .trace_history
             .read(&request, active.run_id.clone(), &active.layout)
     }
+}
+
+/// The typed state records of a snapshot: the relays and fuses, which the solver owns, and the
+/// switches and push buttons, which the operator owns, in one canonical component-ID order.
+fn snapshot_states(states: &CircuitStates, operator: &OperatorState) -> Vec<DeviceState> {
+    let mut all = states.device_states();
+    all.extend(operator.device_states());
+    all.sort_by(|left, right| {
+        left.component_id()
+            .as_str()
+            .cmp(right.component_id().as_str())
+    });
+    all
 }
 
 fn initialize_circuit(
@@ -1042,6 +1209,13 @@ fn build_device_specs(
                     normally_closed_node,
                 }
             }
+            ComponentSpec::SwitchSpst { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.closed_resistance_ohms,
+            },
+            ComponentSpec::PushButtonNo { parameters, .. }
+            | ComponentSpec::PushButtonNc { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.closed_resistance_ohms,
+            },
             ComponentSpec::Fuse { parameters, .. } => DeviceModel::Fuse {
                 intact_resistance_ohms: parameters.intact_resistance_ohms,
             },
@@ -1819,6 +1993,15 @@ pub(crate) fn update_parameter(
             ParameterId::ClosedContactResistanceOhms => {
                 parameters.closed_contact_resistance_ohms = value;
             }
+            _ => return false,
+        },
+        ComponentSpec::SwitchSpst { parameters, .. } => match parameter_id {
+            ParameterId::ClosedResistanceOhms => parameters.closed_resistance_ohms = value,
+            _ => return false,
+        },
+        ComponentSpec::PushButtonNo { parameters, .. }
+        | ComponentSpec::PushButtonNc { parameters, .. } => match parameter_id {
+            ParameterId::ClosedResistanceOhms => parameters.closed_resistance_ohms = value,
             _ => return false,
         },
         ComponentSpec::Fuse { parameters, .. } => match parameter_id {

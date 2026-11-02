@@ -13,6 +13,9 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   pmdc_motor: "M",
   voltmeter: "VM",
   ammeter: "AM",
+  switch_spst: "S",
+  push_button_no: "S",
+  push_button_nc: "S",
 };
 
 /**

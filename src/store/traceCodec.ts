@@ -32,6 +32,7 @@ const UNITS: Readonly<Record<Unit, true>> = {
   newton_meter_per_amp: true,
   newton_meter_second_per_radian: true,
   radian_per_second: true,
+  dimensionless: true,
 };
 const STABLE_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;

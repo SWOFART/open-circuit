@@ -87,16 +87,12 @@ impl CircuitStates {
                     last_transition_time_seconds: fuse.last_transition_time_seconds,
                 }),
         );
-        states.sort_by(|left, right| state_component_id(left).cmp(state_component_id(right)));
+        states.sort_by(|left, right| {
+            left.component_id()
+                .as_str()
+                .cmp(right.component_id().as_str())
+        });
         states
-    }
-}
-
-fn state_component_id(state: &DeviceState) -> &str {
-    match state {
-        DeviceState::Relay { component_id, .. } | DeviceState::Fuse { component_id, .. } => {
-            component_id.as_str()
-        }
     }
 }
 

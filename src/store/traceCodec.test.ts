@@ -232,6 +232,7 @@ describe("the units of the Stage 4 signals", () => {
       newton_meter_per_amp: true,
       newton_meter_second_per_radian: true,
       radian_per_second: true,
+      dimensionless: true,
     };
 
     for (const unit of Object.keys(every) as Unit[]) {
