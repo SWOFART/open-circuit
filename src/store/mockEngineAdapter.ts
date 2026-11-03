@@ -5,6 +5,8 @@ import type { CompileResult } from "../generated/CompileResult";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ResultLayout } from "../generated/ResultLayout";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
+import type { SetOperatorStateRequest } from "../generated/SetOperatorStateRequest";
+import type { SetOperatorStateResult } from "../generated/SetOperatorStateResult";
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
@@ -26,6 +28,10 @@ export interface PredeterminedResponses {
   readonly setParameter: (
     request: SetParameterRequest,
   ) => SetParameterResult | Promise<SetParameterResult>;
+  /** Without this, a position change is refused: the double decides no positions. */
+  readonly setOperatorState?: (
+    request: SetOperatorStateRequest,
+  ) => SetOperatorStateResult | Promise<SetOperatorStateResult>;
   /** Without this, a trace request is refused: the double invents no samples. */
   readonly traces?: (request: TraceRequest) => TraceBatch | Promise<TraceBatch>;
 }
@@ -33,6 +39,7 @@ export interface PredeterminedResponses {
 export class PredeterminedEngineAdapter implements EngineAdapter {
   readonly compileRequests: CompileRequest[] = [];
   readonly parameterRequests: SetParameterRequest[] = [];
+  readonly operatorRequests: SetOperatorStateRequest[] = [];
   readonly traceRequests: TraceRequest[] = [];
   /** Runs for which live frames were requested, in order. */
   readonly startedRuns: StableId[] = [];
@@ -80,6 +87,18 @@ export class PredeterminedEngineAdapter implements EngineAdapter {
     return this.responses.setParameter(request);
   }
 
+  async setOperatorState(
+    request: SetOperatorStateRequest,
+  ): Promise<SetOperatorStateResult> {
+    this.operatorRequests.push(request);
+
+    if (!this.responses.setOperatorState) {
+      throw new PredeterminedOperatorMissingError();
+    }
+
+    return this.responses.setOperatorState(request);
+  }
+
   async readTraces(request: TraceRequest): Promise<TraceBatch> {
     this.traceRequests.push(request);
 
@@ -88,6 +107,14 @@ export class PredeterminedEngineAdapter implements EngineAdapter {
     }
 
     return this.responses.traces(request);
+  }
+}
+
+/** Thrown when a test double was asked to move a position it was not given an answer for. */
+export class PredeterminedOperatorMissingError extends Error {
+  constructor() {
+    super("No predetermined operator response.");
+    this.name = "PredeterminedOperatorMissingError";
   }
 }
 

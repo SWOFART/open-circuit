@@ -13,8 +13,8 @@ use open_circuit_app_lib::simulation::{
 use open_circuit_engine::{
     Assignment, AssignmentDecoded, AssignmentSaveOutcome, CheckRequest, CheckResult,
     CompileRequest, CompileResult, ComponentCatalog, DiagnosisChecked, Schematic,
-    SetParameterRequest, SetParameterResult, StableId, TraceRequest, check_diagnosis,
-    component_catalog, validate_assignment_value,
+    SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
+    StableId, TraceRequest, check_diagnosis, component_catalog, validate_assignment_value,
 };
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Manager, RunEvent, State, WindowEvent};
@@ -324,6 +324,17 @@ async fn set_parameter(
     run_blocking(move || service.set_parameter(request)).await
 }
 
+/// Moves one switch or push button of the active run through the Engine. The position is
+/// operator state of the run: it is never saved and is not an edit of the document.
+#[tauri::command]
+async fn set_operator_state(
+    simulation: State<'_, Simulation>,
+    request: SetOperatorStateRequest,
+) -> Result<SetOperatorStateResult, String> {
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.set_operator_state(request)).await
+}
+
 /// Starts delivering binary frames of the active run over `on_frame`.
 #[tauri::command]
 async fn start_simulation(
@@ -417,6 +428,7 @@ fn main() {
             check_fault_diagnosis,
             compile_circuit,
             set_parameter,
+            set_operator_state,
             start_simulation,
             stop_simulation,
             acknowledge_frame,

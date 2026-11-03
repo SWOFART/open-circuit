@@ -21,7 +21,8 @@ use std::time::{Duration, Instant};
 
 use open_circuit_engine::{
     AdvanceRequest, CompileRequest, CompileResult, Diagnostic, DiagnosticCode, Engine,
-    SetParameterRequest, SetParameterResult, StableId, TraceRequest,
+    SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
+    StableId, TraceRequest,
 };
 
 use crate::frame::{MAX_REVISION_BYTES, encode_frame};
@@ -155,6 +156,25 @@ impl SimulationCore {
         }
 
         self.engine.set_parameter(request)
+    }
+
+    /// Delegates to the Engine, which owns the run, revision, and position checks, exactly as
+    /// for a parameter update. The stream keeps running: the next frame carries the new
+    /// revision, the recomputed step, and the new positions.
+    pub fn set_operator_state(
+        &mut self,
+        request: SetOperatorStateRequest,
+    ) -> SetOperatorStateResult {
+        if revision_too_long(&request.document_revision) {
+            return SetOperatorStateResult::Failure {
+                diagnostics: vec![Diagnostic::error(
+                    DiagnosticCode::InvalidParameter,
+                    Vec::new(),
+                )],
+            };
+        }
+
+        self.engine.set_operator_state(request)
     }
 
     /// Begins delivering frames of the active run to `sink`, replacing any earlier stream.
@@ -388,6 +408,7 @@ impl std::error::Error for ServiceError {}
 enum Message {
     Compile(CompileRequest, Sender<CompileResult>),
     SetParameter(SetParameterRequest, Sender<SetParameterResult>),
+    SetOperatorState(SetOperatorStateRequest, Sender<SetOperatorStateResult>),
     Start(
         StableId,
         Box<dyn FrameSink>,
@@ -458,6 +479,13 @@ impl SimulationService {
         request: SetParameterRequest,
     ) -> Result<SetParameterResult, ServiceError> {
         self.request(|reply| Message::SetParameter(request, reply))
+    }
+
+    pub fn set_operator_state(
+        &self,
+        request: SetOperatorStateRequest,
+    ) -> Result<SetOperatorStateResult, ServiceError> {
+        self.request(|reply| Message::SetOperatorState(request, reply))
     }
 
     pub fn start(
@@ -666,6 +694,9 @@ fn run_worker(mut core: SimulationCore, receiver: Receiver<Message>) {
             }
             Ok(Message::SetParameter(request, reply)) => {
                 let _ = reply.send(core.set_parameter(request));
+            }
+            Ok(Message::SetOperatorState(request, reply)) => {
+                let _ = reply.send(core.set_operator_state(request));
             }
             Ok(Message::Start(run_id, sink, reply)) => {
                 let _ = reply.send(core.start(run_id, sink, Instant::now()));

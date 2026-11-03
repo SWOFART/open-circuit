@@ -14,6 +14,7 @@ const distDirectory = join(repositoryRoot, "dist");
 export const mockMarkers = [
   "No predetermined response",
   "No predetermined trace response",
+  "No predetermined operator response",
   "Development mock",
   "00000000-0000-4000-8000-0000000000a0",
 ];

@@ -141,7 +141,10 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
     const kind = view.getUint8(offset + 16);
     const value = view.getUint8(offset + 17);
     const flags = view.getUint16(offset + 18, true);
-    if ((flags & ~1) !== 0) {
+    // Bit 0: a transition time is present. Bit 1: the contact conducts, defined only for
+    // a switch (kind 3) and a push button (kind 4).
+    const conducting = (flags & 2) !== 0;
+    if ((flags & ~3) !== 0 || (conducting && kind !== 3 && kind !== 4)) {
       throw new FrameDecodeError(
         "A device-state record contains unknown flag bits.",
       );
@@ -180,6 +183,26 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
         ...common,
         kind: "fuse",
         state: value === 0 ? "intact" : "tripped",
+      });
+    } else if (kind === 3 && (value === 0 || value === 1)) {
+      states.push({
+        ...common,
+        kind: "switch",
+        position: value === 0 ? "open" : "closed",
+        conducting,
+      });
+    } else if (kind === 4 && (value === 0 || value === 1)) {
+      states.push({
+        ...common,
+        kind: "pushButton",
+        position: value === 0 ? "released" : "pressed",
+        conducting,
+      });
+    } else if (kind === 5 && (value === 0 || value === 1)) {
+      states.push({
+        ...common,
+        kind: "contactor",
+        state: value === 0 ? "released" : "picked",
       });
     } else {
       throw new FrameDecodeError(
