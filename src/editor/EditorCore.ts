@@ -3,6 +3,7 @@
 // must be imported before the first `Application` is created.
 import "pixi.js/unsafe-eval";
 import { Application, Container, Graphics, Text } from "pixi.js";
+import type { DeviceState } from "../generated/DeviceState";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import { symbols, type SymbolRegistry } from "../symbols";
@@ -18,12 +19,14 @@ import {
   EMPTY_GEOMETRY,
   type EditorGeometry,
 } from "./connectivity";
+import { operatingTargets } from "./operate";
 import {
   CanvasInteraction,
   type EditorStatus,
   type EditorTool,
   type InteractionChange,
   type InteractionIntent,
+  type OperateAction,
 } from "./interaction";
 import {
   buildScene,
@@ -67,6 +70,11 @@ export interface EditorHost {
   onCommand(command: EditorCommand): void;
   /** The tool, an unfinished wire route, or a refused click changed. */
   onStatusChange?(status: EditorStatus): void;
+  /**
+   * The user toggled a switch, or pressed or released a push button. The host sends the
+   * position to the Engine: the editor never decides what conducts.
+   */
+  onOperate?(componentId: StableId, action: OperateAction): void;
 }
 
 /**
@@ -82,6 +90,10 @@ export class EditorCore {
   private initialized = false;
   private schematic: Schematic | null = null;
   private labels: ReadonlyMap<StableId, string> | undefined;
+  // The device states of the run on screen; an empty map draws every part at rest.
+  private deviceStates: ReadonlyMap<StableId, DeviceState> = new Map();
+  private deviceStatesKey = "";
+  private operable = false;
   private scene: SceneModel | null = null;
   private geometry: EditorGeometry = EMPTY_GEOMETRY;
   private contentStale = true;
@@ -144,10 +156,52 @@ export class EditorCore {
     this.scene = buildScene(schematic, this.registry, {
       labels,
       geometry: this.geometry,
+      states: this.deviceStates,
     });
     this.interaction.setScene(this.scene, this.geometry);
+    this.syncOperable();
     this.contentStale = true;
     this.overlayStale = true;
+  }
+
+  /**
+   * Shows the discrete states the Engine reported for the run on screen (none draws every
+   * part at rest), and says whether a press operates a switch or a push button: it does
+   * only while a run is on screen. Redraws only when a state changed.
+   */
+  setRunState(states: readonly DeviceState[] | null, operable: boolean): void {
+    const next = new Map<StableId, DeviceState>(
+      (states ?? []).map((state) => [state.componentId, state]),
+    );
+    const key = JSON.stringify([...next.values()]);
+
+    if (key !== this.deviceStatesKey) {
+      this.deviceStatesKey = key;
+      this.deviceStates = next;
+
+      if (this.schematic) {
+        this.scene = buildScene(this.schematic, this.registry, {
+          labels: this.labels,
+          geometry: this.geometry,
+          states: this.deviceStates,
+        });
+        this.interaction.setScene(this.scene, this.geometry);
+        this.contentStale = true;
+      }
+    }
+
+    if (operable !== this.operable) {
+      this.operable = operable;
+      this.syncOperable();
+    }
+  }
+
+  private syncOperable(): void {
+    this.interaction.setOperable(
+      this.operable && this.schematic
+        ? operatingTargets(this.schematic, this.registry)
+        : [],
+    );
   }
 
   /** Selects the active tool: Select, placement, or a drawing tool. */
@@ -193,6 +247,11 @@ export class EditorCore {
 
   private readonly handleIntent = (intent: InteractionIntent): void => {
     if (!this.schematic) {
+      return;
+    }
+
+    if (intent.kind === "operate") {
+      this.host.onOperate?.(intent.componentId, intent.action);
       return;
     }
 
@@ -249,6 +308,7 @@ export class EditorCore {
       scene = buildScene(shown, this.registry, {
         labels: this.labels,
         geometry,
+        states: this.deviceStates,
       });
     }
 

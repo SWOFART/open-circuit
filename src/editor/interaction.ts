@@ -4,6 +4,7 @@ import type { StableId } from "../generated/StableId";
 import { EMPTY_GEOMETRY, type EditorGeometry } from "./connectivity";
 import type { Rotation } from "./geometry";
 import { hitTest, sceneContains, type SelectionTarget } from "./hitTest";
+import { operatingTargetAt, type OperatingTarget } from "./operate";
 import type { SceneModel, ScenePoint } from "./scene";
 import {
   fitView,
@@ -99,6 +100,15 @@ export type InteractionIntent =
     }
   | { readonly kind: "rotate"; readonly componentId: StableId }
   | { readonly kind: "delete"; readonly target: SelectionTarget }
+  /**
+   * A switch is toggled, or a push button is pressed and later released. The host sends
+   * the position to the Engine; nothing here decides what conducts.
+   */
+  | {
+      readonly kind: "operate";
+      readonly componentId: StableId;
+      readonly action: OperateAction;
+    }
   | { readonly kind: "undo" }
   | { readonly kind: "redo" }
   | { readonly kind: "addWire"; readonly points: readonly GridPoint[] }
@@ -119,6 +129,9 @@ export type InteractionIntent =
       readonly id: StableId;
       readonly position: GridPoint;
     };
+
+/** What a press on a switch or a push button asks for. */
+export type OperateAction = "toggle" | "press" | "release";
 
 /** What an uncommitted drag shows. Nothing is committed until release. */
 export type DragPreview =
@@ -159,6 +172,12 @@ type DragTarget =
 type Gesture =
   | { readonly kind: "idle" }
   | {
+      // A push button is held; releasing, leaving, or canceling releases it.
+      readonly kind: "operating";
+      readonly pointerId: number;
+      readonly target: OperatingTarget;
+    }
+  | {
       readonly kind: "panning";
       readonly pointerId: number;
       readonly last: ScenePoint;
@@ -193,6 +212,8 @@ export class CanvasInteraction {
   private autoFit = true;
   private scene: SceneModel | null = null;
   private geometry: EditorGeometry = EMPTY_GEOMETRY;
+  // The switches and push buttons a press operates; empty unless a run is on screen.
+  private operable: readonly OperatingTarget[] = [];
   private selected: SelectionTarget | null = null;
   private gesture: Gesture = { kind: "idle" };
   private panModifier = false;
@@ -312,6 +333,33 @@ export class CanvasInteraction {
     if (this.selected && !sceneContains(scene, this.selected)) {
       this.selected = null;
       this.onChange("selection");
+    }
+  }
+
+  /**
+   * Sets the devices a press operates. The host passes none while no run is on screen, and
+   * a press then selects and moves a switch like any other part. A button that is held when
+   * its area goes away is released.
+   */
+  setOperable(targets: readonly OperatingTarget[]): void {
+    this.operable = targets;
+
+    if (
+      this.gesture.kind === "operating" &&
+      !targets.some(
+        (target) =>
+          this.gesture.kind === "operating" &&
+          target.componentId === this.gesture.target.componentId,
+      )
+    ) {
+      this.cancelGesture();
+    }
+  }
+
+  /** The host lost focus: a held push button must not stay pressed. */
+  releaseOperated(): void {
+    if (this.gesture.kind === "operating") {
+      this.cancelGesture();
     }
   }
 
@@ -438,6 +486,11 @@ export class CanvasInteraction {
       return this.armDrag(pointer, at, vertex);
     }
 
+    const operated = operatingTargetAt(this.operable, exact, tolerance);
+    if (operated) {
+      return this.operate(pointer, operated);
+    }
+
     const hit = this.scene ? hitTest(this.scene, exact, tolerance) : null;
     this.select(hit);
 
@@ -458,6 +511,35 @@ export class CanvasInteraction {
     }
 
     return false;
+  }
+
+  /**
+   * A press on a lever or an actuator. A switch toggles at once. A push button is pressed
+   * now and released by the matching release, so the pointer is captured.
+   */
+  private operate(pointer: CanvasPointer, target: OperatingTarget): boolean {
+    this.select({ kind: "component", id: target.componentId });
+
+    if (target.kind === "switch") {
+      this.onIntent({
+        kind: "operate",
+        componentId: target.componentId,
+        action: "toggle",
+      });
+      return false;
+    }
+
+    this.gesture = {
+      kind: "operating",
+      pointerId: pointer.pointerId,
+      target,
+    };
+    this.onIntent({
+      kind: "operate",
+      componentId: target.componentId,
+      action: "press",
+    });
+    return true;
   }
 
   private vertexUnder(point: ScenePoint, tolerance: number): DragTarget | null {
@@ -585,6 +667,21 @@ export class CanvasInteraction {
     }
 
     this.updatePointer(pointer);
+
+    if (
+      this.gesture.kind === "operating" &&
+      this.gesture.pointerId === pointer.pointerId
+    ) {
+      // Leaving the actuator while pressed releases the button.
+      const { target } = this.gesture;
+      const exact = toGrid(pointer, this.currentView);
+      const tolerance = HIT_TOLERANCE_PX / this.currentView.scale;
+
+      if (!operatingTargetAt([target], exact, tolerance)) {
+        this.cancelGesture();
+      }
+      return;
+    }
 
     if (
       (this.gesture.kind === "pressing" || this.gesture.kind === "dragging") &&
@@ -724,6 +821,7 @@ export class CanvasInteraction {
   }
 
   pointerLeave(): void {
+    this.releaseOperated();
     this.pointerScreen = null;
     if (this.pointer !== null) {
       this.pointer = null;
@@ -773,6 +871,15 @@ export class CanvasInteraction {
     }
 
     this.gesture = { kind: "idle" };
+    if (previous.kind === "operating") {
+      // Every way a press can end releases the button: pointer up, leaving the actuator,
+      // cancel, lost capture, losing focus, and Escape.
+      this.onIntent({
+        kind: "operate",
+        componentId: previous.target.componentId,
+        action: "release",
+      });
+    }
     if (previous.kind === "dragging") {
       this.onChange("preview");
     }

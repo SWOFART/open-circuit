@@ -101,7 +101,7 @@ export function toolHint(status: EditorStatus): {
   switch (tool.kind) {
     case "select":
       return {
-        text: "Click an object to select it. Drag to move it. Delete removes it. Space or the middle button pans.",
+        text: "Click an object to select it. Drag to move it. Delete removes it. Space or the middle button pans. While a simulation runs, click a switch lever or hold a push button to operate it.",
         warning: false,
       };
     case "place":

@@ -220,6 +220,7 @@ export function bindCanvasInput(
   };
 
   const onBlur = (): void => {
+    interaction.releaseOperated();
     interaction.setPanModifier(false);
     interaction.setVerticalFirst(false);
     syncCursor();

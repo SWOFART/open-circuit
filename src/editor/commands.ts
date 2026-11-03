@@ -151,6 +151,10 @@ export function commandForIntent(
             position: intent.position,
           }
         : null;
+    case "operate":
+      // A position is operator state of the run, not an edit of the document: it has no
+      // command, no undo entry, and never marks the document as modified.
+      return null;
     case "undo":
     case "redo":
       return { kind: intent.kind };

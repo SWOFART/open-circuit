@@ -10,8 +10,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { EditorCommand } from "../editor/commands";
 import type { AssignmentError } from "../generated/AssignmentError";
 import type { Schematic } from "../generated/Schematic";
+import type { StableId } from "../generated/StableId";
 import { EditorCore } from "../editor/EditorCore";
-import type { EditorStatus } from "../editor/interaction";
+import type { EditorStatus, OperateAction } from "../editor/interaction";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
   dividerSchematic,
@@ -53,6 +54,7 @@ import { StudentPanel } from "./assignment/StudentPanel";
 import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
+import { operatorPosition } from "./operatorPosition";
 import { Palette, toolHint } from "./Palette";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { ResultPanel } from "./ResultPanel";
@@ -352,6 +354,36 @@ export function App({
 
   // The editor is created once; commands always use the latest catalog.
   const commandHandler = useRef<(command: EditorCommand) => void>(() => {});
+  // Moves a switch or a push button of the run on screen. It reads the position the
+  // Engine last reported and sends the position it wants; the interface decides nothing
+  // about what conducts.
+  const operateHandler = useRef<
+    (componentId: StableId, action: OperateAction) => void
+  >(() => {});
+  // Push buttons this interface has pressed and not yet released. A release is always
+  // sent for one of them, even if the snapshot on screen no longer has the device's state.
+  const pressedButtons = useRef(new Set<StableId>());
+  operateHandler.current = (componentId, action) => {
+    const position =
+      action === "release" && pressedButtons.current.has(componentId)
+        ? "released"
+        : operatorPosition(
+            action,
+            state.snapshot?.states.find(
+              (entry) => entry.componentId === componentId,
+            ),
+          );
+
+    if (position === "pressed") {
+      pressedButtons.current.add(componentId);
+    } else if (position === "released") {
+      pressedButtons.current.delete(componentId);
+    }
+
+    if (position !== null) {
+      void controller?.setOperatorState(componentId, position);
+    }
+  };
   useEffect(() => {
     commandHandler.current = (command) => {
       if (projectBusy || pendingActionRef.current !== null) return;
@@ -379,6 +411,8 @@ export function App({
 
     const editor = new EditorCore({
       onCommand: (command) => commandHandler.current(command),
+      onOperate: (componentId, action) =>
+        operateHandler.current(componentId, action),
       onStatusChange: setStatus,
     });
     editorRef.current = editor;
@@ -396,6 +430,16 @@ export function App({
   useEffect(() => {
     editorRef.current?.setSchematic(document.schematic, labels);
   }, [document.schematic, labels]);
+
+  // The symbols show the states of the run on screen, and a press operates a device only
+  // while there is a run. Without a run every part is drawn at rest.
+  const shownStates = state.status === "ready" ? state.snapshot?.states : null;
+  useEffect(() => {
+    editorRef.current?.setRunState(
+      shownStates ?? null,
+      state.status === "ready" && state.run !== null,
+    );
+  }, [shownStates, state.status, state.run]);
 
   // Every document change reaches the Engine; parameter edits are sent
   // directly by the Inspector, so this then finds nothing new.
@@ -660,6 +704,9 @@ export function App({
             state={state}
             schematic={document.schematic}
             labels={labels}
+            onOperate={(componentId, action) =>
+              operateHandler.current(componentId, action)
+            }
           />
         </aside>
 
