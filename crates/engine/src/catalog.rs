@@ -20,6 +20,7 @@ pub enum ComponentTypeId {
     SwitchSpst,
     PushButtonNo,
     PushButtonNc,
+    Contactor,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -33,6 +34,16 @@ pub enum PinId {
     Common,
     NormallyOpen,
     NormallyClosed,
+    A1,
+    A2,
+    #[serde(rename = "no_1")]
+    No1,
+    #[serde(rename = "no_2")]
+    No2,
+    #[serde(rename = "nc_1")]
+    Nc1,
+    #[serde(rename = "nc_2")]
+    Nc2,
 }
 
 impl PinId {
@@ -45,6 +56,12 @@ impl PinId {
             Self::Common => "common",
             Self::NormallyOpen => "normally_open",
             Self::NormallyClosed => "normally_closed",
+            Self::A1 => "a1",
+            Self::A2 => "a2",
+            Self::No1 => "no_1",
+            Self::No2 => "no_2",
+            Self::Nc1 => "nc_1",
+            Self::Nc2 => "nc_2",
         }
     }
 }
@@ -567,6 +584,84 @@ pub fn component_catalog() -> ComponentCatalog {
                     initial_condition: false,
                 }],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Contactor,
+                display_name_key: "component.contactor.name".to_owned(),
+                pins: vec![
+                    PinDefinition {
+                        id: PinId::A1,
+                        role: PinRole::Positive,
+                    },
+                    PinDefinition {
+                        id: PinId::A2,
+                        role: PinRole::Negative,
+                    },
+                    PinDefinition {
+                        id: PinId::No1,
+                        role: PinRole::Unpolarized,
+                    },
+                    PinDefinition {
+                        id: PinId::No2,
+                        role: PinRole::Unpolarized,
+                    },
+                    PinDefinition {
+                        id: PinId::Nc1,
+                        role: PinRole::Unpolarized,
+                    },
+                    PinDefinition {
+                        id: PinId::Nc2,
+                        role: PinRole::Unpolarized,
+                    },
+                ],
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::CoilResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 100.0,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.contactor.coilResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::CoilInductanceHenries,
+                        unit: Unit::Henry,
+                        default_value: 0.01,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.contactor.coilInductance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::PickupCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.04,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.contactor.pickupCurrent".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::DropoutCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 0.02,
+                        domain: NumericDomain::NonNegative,
+                        description_key: "component.contactor.dropoutCurrent".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::ClosedContactResistanceOhms,
+                        unit: Unit::Ohm,
+                        default_value: 0.1,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.contactor.closedContactResistance".to_owned(),
+                        optional: false,
+                        initial_condition: false,
+                    },
+                ],
+                fault_kinds: supported_fault_kinds(ComponentTypeId::Contactor).to_vec(),
             },
         ],
     }

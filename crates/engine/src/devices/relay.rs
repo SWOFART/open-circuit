@@ -62,41 +62,56 @@ impl RelayDevice {
     }
 
     fn transient_companion(&self) -> Result<(f64, f64), Diagnostic> {
-        let RelayCoilMode::Transient {
-            step_seconds,
-            start_current_amps,
-            start_voltage_volts,
-            integration_method,
-        } = self.mode
-        else {
-            return Err(component_diagnostic(
-                DiagnosticCode::InvalidParameter,
-                &self.component_id,
-            ));
-        };
-        let (conductance, history_current) = match integration_method {
-            IntegrationMethod::Trapezoidal => {
-                let inductive = 2.0 * self.coil_inductance_henries / step_seconds;
-                let conductance = 1.0 / (self.coil_resistance_ohms + inductive);
-                let history_current = conductance
-                    * ((inductive - self.coil_resistance_ohms) * start_current_amps
-                        + start_voltage_volts);
-                (conductance, history_current)
-            }
-            IntegrationMethod::BackwardEuler => {
-                let inductive = self.coil_inductance_henries / step_seconds;
-                let conductance = 1.0 / (self.coil_resistance_ohms + inductive);
-                (conductance, conductance * inductive * start_current_amps)
-            }
-        };
-        if !conductance.is_finite() || conductance <= 0.0 || !history_current.is_finite() {
-            return Err(component_diagnostic(
-                DiagnosticCode::InvalidParameter,
-                &self.component_id,
-            ));
-        }
-        Ok((conductance, history_current))
+        coil_companion(
+            &self.component_id,
+            self.mode,
+            self.coil_resistance_ohms,
+            self.coil_inductance_henries,
+        )
     }
+}
+
+/// The Norton companion (conductance, history current) of a relay or contactor coil for one
+/// transient interval. Any other coil mode, or a non-finite companion, is an invalid parameter.
+pub(crate) fn coil_companion(
+    component_id: &StableId,
+    mode: RelayCoilMode,
+    coil_resistance_ohms: f64,
+    coil_inductance_henries: f64,
+) -> Result<(f64, f64), Diagnostic> {
+    let RelayCoilMode::Transient {
+        step_seconds,
+        start_current_amps,
+        start_voltage_volts,
+        integration_method,
+    } = mode
+    else {
+        return Err(component_diagnostic(
+            DiagnosticCode::InvalidParameter,
+            component_id,
+        ));
+    };
+    let (conductance, history_current) = match integration_method {
+        IntegrationMethod::Trapezoidal => {
+            let inductive = 2.0 * coil_inductance_henries / step_seconds;
+            let conductance = 1.0 / (coil_resistance_ohms + inductive);
+            let history_current = conductance
+                * ((inductive - coil_resistance_ohms) * start_current_amps + start_voltage_volts);
+            (conductance, history_current)
+        }
+        IntegrationMethod::BackwardEuler => {
+            let inductive = coil_inductance_henries / step_seconds;
+            let conductance = 1.0 / (coil_resistance_ohms + inductive);
+            (conductance, conductance * inductive * start_current_amps)
+        }
+    };
+    if !conductance.is_finite() || conductance <= 0.0 || !history_current.is_finite() {
+        return Err(component_diagnostic(
+            DiagnosticCode::InvalidParameter,
+            component_id,
+        ));
+    }
+    Ok((conductance, history_current))
 }
 
 impl Device for RelayDevice {

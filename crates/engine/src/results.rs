@@ -99,6 +99,13 @@ pub enum DeviceState {
         #[ts(optional)]
         last_transition_time_seconds: Option<f64>,
     },
+    Contactor {
+        component_id: StableId,
+        state: RelayContactState,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
 }
 
 impl DeviceState {
@@ -107,7 +114,8 @@ impl DeviceState {
             Self::Relay { component_id, .. }
             | Self::Fuse { component_id, .. }
             | Self::Switch { component_id, .. }
-            | Self::PushButton { component_id, .. } => component_id,
+            | Self::PushButton { component_id, .. }
+            | Self::Contactor { component_id, .. } => component_id,
         }
     }
 }

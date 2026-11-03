@@ -1,6 +1,7 @@
 //! Device behavior is separate from the serialized schematic variants.
 
 mod capacitor;
+mod contactor;
 mod fuse;
 mod inductor;
 mod motor;
@@ -13,6 +14,7 @@ use crate::{DeviceState, Diagnostic, StableId};
 use super::mna::{MnaSystem, NodeVariables};
 
 pub(crate) use capacitor::{CapacitorDevice, CapacitorMode};
+pub(crate) use contactor::ContactorDevice;
 pub(crate) use fuse::FuseDevice;
 pub(crate) use inductor::{InductorDevice, InductorMode};
 pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};

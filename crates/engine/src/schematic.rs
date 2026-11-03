@@ -232,7 +232,7 @@ pub struct PushButtonParameters {
 
 /// Saved schema version 1 supports resistors, independent voltage sources,
 /// capacitors, inductors, relays, fuses, permanent-magnet DC motors, voltmeters,
-/// ammeters, latching switches, and push buttons.
+/// ammeters, latching switches, push buttons, and contactors.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -326,6 +326,13 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: PushButtonParameters,
     },
+    Contactor {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: RelayParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -342,7 +349,8 @@ impl ComponentSpec {
             | Self::Ammeter { id, .. }
             | Self::SwitchSpst { id, .. }
             | Self::PushButtonNo { id, .. }
-            | Self::PushButtonNc { id, .. } => id,
+            | Self::PushButtonNc { id, .. }
+            | Self::Contactor { id, .. } => id,
         }
     }
 
@@ -359,7 +367,8 @@ impl ComponentSpec {
             | Self::Ammeter { position, .. }
             | Self::SwitchSpst { position, .. }
             | Self::PushButtonNo { position, .. }
-            | Self::PushButtonNc { position, .. } => *position,
+            | Self::PushButtonNc { position, .. }
+            | Self::Contactor { position, .. } => *position,
         }
     }
 
@@ -376,7 +385,8 @@ impl ComponentSpec {
             | Self::Ammeter { rotation_deg, .. }
             | Self::SwitchSpst { rotation_deg, .. }
             | Self::PushButtonNo { rotation_deg, .. }
-            | Self::PushButtonNc { rotation_deg, .. } => *rotation_deg,
+            | Self::PushButtonNc { rotation_deg, .. }
+            | Self::Contactor { rotation_deg, .. } => *rotation_deg,
         }
     }
 
@@ -394,6 +404,7 @@ impl ComponentSpec {
             Self::SwitchSpst { .. } => ComponentTypeId::SwitchSpst,
             Self::PushButtonNo { .. } => ComponentTypeId::PushButtonNo,
             Self::PushButtonNc { .. } => ComponentTypeId::PushButtonNc,
+            Self::Contactor { .. } => ComponentTypeId::Contactor,
         }
     }
 
@@ -429,7 +440,7 @@ impl ComponentSpec {
                 }
                 values
             }
-            Self::RelaySpdt { parameters, .. } => vec![
+            Self::RelaySpdt { parameters, .. } | Self::Contactor { parameters, .. } => vec![
                 (
                     ParameterId::CoilResistanceOhms,
                     parameters.coil_resistance_ohms,
@@ -623,7 +634,8 @@ impl Schematic {
             | ComponentSpec::Ammeter { rotation_deg, .. }
             | ComponentSpec::SwitchSpst { rotation_deg, .. }
             | ComponentSpec::PushButtonNo { rotation_deg, .. }
-            | ComponentSpec::PushButtonNc { rotation_deg, .. } = component
+            | ComponentSpec::PushButtonNc { rotation_deg, .. }
+            | ComponentSpec::Contactor { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(
@@ -672,7 +684,8 @@ impl Schematic {
                 }
             }
 
-            if let ComponentSpec::RelaySpdt { parameters, .. } = component
+            if let ComponentSpec::RelaySpdt { parameters, .. }
+            | ComponentSpec::Contactor { parameters, .. } = component
                 && parameters.dropout_current_amps >= parameters.pickup_current_amps
             {
                 diagnostics.push(Diagnostic::error(

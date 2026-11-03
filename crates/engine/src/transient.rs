@@ -35,6 +35,8 @@ pub(super) struct InductorState {
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct RelayState {
+    /// The state belongs to a contactor, which is reported as its own kind of device state.
+    pub(super) contactor: bool,
     pub(super) current_amps: f64,
     pub(super) voltage_volts: f64,
     pub(super) state: RelayContactState,
@@ -72,10 +74,22 @@ impl CircuitStates {
         let mut states = self
             .relays
             .iter()
-            .map(|(component_id, relay)| DeviceState::Relay {
-                component_id: component_id.clone(),
-                state: relay.state,
-                last_transition_time_seconds: relay.last_transition_time_seconds,
+            .map(|(component_id, relay)| {
+                let (component_id, state) = (component_id.clone(), relay.state);
+                let last_transition_time_seconds = relay.last_transition_time_seconds;
+                if relay.contactor {
+                    DeviceState::Contactor {
+                        component_id,
+                        state,
+                        last_transition_time_seconds,
+                    }
+                } else {
+                    DeviceState::Relay {
+                        component_id,
+                        state,
+                        last_transition_time_seconds,
+                    }
+                }
             })
             .collect::<Vec<_>>();
         states.extend(
@@ -154,21 +168,29 @@ pub(super) fn circuit_states_from_results(
         .components
         .iter()
         .filter_map(|component| {
-            let ComponentSpec::RelaySpdt { id, .. } = component else {
+            let (ComponentSpec::RelaySpdt { id, .. } | ComponentSpec::Contactor { id, .. }) =
+                component
+            else {
                 return None;
             };
             let result = by_component.get(id.as_str())?;
-            let Some(DeviceState::Relay {
+            let (DeviceState::Relay {
                 state,
                 last_transition_time_seconds,
                 ..
-            }) = &result.state
+            }
+            | DeviceState::Contactor {
+                state,
+                last_transition_time_seconds,
+                ..
+            }) = &result.state.as_ref()?
             else {
                 return None;
             };
             Some((
                 id.clone(),
                 RelayState {
+                    contactor: matches!(component, ComponentSpec::Contactor { .. }),
                     current_amps: result.current_amps,
                     voltage_volts: result.voltage_volts,
                     state: *state,
@@ -422,7 +444,9 @@ pub(super) fn settle_discrete_events(
     loop {
         let mut relay_changes = Vec::new();
         for component in &schematic.components {
-            let ComponentSpec::RelaySpdt { id, parameters, .. } = component else {
+            let (ComponentSpec::RelaySpdt { id, parameters, .. }
+            | ComponentSpec::Contactor { id, parameters, .. }) = component
+            else {
                 continue;
             };
             let Some(relay) = states.relays.get(id) else {
@@ -567,6 +591,11 @@ fn estimate_transient_rate_bound(
     let mut maximum_rate: f64 = 0.0;
     for spec in &specs {
         if let DeviceModel::RelaySpdt {
+            coil_resistance_ohms,
+            coil_inductance_henries,
+            ..
+        }
+        | DeviceModel::Contactor {
             coil_resistance_ohms,
             coil_inductance_henries,
             ..
@@ -719,6 +748,28 @@ fn estimate_transient_rate_bound(
                             .copied(),
                         1.0 / closed_contact_resistance_ohms,
                     )?;
+                }
+                DeviceModel::Contactor {
+                    coil_resistance_ohms,
+                    closed_contact_resistance_ohms,
+                    normally_open,
+                    normally_closed,
+                    ..
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / coil_resistance_ohms,
+                    )?;
+                    for contact in [normally_open, normally_closed] {
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(contact.pin1)).copied(),
+                            root_to_variable.get(&sets.find(contact.pin2)).copied(),
+                            1.0 / closed_contact_resistance_ohms,
+                        )?;
+                    }
                 }
                 DeviceModel::DcVoltageSource { .. } => {}
             }

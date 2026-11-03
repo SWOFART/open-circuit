@@ -195,6 +195,20 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
                 *last_transition_time_seconds,
                 false,
             ),
+            DeviceState::Contactor {
+                component_id,
+                state,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                5_u8,
+                match state {
+                    RelayContactState::Released => 0_u8,
+                    RelayContactState::Picked => 1,
+                },
+                *last_transition_time_seconds,
+                false,
+            ),
             DeviceState::Switch {
                 component_id,
                 position,
@@ -418,6 +432,16 @@ fn decode_states(
             (2, 1) => DeviceState::Fuse {
                 component_id,
                 state: FuseState::Tripped,
+                last_transition_time_seconds: transition,
+            },
+            (5, 0) => DeviceState::Contactor {
+                component_id,
+                state: RelayContactState::Released,
+                last_transition_time_seconds: transition,
+            },
+            (5, 1) => DeviceState::Contactor {
+                component_id,
+                state: RelayContactState::Picked,
                 last_transition_time_seconds: transition,
             },
             (3, 0 | 1) => DeviceState::Switch {
