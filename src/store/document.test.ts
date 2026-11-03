@@ -352,6 +352,7 @@ describe("document and Engine separation", () => {
       compile: (request) => base.compile(request),
       setParameter: async () => ({ status: "failure", diagnostics: [] }),
       startFrames: (runId, handlers) => base.startFrames(runId, handlers),
+      setOperatorState: (request) => base.setOperatorState(request),
       readTraces: (request) => base.readTraces(request),
     };
     const controller = new SimulationController(

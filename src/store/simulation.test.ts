@@ -356,6 +356,7 @@ describe("unavailable backend", () => {
       compile: () =>
         Promise.reject(new EngineUnavailableError("The bridge is down.")),
       setParameter: () => Promise.reject(new Error("unused")),
+      setOperatorState: () => Promise.reject(new Error("unused")),
       readTraces: () => Promise.reject(new Error("unused")),
     };
     const controller = controllerFor(adapter);
@@ -618,6 +619,7 @@ describe("rapid edits", () => {
             resolve: (result) => resolve(result),
           });
         }),
+      setOperatorState: () => Promise.reject(new Error("unused")),
       readTraces: () => Promise.reject(new Error("unused")),
     };
   }
@@ -869,6 +871,7 @@ describe("lifecycle", () => {
           resolveCompile = resolve;
         }),
       setParameter: () => Promise.reject(new Error("unused")),
+      setOperatorState: () => Promise.reject(new Error("unused")),
       readTraces: () => Promise.reject(new Error("unused")),
     };
     const controller = controllerFor(adapter);

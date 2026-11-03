@@ -11,8 +11,9 @@ use open_circuit_app_lib::simulation::{
     FrameSink, SimulationConfig, SimulationCore, SinkClosed, TraceSink,
 };
 use open_circuit_engine::{
-    CompileRequest, CompileResult, ParameterId, ResultLayout, ResultQuantity, ResultSnapshot,
-    SetParameterRequest, SetParameterResult, StableId, TraceQuery, TraceRequest,
+    CompileRequest, CompileResult, OperatorPosition, ParameterId, ResultLayout, ResultQuantity,
+    ResultSnapshot, SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest,
+    SetParameterResult, StableId, TraceQuery, TraceRequest,
 };
 use serde_json::Value;
 
@@ -232,6 +233,29 @@ impl Run {
         let result = self.core.set_parameter(request.clone());
 
         if matches!(result, SetParameterResult::Success { .. }) {
+            self.revision += 1;
+        }
+
+        (request, result)
+    }
+
+    /// A position change, as the application sends it: like a parameter update, it names
+    /// the current revision and adopts the next one.
+    pub fn set_operator_state(
+        &mut self,
+        component: &str,
+        position: OperatorPosition,
+    ) -> (SetOperatorStateRequest, SetOperatorStateResult) {
+        let request = SetOperatorStateRequest {
+            run_id: self.run_id.clone(),
+            expected_document_revision: self.revision(),
+            document_revision: format!("rev-{}", self.revision + 1),
+            component_id: StableId::parse(component).expect("a valid component ID"),
+            position,
+        };
+        let result = self.core.set_operator_state(request.clone());
+
+        if matches!(result, SetOperatorStateResult::Success { .. }) {
             self.revision += 1;
         }
 

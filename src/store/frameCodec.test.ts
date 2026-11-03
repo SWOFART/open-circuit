@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import frameFixture from "../../tests/golden/stage-1-frame.json";
 import stateFrameFixture from "../../tests/golden/stage-4-frame.json";
+import stage6FrameFixture from "../../tests/golden/stage-6-frame.json";
 import {
   FIXED_HEADER_LENGTH,
   FrameDecodeError,
@@ -210,7 +211,7 @@ describe("refusing corrupted frames", () => {
     const fixture = new Uint8Array(fromHex(stateFrameFixture.hex));
     const stateOffset = payloadOffset(11) + 16;
     for (const [relativeOffset, value] of [
-      [16, 3],
+      [16, 6],
       [17, 2],
     ] as const) {
       const bytes = fixture.slice();
@@ -232,6 +233,43 @@ describe("refusing corrupted frames", () => {
       true,
     );
     decodingFails(futureTransition, /transition time is invalid/);
+  });
+
+  it("reads the Stage 6 state kinds from the independently encoded frame", () => {
+    const snapshot = decodeFrame(fromHex(stage6FrameFixture.hex));
+
+    expect(snapshot.values).toEqual(stage6FrameFixture.frame.values);
+    expect(snapshot.states).toEqual(stage6FrameFixture.frame.states);
+    expect(snapshot.states.map((state) => state.kind)).toEqual([
+      "switch",
+      "pushButton",
+      "contactor",
+    ]);
+  });
+
+  it("limits the conducting flag to switches and push buttons", () => {
+    const fixture = new Uint8Array(fromHex(stage6FrameFixture.hex));
+    // Two numeric values, then the three state records of the Stage 6 frame.
+    const records = payloadOffset(9) + 16;
+    const flagsAt = (record: number) => records + 32 * record + 18;
+
+    // A contactor record with `conducting`, and a bit that is not defined at all.
+    for (const [record, flags] of [
+      [2, 3],
+      [0, 7],
+    ] as const) {
+      const bytes = fixture.slice();
+      new DataView(bytes.buffer).setUint16(flagsAt(record), flags, true);
+      decodingFails(bytes, /unknown flag bits/);
+    }
+
+    // A value other than 0 and 1, and a kind after the contactor.
+    const badValue = fixture.slice();
+    badValue[records + 64 + 17] = 2;
+    decodingFails(badValue, /unknown kind or value/);
+    const badKind = fixture.slice();
+    badKind[records + 64 + 16] = 6;
+    decodingFails(badKind, /unknown kind or value/);
   });
 
   it("renders any 16 bytes as a lowercase hyphenated run ID", () => {

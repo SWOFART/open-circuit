@@ -3,6 +3,8 @@ import type { CompileRequest } from "../generated/CompileRequest";
 import type { CompileResult } from "../generated/CompileResult";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
+import type { SetOperatorStateRequest } from "../generated/SetOperatorStateRequest";
+import type { SetOperatorStateResult } from "../generated/SetOperatorStateResult";
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
@@ -30,6 +32,13 @@ export interface EngineAdapter {
   getCatalog(): Promise<ComponentCatalog>;
   compile(request: CompileRequest): Promise<CompileResult>;
   setParameter(request: SetParameterRequest): Promise<SetParameterResult>;
+  /**
+   * Moves one switch or push button of the active run. The position belongs to the run, not
+   * to the document: it is never saved, and a compile puts every position back.
+   */
+  setOperatorState(
+    request: SetOperatorStateRequest,
+  ): Promise<SetOperatorStateResult>;
   /**
    * Starts live frames of the compiled run. Resolves once the stream is open and
    * returns a function that stops it. Frames are an optimisation over the results
@@ -111,6 +120,14 @@ function normalizeSetParameterResult(
     : result;
 }
 
+function normalizeSetOperatorStateResult(
+  result: SetOperatorStateResult,
+): SetOperatorStateResult {
+  return result.status === "success"
+    ? { ...result, snapshot: normalizeSnapshot(result.snapshot) }
+    : result;
+}
+
 function requireTauri(): void {
   if (!isTauri()) {
     throw new EngineUnavailableError(
@@ -153,6 +170,14 @@ export class TauriEngineAdapter implements EngineAdapter {
   ): Promise<SetParameterResult> {
     return normalizeSetParameterResult(
       await call<SetParameterResult>("set_parameter", { request }),
+    );
+  }
+
+  async setOperatorState(
+    request: SetOperatorStateRequest,
+  ): Promise<SetOperatorStateResult> {
+    return normalizeSetOperatorStateResult(
+      await call<SetOperatorStateResult>("set_operator_state", { request }),
     );
   }
 

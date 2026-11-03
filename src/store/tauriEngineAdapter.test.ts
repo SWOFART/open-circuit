@@ -147,6 +147,33 @@ describe("commands", () => {
     expect(result.snapshot.metadata.frameSequence).toBe(9n);
   });
 
+  it("sends a position change as set_operator_state and normalizes its counters", async () => {
+    tauri.state.answer = () => ({
+      status: "success",
+      internalSubsteps: 1,
+      snapshot: snapshotJson(21, 11),
+      diagnostics: [],
+    });
+    const request = {
+      runId: RUN_ID,
+      expectedDocumentRevision: "rev-1",
+      documentRevision: "rev-2",
+      componentId: "00000000-0000-4000-8000-000000000002",
+      position: "closed",
+    } as const;
+
+    const result = await new TauriEngineAdapter().setOperatorState(request);
+
+    expect(tauri.state.calls).toEqual([
+      { command: "set_operator_state", args: { request } },
+    ]);
+    if (result.status !== "success") {
+      throw new Error("expected a successful position change");
+    }
+    expect(result.snapshot.metadata.simulationStep).toBe(21n);
+    expect(result.snapshot.metadata.frameSequence).toBe(11n);
+  });
+
   it("passes engine failures through untouched", async () => {
     const failure = { status: "failure", diagnostics: [] };
     tauri.state.answer = () => failure;

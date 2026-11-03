@@ -2,12 +2,15 @@ import { buildGeometryEnvelope } from "../editor/geometry";
 import type { CompileResult } from "../generated/CompileResult";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { FaultSpec } from "../generated/FaultSpec";
+import type { DeviceState } from "../generated/DeviceState";
 import type { Diagnostic } from "../generated/Diagnostic";
+import type { OperatorPosition } from "../generated/OperatorPosition";
 import type { ParameterId } from "../generated/ParameterId";
 import type { ResultLayout } from "../generated/ResultLayout";
 import type { ResultQuantity } from "../generated/ResultQuantity";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { Schematic } from "../generated/Schematic";
+import type { SetOperatorStateResult } from "../generated/SetOperatorStateResult";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
 import { symbols, type SymbolRegistry } from "../symbols";
@@ -100,11 +103,10 @@ function statesMatchSchematic(
   snapshot: ResultSnapshot,
   schematic: Schematic,
 ): boolean {
-  const expected = new Map<string, "relay" | "fuse">();
+  const expected = new Map<string, DeviceState["kind"]>();
   for (const component of schematic.components) {
-    const typeId: string = component.typeId;
-    if (typeId === "relay_spdt") expected.set(component.id, "relay");
-    if (typeId === "fuse") expected.set(component.id, "fuse");
+    const kind = STATE_KIND_OF_TYPE[component.typeId];
+    if (kind) expected.set(component.id, kind);
   }
 
   if (
@@ -117,20 +119,7 @@ function statesMatchSchematic(
   for (const state of snapshot.states) {
     const expectedKind = expected.get(state.componentId);
     if (!expectedKind || state.kind !== expectedKind) return false;
-    if (
-      state.kind === "relay" &&
-      state.state !== "released" &&
-      state.state !== "picked"
-    ) {
-      return false;
-    }
-    if (
-      state.kind === "fuse" &&
-      state.state !== "intact" &&
-      state.state !== "tripped"
-    ) {
-      return false;
-    }
+    if (!hasKnownValue(state)) return false;
     if (
       state.lastTransitionTimeSeconds !== undefined &&
       (!Number.isFinite(state.lastTransitionTimeSeconds) ||
@@ -144,6 +133,41 @@ function statesMatchSchematic(
   }
   const expectedIds = [...expected.keys()].sort();
   return stateIds.every((id, index) => id === expectedIds[index]);
+}
+
+/** The kind of state record a component type has in the state table, if it has one. */
+const STATE_KIND_OF_TYPE: Readonly<
+  Partial<
+    Record<Schematic["components"][number]["typeId"], DeviceState["kind"]>
+  >
+> = {
+  relay_spdt: "relay",
+  fuse: "fuse",
+  switch_spst: "switch",
+  push_button_no: "pushButton",
+  push_button_nc: "pushButton",
+  contactor: "contactor",
+};
+
+/** A state value that the contract defines for its kind. */
+function hasKnownValue(state: DeviceState): boolean {
+  switch (state.kind) {
+    case "relay":
+    case "contactor":
+      return state.state === "released" || state.state === "picked";
+    case "fuse":
+      return state.state === "intact" || state.state === "tripped";
+    case "switch":
+      return (
+        (state.position === "open" || state.position === "closed") &&
+        typeof state.conducting === "boolean"
+      );
+    case "pushButton":
+      return (
+        (state.position === "released" || state.position === "pressed") &&
+        typeof state.conducting === "boolean"
+      );
+  }
 }
 
 /**
@@ -230,6 +254,21 @@ export interface ParameterUpdate {
 }
 
 /**
+ * A position change of a switch or a push button (docs/contracts/stage-6-control-circuits.md
+ * section 4). It is operator state of the run, not an edit of the document.
+ */
+export interface OperatorUpdate {
+  readonly componentId: StableId;
+  readonly position: OperatorPosition;
+}
+
+type QueuedUpdate = ParameterUpdate | OperatorUpdate;
+
+function isOperatorUpdate(update: QueuedUpdate): update is OperatorUpdate {
+  return "position" in update;
+}
+
+/**
  * Owns the active run and the latest result. Plain TypeScript
  * with no React or Pixi: React subscribes through `subscribe`/`getState`.
  *
@@ -244,7 +283,15 @@ export class SimulationController {
   private readonly listeners = new Set<() => void>();
   private started = false;
   private disposed = false;
-  private readonly pending = new Map<string, ParameterUpdate>();
+  private readonly pending = new Map<string, QueuedUpdate>();
+  private operatorSequence = 0;
+  /**
+   * The revisions the engine may be at after a position change whose answer was lost: the
+   * run's own revision first, then the revision each unconfirmed request would have adopted.
+   * The next answer or frame settles it, and nothing is compiled, because a compile would
+   * put every position back to its initial one.
+   */
+  private ambiguousRevisions: string[] | null = null;
   private drain: Promise<void> | null = null;
   private stopFrames: (() => void) | null = null;
   /** The newest document handed to the controller. */
@@ -392,6 +439,30 @@ export class SimulationController {
     return this.drain;
   }
 
+  /**
+   * Requests a position for a switch or a push button of the active run. Requests are sent
+   * in the order they were made and are never merged: a press followed by a release is two
+   * requests. Resolves once this request, and any made while it was in flight, has been
+   * answered. The displayed position is whatever the engine last reported, so a refused
+   * request needs no undoing.
+   */
+  setOperatorState(
+    componentId: StableId,
+    position: OperatorPosition,
+  ): Promise<void> {
+    if (this.disposed) {
+      return Promise.resolve();
+    }
+
+    this.operatorSequence += 1;
+    this.pending.set(`operator:${this.operatorSequence}`, {
+      componentId,
+      position,
+    });
+    this.drain ??= this.drainUpdates();
+    return this.drain;
+  }
+
   dispose(): void {
     this.disposed = true;
     this.pending.clear();
@@ -502,6 +573,7 @@ export class SimulationController {
       }
 
       this.stopFrameStream();
+      this.ambiguousRevisions = null;
       this.setState({
         status: "ready",
         run,
@@ -540,6 +612,8 @@ export class SimulationController {
       return;
     }
 
+    this.settleAmbiguousRevision(snapshot);
+
     if (
       isSnapshotCurrent(
         this.state.run,
@@ -553,6 +627,28 @@ export class SimulationController {
       this.setState({ discardedFrames: this.state.discardedFrames + 1 });
     }
   };
+
+  /**
+   * After a position change whose answer was lost, a frame of this run settles which
+   * revision the engine is at; any other revision is left to the usual stale-frame rule.
+   */
+  private settleAmbiguousRevision(snapshot: ResultSnapshot): void {
+    const { run } = this.state;
+    const candidates = this.ambiguousRevisions;
+
+    if (
+      run &&
+      candidates &&
+      snapshot.metadata.runId === run.runId &&
+      candidates.includes(snapshot.metadata.documentRevision)
+    ) {
+      this.ambiguousRevisions = null;
+      this.state = {
+        ...this.state,
+        run: { ...run, documentRevision: snapshot.metadata.documentRevision },
+      };
+    }
+  }
 
   private readonly handleFrameError = (error: Error): void => {
     if (this.disposed) {
@@ -624,32 +720,54 @@ export class SimulationController {
   /**
    * Sends one update. Returns false when the engine certainly or possibly does
    * not have it afterwards: it was rejected, failed, or could not be confirmed.
+   * A position change never returns false: the engine's run is the only owner of
+   * positions, so there is nothing in the document to bring back to it.
    */
-  private async applyUpdate(update: ParameterUpdate): Promise<boolean> {
+  private async applyUpdate(update: QueuedUpdate): Promise<boolean> {
     const { run } = this.state;
 
     if (this.state.status !== "ready" || !run || this.compiling) {
       return true;
     }
 
+    const operator = isOperatorUpdate(update);
+    const candidates = this.ambiguousRevisions ?? [run.documentRevision];
     const revision = this.createRevision();
     const sentRun: ActiveRun = { ...run, documentRevision: revision };
-    let result: SetParameterResult;
+    let result: SetParameterResult | SetOperatorStateResult | null = null;
+    let sentWith = candidates[0]!;
 
     this.setState({ updating: true, run: sentRun });
 
     try {
-      result = await this.adapter.setParameter({
-        runId: run.runId,
-        // The engine checks this against its active snapshot, then adopts the
-        // new revision; both are compared by equality only.
-        expectedDocumentRevision: run.documentRevision,
-        documentRevision: revision,
-        componentId: update.componentId,
-        parameterId: update.parameterId,
-        value: update.value,
-      });
+      // Normally there is one candidate. After a lost answer there can be several: an
+      // answer that names a stale revision rules one out and the next is tried.
+      for (const expected of candidates) {
+        sentWith = expected;
+        result = await this.sendUpdate(update, expected, revision);
+
+        if (
+          result.status === "success" ||
+          !result.diagnostics.some(
+            (diagnostic) => diagnostic.code === "StaleDocumentRevision",
+          ) ||
+          expected === candidates[candidates.length - 1]
+        ) {
+          break;
+        }
+      }
     } catch (error) {
+      if (operator) {
+        // The request may or may not have been applied. The next answer or frame says.
+        this.ambiguousRevisions = [...candidates, revision];
+        this.setState({
+          updating: false,
+          run: { ...run, documentRevision: candidates[0]! },
+          error: describeError(error),
+        });
+        return true;
+      }
+
       this.engineMayDifferFromDocument();
       this.setState({
         updating: false,
@@ -659,21 +777,28 @@ export class SimulationController {
       return false;
     }
 
-    if (this.disposed) {
+    if (this.disposed || !result) {
       return true;
     }
+
+    // The request was answered, so the run's revision is known again.
+    const settledRun: ActiveRun = { ...run, documentRevision: sentWith };
 
     try {
       if (result.status === "failure") {
         // A rejected update leaves the previous valid state and result in place.
-        this.engineMayDifferFromDocument();
+        // An answered refusal says which revision the engine is at: the one it was sent.
+        this.ambiguousRevisions = null;
+        if (!operator) {
+          this.engineMayDifferFromDocument();
+        }
         this.setState({
           updating: false,
-          run,
+          run: settledRun,
           diagnostics: result.diagnostics,
           error: null,
         });
-        return false;
+        return operator;
       }
 
       const schematic = this.engineSchematic ?? undefined;
@@ -687,6 +812,7 @@ export class SimulationController {
       ) {
         // A newer frame of this revision is already on screen, so the update is
         // confirmed; only the document has to follow.
+        this.ambiguousRevisions = null;
         this.setState({
           updating: false,
           run: sentRun,
@@ -706,16 +832,28 @@ export class SimulationController {
       ) {
         // The engine may have applied the change, but its answer cannot be
         // trusted for this document, so the update is reported as unconfirmed.
+        if (operator) {
+          this.ambiguousRevisions = [sentWith, revision];
+          this.setState({
+            updating: false,
+            run: settledRun,
+            error: UNCONFIRMED_UPDATE,
+            discardedFrames: this.state.discardedFrames + 1,
+          });
+          return true;
+        }
+
         this.engineMayDifferFromDocument();
         this.setState({
           updating: false,
-          run,
+          run: settledRun,
           error: UNCONFIRMED_UPDATE,
           discardedFrames: this.state.discardedFrames + 1,
         });
         return false;
       }
 
+      this.ambiguousRevisions = null;
       this.setState({
         updating: false,
         run: sentRun,
@@ -726,14 +864,45 @@ export class SimulationController {
       return true;
     } catch (error) {
       // A malformed payload must surface as an error, never as a crash.
-      this.engineMayDifferFromDocument();
+      if (!operator) {
+        this.engineMayDifferFromDocument();
+      }
       this.setState({
         updating: false,
-        run,
+        run: settledRun,
         error: `The engine returned an unreadable result: ${describeError(error)}`,
       });
-      return false;
+      return operator;
     }
+  }
+
+  private sendUpdate(
+    update: QueuedUpdate,
+    expectedDocumentRevision: string,
+    documentRevision: string,
+  ): Promise<SetParameterResult | SetOperatorStateResult> {
+    const { run } = this.state;
+
+    if (!run) {
+      return Promise.reject(new Error("There is no active run."));
+    }
+
+    // The engine checks the expected revision against its active snapshot, then adopts
+    // the new one; both are compared by equality only.
+    const common = {
+      runId: run.runId,
+      expectedDocumentRevision,
+      documentRevision,
+      componentId: update.componentId,
+    };
+
+    return isOperatorUpdate(update)
+      ? this.adapter.setOperatorState({ ...common, position: update.position })
+      : this.adapter.setParameter({
+          ...common,
+          parameterId: update.parameterId,
+          value: update.value,
+        });
   }
 
   /**
