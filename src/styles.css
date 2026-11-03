@@ -544,6 +544,40 @@ input {
   color: #cbd5e1;
 }
 
+.operator-control {
+  margin: 0 0 8px;
+  padding: 6px 12px;
+  color: #e5e7eb;
+  background: #1f2937;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.operator-control:hover:not(:disabled) {
+  background: #273449;
+}
+
+.operator-control[aria-checked="true"],
+.operator-control[aria-pressed="true"] {
+  color: #0b1120;
+  background: #fbbf24;
+  border-color: #fbbf24;
+}
+
+.operator-control:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
+.operator-control:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .device-badge-fault {
   background: #7f1d1d;
   color: #fecaca;

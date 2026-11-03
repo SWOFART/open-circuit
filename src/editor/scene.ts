@@ -1,3 +1,4 @@
+import type { DeviceState } from "../generated/DeviceState";
 import type { GridPoint } from "../generated/GridPoint";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
@@ -60,6 +61,11 @@ export interface SceneModel {
 
 export interface SceneOptions {
   readonly labels?: ReadonlyMap<StableId, string>;
+  /**
+   * The device states of the run on screen, by component ID. A part without one is drawn
+   * at rest. The scene draws what the Engine reported and decides nothing.
+   */
+  readonly states?: ReadonlyMap<StableId, DeviceState>;
   /** Adds derived connection dots and flags detached markers. */
   readonly geometry?: EditorGeometry;
 }
@@ -172,7 +178,11 @@ export function buildScene(
     const symbol = symbolFor(component.typeId, registry);
     const owner: SceneOwner = { kind: "component", id: component.id };
 
-    for (const primitive of symbol.primitives) {
+    const primitives = symbol.drawn
+      ? symbol.drawn(options.states?.get(component.id))
+      : symbol.primitives;
+
+    for (const primitive of primitives) {
       if (primitive.kind === "polyline") {
         shapes.push({
           kind: "polyline",

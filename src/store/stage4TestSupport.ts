@@ -51,6 +51,15 @@ function definitionsOf(typeId: string): readonly Definition[] {
         VOLTAGE("normally_closed/voltage", "/"),
         CURRENT("normally_closed/current", "/"),
       ];
+    case "contactor":
+      return [
+        VOLTAGE("coil/voltage", "/"),
+        CURRENT("coil/current", "/"),
+        VOLTAGE("no/voltage", "/"),
+        CURRENT("no/current", "/"),
+        VOLTAGE("nc/voltage", "/"),
+        CURRENT("nc/current", "/"),
+      ];
     case "fuse":
       return [
         VOLTAGE(),

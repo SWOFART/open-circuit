@@ -1,16 +1,24 @@
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import { ammeterSymbol } from "./ammeter";
 import { capacitorSymbol } from "./capacitor";
+import { contactorSymbol } from "./contactor";
 import { dcVoltageSourceSymbol } from "./dcVoltageSource";
 import { fuseSymbol } from "./fuse";
 import { inductorSymbol } from "./inductor";
 import { pmdcMotorSymbol } from "./motor";
+import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
 import { resistorSymbol } from "./resistor";
+import { switchSpstSymbol } from "./switch";
 import type { SymbolDefinition } from "./types";
 import { voltmeterSymbol } from "./voltmeter";
 
-export type { LocalPoint, SymbolDefinition, SymbolPrimitive } from "./types";
+export type {
+  LocalPoint,
+  OperatingArea,
+  SymbolDefinition,
+  SymbolPrimitive,
+} from "./types";
 
 export type SymbolRegistry = Readonly<
   Partial<Record<ComponentTypeId, SymbolDefinition>>
@@ -30,6 +38,10 @@ export const symbols: SymbolRegistry = {
   pmdc_motor: pmdcMotorSymbol,
   voltmeter: voltmeterSymbol,
   ammeter: ammeterSymbol,
+  switch_spst: switchSpstSymbol,
+  push_button_no: pushButtonNoSymbol,
+  push_button_nc: pushButtonNcSymbol,
+  contactor: contactorSymbol,
 };
 
 /** Returns a drawing symbol or explains why a component cannot be placed yet. */

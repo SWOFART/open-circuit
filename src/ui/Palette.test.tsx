@@ -39,6 +39,10 @@ describe("component palette", () => {
       "DC motor",
       "Voltmeter",
       "Ammeter",
+      "Switch",
+      "Push button (normally open)",
+      "Push button (normally closed)",
+      "Contactor",
       "Wire",
       "Junction",
       "Ground",
@@ -46,21 +50,8 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
-    // A type is offered once it has a symbol. The Stage 6 switches, push buttons, and contactor are in
-    // the catalog before their symbols exist (issue #99), so they are not offered yet.
-    expect(placeableTypes.map((entry) => entry.typeId)).toEqual(
-      catalog.componentTypes
-        .map((entry) => entry.typeId)
-        .filter(
-          (typeId) =>
-            ![
-              "switch_spst",
-              "push_button_no",
-              "push_button_nc",
-              "contactor",
-            ].includes(typeId),
-        ),
-    );
+    // Every catalog type has a symbol, so every one is offered.
+    expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
     expect(pressed(markup)).toEqual(["Select"]);
   });
 
