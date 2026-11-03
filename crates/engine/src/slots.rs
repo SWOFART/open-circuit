@@ -86,6 +86,20 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 CurrentIntoPin1,
             ),
         ],
+        ComponentTypeId::Contactor => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "coil/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "coil/current", CurrentIntoPin1),
+            slot(Voltage, Unit::Volt, '/', "no/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "no/current", CurrentIntoPin1),
+            slot(Voltage, Unit::Volt, '/', "nc/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "nc/current", CurrentIntoPin1),
+        ],
         ComponentTypeId::Fuse => vec![
             voltage,
             current,

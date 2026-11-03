@@ -243,6 +243,26 @@
         { "id": "closedResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.pushButtonNc.closedResistance", "optional": false, "initialCondition": false }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "contactor",
+      "displayNameKey": "component.contactor.name",
+      "pins": [
+        { "id": "a1", "role": "positive" },
+        { "id": "a2", "role": "negative" },
+        { "id": "no_1", "role": "unpolarized" },
+        { "id": "no_2", "role": "unpolarized" },
+        { "id": "nc_1", "role": "unpolarized" },
+        { "id": "nc_2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        { "id": "coilResistanceOhms", "unit": "ohm", "defaultValue": 100.0, "domain": "strictly_positive", "descriptionKey": "component.contactor.coilResistance", "optional": false, "initialCondition": false },
+        { "id": "coilInductanceHenries", "unit": "henry", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.contactor.coilInductance", "optional": false, "initialCondition": false },
+        { "id": "pickupCurrentAmps", "unit": "amp", "defaultValue": 0.04, "domain": "strictly_positive", "descriptionKey": "component.contactor.pickupCurrent", "optional": false, "initialCondition": false },
+        { "id": "dropoutCurrentAmps", "unit": "amp", "defaultValue": 0.02, "domain": "non_negative", "descriptionKey": "component.contactor.dropoutCurrent", "optional": false, "initialCondition": false },
+        { "id": "closedContactResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.contactor.closedContactResistance", "optional": false, "initialCondition": false }
+      ],
+      "faultKinds": []
     }
   ]
 }

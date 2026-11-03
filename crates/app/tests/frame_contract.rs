@@ -14,6 +14,7 @@ use serde::Deserialize;
 
 const FIXTURE: &str = include_str!("../../../tests/golden/stage-1-frame.json");
 const STATE_FIXTURE: &str = include_str!("../../../tests/golden/stage-4-frame.json");
+const STAGE_6_FIXTURE: &str = include_str!("../../../tests/golden/stage-6-frame.json");
 const RUN_ID: &str = "00000000-0000-4000-8000-0000000000a0";
 
 #[derive(Deserialize)]
@@ -227,8 +228,8 @@ fn decoder_rejects_headers_that_overstate_their_size() {
     );
 }
 
-#[test]
-fn stage4_state_frame_matches_the_independent_golden() {
+/// Reads a golden file with a `frame` object and the independently encoded `hex` of it.
+fn golden_state_frame(fixture: &str) -> (ResultSnapshot, Vec<u8>) {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
     struct FrameData {
@@ -246,7 +247,7 @@ fn stage4_state_frame_matches_the_independent_golden() {
         frame: FrameData,
         hex: String,
     }
-    let fixture: StateFixture = serde_json::from_str(STATE_FIXTURE).unwrap();
+    let fixture: StateFixture = serde_json::from_str(fixture).unwrap();
     let frame = ResultSnapshot {
         metadata: FrameMetadata {
             run_id: StableId::parse(fixture.frame.run_id).unwrap(),
@@ -259,7 +260,12 @@ fn stage4_state_frame_matches_the_independent_golden() {
         values: fixture.frame.values,
         states: fixture.frame.states,
     };
-    let expected = from_hex(&fixture.hex);
+    (frame, from_hex(&fixture.hex))
+}
+
+#[test]
+fn stage4_state_frame_matches_the_independent_golden() {
+    let (frame, expected) = golden_state_frame(STATE_FIXTURE);
     assert_eq!(encode_frame(&frame).unwrap(), expected);
     assert_eq!(decode_frame(&expected).unwrap(), frame);
     assert!(matches!(
@@ -268,6 +274,32 @@ fn stage4_state_frame_matches_the_independent_golden() {
             state: RelayContactState::Picked,
             ..
         }]
+    ));
+}
+
+#[test]
+fn stage6_state_frame_matches_the_independent_golden() {
+    let (frame, expected) = golden_state_frame(STAGE_6_FIXTURE);
+    assert_eq!(encode_frame(&frame).unwrap(), expected);
+    assert_eq!(decode_frame(&expected).unwrap(), frame);
+    assert!(matches!(
+        frame.states.as_slice(),
+        [
+            DeviceState::Switch {
+                position: SwitchPosition::Closed,
+                conducting: true,
+                ..
+            },
+            DeviceState::PushButton {
+                position: PushButtonPosition::Released,
+                conducting: true,
+                ..
+            },
+            DeviceState::Contactor {
+                state: RelayContactState::Picked,
+                ..
+            },
+        ]
     ));
 }
 
@@ -361,11 +393,11 @@ fn the_conducting_flag_is_defined_only_for_switches_and_push_buttons() {
         decode_frame(&with_conducting),
         Err(FrameError::InvalidState)
     );
-    // Bits above the two defined ones stay rejected, and kind 5 is not defined yet.
+    // Bits above the two defined ones stay rejected, and so does a kind that is not defined.
     let mut unknown_bit = bytes.clone();
     unknown_bit[flags] = 4;
     assert_eq!(decode_frame(&unknown_bit), Err(FrameError::InvalidState));
     let mut unknown_kind = bytes;
-    unknown_kind[flags - 2] = 5;
+    unknown_kind[flags - 2] = 6;
     assert_eq!(decode_frame(&unknown_kind), Err(FrameError::InvalidState));
 }
