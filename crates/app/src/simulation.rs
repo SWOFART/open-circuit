@@ -320,23 +320,33 @@ impl SimulationCore {
 
         if due > 0 {
             let steps = due.min(u128::from(config.max_steps_per_tick)) as u32;
-
-            if u128::from(steps) < due {
-                active.advanced_to = now;
+            // A stiff control circuit can take longer than real time. Do not let a
+            // growing catch-up batch starve operator commands (including release).
+            // Yield only between complete 1 ms public steps; numerical integration
+            // and the frame cadence stay unchanged.
+            let started = Instant::now();
+            let mut advanced = 0;
+            for _ in 0..steps {
+                let advance = AdvanceRequest {
+                    run_id: active.run_id.clone(),
+                    step_count: 1,
+                };
+                if engine.advance(advance).is_err() {
+                    *stream = None;
+                    return;
+                }
+                advanced += 1;
+                if started.elapsed() >= Duration::from_millis(8) {
+                    break;
+                }
+            }
+            // As with the step-count cap, discard excess wall-clock debt rather
+            // than immediately entering another unbounded catch-up batch.
+            active.advanced_to = if u128::from(advanced) < due {
+                now
             } else {
-                active.advanced_to += PHYSICS_STEP * steps;
-            }
-
-            let advance = AdvanceRequest {
-                run_id: active.run_id.clone(),
-                step_count: steps,
+                active.advanced_to + PHYSICS_STEP * advanced
             };
-
-            if engine.advance(advance).is_err() {
-                // The run was replaced or cannot advance any further.
-                *stream = None;
-                return;
-            }
         }
 
         if now < active.next_frame_at {

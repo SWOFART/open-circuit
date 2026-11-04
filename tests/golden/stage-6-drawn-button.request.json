@@ -1,0 +1,218 @@
+{
+  "schematic": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 5
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "push_button_nc",
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "closedResistanceOhms": 0.01
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 8,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1000
+        },
+        "id": "00000000-0000-4000-8000-000000000003"
+      },
+      {
+        "typeId": "capacitor",
+        "position": {
+          "x": 12,
+          "y": 5
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "capacitanceFarads": 0.0001,
+          "initialVoltageVolts": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000004"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "points": [
+          {
+            "x": 0,
+            "y": 4
+          },
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 3,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "points": [
+          {
+            "x": 5,
+            "y": 0
+          },
+          {
+            "x": 7,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "points": [
+          {
+            "x": 9,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 4
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "points": [
+          {
+            "x": 12,
+            "y": 6
+          },
+          {
+            "x": 12,
+            "y": 10
+          },
+          {
+            "x": 0,
+            "y": 10
+          },
+          {
+            "x": 0,
+            "y": 6
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "position": {
+          "x": 0,
+          "y": 6
+        }
+      }
+    ]
+  },
+  "geometry": {
+    "components": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 0,
+              "y": 4
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000002",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 3,
+              "y": 0
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 5,
+              "y": 0
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000003",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 7,
+              "y": 0
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 9,
+              "y": 0
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000004",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 12,
+              "y": 4
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 12,
+              "y": 6
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "documentRevision": "rev-1"
+}
