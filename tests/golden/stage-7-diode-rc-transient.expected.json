@@ -1,0 +1,74 @@
+{
+  "fixtureId": "stage7.diode.rc_transient",
+  "description": "A switched nonlinear RC: an ideal 5 V source, a latching switch (closed resistance 0.01 Ohm), a 10 kOhm resistor, a generic diode, and a 1 microfarad capacitor with an explicit initial voltage of 0 V, in series to ground. The switch starts open and is closed when step 5 is the newest, so it conducts from the end of step 4 (t = 4 ms, Stage 6 contract section 4.3). The reference integrates C dv/dt = i_D with i_D the diode current for (5 - v - v_D) / 10000.01 = i_D, by a fourth-order Runge-Kutta rule checked against half the step. The numbers are produced by tests/golden/stage-7-reference.py, which does not use the Engine; they are not Engine output.",
+  "parameters": {
+    "sourceVolts": 5,
+    "switchClosedResistanceOhms": 0.01,
+    "resistorOhms": 10000,
+    "capacitanceFarads": 1e-6,
+    "initialCapacitorVoltageVolts": 0
+  },
+  "operatorEvents": [
+    {
+      "sentWhenNewestStep": 5,
+      "component": "SW1",
+      "position": "closed",
+      "effectiveFromStep": 4
+    }
+  ],
+  "expected": [
+    {
+      "step": 0,
+      "capacitorVolts": 0,
+      "diodeCurrentAmps": 0,
+      "toleranceVolts": 1e-9
+    },
+    {
+      "step": 4,
+      "capacitorVolts": 0,
+      "diodeCurrentAmps": 0,
+      "toleranceVolts": 1e-9,
+      "note": "The last sample before the switch conducts is unchanged."
+    },
+    {
+      "step": 54,
+      "capacitorVolts": 4.43286502351291,
+      "toleranceVolts": 0.005,
+      "note": "50 ms after the switch conducts."
+    },
+    {
+      "step": 104,
+      "capacitorVolts": 4.52489017772066,
+      "toleranceVolts": 0.005,
+      "note": "100 ms after."
+    },
+    {
+      "step": 204,
+      "capacitorVolts": 4.56192038132103,
+      "toleranceVolts": 0.005,
+      "note": "200 ms after."
+    }
+  ],
+  "toleranceBasis": "An independent emulation of the intended integration path (one backward-Euler step after the switch event, then the trapezoidal rule at 1 ms, with the diode solved exactly at each step) differs from the reference by about 0.05 mV at the three times; the reasoning that follows is why the tolerance is still 5 mV. At a 1 ms public step and a charging time constant of about 10 ms the trapezoidal rule's relative error is about (h / tau)^2 / 12 = 8e-4 of the change, which is below 4 mV of the 4.5 V change. The one backward-Euler step after the switch event adds about (h / tau)^2 / 2 = 0.5% of the change at that moment and decays with the circuit's time constant; at 50 ms (five time constants) it is below 0.4 mV. 5 mV covers both with margin. The tolerance is provisional: #109 and #111 may tighten it with evidence, and loosening it needs a contract change.",
+  "wrongVariants": [
+    {
+      "name": "diode reversed",
+      "description": "The diode's cathode is toward the resistor and its anode toward the capacitor. The capacitor charges only through the reverse leakage (1e-14 A plus 1e-12 S times the voltage across the diode), about 5 microvolts per second.",
+      "expected": [
+        {
+          "step": 54,
+          "capacitorVolts": 2.50499991232e-7
+        },
+        {
+          "step": 104,
+          "capacitorVolts": 5.0099996994e-7
+        },
+        {
+          "step": 204,
+          "capacitorVolts": 1.00199988978e-6
+        }
+      ],
+      "toleranceVolts": 1e-5
+    }
+  ]
+}

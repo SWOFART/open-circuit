@@ -98,7 +98,8 @@ circuit-sim/
 │   │   ├── stage-3-dynamics.md
 │   │   ├── stage-4-components.md
 │   │   ├── stage-5-assignments.md
-│   │   └── stage-6-control-circuits.md
+│   │   ├── stage-6-control-circuits.md
+│   │   └── stage-7-nonlinear-circuits.md
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -189,6 +190,20 @@ motors spin up. A phasor/AC-analysis mode can be added separately later.
 
 Newton–Raphson inside each step: limit voltage jumps across junctions, with a fallback
 (gradually added conductance to ground) if convergence fails.
+
+Stage 7 fixes the details in
+[`docs/contracts/stage-7-nonlinear-circuits.md`](docs/contracts/stage-7-nonlinear-circuits.md):
+the first nonlinear devices are a generic diode and generic NPN and PNP transistors (the
+Shockley diode law and the transport form of Ebers–Moll, at a fixed 27 °C, with a fixed
+`1e-12 S` conductance across each junction as part of the model). The solve is bounded and
+deterministic: SPICE3-style junction limiting, tight update and residual tests with the
+residual taken on the original equations, at most 100 iterations, and a fixed conductance
+ladder from `1e-2 S` to `1e-12 S` that is only an aid and never reaches a reported result.
+A solve that fails commits nothing: an `advance` stops the run at its last committed step, and
+an update is refused with the run unchanged. The contract adds two diagnostics
+(`NonConvergence`, `ModelRangeExceeded`), optional `minimumValue` and `maximumValue` fields
+to the catalog's parameter definitions, a requirement that the application tells the user when
+a run stops on an Engine error, and no new frame or state kind.
 
 ### 3.6 Events: relays, burn-out, fuses
 

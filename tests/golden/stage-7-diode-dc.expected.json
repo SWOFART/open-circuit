@@ -1,0 +1,50 @@
+{
+  "fixtureId": "stage7.diode.dc",
+  "description": "An ideal source, a 1 kOhm resistor, and a generic diode (saturationCurrentAmps 1e-14, emissionCoefficient 1) in series. Forward: the source is 5 V, its positive terminal feeds the resistor, and the resistor feeds the diode's anode, so the diode conducts. Reverse: the source is -5 V, so the diode blocks and carries only its saturation current and the fixed 1e-12 S junction conductance. The numbers are produced by tests/golden/stage-7-reference.py, which does not use the Engine; they are not Engine output.",
+  "constants": {
+    "thermalVoltageVolts": 0.02586492578632875,
+    "temperatureKelvin": 300.15,
+    "junctionConductanceSiemens": 1e-12
+  },
+  "circuit": {
+    "source": "ideal DC voltage source, 0 Ohm internal resistance",
+    "resistorOhms": 1000,
+    "wiring": "source positive - resistor - diode anode; diode cathode - source negative and ground"
+  },
+  "cases": [
+    {
+      "name": "forward",
+      "sourceVolts": 5,
+      "diodeVoltageVolts": 0.692887832378056,
+      "diodeCurrentAmps": 0.00430711216762194,
+      "resistorVoltageVolts": 4.307112167621944,
+      "tolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      }
+    },
+    {
+      "name": "reverse",
+      "sourceVolts": -5,
+      "diodeVoltageVolts": -4.99999999499,
+      "diodeCurrentAmps": -5.00999999499e-12,
+      "tolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsAbsolute": 1e-14
+      },
+      "note": "The reverse current is the saturation current plus 1e-12 S times the 5 V across the diode: 1e-14 + 5e-12 A, negative in the direction anode to cathode."
+    }
+  ],
+  "failureCases": [
+    {
+      "name": "ideal source across a forward diode",
+      "description": "An ideal 5 V source (more than 2.07 V) directly across the diode (anode at the positive terminal). Any solution needs more than 80 thermal voltages across the junction, which the model does not support.",
+      "expected": {
+        "compile": "fails",
+        "diagnostic": "ModelRangeExceeded",
+        "references": "the diode"
+      }
+    }
+  ]
+}
