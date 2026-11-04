@@ -1,0 +1,19 @@
+* Stage 7 reference circuit: npn-saturation-high-current
+* Supported but hard: NPN saturated at about 100 mA (R_C = 100 Ohm, base source 5 V, 2.2 kOhm).
+.options temp=27 tnom=27 gmin=0 reltol=1e-9 vntol=1e-12 abstol=1e-15 itl1=500 itl2=500
+VCC vcc 0 10
+VBB vbb 0 5
+RC vcc c 100
+RB vbb b 2200
+VSC c tc 0
+VSB b tb 0
+VSE 0 te 0
+Q1 tc tb te QM
+RGBE tb te 1e12
+RGBC tb tc 1e12
+.model QM NPN(IS=1e-14 BF=100 BR=1)
+.control
+op
+wrdata npn-saturation-high-current.out v(b) v(c) i(vsc) i(vsb) i(vse)
+.endc
+.end

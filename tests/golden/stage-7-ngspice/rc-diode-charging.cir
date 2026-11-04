@@ -1,0 +1,18 @@
+* Stage 7 reference circuit: rc-diode-charging
+* Switched nonlinear RC: 5 V, a switch (10 mOhm) closing at 4 ms, 10 kOhm, the diode, 1 uF from 0 V.
+.options temp=27 tnom=27 gmin=0 method=trap reltol=1e-6 vntol=1e-9 abstol=1e-15 itl4=200
+.model SWM SW(VT=0.5 VH=0 RON=0.01 ROFF=1e15)
+.model DM D(IS=1e-14 N=1)
+VSRC s 0 5
+VCTL ctl 0 PWL(0 0 0.004 0 0.004000001 1)
+S1 s m ctl 0 SWM
+RS m d 10000
+D1 d cap DM
+RGD d cap 1e12
+CC cap 0 1e-6 IC=0
+.control
+tran 1m 0.21 0 1u uic
+linearize v(cap)
+wrdata rc-diode-charging.out v(cap)
+.endc
+.end

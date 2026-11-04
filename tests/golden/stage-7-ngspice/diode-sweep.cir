@@ -1,0 +1,13 @@
+* Stage 7 reference circuit: diode-sweep
+* Polarity change: the source is swept from -5 V to 5 V in 1 V steps through 1 kOhm.
+.options temp=27 tnom=27 gmin=0 reltol=1e-9 vntol=1e-12 abstol=1e-15 itl1=500 itl2=500
+VSRC s 0 -5
+RS s a 1000
+D1 a 0 DM
+RGD a 0 1e12
+.model DM D(IS=1e-14 N=1)
+.control
+dc VSRC -5 5 1
+wrdata diode-sweep.out v(a) i(vsrc)
+.endc
+.end

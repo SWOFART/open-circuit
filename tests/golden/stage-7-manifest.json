@@ -1,0 +1,468 @@
+{
+  "manifestVersion": 1,
+  "issue": "https://github.com/SWOFART/open-circuit/issues/109",
+  "contract": "docs/contracts/stage-7-nonlinear-circuits.md",
+  "documentation": "docs/solver/stage-7-references.md",
+  "sources": {
+    "analytical": {
+      "tool": "tests/golden/stage-7-reference.py",
+      "method": "60-digit decimal Newton on the model equations of the contract's section 3 (direct current); fourth-order Runge-Kutta at step h and h/2, required to agree to 1e-9 V (transient)",
+      "uses": "the Python standard library only; no Engine, no simulator",
+      "file": "stage-7-analytical.expected.json"
+    },
+    "ngspice": {
+      "simulator": "ngspice-47",
+      "release": "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/47/ngspice-47_64.7z",
+      "archiveSha256": "59225971bd68cdd1199443649aa4615a9e6d684933f205ab49006a3942518f5a",
+      "license": "Modified BSD (ngspice COPYING); the simulator is not part of this repository and is not a dependency of any build or normal test",
+      "manual": "ngspice-47-manual.pdf, distributed with the release",
+      "file": "stage-7-ngspice.expected.json",
+      "options": "temp=27 tnom=27 gmin=0 reltol=1e-9 vntol=1e-12 abstol=1e-15 itl1=500 itl2=500",
+      "transientOptions": "temp=27 tnom=27 gmin=0 method=trap reltol=1e-6 vntol=1e-9 abstol=1e-15 itl4=200"
+    }
+  },
+  "alignment": {
+    "temperature": "27 degrees Celsius (300.15 K) for the circuit and the model parameters, as in the contract's section 3.1",
+    "modelLevel": "ngspice level-1 junction diode (D) and Gummel-Poon bipolar (NPN, PNP) with every parameter that the contract defers left at its default of zero or infinity (RS, CJO, TT, BV, VAF, IKF, ISE, ISC, RB, RC, RE, CJE, CJC, TF, TR): the diode law and the transport form of Ebers-Moll of the contract's sections 3.2 to 3.4",
+    "junctionConductance": "The contract's g_min is a conductance directly across each junction. ngspice's own gmin is set to 0 and an explicit 1 pS resistor is placed across each junction in the netlist, because ngspice adds its gmin to the transport currents before they are divided by the betas, which is a different model (it gave a cutoff collector current of 2.0e-11 A where the contract's model gives 1.0e-11 A)",
+    "thermalVoltage": "ngspice 47 derives V_T from the CODATA 2014 values k = 1.38064852e-23 J/K and q = 1.6021766208e-19 C; the contract uses the exact SI 2019 values. The analytical file therefore holds two answers per case: `contract` (what the Engine is held to) and `ngspiceConstants` (the same equations with ngspice's constants, to compare with ngspice almost to rounding). The constants change a result by at most 3.4e-7 V",
+    "switch": "ngspice voltage-controlled switch with RON = 0.01 Ohm, ROFF = 1e15 Ohm and a 1 ns control ramp at 4 ms, for the Stage 6 switch of the contract's transient fixture (open: no conduction)",
+    "initialConditions": "direct current: the operating point of each netlist (`op`, `dc`). Transient: the capacitor starts at 0 V (`IC=0` with `uic`), the switch open"
+  },
+  "conventions": {
+    "units": "SI: volts, amperes, ohms, farads, seconds",
+    "diode": "voltage = V(anode) - V(cathode); current positive entering the anode",
+    "transistor": "terminal currents positive entering the collector, base, and emitter; `loadNodeVoltageVolts` is the voltage of the node the 1 kOhm collector resistor feeds (the collector, or the emitter when the pins are exchanged)",
+    "ngspiceSigns": "wrdata columns are (scale, value) pairs; the source current of ngspice is negative when the source delivers, so the diode current is -i(vsrc); the zero-volt sources VSC, VSB, VSE are wired so that every current they report enters the device terminal",
+    "timeAlignment": "the transient is sampled at 54, 104, and 204 ms, that is 50, 100, and 200 ms after the switch conducts (it is closed at 4 ms, the instant the Engine's step 4 ends); ngspice output is linearized to a 1 ms grid so the times coincide with the Engine's public steps"
+  },
+  "referenceError": {
+    "meaning": "How far ngspice may be from the equations' answer. It certifies that the equations and the netlists describe the same model. It is not the Engine's tolerance.",
+    "aligned": {
+      "voltsAbsolute": 3e-8,
+      "transientVoltsAbsolute": 1e-7,
+      "ampsRelative": 1e-7,
+      "ampsAbsolute": 1e-15,
+      "basis": "ngspice uses reltol = 1e-9 on voltages up to 10 V, which allows 1e-8 V; the transient runs at reltol = 1e-6 and agrees much better"
+    },
+    "contract": {
+      "voltsAbsolute": 2e-6,
+      "ampsRelative": 1e-5,
+      "ampsAbsolute": 1e-15,
+      "basis": "the difference between ngspice's constants and the contract's"
+    },
+    "currentsNearZero": "a current is compared with a relative tolerance plus an absolute floor, so that a current that should be zero (the diode at 0 V) is not judged by a ratio"
+  },
+  "solverToleranceDiffersFromReferenceError": "An Engine result is compared with the `contract` answers of the analytical file using `engineTolerance`. ngspice is never the oracle for the Engine: it certifies the equations. Every `engineTolerance` is at least ten times the `referenceError.aligned` bound; the `contract` difference is the known effect of ngspice's constants and is not a tolerance.",
+  "failureFixtures": [
+    {
+      "id": "diode-ideal-source",
+      "file": "stage-7-diode-dc.expected.json",
+      "expected": "ModelRangeExceeded, referencing the diode",
+      "note": "an ideal 5 V source directly across a forward diode needs more than 80 thermal voltages; no ngspice comparison (ngspice has no such range rule)"
+    },
+    {
+      "id": "bjt-ideal-source",
+      "file": "stage-7-bjt-dc.expected.json",
+      "expected": "ModelRangeExceeded, referencing the transistor",
+      "note": "the common-emitter stage with the base resistor replaced by a wire"
+    }
+  ],
+  "regeneration": {
+    "analytical": "python tests/golden/stage-7-references.py --analytical --write",
+    "netlists": "python tests/golden/stage-7-references.py --write-netlists",
+    "ngspice": "python tests/golden/stage-7-references.py --ngspice <path to ngspice_con.exe or ngspice> --write",
+    "offline": "python tests/golden/stage-7-references.py --check",
+    "rule": "nothing is overwritten without --write, and expected data is never replaced by an Engine result"
+  },
+  "fixtures": [
+    {
+      "id": "diode-forward",
+      "kind": "diode_dc",
+      "role": "canonical",
+      "description": "Forward, resistor-limited: 5 V, 1 kOhm.",
+      "netlist": "stage-7-ngspice/diode-forward.cir",
+      "circuit": {
+        "source": "5",
+        "resistance": "1000",
+        "i_s": "1e-14",
+        "n": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      },
+      "contractFixture": "stage-7-diode-dc.expected.json"
+    },
+    {
+      "id": "diode-reverse",
+      "kind": "diode_dc",
+      "role": "canonical",
+      "description": "Reverse: -5 V, 1 kOhm. Leakage is I_S plus the junction conductance.",
+      "netlist": "stage-7-ngspice/diode-reverse.cir",
+      "circuit": {
+        "source": "-5",
+        "resistance": "1000",
+        "i_s": "1e-14",
+        "n": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsAbsolute": 1e-14
+      },
+      "contractFixture": "stage-7-diode-dc.expected.json"
+    },
+    {
+      "id": "diode-low-current",
+      "kind": "diode_dc",
+      "role": "difficult",
+      "description": "Supported but hard: forward at about 0.2 uA (0.6 V, 1 MOhm).",
+      "netlist": "stage-7-ngspice/diode-low-current.cir",
+      "circuit": {
+        "source": "0.6",
+        "resistance": "1000000",
+        "i_s": "1e-14",
+        "n": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      }
+    },
+    {
+      "id": "diode-high-current",
+      "kind": "diode_dc",
+      "role": "difficult",
+      "description": "Supported but hard: forward at about 0.4 A (5 V, 10 Ohm).",
+      "netlist": "stage-7-ngspice/diode-high-current.cir",
+      "circuit": {
+        "source": "5",
+        "resistance": "10",
+        "i_s": "1e-14",
+        "n": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      }
+    },
+    {
+      "id": "diode-emission",
+      "kind": "diode_dc",
+      "role": "difficult",
+      "description": "Non-default model: I_S = 1e-12 A, n = 1.8 (5 V, 1 kOhm).",
+      "netlist": "stage-7-ngspice/diode-emission.cir",
+      "circuit": {
+        "source": "5",
+        "resistance": "1000",
+        "i_s": "1e-12",
+        "n": "1.8"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      }
+    },
+    {
+      "id": "diode-sweep",
+      "kind": "diode_sweep",
+      "role": "canonical",
+      "description": "Polarity change: the source is swept from -5 V to 5 V in 1 V steps through 1 kOhm.",
+      "netlist": "stage-7-ngspice/diode-sweep.cir",
+      "circuit": {
+        "sources": ["-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5"],
+        "resistance": "1000",
+        "i_s": "1e-14",
+        "n": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-14
+      }
+    },
+    {
+      "id": "npn-cutoff",
+      "kind": "bjt_dc",
+      "role": "canonical",
+      "description": "NPN cutoff: base source 0 V, 430 kOhm.",
+      "netlist": "stage-7-ngspice/npn-cutoff.cir",
+      "circuit": {
+        "polarity": 1,
+        "vcc": "10",
+        "rc": "1000",
+        "vbb": "0",
+        "rb": "430000",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsAbsolute": 1e-13
+      },
+      "contractFixture": "stage-7-bjt-dc.expected.json"
+    },
+    {
+      "id": "npn-active",
+      "kind": "bjt_dc",
+      "role": "canonical",
+      "description": "NPN forward active: base source 5 V, 430 kOhm.",
+      "netlist": "stage-7-ngspice/npn-active.cir",
+      "circuit": {
+        "polarity": 1,
+        "vcc": "10",
+        "rc": "1000",
+        "vbb": "5",
+        "rb": "430000",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      },
+      "contractFixture": "stage-7-bjt-dc.expected.json"
+    },
+    {
+      "id": "npn-saturation",
+      "kind": "bjt_dc",
+      "role": "canonical",
+      "description": "NPN saturation: base source 5 V, 4.3 kOhm.",
+      "netlist": "stage-7-ngspice/npn-saturation.cir",
+      "circuit": {
+        "polarity": 1,
+        "vcc": "10",
+        "rc": "1000",
+        "vbb": "5",
+        "rb": "4300",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      },
+      "contractFixture": "stage-7-bjt-dc.expected.json"
+    },
+    {
+      "id": "npn-reverse-active",
+      "kind": "bjt_dc",
+      "role": "wrongVariant",
+      "description": "Wrong wiring: the collector and emitter exchanged, so the device runs reverse active.",
+      "netlist": "stage-7-ngspice/npn-reverse-active.cir",
+      "circuit": {
+        "polarity": 1,
+        "vcc": "10",
+        "rc": "1000",
+        "vbb": "5",
+        "rb": "430000",
+        "swapped": true,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      },
+      "contractFixture": "stage-7-bjt-dc.expected.json"
+    },
+    {
+      "id": "pnp-cutoff",
+      "kind": "bjt_dc",
+      "role": "canonical",
+      "description": "PNP cutoff (the NPN case with every voltage negated).",
+      "netlist": "stage-7-ngspice/pnp-cutoff.cir",
+      "circuit": {
+        "polarity": -1,
+        "vcc": "-10",
+        "rc": "1000",
+        "vbb": "0",
+        "rb": "430000",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsAbsolute": 1e-13
+      },
+      "contractFixture": "stage-7-bjt-dc.expected.json"
+    },
+    {
+      "id": "pnp-active",
+      "kind": "bjt_dc",
+      "role": "canonical",
+      "description": "PNP forward active (negated).",
+      "netlist": "stage-7-ngspice/pnp-active.cir",
+      "circuit": {
+        "polarity": -1,
+        "vcc": "-10",
+        "rc": "1000",
+        "vbb": "-5",
+        "rb": "430000",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      },
+      "contractFixture": "stage-7-bjt-dc.expected.json"
+    },
+    {
+      "id": "pnp-saturation",
+      "kind": "bjt_dc",
+      "role": "canonical",
+      "description": "PNP saturation (negated).",
+      "netlist": "stage-7-ngspice/pnp-saturation.cir",
+      "circuit": {
+        "polarity": -1,
+        "vcc": "-10",
+        "rc": "1000",
+        "vbb": "-5",
+        "rb": "4300",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      },
+      "contractFixture": "stage-7-bjt-dc.expected.json"
+    },
+    {
+      "id": "npn-saturation-edge",
+      "kind": "bjt_dc",
+      "role": "difficult",
+      "description": "Supported but hard: NPN at the edge of saturation (base source 5 V, 43 kOhm; V_CE about 0.2 V).",
+      "netlist": "stage-7-ngspice/npn-saturation-edge.cir",
+      "circuit": {
+        "polarity": 1,
+        "vcc": "10",
+        "rc": "1000",
+        "vbb": "5",
+        "rb": "43000",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      }
+    },
+    {
+      "id": "npn-saturation-high-current",
+      "kind": "bjt_dc",
+      "role": "difficult",
+      "description": "Supported but hard: NPN saturated at about 100 mA (R_C = 100 Ohm, base source 5 V, 2.2 kOhm).",
+      "netlist": "stage-7-ngspice/npn-saturation-high-current.cir",
+      "circuit": {
+        "polarity": 1,
+        "vcc": "10",
+        "rc": "100",
+        "vbb": "5",
+        "rb": "2200",
+        "swapped": false,
+        "i_s": "1e-14",
+        "bf": "100",
+        "br": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      }
+    },
+    {
+      "id": "npn-beta-variation",
+      "kind": "bjt_dc",
+      "role": "difficult",
+      "description": "Non-default model: I_S = 1e-15 A, beta_F = 30, beta_R = 5 (forward active, 430 kOhm).",
+      "netlist": "stage-7-ngspice/npn-beta-variation.cir",
+      "circuit": {
+        "polarity": 1,
+        "vcc": "10",
+        "rc": "1000",
+        "vbb": "5",
+        "rb": "430000",
+        "swapped": false,
+        "i_s": "1e-15",
+        "bf": "30",
+        "br": "5"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-6,
+        "ampsRelative": 1e-6,
+        "ampsAbsoluteFloor": 1e-12
+      }
+    },
+    {
+      "id": "rc-diode-charging",
+      "kind": "rc_transient",
+      "role": "canonical",
+      "description": "Switched nonlinear RC: 5 V, a switch (10 mOhm) closing at 4 ms, 10 kOhm, the diode, 1 uF from 0 V.",
+      "netlist": "stage-7-ngspice/rc-diode-charging.cir",
+      "circuit": {
+        "source": "5",
+        "resistance": "10000",
+        "switch_resistance": "0.01",
+        "capacitance": "1e-6",
+        "close_time": "0.004",
+        "times": ["0.054", "0.104", "0.204"],
+        "reverse": false,
+        "i_s": "1e-14",
+        "n": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 0.005
+      },
+      "contractFixture": "stage-7-diode-rc-transient.expected.json"
+    },
+    {
+      "id": "rc-diode-reversed",
+      "kind": "rc_transient",
+      "role": "wrongVariant",
+      "description": "Switched nonlinear RC with the diode reversed (anode on the capacitor side).",
+      "netlist": "stage-7-ngspice/rc-diode-reversed.cir",
+      "circuit": {
+        "source": "5",
+        "resistance": "10000",
+        "switch_resistance": "0.01",
+        "capacitance": "1e-6",
+        "close_time": "0.004",
+        "times": ["0.054", "0.104", "0.204"],
+        "reverse": true,
+        "i_s": "1e-14",
+        "n": "1"
+      },
+      "engineTolerance": {
+        "voltsAbsolute": 1e-5
+      },
+      "contractFixture": "stage-7-diode-rc-transient.expected.json"
+    }
+  ]
+}

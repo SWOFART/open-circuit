@@ -1,0 +1,19 @@
+* Stage 7 reference circuit: npn-reverse-active
+* Wrong wiring: the collector and emitter exchanged, so the device runs reverse active.
+.options temp=27 tnom=27 gmin=0 reltol=1e-9 vntol=1e-12 abstol=1e-15 itl1=500 itl2=500
+VCC vcc 0 10
+VBB vbb 0 5
+RC vcc e 1000
+RB vbb b 430000
+VSC 0 tc 0
+VSB b tb 0
+VSE e te 0
+Q1 tc tb te QM
+RGBE tb te 1e12
+RGBC tb tc 1e12
+.model QM NPN(IS=1e-14 BF=100 BR=1)
+.control
+op
+wrdata npn-reverse-active.out v(b) v(e) i(vsc) i(vsb) i(vse)
+.endc
+.end

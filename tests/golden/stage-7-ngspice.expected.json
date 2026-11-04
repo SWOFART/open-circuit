@@ -1,0 +1,190 @@
+{
+  "simulator": "ngspice-47",
+  "options": "temp=27 tnom=27 gmin=0 reltol=1e-9 vntol=1e-12 abstol=1e-15 itl1=500 itl2=500",
+  "transientOptions": "temp=27 tnom=27 gmin=0 method=trap reltol=1e-6 vntol=1e-9 abstol=1e-15 itl4=200",
+  "junctionConductance": "an explicit 1e12 Ohm across every junction; ngspice's own gmin is 0",
+  "description": "Numbers exactly as ngspice wrote them (wrdata, double precision), with the sign convention of the Open Circuit results: diode current entering the anode, transistor currents entering the terminals. Regenerate with tests/golden/stage-7-references.py --ngspice EXE --write.",
+  "cases": [
+    {
+      "id": "diode-forward",
+      "diodeVoltageVolts": 0.692887599,
+      "diodeCurrentAmps": 0.0043071124
+    },
+    {
+      "id": "diode-reverse",
+      "diodeVoltageVolts": -4.99999999,
+      "diodeCurrentAmps": -5.00999936e-12
+    },
+    {
+      "id": "diode-low-current",
+      "diodeVoltageVolts": 0.430536103,
+      "diodeCurrentAmps": 1.69463897e-7
+    },
+    {
+      "id": "diode-high-current",
+      "diodeVoltageVolts": 0.811279029,
+      "diodeCurrentAmps": 0.418872097
+    },
+    {
+      "id": "diode-emission",
+      "diodeVoltageVolts": 1.02901258,
+      "diodeCurrentAmps": 0.00397098742
+    },
+    {
+      "id": "diode-sweep",
+      "points": [
+        {
+          "sourceVolts": -5.0,
+          "diodeVoltageVolts": -4.99999999,
+          "diodeCurrentAmps": -5.00999936e-12
+        },
+        {
+          "sourceVolts": -4.0,
+          "diodeVoltageVolts": -4.0,
+          "diodeCurrentAmps": -4.0099998e-12
+        },
+        {
+          "sourceVolts": -3.0,
+          "diodeVoltageVolts": -3.0,
+          "diodeCurrentAmps": -3.0100011e-12
+        },
+        {
+          "sourceVolts": -2.0,
+          "diodeVoltageVolts": -2.0,
+          "diodeCurrentAmps": -2.00999981e-12
+        },
+        {
+          "sourceVolts": -1.0,
+          "diodeVoltageVolts": -0.999999999,
+          "diodeCurrentAmps": -1.00999981e-12
+        },
+        {
+          "sourceVolts": 0.0,
+          "diodeVoltageVolts": 2.30353198e-28,
+          "diodeCurrentAmps": -2.30353198e-31
+        },
+        {
+          "sourceVolts": 1.0,
+          "diodeVoltageVolts": 0.629440711,
+          "diodeCurrentAmps": 0.000370559289
+        },
+        {
+          "sourceVolts": 2.0,
+          "diodeVoltageVolts": 0.662636824,
+          "diodeCurrentAmps": 0.00133736318
+        },
+        {
+          "sourceVolts": 3.0,
+          "diodeVoltageVolts": 0.676919284,
+          "diodeCurrentAmps": 0.00232308072
+        },
+        {
+          "sourceVolts": 4.0,
+          "diodeVoltageVolts": 0.686107262,
+          "diodeCurrentAmps": 0.00331389274
+        },
+        {
+          "sourceVolts": 5.0,
+          "diodeVoltageVolts": 0.692887599,
+          "diodeCurrentAmps": 0.0043071124
+        }
+      ]
+    },
+    {
+      "id": "npn-cutoff",
+      "baseVoltageVolts": 4.30429629e-6,
+      "loadNodeVoltageVolts": 9.99999999,
+      "collectorCurrentAmps": 1.00199973e-11,
+      "baseCurrentAmps": -1.00099914e-11,
+      "emitterCurrentAmps": -1.0005985e-14
+    },
+    {
+      "id": "npn-active",
+      "baseVoltageVolts": 0.655384897,
+      "loadNodeVoltageVolts": 8.98962362,
+      "collectorCurrentAmps": 0.00101037638,
+      "baseCurrentAmps": 1.01037561e-5,
+      "emitterCurrentAmps": -0.00102048014
+    },
+    {
+      "id": "npn-saturation",
+      "baseVoltageVolts": 0.718714047,
+      "loadNodeVoltageVolts": 0.0669395397,
+      "collectorCurrentAmps": 0.00993306046,
+      "baseCurrentAmps": 0.000995647896,
+      "emitterCurrentAmps": -0.0109287084
+    },
+    {
+      "id": "npn-reverse-active",
+      "baseVoltageVolts": 0.536968092,
+      "loadNodeVoltageVolts": 9.98962084,
+      "collectorCurrentAmps": -2.07583063e-5,
+      "baseCurrentAmps": 1.0379144e-5,
+      "emitterCurrentAmps": 1.03791623e-5
+    },
+    {
+      "id": "pnp-cutoff",
+      "baseVoltageVolts": -4.30429629e-6,
+      "loadNodeVoltageVolts": -9.99999999,
+      "collectorCurrentAmps": -1.00199973e-11,
+      "baseCurrentAmps": 1.00099914e-11,
+      "emitterCurrentAmps": 1.0005985e-14
+    },
+    {
+      "id": "pnp-active",
+      "baseVoltageVolts": -0.655384897,
+      "loadNodeVoltageVolts": -8.98962362,
+      "collectorCurrentAmps": -0.00101037638,
+      "baseCurrentAmps": -1.01037561e-5,
+      "emitterCurrentAmps": 0.00102048014
+    },
+    {
+      "id": "pnp-saturation",
+      "baseVoltageVolts": -0.718714047,
+      "loadNodeVoltageVolts": -0.0669395397,
+      "collectorCurrentAmps": -0.00993306046,
+      "baseCurrentAmps": -0.000995647896,
+      "emitterCurrentAmps": 0.0109287084
+    },
+    {
+      "id": "npn-saturation-edge",
+      "baseVoltageVolts": 0.714103951,
+      "loadNodeVoltageVolts": 0.221713588,
+      "collectorCurrentAmps": 0.00977828641,
+      "baseCurrentAmps": 9.96720011e-5,
+      "emitterCurrentAmps": -0.00987795841
+    },
+    {
+      "id": "npn-saturation-high-current",
+      "baseVoltageVolts": 0.774388412,
+      "loadNodeVoltageVolts": 0.121579479,
+      "collectorCurrentAmps": 0.0987842052,
+      "baseCurrentAmps": 0.00192073254,
+      "emitterCurrentAmps": -0.100704938
+    },
+    {
+      "id": "npn-beta-variation",
+      "baseVoltageVolts": 0.683631703,
+      "loadNodeVoltageVolts": 9.69885777,
+      "collectorCurrentAmps": 0.000301142233,
+      "baseCurrentAmps": 1.00380658e-5,
+      "emitterCurrentAmps": -0.000311180299
+    },
+    {
+      "id": "rc-diode-charging",
+      "capacitorVoltsAtSeconds": {
+        "0.054": 4.4328652,
+        "0.104": 4.52489034,
+        "0.204": 4.56192054
+      }
+    },
+    {
+      "id": "rc-diode-reversed",
+      "capacitorVoltsAtSeconds": {
+        "0.054": 2.50519974e-7,
+        "0.104": 5.01019953e-7,
+        "0.204": 1.00201987e-6
+      }
+    }
+  ]
+}

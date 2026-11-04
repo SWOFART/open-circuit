@@ -374,8 +374,10 @@ equations, and a bounded conductance continuation that is an aid only.
 
 The independent references are in `tests/golden/stage-7-*.expected.json`, produced by
 `tests/golden/stage-7-reference.py` (standard library only; 60-digit Newton for the direct
-current answers, Runge–Kutta checked at half the step for the transient). Cross-checking
-against a pinned ngspice release is issue #109.
+current answers, Runge–Kutta checked at half the step for the transient). The same
+circuits are cross-checked against ngspice 47 with netlists, a manifest, and a documented
+regeneration command ([`stage-7-references.md`](../solver/stage-7-references.md)); the
+simulator certifies the equations and is never the Engine's oracle.
 
 ### Stage 5 fault models
 

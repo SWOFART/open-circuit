@@ -1,0 +1,19 @@
+* Stage 7 reference circuit: pnp-cutoff
+* PNP cutoff (the NPN case with every voltage negated).
+.options temp=27 tnom=27 gmin=0 reltol=1e-9 vntol=1e-12 abstol=1e-15 itl1=500 itl2=500
+VCC vcc 0 -10
+VBB vbb 0 0
+RC vcc c 1000
+RB vbb b 430000
+VSC c tc 0
+VSB b tb 0
+VSE 0 te 0
+Q1 tc tb te QM
+RGBE tb te 1e12
+RGBC tb tc 1e12
+.model QM PNP(IS=1e-14 BF=100 BR=1)
+.control
+op
+wrdata pnp-cutoff.out v(b) v(c) i(vsc) i(vsb) i(vse)
+.endc
+.end
