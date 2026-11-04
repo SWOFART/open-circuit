@@ -52,8 +52,8 @@ ordering follows [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 | Fuses                              | The Stage 4 baseline is a one-shot thermal proxy based on accumulated `∫i²dt`, followed by an open circuit.                                                        | The [Stage 4 contract](../contracts/stage-4-components.md) fixes its threshold, trip timing, reset semantics, and diagnostics/results. It is not a manufacturer time-current curve or a detailed thermal model. |
 | PMDC motor                         | A linear armature circuit is coupled to one rotor speed state by a shared SI torque/back-EMF constant.                                                         | The [Stage 4 contract](../contracts/stage-4-components.md) fixes the coupled equations, initialization, implicit trapezoidal step, and analytical startup fixture. |
 | Voltmeter and ammeter              | Passive two-terminal resistive meters with finite input/burden resistance.                                                                                     | The [Stage 4 contract](../contracts/stage-4-components.md) fixes loading and sign/readout conventions. Accuracy, ranges, AC response, and manufacturer profiles are omitted. |
-| Diodes                             | Nonlinear current-voltage relation; practical models may also include charge storage and series resistance.                                                     | Selected equation/model level, temperature dependence, limiting and convergence strategy, and parameter provenance.                                                                                                                                                                                                                                                                  |
-| BJTs and MOSFETs                   | Nonlinear semiconductor terminal relations with multiple coupled terminals and internal state/charge effects in more detailed models.                           | Named model family/version, required parameters, supported operating regions, convergence, thermal assumptions, and compatibility with imported model cards. Architecture defers these to the extended-model stage.                                                                                                                                                                  |
+| Diodes                             | Nonlinear current-voltage relation; practical models may also include charge storage and series resistance.                                                     | The Stage 7 baseline (Shockley law at a fixed 27 °C, a fixed junction conductance, no series resistance, breakdown, or charge storage) is specified by the [Stage 7 contract](../contracts/stage-7-nonlinear-circuits.md). Proposed, not implemented.                                                                                                                                  |
+| BJTs and MOSFETs                   | Nonlinear semiconductor terminal relations with multiple coupled terminals and internal state/charge effects in more detailed models.                           | The generic NPN and PNP baseline (transport-form Ebers–Moll, all four regions in one set of equations, no Early effect or parasitics) is specified by the [Stage 7 contract](../contracts/stage-7-nonlinear-circuits.md). MOSFETs and imported model cards remain deferred.                                                                                                              |
 | Coupled inductors and transformers | Multiport flux/current relations with a mutual-inductance matrix.                                                                                               | Dot convention, matrix passivity/positive-semidefinite constraints, initial magnetic state, leakage, and winding losses.                                                                                                                                                                                                                                                             |
 
 ## Agreed C/L model baseline
@@ -355,6 +355,28 @@ circuit latching through a contactor (series-resistance coil currents).
 [`stage-6-frame.json`](../../tests/golden/stage-6-frame.json) fixes one
 independently encoded OCF2 frame with the three new state kinds.
 
+### Stage 7 model baseline
+
+The diode and the NPN and PNP transistors are specified by
+[`stage-7-nonlinear-circuits.md`](../contracts/stage-7-nonlinear-circuits.md). The
+diode is `i = I_S (exp(v / (n V_T)) - 1) + g_min v`; the transistor is the transport form of
+the Ebers–Moll model, `i_C = I_F - I_R (1 + 1/β_R) - g_min v_BC`,
+`i_B = I_F/β_F + I_R/β_R + g_min (v_BE + v_BC)`, with `I_F` and `I_R` the exponentials of the
+base-emitter and base-collector voltages; the PNP is its mirror with every voltage and current
+negated. The temperature is fixed at 27 °C (`V_T = 25.864 926 mV`) and every junction carries a
+fixed `g_min = 1e-12 S`. Series resistance, breakdown, charge storage, the Early effect, and
+temperature dependence are deliberately omitted. These are proposed simulator models, not
+implemented behavior or manufacturer profiles.
+
+The solver notes are the contract's section 4: Newton–Raphson on the island's nodal
+equations with junction limiting, tests on the update and on the residual of the original
+equations, and a bounded conductance continuation that is an aid only.
+
+The independent references are in `tests/golden/stage-7-*.expected.json`, produced by
+`tests/golden/stage-7-reference.py` (standard library only; 60-digit Newton for the direct
+current answers, Runge–Kutta checked at half the step for the transient). Cross-checking
+against a pinned ngspice release is issue #109.
+
 ### Stage 5 fault models
 
 [`stage-5-assignments.md`](../contracts/stage-5-assignments.md) defines three
@@ -428,6 +450,7 @@ the generic component model separate.
 - Ho, C. W., Ruehli, A. E., and Brennan, P. A., [“The Modified Nodal Approach to Network Analysis”](https://doi.org/10.1109/TCS.1975.1084079), 1975: MNA equation assembly and branch-current variables.
 - BIPM, [SI Brochure](https://www.bipm.org/en/web/guest/publications/si-brochure), 9th edition updated 2026: SI system and unit definitions.
 - Modelica Association, [Modelica Standard Library 4.0.0, Electrical.Analog.Basic](https://doc.modelica.org/Modelica%204.0.0/Resources/helpDymola/Modelica_Electrical_Analog_Basic.html): ideal resistor, capacitor, inductor, and other basic component interfaces/equations.
+- Shockley (1949), Ebers and Moll (1954), Gummel and Poon (1970), and Nagel (1975, SPICE2 memorandum ERL-M520): the diode law, the transistor model, its relation to the integral charge-control model, and the Newton iteration with junction limiting that the Stage 7 contract uses (full citations in its section 11).
 - ngspice project, [official manuals](https://ngspice.sourceforge.io/docs.html): simulator-specific device model behavior and parameters. Use the manual version relevant to any future compatibility claim; do not treat SPICE defaults as universal physical constants.
 - TDK Electronics, [general technical information for aluminum electrolytic capacitors](https://www.tdk-electronics.tdk.com/download/185386/5f33d2619fa73419e2a4af562122e90c/pdf-generaltechnicalinformation.pdf): ESR, ESL, impedance, and frequency/temperature dependencies.
 - Coilcraft, [current and temperature ratings](https://www.coilcraft.com/en-us/resources/application-notes/current-and-temperature-ratings/): definitions and conditions for saturation and heating current ratings.

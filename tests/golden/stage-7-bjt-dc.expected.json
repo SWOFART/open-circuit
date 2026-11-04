@@ -1,0 +1,140 @@
+{
+  "fixtureId": "stage7.bjt.dc",
+  "description": "A common-emitter stage with the generic transistor (saturationCurrentAmps 1e-14, forwardBeta 100, reverseBeta 1). The emitter is at ground (the reference marker), a 1 kOhm resistor runs from the supply to the collector, and a base source feeds the base through a base resistor. For the PNP cases every voltage of the NPN circuit is negated, which is also how the answers relate (section 3.4 of the contract). In the swapped case the collector and the emitter pins exchange their nets. The numbers are produced by tests/golden/stage-7-reference.py, which does not use the Engine; they are not Engine output.",
+  "constants": {
+    "thermalVoltageVolts": 0.02586492578632875,
+    "temperatureKelvin": 300.15,
+    "junctionConductanceSiemens": 1e-12
+  },
+  "circuit": {
+    "collectorResistorOhms": 1000,
+    "wiring": "supply + - R_C - collector; base source + - R_B - base; emitter - ground; sources' negative terminals - ground"
+  },
+  "tolerance": {
+    "voltsAbsolute": 1e-6,
+    "ampsRelative": 1e-6,
+    "ampsAbsoluteFloor": 1e-12,
+    "terminalSumAbsoluteAmps": 1e-12
+  },
+  "cases": [
+    {
+      "name": "npnCutoff",
+      "region": "cutoff",
+      "polarity": "npn",
+      "supplyVolts": 10,
+      "baseSourceVolts": 0,
+      "baseResistorOhms": 430000,
+      "collectorAndEmitterSwapped": false,
+      "baseVoltageVolts": 4.3042962868401795e-6,
+      "loadNodeVoltageVolts": 9.999999989980003,
+      "collectorCurrentAmps": 1.0019997349966261e-11,
+      "baseCurrentAmps": -1.0009991364744604e-11,
+      "emitterCurrentAmps": -1.0005985221658765e-14
+    },
+    {
+      "name": "npnActive",
+      "region": "forward active",
+      "polarity": "npn",
+      "supplyVolts": 10,
+      "baseSourceVolts": 5,
+      "baseResistorOhms": 430000,
+      "collectorAndEmitterSwapped": false,
+      "baseVoltageVolts": 0.6553851179818537,
+      "loadNodeVoltageVolts": 8.98962366880271,
+      "collectorCurrentAmps": 0.0010103763311972902,
+      "baseCurrentAmps": 1.0103755539577084e-5,
+      "emitterCurrentAmps": -0.0010204800867368673
+    },
+    {
+      "name": "npnSaturation",
+      "region": "saturation",
+      "polarity": "npn",
+      "supplyVolts": 10,
+      "baseSourceVolts": 5,
+      "baseResistorOhms": 4300,
+      "collectorAndEmitterSwapped": false,
+      "baseVoltageVolts": 0.7187142909314997,
+      "loadNodeVoltageVolts": 0.0669395637649719,
+      "collectorCurrentAmps": 0.009933060436235028,
+      "baseCurrentAmps": 0.0009956478393182559,
+      "emitterCurrentAmps": -0.010928708275553284
+    },
+    {
+      "name": "pnpCutoff",
+      "region": "cutoff",
+      "polarity": "pnp",
+      "supplyVolts": -10,
+      "baseSourceVolts": 0,
+      "baseResistorOhms": 430000,
+      "collectorAndEmitterSwapped": false,
+      "baseVoltageVolts": -4.3042962868401795e-6,
+      "loadNodeVoltageVolts": -9.999999989980003,
+      "collectorCurrentAmps": -1.0019997349966261e-11,
+      "baseCurrentAmps": 1.0009991364744604e-11,
+      "emitterCurrentAmps": 1.0005985221658765e-14
+    },
+    {
+      "name": "pnpActive",
+      "region": "forward active",
+      "polarity": "pnp",
+      "supplyVolts": -10,
+      "baseSourceVolts": -5,
+      "baseResistorOhms": 430000,
+      "collectorAndEmitterSwapped": false,
+      "baseVoltageVolts": -0.6553851179818537,
+      "loadNodeVoltageVolts": -8.98962366880271,
+      "collectorCurrentAmps": -0.0010103763311972902,
+      "baseCurrentAmps": -1.0103755539577084e-5,
+      "emitterCurrentAmps": 0.0010204800867368673
+    },
+    {
+      "name": "pnpSaturation",
+      "region": "saturation",
+      "polarity": "pnp",
+      "supplyVolts": -10,
+      "baseSourceVolts": -5,
+      "baseResistorOhms": 4300,
+      "collectorAndEmitterSwapped": false,
+      "baseVoltageVolts": -0.7187142909314997,
+      "loadNodeVoltageVolts": -0.0669395637649719,
+      "collectorCurrentAmps": -0.009933060436235028,
+      "baseCurrentAmps": -0.0009956478393182559,
+      "emitterCurrentAmps": 0.010928708275553284
+    }
+  ],
+  "wrongVariants": [
+    {
+      "name": "npnReverseActive",
+      "region": "reverse active (collector and emitter swapped)",
+      "polarity": "npn",
+      "supplyVolts": 10,
+      "baseSourceVolts": 5,
+      "baseResistorOhms": 430000,
+      "collectorAndEmitterSwapped": true,
+      "baseVoltageVolts": 0.5369682736760255,
+      "loadNodeVoltageVolts": 9.989620838071872,
+      "collectorCurrentAmps": -2.075830547771813e-5,
+      "baseCurrentAmps": 1.0379143549590638e-5,
+      "emitterCurrentAmps": 1.0379161928127494e-5
+    }
+  ],
+  "failureCases": [
+    {
+      "name": "ideal source across a forward base-emitter junction",
+      "description": "The NPN common-emitter stage with the base resistor replaced by a wire, so that an ideal 5 V source is directly across the base-emitter junction, while the collector is wired through its 1 kOhm to the 10 V supply as in the other cases. Any solution needs more than 80 thermal voltages across the junction (5 V is 193).",
+      "expected": {
+        "compile": "fails",
+        "diagnostic": "ModelRangeExceeded",
+        "references": "the transistor",
+        "otherDiagnostics": "none"
+      }
+    }
+  ],
+  "checks": [
+    "In forward active, collectorCurrentAmps / baseCurrentAmps equals forwardBeta (100) to 1e-4 relative.",
+    "In saturation, collectorCurrentAmps / baseCurrentAmps is below forwardBeta, and the collector-to-emitter voltage is below the base-to-emitter voltage.",
+    "The three terminal currents sum to zero within terminalSumAbsoluteAmps.",
+    "The cutoff emitterCurrentAmps (about 1e-14 A) is below ampsAbsoluteFloor and is not checked.",
+    "Every PNP case is the NPN case of the same name with every voltage and current negated, to the tolerance."
+  ]
+}
