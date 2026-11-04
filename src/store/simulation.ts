@@ -474,6 +474,17 @@ export class SimulationController {
   private requestCompile(): Promise<void> {
     // A recompile carries every parameter, so queued updates are obsolete.
     this.pending.clear();
+    // Withdraw the previous document even if an operator request must finish
+    // before the new compile can be sent.
+    this.stopFrameStream();
+    this.setState({
+      status: "loading",
+      run: null,
+      snapshot: null,
+      diagnostics: [],
+      error: null,
+      updating: true,
+    });
     this.compiling ??= this.compileNewest().finally(() => {
       this.compiling = null;
     });
@@ -508,10 +519,6 @@ export class SimulationController {
     const documentRevision = this.createRevision();
     const faults = this.faults;
     let result: CompileResult;
-
-    if (this.state.status === "ready") {
-      this.setState({ updating: true });
-    }
 
     try {
       result = await this.adapter.compile({
@@ -757,6 +764,9 @@ export class SimulationController {
         }
       }
     } catch (error) {
+      if (this.disposed || this.compiling) {
+        return true;
+      }
       if (operator) {
         // The request may or may not have been applied. The next answer or frame says.
         this.ambiguousRevisions = [...candidates, revision];
@@ -777,7 +787,7 @@ export class SimulationController {
       return false;
     }
 
-    if (this.disposed || !result) {
+    if (this.disposed || this.compiling || !result) {
       return true;
     }
 
