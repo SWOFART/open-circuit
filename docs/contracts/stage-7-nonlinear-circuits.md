@@ -153,7 +153,12 @@ Each electrical island is solved on its own, as today. Its unknowns are the node
 I_k(V) ≈ I_k(V*) + sum_j G_kj (V_j - V*_j),     G_kj = d I_k / d V_j at V*
 ```
 
-`G` enters the conductance matrix and `I_k(V*) - sum_j G_kj V*_j` the right-hand side, at the rows of the terminals' nodes. The diode is the one-junction case (section 3.2); the transistor is the two-junction case, whose 3×3 conductance block follows from section 3.3 by the chain rule on `v_BE` and `v_BC`. Each iteration is one dense LU solve with the existing solver and its existing relative residual check. The assembly order, the pivoting, and the iteration order are fixed, so the same inputs give identical results on a given build and platform (the exponential and logarithm come from the platform's math library, so bit-identity across platforms is not claimed). If the LU solve of any iteration fails (a singular or non-finite matrix, or a residual too large), the whole solve fails at once with `SingularSystem` (or `NonFiniteState` for a non-finite number), referencing the island's components as a linear singular system does; the continuation is not tried.
+`G` enters the conductance matrix and `sum_j G_kj V*_j - I_k(V*)` the right-hand side, at the rows of the terminals' nodes. The diode is the one-junction case (section 3.2); the transistor is the two-junction case, whose 3×3 conductance block follows from section 3.3 by the chain rule on `v_BE` and `v_BC`. Each iteration is one dense LU solve with the existing solver and its existing relative residual check. The assembly order, the pivoting, and the iteration order are fixed, so the same inputs give identical results on a given build and platform (the exponential and logarithm come from the platform's math library, so bit-identity across platforms is not claimed). If the LU solve of any iteration fails (a singular or non-finite matrix, or a residual too large), the whole solve fails at once with `SingularSystem` (or `NonFiniteState` for a non-finite number), referencing the island's components as a linear singular system does; the continuation is not tried.
+
+The RHS contribution follows owner approval in #117:
+`sum_j G_kj V*_j - I_k(V*)`: positive terminal current enters the device,
+so KCL is `G_linear V + I(V) = J`. Existing motor armature-current and
+angular-velocity unknowns remain in the same coupled system.
 
 ### 4.2 Initial iterate
 
@@ -184,7 +189,36 @@ An iteration is accepted as the solution when it is not limited and both tests p
 1. **Update test.** For every unknown `i`: `|x_new,i - x_old,i| <= 1e-9 * max(|x_new,i|, |x_old,i|) + abs_i`, with `abs_i = 1e-9 V` for a node voltage and `1e-12 A` for a branch current. `x_old` is the solution vector of the previous iteration's linear solve (the unknowns themselves, not the limited junction voltages derived from it).
 2. **Residual test, on the original equations.** The device terminal currents are computed from the device equations (in the extended function of section 3.1, which is the equation wherever `x <= 80`) at the junction voltages of `x_new` (not from the linearization, not from the limited values). For every node row, the sum `r` of all currents leaving the node must satisfy `|r| <= 1e-9 * S + 1e-15 A`, with `S` the sum of the magnitudes of the **terms** that make up those currents: a resistor's or source's current, a companion element's current, and for a nonlinear device the magnitude of each term of its terminal current as section 3 writes it (the diode's `I_S (exp(x) - 1)` and `g_min v`; the transistor's `I_F`, `I_R`, `I_F / beta_F`, `I_R / beta_R`, `g_min v_BE`, and `g_min v_BC`, in the terminals they enter). `S` is a scale for rounding, so it uses the terms, not their sum: a transistor deep in the extended range has terminal currents that are differences of terms of the same size, and a net current alone would be rounding noise. For every ideal-voltage-source row, the voltage constraint must hold to `1e-9 * max(|E|, |V_a|, |V_b|) + 1e-9 V`.
 
-The tolerances are fixed constants, named `NEWTON_RELTOL`, `NEWTON_VNTOL`, `NEWTON_BRANCH_ABSTOL`, and `NEWTON_ITOL`, and are not parameters of a circuit.
+For a motor angular-velocity unknown, the update absolute tolerance is
+`NEWTON_SPEED_ABSTOL = 1e-9 rad/s`, with the same relative tolerance. Check
+the original armature equation with an absolute residual floor of `1e-9 V`
+and the original mechanical equation with `NEWTON_TORQUE_ABSTOL = 1e-15 N m`;
+add `1e-9` times the sum of absolute equation terms (including the RHS).
+These additions were approved in #117; the coupled motor equations do not change.
+
+The tolerances are fixed constants, named `NEWTON_RELTOL`, `NEWTON_VNTOL`, `NEWTON_BRANCH_ABSTOL`, `NEWTON_ITOL`, `NEWTON_SPEED_ABSTOL`, and `NEWTON_TORQUE_ABSTOL`, and are not parameters of a circuit.
+
+#### Floating-point evaluation allowance (owner-approved #118)
+
+The residual threshold above additionally includes an explicit arithmetic
+`roundoff_bound`; physical-current scale `S` and every existing tolerance remain
+unchanged. Define `gamma(m) = m * f64::EPSILON / (1 - m * f64::EPSILON)`.
+EPSILON, rather than half EPSILON, conservatively includes rounded stored operands.
+For a linear stamp with `n` coefficient products and RHS `b`, add
+`gamma(2*n + 2) * (sum_j abs(a_j*x_j) + abs(b))` to that row's bound.
+For `G*(V_a-V_b)`, include both `abs(G*V_a)` and `abs(G*V_b)` even though
+the implementation subtracts potentials before multiplying. This counts the
+products, additions, RHS subtraction and operand representation allowance.
+For an ideal voltage constraint, use `gamma(4)*(abs(V_a)+abs(V_b)+abs(E))`.
+For a continuation current, use `gamma(2)*abs(g_c*V)`.
+Finally add `gamma(k)*S`, where `k` is the count of accumulated linear stamps,
+individual nonlinear current terms and continuation currents in the row.
+The bound has the row's physical units (A, V or N m). Non-finite bounds or
+`m*EPSILON >= 1` fail with `NonFiniteState`; an infinite tolerance is never accepted.
+
+The final criterion is `abs(residual) <= 1e-9*S + absolute_floor + roundoff_bound`.
+It still evaluates unlimited voltages on original equations, removes continuation
+before acceptance, and does not alter the canonical fixture's accuracy tolerances.
 
 ### 4.5 Iteration limit and continuation
 

@@ -108,14 +108,13 @@ impl Device for ContactorDevice {
             }
             RelayCoilMode::Transient { .. } => {
                 let (conductance, history_current) = self.companion()?;
-                if !system.stamp_conductance(variables, self.coil.pin1, self.coil.pin2, conductance)
-                    || !system.stamp_current_injection(
-                        variables,
-                        self.coil.pin1,
-                        self.coil.pin2,
-                        -history_current,
-                    )
-                {
+                if !system.stamp_norton(
+                    variables,
+                    self.coil.pin1,
+                    self.coil.pin2,
+                    conductance,
+                    -history_current,
+                ) {
                     return Err(invalid());
                 }
             }

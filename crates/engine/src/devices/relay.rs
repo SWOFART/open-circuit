@@ -145,14 +145,13 @@ impl Device for RelayDevice {
             }
             RelayCoilMode::Transient { .. } => {
                 let (conductance, history_current) = self.transient_companion()?;
-                if !system.stamp_conductance(variables, self.coil.pin1, self.coil.pin2, conductance)
-                    || !system.stamp_current_injection(
-                        variables,
-                        self.coil.pin1,
-                        self.coil.pin2,
-                        -history_current,
-                    )
-                {
+                if !system.stamp_norton(
+                    variables,
+                    self.coil.pin1,
+                    self.coil.pin2,
+                    conductance,
+                    -history_current,
+                ) {
                     return Err(component_diagnostic(
                         DiagnosticCode::InvalidParameter,
                         &self.component_id,

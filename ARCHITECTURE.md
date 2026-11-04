@@ -205,6 +205,13 @@ an update is refused with the run unchanged. The contract adds two diagnostics
 to the catalog's parameter definitions, a requirement that the application tells the user when
 a run stops on an Engine error, and no new frame or state kind.
 
+The #117 clarification preserves the MNA current convention: nonlinear equivalent
+injections are `G V* - I(V*)`. Mixed motor islands also check angular-speed
+updates in rad/s and mechanical residuals in torque units, as specified by Stage 7.
+The owner-approved #118 correction adds a finite, stamp-derived floating-point
+evaluation allowance to residual tests; it keeps physical scales, fixed tolerances,
+model equations and fixture accuracy targets unchanged.
+
 ### 3.6 Events: relays, burn-out, fuses
 
 Non-smooth behavior lives in state machines around the solver:
