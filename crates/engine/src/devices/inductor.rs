@@ -111,15 +111,11 @@ impl Device for InductorDevice {
             }
             InductorMode::Transient { .. } => {
                 let (conductance, history_current) = self.companion()?;
-                if !system.stamp_conductance(
+                if !system.stamp_norton(
                     variables,
                     self.terminals.pin1,
                     self.terminals.pin2,
                     conductance,
-                ) || !system.stamp_current_injection(
-                    variables,
-                    self.terminals.pin1,
-                    self.terminals.pin2,
                     -history_current,
                 ) {
                     return Err(component_diagnostic(

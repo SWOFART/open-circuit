@@ -10,6 +10,7 @@ pub mod faults;
 pub mod ids;
 mod mna;
 pub mod netlist;
+mod newton;
 mod operator;
 pub mod project;
 pub mod results;

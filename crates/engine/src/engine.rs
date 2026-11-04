@@ -26,7 +26,6 @@ use crate::{
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
     operator::OperatorState,
     slots::slot_definitions,
-    solver::SolverError,
 };
 use trace::TraceHistory;
 use transient::{
@@ -61,6 +60,7 @@ struct CompiledRun {
     step_start_states: CircuitStates,
     internal_substeps: u32,
     trace_history: TraceHistory,
+    stopped: Option<Vec<Diagnostic>>,
 }
 
 type InitializationOutcome =
@@ -200,6 +200,7 @@ impl Engine {
             states,
             internal_substeps,
             trace_history,
+            stopped: None,
         });
 
         CompileResult::Success {
@@ -355,6 +356,7 @@ impl Engine {
         active.schematic = candidate;
         active.overlay = candidate_overlay;
         active.open = candidate_open;
+        active.stopped = None;
         active.snapshot = snapshot.clone();
         active.states = states.clone();
         if simulation_step == 0 {
@@ -503,6 +505,7 @@ impl Engine {
         }
         active.operator = operator;
         active.open = open;
+        active.stopped = None;
         active.snapshot = snapshot.clone();
         active.states = states.clone();
         if changed && simulation_step == 0 {
@@ -518,6 +521,34 @@ impl Engine {
 
     /// Advance the compiled circuit by the requested number of public transient steps.
     pub fn advance(&mut self, request: AdvanceRequest) -> Result<ResultSnapshot, Vec<Diagnostic>> {
+        if let Some(active) = self.compiled.as_ref()
+            && active.run_id == request.run_id
+            && let Some(errors) = &active.stopped
+        {
+            return Err(errors.clone());
+        }
+        let result = self.advance_unchecked(request);
+        if let Err(errors) = &result
+            && errors.iter().any(|e| {
+                matches!(
+                    e.code,
+                    DiagnosticCode::NonConvergence
+                        | DiagnosticCode::ModelRangeExceeded
+                        | DiagnosticCode::NonFiniteState
+                        | DiagnosticCode::EventChatter
+                )
+            })
+            && let Some(active) = self.compiled.as_mut()
+        {
+            active.stopped = Some(errors.clone());
+        }
+        result
+    }
+
+    fn advance_unchecked(
+        &mut self,
+        request: AdvanceRequest,
+    ) -> Result<ResultSnapshot, Vec<Diagnostic>> {
         let Some(active) = self.compiled.as_mut() else {
             return Err(vec![Diagnostic::error(
                 DiagnosticCode::StaleRun,
@@ -722,10 +753,11 @@ fn initialize_circuit(
     let mut states = CircuitStates::default();
 
     if needs_operating_point {
-        let (operating_point, operating_diagnostics) =
+        let (operating_point, operating_diagnostics, memory) =
             compute_circuit(schematic, geometry, open, SolveMode::OperatingPoint)?;
         diagnostics.extend(operating_diagnostics);
         states = circuit_states_from_results(schematic, &operating_point, 0.0);
+        states.solver_memory = memory;
     }
 
     if has_explicit_initial_state {
@@ -768,13 +800,15 @@ fn initialize_circuit(
         }
     }
 
-    let (mut results, initial_diagnostics) = if has_explicit_initial_state {
+    states.solver_memory = crate::newton::SolverMemory::default();
+    let (mut results, initial_diagnostics, memory) = if has_explicit_initial_state {
         compute_circuit(schematic, geometry, open, SolveMode::InitialState(&states))?
     } else {
         compute_circuit(schematic, geometry, open, SolveMode::OperatingPoint)?
     };
     diagnostics.extend(initial_diagnostics);
     states = circuit_states_from_results(schematic, &results, 0.0);
+    states.solver_memory = memory;
     settle_discrete_events(
         CircuitInput {
             schematic,
@@ -796,7 +830,14 @@ fn compute_circuit(
     geometry: &GeometryEnvelope,
     open: &HashSet<StableId>,
     mode: SolveMode<'_>,
-) -> Result<(Vec<DeviceResult>, Vec<Diagnostic>), Vec<Diagnostic>> {
+) -> Result<
+    (
+        Vec<DeviceResult>,
+        Vec<Diagnostic>,
+        crate::newton::SolverMemory,
+    ),
+    Vec<Diagnostic>,
+> {
     let netlist = derive_netlist_with_open(schematic, geometry, open)?;
     let mut diagnostics = netlist.diagnostics.clone();
     let device_specs = match build_device_specs(schematic, &netlist) {
@@ -834,6 +875,12 @@ fn compute_circuit(
         }
     }
 
+    let mut memory = crate::newton::SolverMemory::default();
+    let previous_memory = match mode {
+        SolveMode::Transient { states, .. } => Some(&states.solver_memory),
+        SolveMode::InitialState(states) => Some(&states.solver_memory),
+        _ => None,
+    };
     let mut results = Vec::with_capacity(device_specs.len() + open.len());
     // Node -> (island, voltage), for the voltage across an open part's pins.
     let mut solved_nodes = HashMap::<usize, (usize, f64)>::new();
@@ -926,33 +973,84 @@ fn compute_circuit(
             continue;
         }
 
-        let solved = match system.solve() {
+        let nonlinear = devices
+            .iter()
+            .filter_map(|device| device.nonlinear())
+            .collect::<Vec<_>>();
+        let mut tolerances = vec![
+            crate::newton::UnknownTolerance {
+                update: crate::newton::NEWTON_BRANCH_ABSTOL,
+                residual: crate::newton::NEWTON_VNTOL,
+            };
+            next_variable
+        ];
+        for t in &mut tolerances[..variables.voltage_variable_count()] {
+            t.update = crate::newton::NEWTON_VNTOL;
+            t.residual = crate::newton::NEWTON_ITOL;
+        }
+        for i in motor_speed_variables.values() {
+            tolerances[*i].update = crate::newton::NEWTON_SPEED_ABSTOL;
+            tolerances[*i].residual = crate::newton::NEWTON_TORQUE_ABSTOL;
+        }
+        let mut initial = vec![0.0; next_variable];
+        for node in &island.node_indices {
+            if let Some(i) = variables.voltage_variable(*node) {
+                initial[i] = previous_memory
+                    .and_then(|m| m.nodes.get(node))
+                    .copied()
+                    .unwrap_or(0.0);
+            }
+        }
+        let initial_junctions = nonlinear
+            .iter()
+            .map(|d| {
+                previous_memory
+                    .and_then(|m| m.junctions.get(d.id()))
+                    .cloned()
+                    .unwrap_or_else(|| vec![0.0; d.junctions().len()])
+            })
+            .collect();
+        let (solution, junctions) = match crate::newton::solve(
+            &system,
+            &variables,
+            &nonlinear,
+            &tolerances,
+            initial,
+            initial_junctions,
+        ) {
             Ok(solved) => solved,
-            Err(
-                SolverError::DimensionMismatch
-                | SolverError::NonFinite
-                | SolverError::Singular
-                | SolverError::ResidualTooLarge,
-            ) => {
-                diagnostics.push(diagnostic_for_island(
-                    DiagnosticCode::SingularSystem,
-                    island,
-                ));
+            Err(failure) => {
+                diagnostics.push(if failure.components.is_empty() {
+                    diagnostic_for_island(failure.code, island)
+                } else {
+                    Diagnostic::error(
+                        failure.code,
+                        failure
+                            .components
+                            .into_iter()
+                            .map(|component_id| DiagnosticReference::Component { component_id })
+                            .collect(),
+                    )
+                });
                 continue;
             }
         };
+        for (device, junctions) in nonlinear.iter().zip(junctions) {
+            memory.junctions.insert(device.id().clone(), junctions);
+        }
 
         let mut node_voltages = vec![0.0; netlist.nodes.len()];
         for node in island.node_indices.iter().copied() {
             if let Some(variable) = variables.voltage_variable(node) {
-                node_voltages[node] = solved.values[variable];
+                node_voltages[node] = solution[variable];
             }
         }
         for node in island.node_indices.iter().copied() {
             solved_nodes.insert(node, (island_index, node_voltages[node]));
+            memory.nodes.insert(node, node_voltages[node]);
         }
         for device in devices {
-            match device.result(&node_voltages, &solved.values) {
+            match device.result(&node_voltages, &solution) {
                 Ok(result) => results.push(result),
                 Err(diagnostic) => diagnostics.push(diagnostic),
             }
@@ -965,7 +1063,7 @@ fn compute_circuit(
     }
     results.extend(open_results(&netlist, open, &solved_nodes));
     results.sort_by(|left, right| left.component_id.as_str().cmp(right.component_id.as_str()));
-    Ok((results, diagnostics))
+    Ok((results, diagnostics, memory))
 }
 
 /// The results of the open components: no current, and the voltage between the nodes their
@@ -1317,6 +1415,10 @@ fn make_device(
     motor_speed_variable: Option<usize>,
     mode: SolveMode<'_>,
 ) -> Box<dyn Device> {
+    #[cfg(test)]
+    if let Some(device) = nonlinear_tests::make_test_device(spec, mode) {
+        return device;
+    }
     match spec.model {
         DeviceModel::Resistor { resistance_ohms } => Box::new(ResistorDevice::new(
             spec.component_id.clone(),
@@ -2174,6 +2276,10 @@ fn sort_diagnostics(diagnostics: &mut Vec<Diagnostic>) {
     diagnostics.sort_by_key(|diagnostic| format!("{diagnostic:?}"));
     diagnostics.dedup();
 }
+
+#[cfg(test)]
+#[path = "nonlinear_tests.rs"]
+mod nonlinear_tests;
 
 #[cfg(test)]
 mod tests {

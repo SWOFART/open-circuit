@@ -60,6 +60,7 @@ pub(super) struct MotorState {
 
 #[derive(Clone, Default)]
 pub(super) struct CircuitStates {
+    pub(super) solver_memory: crate::newton::SolverMemory,
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
@@ -255,6 +256,7 @@ pub(super) fn circuit_states_from_results(
         })
         .collect();
     CircuitStates {
+        solver_memory: crate::newton::SolverMemory::default(),
         capacitors,
         inductors,
         relays,
@@ -327,7 +329,7 @@ pub(super) fn advance_public_steps(
             } else {
                 IntegrationMethod::Trapezoidal
             };
-            let (mut step_results, step_diagnostics) = super::compute_circuit(
+            let (mut step_results, step_diagnostics, memory) = super::compute_circuit(
                 schematic,
                 geometry,
                 open,
@@ -342,6 +344,7 @@ pub(super) fn advance_public_steps(
                 circuit_states_from_results(schematic, &step_results, step_end_time);
             // The requested recovery method was consumed by this interval. A new
             // relay transition below can schedule another backward-Euler interval.
+            candidate.solver_memory = memory;
             candidate.backward_euler_next_step = false;
             let fuse_transitions = accumulate_fuse_i2t(
                 schematic,
@@ -513,7 +516,7 @@ pub(super) fn settle_discrete_events(
             sort_diagnostics(diagnostics);
             return Err(diagnostics.clone());
         }
-        let (resolved, event_diagnostics) =
+        let (resolved, event_diagnostics, memory) =
             super::compute_circuit(schematic, geometry, open, SolveMode::InitialState(states))?;
         *results = resolved;
         diagnostics.extend(event_diagnostics);
@@ -521,6 +524,7 @@ pub(super) fn settle_discrete_events(
             circuit_states_from_results(schematic, results, event_time_seconds);
         // The event state is the state vector used to solve this reconfiguration; the
         // device results carry that same vector and its exact transition times.
+        resolved_states.solver_memory = memory;
         resolved_states.simulation_time_seconds = event_time_seconds;
         resolved_states.backward_euler_next_step = states.backward_euler_next_step;
         *states = resolved_states;

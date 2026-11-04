@@ -37,9 +37,15 @@ impl NodeVariables {
     }
 }
 
+type LinearRowTerm = (Vec<(usize, f64)>, f64);
+
+#[derive(Clone)]
 pub(crate) struct MnaSystem {
     matrix: Vec<Vec<f64>>,
     rhs: Vec<f64>,
+    pub(crate) terms: Vec<Vec<LinearRowTerm>>,
+    pub(crate) current_groups: Vec<Vec<std::ops::Range<usize>>>,
+    pub(crate) voltage_constraints: Vec<(usize, Option<usize>, Option<usize>, f64)>,
 }
 
 impl MnaSystem {
@@ -47,7 +53,35 @@ impl MnaSystem {
         Self {
             matrix: vec![vec![0.0; variable_count]; variable_count],
             rhs: vec![0.0; variable_count],
+            terms: vec![Vec::new(); variable_count],
+            current_groups: vec![Vec::new(); variable_count],
+            voltage_constraints: Vec::new(),
         }
+    }
+
+    /// Keep a Norton branch's physical current together for the KCL scale.
+    /// Its individual stamps remain separate for the arithmetic roundoff bound.
+    pub(crate) fn stamp_norton(
+        &mut self,
+        variables: &NodeVariables,
+        pin1: usize,
+        pin2: usize,
+        conductance: f64,
+        injection: f64,
+    ) -> bool {
+        let starts = self.terms.iter().map(Vec::len).collect::<Vec<_>>();
+        if !self.stamp_conductance(variables, pin1, pin2, conductance)
+            || !self.stamp_current_injection(variables, pin1, pin2, injection)
+        {
+            return false;
+        }
+        for ((groups, terms), start) in self.current_groups.iter_mut().zip(&self.terms).zip(starts)
+        {
+            if start < terms.len() {
+                groups.push(start..terms.len());
+            }
+        }
+        true
     }
 
     /// Stamp conductance between two nodes: `G·(Vp−Vn)` enters pin 1 and leaves pin 2.
@@ -65,6 +99,17 @@ impl MnaSystem {
         let pin2 = variables.voltage_variable(pin2_node);
         if pin1 == pin2 {
             return true;
+        }
+        let terms = pin1
+            .map(|i| (i, conductance_siemens))
+            .into_iter()
+            .chain(pin2.map(|i| (i, -conductance_siemens)))
+            .collect::<Vec<_>>();
+        if let Some(i) = pin1 {
+            self.terms[i].push((terms.clone(), 0.0));
+        }
+        if let Some(i) = pin2 {
+            self.terms[i].push((terms.iter().map(|(j, g)| (*j, -g)).collect(), 0.0));
         }
         if let Some(pin1) = pin1
             && !self.add_matrix(pin1, pin1, conductance_siemens)
@@ -100,6 +145,12 @@ impl MnaSystem {
         let pin2 = variables.voltage_variable(pin2_node);
         if pin1 == pin2 {
             return true;
+        }
+        if let Some(i) = pin1 {
+            self.terms[i].push((Vec::new(), current_into_pin1_amps));
+        }
+        if let Some(i) = pin2 {
+            self.terms[i].push((Vec::new(), -current_into_pin1_amps));
         }
         if let Some(pin1) = pin1
             && !self.add_rhs(pin1, current_into_pin1_amps)
@@ -141,6 +192,14 @@ impl MnaSystem {
         {
             return false;
         }
+        self.voltage_constraints
+            .push((branch_variable, pin1, pin2, voltage_volts));
+        if let Some(i) = pin1 {
+            self.terms[i].push((vec![(branch_variable, 1.0)], 0.0));
+        }
+        if let Some(i) = pin2 {
+            self.terms[i].push((vec![(branch_variable, -1.0)], 0.0));
+        }
         self.add_rhs(branch_variable, voltage_volts)
     }
 
@@ -158,6 +217,12 @@ impl MnaSystem {
         }
         let pin1 = variables.voltage_variable(pin1_node);
         let pin2 = variables.voltage_variable(pin2_node);
+        if let Some(i) = pin1 {
+            self.terms[i].push((vec![(branch_variable, 1.0)], 0.0));
+        }
+        if let Some(i) = pin2 {
+            self.terms[i].push((vec![(branch_variable, -1.0)], 0.0));
+        }
         if let Some(pin1) = pin1
             && !self.add_matrix(pin1, branch_variable, 1.0)
         {
@@ -190,19 +255,63 @@ impl MnaSystem {
                 return false;
             }
         }
+        self.terms[row_variable].push((terms.to_vec(), right_hand_side));
         self.add_rhs(row_variable, right_hand_side)
+    }
+
+    pub(crate) fn size(&self) -> usize {
+        self.rhs.len()
     }
 
     pub(crate) fn solve(&self) -> Result<SolverSolution, SolverError> {
         DenseLuSolver::default().solve(&self.matrix, &self.rhs)
     }
 
-    fn add_matrix(&mut self, row: usize, column: usize, value: f64) -> bool {
+    /// Equilibrate units for nonlinear iterations (e.g. an ideal source against
+    /// a very large junction conductance). LU tolerances are unchanged; Newton
+    /// still checks the original physical equations after unscaling.
+    pub(crate) fn solve_equilibrated(&self) -> Result<SolverSolution, SolverError> {
+        let n = self.size();
+        let scales = (0..n)
+            .map(|j| {
+                let maximum = self
+                    .matrix
+                    .iter()
+                    .map(|r| r[j].abs())
+                    .fold(0.0_f64, f64::max);
+                if maximum > 0.0 { 1.0 / maximum } else { 1.0 }
+            })
+            .collect::<Vec<_>>();
+        let mut matrix = self.matrix.clone();
+        let mut rhs = self.rhs.clone();
+        for (i, row) in matrix.iter_mut().enumerate() {
+            for (v, s) in row.iter_mut().zip(&scales) {
+                *v *= s;
+            }
+            let maximum = row.iter().map(|v| v.abs()).fold(0.0_f64, f64::max);
+            if maximum > 0.0 {
+                for v in row {
+                    *v /= maximum;
+                }
+                rhs[i] /= maximum;
+            }
+        }
+        let mut solved = DenseLuSolver::default().solve(&matrix, &rhs)?;
+        for (v, s) in solved.values.iter_mut().zip(scales) {
+            *v *= s;
+        }
+        if !solved.values.iter().all(|v| v.is_finite()) {
+            return Err(SolverError::NonFinite);
+        }
+        Ok(solved)
+    }
+
+    pub(crate) fn add_matrix(&mut self, row: usize, column: usize, value: f64) -> bool {
         self.matrix[row][column] += value;
         self.matrix[row][column].is_finite()
     }
 
-    fn add_rhs(&mut self, row: usize, value: f64) -> bool {
+    pub(crate) fn add_rhs(&mut self, row: usize, value: f64) -> bool {
         self.rhs[row] += value;
         self.rhs[row].is_finite()
     }

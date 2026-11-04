@@ -44,6 +44,10 @@ pub(crate) struct DeviceResult {
 }
 
 pub(crate) trait Device {
+    /// Nonlinear constitutive laws are evaluated separately from the linear stamp.
+    fn nonlinear(&self) -> Option<&dyn crate::newton::NonlinearDevice> {
+        None
+    }
     fn stamp(&self, system: &mut MnaSystem, variables: &NodeVariables) -> Result<(), Diagnostic>;
     fn result(
         &self,

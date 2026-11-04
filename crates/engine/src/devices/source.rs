@@ -59,16 +59,11 @@ impl Device for DcVoltageSourceDevice {
         let source_current = self.voltage_volts / self.internal_resistance_ohms;
         if !conductance.is_finite()
             || !source_current.is_finite()
-            || !system.stamp_conductance(
+            || !system.stamp_norton(
                 variables,
                 self.terminals.pin1,
                 self.terminals.pin2,
                 conductance,
-            )
-            || !system.stamp_current_injection(
-                variables,
-                self.terminals.pin1,
-                self.terminals.pin2,
                 source_current,
             )
         {

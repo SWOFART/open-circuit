@@ -115,6 +115,9 @@ const messages: Readonly<Record<string, string>> = {
     "A relay or fuse changes state again and again at the same instant, so the circuit cannot settle.",
   "diagnostic.nonFiniteState":
     "A device state, such as a fuse's accumulated I²t or a motor's speed, became too large to represent.",
+  "diagnostic.nonConvergence": "The nonlinear circuit did not converge.",
+  "diagnostic.modelRangeExceeded":
+    "A junction exceeds the supported model range.",
   "diagnostic.stepAccuracyLimited":
     "The circuit is too fast for the available internal step limit; simulation accuracy may be limited.",
   "diagnostic.staleRun":
