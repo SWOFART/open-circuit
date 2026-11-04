@@ -27,6 +27,20 @@ TEMPERATURE = D("300.15")
 VT = BOLTZMANN * TEMPERATURE / ELEMENTARY_CHARGE
 GMIN = D("1e-12")
 
+# ngspice 47 computes its thermal voltage from the CODATA 2014 values of the two constants,
+# not from the exact SI 2019 values. `use_constants` switches this module to them so that the
+# same equations can be compared with ngspice almost to rounding (tests/golden/
+# stage-7-references.py); the contract's answers always use the SI 2019 values above.
+NGSPICE_BOLTZMANN = D("1.38064852e-23")
+NGSPICE_ELEMENTARY_CHARGE = D("1.6021766208e-19")
+
+
+def use_constants(boltzmann, charge):
+    """Re-derive the thermal voltage from other values of k and q (and back)."""
+    global VT, VT_F
+    VT = boltzmann * TEMPERATURE / charge
+    VT_F = float(VT)
+
 DEFAULT_IS = D("1e-14")
 DEFAULT_N = D(1)
 DEFAULT_BF = D(100)
@@ -58,40 +72,44 @@ def npn(vbe, vbc, i_s=DEFAULT_IS, bf=DEFAULT_BF, br=DEFAULT_BR):
     return i_c, i_b, -(i_c + i_b), jac
 
 
-def solve_diode_series(v_source, resistance):
+def solve_diode_series(v_source, resistance, i_s=DEFAULT_IS, n=DEFAULT_N):
     """V - R i = v_D with i the diode current (series circuit)."""
-    v = D("0.6") if v_source > 0 else v_source
-    for _ in range(200):
-        i, g = diode(v)
+    v = min(D("0.6"), v_source) if v_source > 0 else v_source
+    for _ in range(500):
+        i, g = diode(v, i_s, n)
         f = (v_source - v) / resistance - i
         step = f / (g + 1 / resistance)
+        # A damped step keeps the exponential in range from the first guess.
+        step = max(min(step, D("0.1")), D("-0.1")) if abs(step) > D("0.1") else step
         v += step
         if abs(step) < D("1e-50"):
             break
-    i, _ = diode(v)
+    i, _ = diode(v, i_s, n)
     residual = abs((v_source - v) / resistance - i)
     assert residual < D("1e-40"), residual
     return v, i
 
 
-def device_currents(vb, vc, polarity, swapped):
+def device_currents(vb, vc, polarity, swapped, i_s=DEFAULT_IS, bf=DEFAULT_BF, br=DEFAULT_BR):
     """Terminal currents entering (collector, base, emitter) of an NPN (polarity +1) or PNP
     (polarity -1) whose base is at `vb`. In the normal wiring the collector is at `vc` and
     the emitter at ground; swapped, the emitter is at `vc` and the collector at ground."""
     v_c, v_e = (D(0), vc) if swapped else (vc, D(0))
     # The PNP is the NPN with every voltage and current negated (section 3.4).
-    i_c, i_b, i_e, _ = npn(polarity * (vb - v_e), polarity * (vb - v_c))
+    i_c, i_b, i_e, _ = npn(polarity * (vb - v_e), polarity * (vb - v_c), i_s, bf, br)
     return polarity * i_c, polarity * i_b, polarity * i_e
 
 
-def solve_common_emitter(v_cc, r_c, v_bb, r_b, polarity, swapped=False):
+def solve_common_emitter(
+    v_cc, r_c, v_bb, r_b, polarity, swapped=False, i_s=DEFAULT_IS, bf=DEFAULT_BF, br=DEFAULT_BR
+):
     """Common-emitter stage: R_C from the supply to the load node, R_B from the base source
     to the base. The unknowns are the base and load-node voltages; the equations are the
     current balance at each, and Newton's method uses a central-difference Jacobian in
     60-digit arithmetic (only the final residual matters, and it is checked)."""
 
     def residual(vb, vc):
-        i_c, i_b, i_e = device_currents(vb, vc, polarity, swapped)
+        i_c, i_b, i_e = device_currents(vb, vc, polarity, swapped, i_s, bf, br)
         i_load = i_e if swapped else i_c
         return (v_bb - vb) / r_b - i_b, (v_cc - vc) / r_c - i_load
 
@@ -116,7 +134,7 @@ def solve_common_emitter(v_cc, r_c, v_bb, r_b, polarity, swapped=False):
             break
     f_b, f_c = residual(vb, vc)
     assert abs(f_b) < D("1e-35") and abs(f_c) < D("1e-35"), (f_b, f_c)
-    i_c, i_b, i_e = device_currents(vb, vc, polarity, swapped)
+    i_c, i_b, i_e = device_currents(vb, vc, polarity, swapped, i_s, bf, br)
     return {"vb": vb, "vc": vc, "ic": i_c, "ib": i_b, "ie": i_e}
 
 
