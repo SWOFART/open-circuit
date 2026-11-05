@@ -75,6 +75,17 @@ struct DeviceSpec {
 
 #[derive(Clone, Copy)]
 enum DeviceModel {
+    Bjt {
+        collector_node: usize,
+        pnp: bool,
+        saturation_current_amps: f64,
+        forward_beta: f64,
+        reverse_beta: f64,
+    },
+    Diode {
+        saturation_current_amps: f64,
+        emission_coefficient: f64,
+    },
     Resistor {
         resistance_ohms: f64,
     },
@@ -1128,7 +1139,13 @@ fn local_reference_nodes(
     };
     for spec in specs {
         match spec.model {
-            DeviceModel::Resistor { .. } | DeviceModel::DcVoltageSource { .. } => {
+            DeviceModel::Bjt { collector_node, .. } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                connect(spec.terminals.pin1, collector_node);
+            }
+            DeviceModel::Diode { .. }
+            | DeviceModel::Resistor { .. }
+            | DeviceModel::DcVoltageSource { .. } => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
             }
             DeviceModel::Fuse { .. } => {
@@ -1269,7 +1286,14 @@ fn build_device_specs(
                 })
                 .copied()
         };
-        let (primary_pin1, primary_pin2) = if matches!(component, ComponentSpec::RelaySpdt { .. }) {
+        let (primary_pin1, primary_pin2) = if matches!(
+            component,
+            ComponentSpec::BjtNpn { .. } | ComponentSpec::BjtPnp { .. }
+        ) {
+            (PinId::Base, PinId::Emitter)
+        } else if matches!(component, ComponentSpec::Diode { .. }) {
+            (PinId::Anode, PinId::Cathode)
+        } else if matches!(component, ComponentSpec::RelaySpdt { .. }) {
             (PinId::CoilPositive, PinId::CoilNegative)
         } else if matches!(component, ComponentSpec::Contactor { .. }) {
             (PinId::A1, PinId::A2)
@@ -1287,6 +1311,26 @@ fn build_device_specs(
         let terminals = Terminals { pin1, pin2 };
 
         let model = match component {
+            ComponentSpec::BjtNpn { parameters, .. } | ComponentSpec::BjtPnp { parameters, .. } => {
+                let Some(collector_node) = node_for_pin(PinId::Collector) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Bjt {
+                    collector_node,
+                    pnp: matches!(component, ComponentSpec::BjtPnp { .. }),
+                    saturation_current_amps: parameters.saturation_current_amps,
+                    forward_beta: parameters.forward_beta,
+                    reverse_beta: parameters.reverse_beta,
+                }
+            }
+            ComponentSpec::Diode { parameters, .. } => DeviceModel::Diode {
+                saturation_current_amps: parameters.saturation_current_amps,
+                emission_coefficient: parameters.emission_coefficient,
+            },
             ComponentSpec::Resistor { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.resistance_ohms,
             },
@@ -1420,6 +1464,29 @@ fn make_device(
         return device;
     }
     match spec.model {
+        DeviceModel::Bjt {
+            collector_node,
+            pnp,
+            saturation_current_amps,
+            forward_beta,
+            reverse_beta,
+        } => Box::new(crate::devices::BjtDevice::new(
+            spec.component_id.clone(),
+            [collector_node, spec.terminals.pin1, spec.terminals.pin2],
+            pnp,
+            saturation_current_amps,
+            forward_beta,
+            reverse_beta,
+        )),
+        DeviceModel::Diode {
+            saturation_current_amps,
+            emission_coefficient,
+        } => Box::new(crate::devices::DiodeDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            saturation_current_amps,
+            emission_coefficient,
+        )),
         DeviceModel::Resistor { resistance_ohms } => Box::new(ResistorDevice::new(
             spec.component_id.clone(),
             spec.terminals,
@@ -2168,6 +2235,19 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
+        ComponentSpec::BjtNpn { parameters, .. } | ComponentSpec::BjtPnp { parameters, .. } => {
+            match parameter_id {
+                ParameterId::SaturationCurrentAmps => parameters.saturation_current_amps = value,
+                ParameterId::ForwardBeta => parameters.forward_beta = value,
+                ParameterId::ReverseBeta => parameters.reverse_beta = value,
+                _ => return false,
+            }
+        }
+        ComponentSpec::Diode { parameters, .. } => match parameter_id {
+            ParameterId::SaturationCurrentAmps => parameters.saturation_current_amps = value,
+            ParameterId::EmissionCoefficient => parameters.emission_coefficient = value,
+            _ => return false,
+        },
         ComponentSpec::Resistor { parameters, .. } => {
             if parameter_id != ParameterId::ResistanceOhms {
                 return false;

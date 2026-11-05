@@ -775,7 +775,9 @@ fn estimate_transient_rate_bound(
                         )?;
                     }
                 }
-                DeviceModel::DcVoltageSource { .. } => {}
+                DeviceModel::DcVoltageSource { .. }
+                | DeviceModel::Diode { .. }
+                | DeviceModel::Bjt { .. } => {}
             }
         }
         for (branch, spec) in inductor_specs.iter().enumerate() {

@@ -48,6 +48,31 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
     let voltage = slot(Voltage, Unit::Volt, ':', "voltage", VoltagePin1MinusPin2);
     let current = slot(Current, Unit::Amp, ':', "current", CurrentIntoPin1);
     match type_id {
+        ComponentTypeId::BjtNpn | ComponentTypeId::BjtPnp => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "base_emitter/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "collector_emitter/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Current,
+                Unit::Amp,
+                '/',
+                "collector/current",
+                CurrentIntoPin1,
+            ),
+            slot(Current, Unit::Amp, '/', "base/current", CurrentIntoPin1),
+            slot(Current, Unit::Amp, '/', "emitter/current", CurrentIntoPin1),
+        ],
         ComponentTypeId::RelaySpdt => vec![
             slot(
                 Voltage,
@@ -122,7 +147,8 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 PositiveRotationWithPositivePin1Current,
             ),
         ],
-        ComponentTypeId::Resistor
+        ComponentTypeId::Diode
+        | ComponentTypeId::Resistor
         | ComponentTypeId::DcVoltageSource
         | ComponentTypeId::Capacitor
         | ComponentTypeId::Inductor
