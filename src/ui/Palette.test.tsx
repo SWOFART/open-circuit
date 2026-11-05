@@ -50,8 +50,13 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
-    // Every catalog type has a symbol, so every one is offered.
-    expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
+    // Engine-only types stay hidden until their symbols arrive in #114.
+    expect(
+      catalog.componentTypes
+        .filter((entry) => !symbols[entry.typeId])
+        .map((entry) => entry.typeId),
+    ).toEqual(["diode"]);
+    expect(markup).not.toContain("component.diode.name");
     expect(pressed(markup)).toEqual(["Select"]);
   });
 

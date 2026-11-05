@@ -4,6 +4,7 @@ import type { StableId } from "../generated/StableId";
 
 // Keyed by the generated type ID, so adding a device type forces a prefix.
 const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
+  diode: "D",
   resistor: "R",
   dc_voltage_source: "V",
   capacitor: "C",

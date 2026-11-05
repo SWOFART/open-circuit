@@ -1,4 +1,6 @@
 //! Device behavior is separate from the serialized schematic variants.
+mod diode;
+pub(crate) use diode::DiodeDevice;
 
 mod capacitor;
 mod contactor;

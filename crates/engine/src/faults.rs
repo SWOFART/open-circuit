@@ -66,7 +66,8 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         ComponentTypeId::SwitchSpst
         | ComponentTypeId::PushButtonNo
         | ComponentTypeId::PushButtonNc
-        | ComponentTypeId::Contactor => &[],
+        | ComponentTypeId::Contactor
+        | ComponentTypeId::Diode => &[],
     }
 }
 

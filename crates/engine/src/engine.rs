@@ -75,6 +75,10 @@ struct DeviceSpec {
 
 #[derive(Clone, Copy)]
 enum DeviceModel {
+    Diode {
+        saturation_current_amps: f64,
+        emission_coefficient: f64,
+    },
     Resistor {
         resistance_ohms: f64,
     },
@@ -1128,7 +1132,9 @@ fn local_reference_nodes(
     };
     for spec in specs {
         match spec.model {
-            DeviceModel::Resistor { .. } | DeviceModel::DcVoltageSource { .. } => {
+            DeviceModel::Diode { .. }
+            | DeviceModel::Resistor { .. }
+            | DeviceModel::DcVoltageSource { .. } => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
             }
             DeviceModel::Fuse { .. } => {
@@ -1269,7 +1275,9 @@ fn build_device_specs(
                 })
                 .copied()
         };
-        let (primary_pin1, primary_pin2) = if matches!(component, ComponentSpec::RelaySpdt { .. }) {
+        let (primary_pin1, primary_pin2) = if matches!(component, ComponentSpec::Diode { .. }) {
+            (PinId::Anode, PinId::Cathode)
+        } else if matches!(component, ComponentSpec::RelaySpdt { .. }) {
             (PinId::CoilPositive, PinId::CoilNegative)
         } else if matches!(component, ComponentSpec::Contactor { .. }) {
             (PinId::A1, PinId::A2)
@@ -1287,6 +1295,10 @@ fn build_device_specs(
         let terminals = Terminals { pin1, pin2 };
 
         let model = match component {
+            ComponentSpec::Diode { parameters, .. } => DeviceModel::Diode {
+                saturation_current_amps: parameters.saturation_current_amps,
+                emission_coefficient: parameters.emission_coefficient,
+            },
             ComponentSpec::Resistor { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.resistance_ohms,
             },
@@ -1420,6 +1432,15 @@ fn make_device(
         return device;
     }
     match spec.model {
+        DeviceModel::Diode {
+            saturation_current_amps,
+            emission_coefficient,
+        } => Box::new(crate::devices::DiodeDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            saturation_current_amps,
+            emission_coefficient,
+        )),
         DeviceModel::Resistor { resistance_ohms } => Box::new(ResistorDevice::new(
             spec.component_id.clone(),
             spec.terminals,
@@ -2168,6 +2189,11 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
+        ComponentSpec::Diode { parameters, .. } => match parameter_id {
+            ParameterId::SaturationCurrentAmps => parameters.saturation_current_amps = value,
+            ParameterId::EmissionCoefficient => parameters.emission_coefficient = value,
+            _ => return false,
+        },
         ComponentSpec::Resistor { parameters, .. } => {
             if parameter_id != ParameterId::ResistanceOhms {
                 return false;

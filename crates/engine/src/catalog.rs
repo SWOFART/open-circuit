@@ -21,6 +21,7 @@ pub enum ComponentTypeId {
     PushButtonNo,
     PushButtonNc,
     Contactor,
+    Diode,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -29,6 +30,8 @@ pub enum ComponentTypeId {
 pub enum PinId {
     Pin1,
     Pin2,
+    Anode,
+    Cathode,
     CoilPositive,
     CoilNegative,
     Common,
@@ -51,6 +54,8 @@ impl PinId {
         match self {
             Self::Pin1 => "pin1",
             Self::Pin2 => "pin2",
+            Self::Anode => "anode",
+            Self::Cathode => "cathode",
             Self::CoilPositive => "coil_positive",
             Self::CoilNegative => "coil_negative",
             Self::Common => "common",
@@ -96,6 +101,8 @@ pub enum ParameterId {
     BurdenResistanceOhms,
     ClosedResistanceOhms,
     InitialClosed,
+    SaturationCurrentAmps,
+    EmissionCoefficient,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -170,6 +177,12 @@ pub struct ParameterDefinition {
     pub description_key: String,
     pub optional: bool,
     pub initial_condition: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub minimum_value: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub maximum_value: Option<f64>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
@@ -189,6 +202,14 @@ pub struct ComponentCatalogEntry {
 #[ts(export, export_to = "ComponentCatalog.ts")]
 pub struct ComponentCatalog {
     pub component_types: Vec<ComponentCatalogEntry>,
+}
+
+impl ParameterDefinition {
+    pub fn accepts(&self, value: f64) -> bool {
+        self.domain.accepts(value)
+            && self.minimum_value.is_none_or(|minimum| value >= minimum)
+            && self.maximum_value.is_none_or(|maximum| value <= maximum)
+    }
 }
 
 /// Returns the authoritative Engine catalog. Values use SI units.
@@ -220,6 +241,8 @@ pub fn component_catalog() -> ComponentCatalog {
                     description_key: "component.resistor.resistance".to_owned(),
                     optional: false,
                     initial_condition: false,
+                    minimum_value: None,
+                    maximum_value: None,
                 }],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Resistor).to_vec(),
             },
@@ -245,6 +268,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.dcVoltageSource.voltage".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::InternalResistanceOhms,
@@ -254,6 +279,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.dcVoltageSource.internalResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::DcVoltageSource).to_vec(),
@@ -271,6 +298,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.capacitor.capacitance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::InitialVoltageVolts,
@@ -280,6 +309,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.capacitor.initialVoltage".to_owned(),
                         optional: true,
                         initial_condition: true,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Capacitor).to_vec(),
@@ -297,6 +328,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.inductor.inductance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::InitialCurrentAmps,
@@ -306,6 +339,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.inductor.initialCurrent".to_owned(),
                         optional: true,
                         initial_condition: true,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Inductor).to_vec(),
@@ -344,6 +379,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.relaySpdt.coilResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::CoilInductanceHenries,
@@ -353,6 +390,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.relaySpdt.coilInductance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::PickupCurrentAmps,
@@ -362,6 +401,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.relaySpdt.pickupCurrent".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::DropoutCurrentAmps,
@@ -371,6 +412,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.relaySpdt.dropoutCurrent".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::ClosedContactResistanceOhms,
@@ -380,6 +423,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.relaySpdt.closedContactResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::RelaySpdt).to_vec(),
@@ -397,6 +442,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.fuse.intactResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::TripI2tAmpereSquaredSeconds,
@@ -406,6 +453,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.fuse.tripI2t".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Fuse).to_vec(),
@@ -432,6 +481,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.armatureResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::ArmatureInductanceHenries,
@@ -441,6 +492,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.armatureInductance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::MotorConstantNewtonMetersPerAmp,
@@ -450,6 +503,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.motorConstant".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::RotorInertiaKilogramMetersSquared,
@@ -459,6 +514,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.rotorInertia".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::ViscousFrictionNewtonMeterSecondsPerRadian,
@@ -468,6 +525,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.viscousFriction".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::LoadTorqueNewtonMeters,
@@ -477,6 +536,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.loadTorque".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::InitialAngularVelocityRadiansPerSecond,
@@ -486,6 +547,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.initialAngularVelocity".to_owned(),
                         optional: true,
                         initial_condition: true,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::InitialArmatureCurrentAmps,
@@ -495,6 +558,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.pmdcMotor.initialArmatureCurrent".to_owned(),
                         optional: true,
                         initial_condition: true,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PmdcMotor).to_vec(),
@@ -511,6 +576,8 @@ pub fn component_catalog() -> ComponentCatalog {
                     description_key: "component.voltmeter.inputResistance".to_owned(),
                     optional: false,
                     initial_condition: false,
+                    minimum_value: None,
+                    maximum_value: None,
                 }],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Voltmeter).to_vec(),
             },
@@ -526,6 +593,8 @@ pub fn component_catalog() -> ComponentCatalog {
                     description_key: "component.ammeter.burdenResistance".to_owned(),
                     optional: false,
                     initial_condition: false,
+                    minimum_value: None,
+                    maximum_value: None,
                 }],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Ammeter).to_vec(),
             },
@@ -542,6 +611,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.switchSpst.closedResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::InitialClosed,
@@ -551,6 +622,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.switchSpst.initialClosed".to_owned(),
                         optional: true,
                         initial_condition: true,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::SwitchSpst).to_vec(),
@@ -567,6 +640,8 @@ pub fn component_catalog() -> ComponentCatalog {
                     description_key: "component.pushButtonNo.closedResistance".to_owned(),
                     optional: false,
                     initial_condition: false,
+                    minimum_value: None,
+                    maximum_value: None,
                 }],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNo).to_vec(),
             },
@@ -582,6 +657,8 @@ pub fn component_catalog() -> ComponentCatalog {
                     description_key: "component.pushButtonNc.closedResistance".to_owned(),
                     optional: false,
                     initial_condition: false,
+                    minimum_value: None,
+                    maximum_value: None,
                 }],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
             },
@@ -623,6 +700,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.contactor.coilResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::CoilInductanceHenries,
@@ -632,6 +711,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.contactor.coilInductance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::PickupCurrentAmps,
@@ -641,6 +722,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.contactor.pickupCurrent".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::DropoutCurrentAmps,
@@ -650,6 +733,8 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.contactor.dropoutCurrent".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                     ParameterDefinition {
                         id: ParameterId::ClosedContactResistanceOhms,
@@ -659,9 +744,50 @@ pub fn component_catalog() -> ComponentCatalog {
                         description_key: "component.contactor.closedContactResistance".to_owned(),
                         optional: false,
                         initial_condition: false,
+                        minimum_value: None,
+                        maximum_value: None,
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Contactor).to_vec(),
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::Diode,
+                display_name_key: "component.diode.name".into(),
+                pins: vec![
+                    PinDefinition {
+                        id: PinId::Anode,
+                        role: PinRole::Positive,
+                    },
+                    PinDefinition {
+                        id: PinId::Cathode,
+                        role: PinRole::Negative,
+                    },
+                ],
+                parameters: vec![
+                    ParameterDefinition {
+                        id: ParameterId::SaturationCurrentAmps,
+                        unit: Unit::Amp,
+                        default_value: 1e-14,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.diode.saturationCurrent".into(),
+                        optional: false,
+                        initial_condition: false,
+                        minimum_value: Some(1e-18),
+                        maximum_value: Some(1e-9),
+                    },
+                    ParameterDefinition {
+                        id: ParameterId::EmissionCoefficient,
+                        unit: Unit::Dimensionless,
+                        default_value: 1.0,
+                        domain: NumericDomain::StrictlyPositive,
+                        description_key: "component.diode.emissionCoefficient".into(),
+                        optional: false,
+                        initial_condition: false,
+                        minimum_value: Some(1.0),
+                        maximum_value: Some(2.0),
+                    },
+                ],
+                fault_kinds: vec![],
             },
         ],
     }

@@ -122,7 +122,8 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 PositiveRotationWithPositivePin1Current,
             ),
         ],
-        ComponentTypeId::Resistor
+        ComponentTypeId::Diode
+        | ComponentTypeId::Resistor
         | ComponentTypeId::DcVoltageSource
         | ComponentTypeId::Capacitor
         | ComponentTypeId::Inductor

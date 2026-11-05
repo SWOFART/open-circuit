@@ -21,6 +21,14 @@ pub struct GridPoint {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "DiodeParameters.ts")]
+pub struct DiodeParameters {
+    pub saturation_current_amps: f64,
+    pub emission_coefficient: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "ResistorParameters.ts")]
 pub struct ResistorParameters {
     pub resistance_ohms: f64,
@@ -242,6 +250,13 @@ pub struct PushButtonParameters {
 )]
 #[ts(export, export_to = "ComponentSpec.ts")]
 pub enum ComponentSpec {
+    Diode {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: DiodeParameters,
+    },
     Resistor {
         id: StableId,
         position: GridPoint,
@@ -338,7 +353,8 @@ pub enum ComponentSpec {
 impl ComponentSpec {
     pub fn id(&self) -> &StableId {
         match self {
-            Self::Resistor { id, .. }
+            Self::Diode { id, .. }
+            | Self::Resistor { id, .. }
             | Self::DcVoltageSource { id, .. }
             | Self::Capacitor { id, .. }
             | Self::Inductor { id, .. }
@@ -356,7 +372,8 @@ impl ComponentSpec {
 
     pub fn position(&self) -> GridPoint {
         match self {
-            Self::Resistor { position, .. }
+            Self::Diode { position, .. }
+            | Self::Resistor { position, .. }
             | Self::DcVoltageSource { position, .. }
             | Self::Capacitor { position, .. }
             | Self::Inductor { position, .. }
@@ -374,7 +391,8 @@ impl ComponentSpec {
 
     pub fn rotation_deg(&self) -> u16 {
         match self {
-            Self::Resistor { rotation_deg, .. }
+            Self::Diode { rotation_deg, .. }
+            | Self::Resistor { rotation_deg, .. }
             | Self::DcVoltageSource { rotation_deg, .. }
             | Self::Capacitor { rotation_deg, .. }
             | Self::Inductor { rotation_deg, .. }
@@ -392,6 +410,7 @@ impl ComponentSpec {
 
     pub const fn type_id(&self) -> ComponentTypeId {
         match self {
+            Self::Diode { .. } => ComponentTypeId::Diode,
             Self::Resistor { .. } => ComponentTypeId::Resistor,
             Self::DcVoltageSource { .. } => ComponentTypeId::DcVoltageSource,
             Self::Capacitor { .. } => ComponentTypeId::Capacitor,
@@ -410,6 +429,16 @@ impl ComponentSpec {
 
     fn parameter_values(&self) -> Vec<(ParameterId, f64)> {
         match self {
+            Self::Diode { parameters, .. } => vec![
+                (
+                    ParameterId::SaturationCurrentAmps,
+                    parameters.saturation_current_amps,
+                ),
+                (
+                    ParameterId::EmissionCoefficient,
+                    parameters.emission_coefficient,
+                ),
+            ],
             Self::Resistor { parameters, .. } => {
                 vec![(ParameterId::ResistanceOhms, parameters.resistance_ohms)]
             }
@@ -623,7 +652,8 @@ impl Schematic {
                 &mut diagnostics,
             );
 
-            if let ComponentSpec::Resistor { rotation_deg, .. }
+            if let ComponentSpec::Diode { rotation_deg, .. }
+            | ComponentSpec::Resistor { rotation_deg, .. }
             | ComponentSpec::DcVoltageSource { rotation_deg, .. }
             | ComponentSpec::Capacitor { rotation_deg, .. }
             | ComponentSpec::Inductor { rotation_deg, .. }
@@ -657,7 +687,7 @@ impl Schematic {
                         .find(|(parameter_id, _)| *parameter_id == parameter.id)
                         .map(|(_, value)| *value);
                     let valid = match parameter_value {
-                        Some(value) => parameter.domain.accepts(value),
+                        Some(value) => parameter.accepts(value),
                         None => parameter.optional,
                     };
                     if !valid {

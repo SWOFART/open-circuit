@@ -52,7 +52,7 @@ ordering follows [`ARCHITECTURE.md`](../../ARCHITECTURE.md).
 | Fuses                              | The Stage 4 baseline is a one-shot thermal proxy based on accumulated `∫i²dt`, followed by an open circuit.                                                        | The [Stage 4 contract](../contracts/stage-4-components.md) fixes its threshold, trip timing, reset semantics, and diagnostics/results. It is not a manufacturer time-current curve or a detailed thermal model. |
 | PMDC motor                         | A linear armature circuit is coupled to one rotor speed state by a shared SI torque/back-EMF constant.                                                         | The [Stage 4 contract](../contracts/stage-4-components.md) fixes the coupled equations, initialization, implicit trapezoidal step, and analytical startup fixture. |
 | Voltmeter and ammeter              | Passive two-terminal resistive meters with finite input/burden resistance.                                                                                     | The [Stage 4 contract](../contracts/stage-4-components.md) fixes loading and sign/readout conventions. Accuracy, ranges, AC response, and manufacturer profiles are omitted. |
-| Diodes                             | Nonlinear current-voltage relation; practical models may also include charge storage and series resistance.                                                     | The Stage 7 baseline (Shockley law at a fixed 27 °C, a fixed junction conductance, no series resistance, breakdown, or charge storage) is specified by the [Stage 7 contract](../contracts/stage-7-nonlinear-circuits.md). Proposed, not implemented.                                                                                                                                  |
+| Diodes                             | Nonlinear current-voltage relation; practical models may also include charge storage and series resistance.                                                     | The Stage 7 baseline (Shockley law at a fixed 27 °C, a fixed junction conductance, no series resistance, breakdown, or charge storage) is specified by the [Stage 7 contract](../contracts/stage-7-nonlinear-circuits.md). Implemented in Rust; see [the diode notes](../solver/stage-7-diode.md).                                                                                                                                  |
 | BJTs and MOSFETs                   | Nonlinear semiconductor terminal relations with multiple coupled terminals and internal state/charge effects in more detailed models.                           | The generic NPN and PNP baseline (transport-form Ebers–Moll, all four regions in one set of equations, no Early effect or parasitics) is specified by the [Stage 7 contract](../contracts/stage-7-nonlinear-circuits.md). MOSFETs and imported model cards remain deferred.                                                                                                              |
 | Coupled inductors and transformers | Multiport flux/current relations with a mutual-inductance matrix.                                                                                               | Dot convention, matrix passivity/positive-semidefinite constraints, initial magnetic state, leakage, and winding losses.                                                                                                                                                                                                                                                             |
 
@@ -357,6 +357,11 @@ independently encoded OCF2 frame with the three new state kinds.
 
 ### Stage 7 model baseline
 
+The generic diode is implemented in `crates/engine/src/devices/diode.rs` (#111).
+Its input validation, physical outputs and independent-reference verification are
+documented in [the implementation notes](../solver/stage-7-diode.md). NPN/PNP
+production models remain the next model task (#112).
+
 The diode and the NPN and PNP transistors are specified by
 [`stage-7-nonlinear-circuits.md`](../contracts/stage-7-nonlinear-circuits.md). The
 diode is `i = I_S (exp(v / (n V_T)) - 1) + g_min v`; the transistor is the transport form of
@@ -365,8 +370,7 @@ the Ebers–Moll model, `i_C = I_F - I_R (1 + 1/β_R) - g_min v_BC`,
 base-emitter and base-collector voltages; the PNP is its mirror with every voltage and current
 negated. The temperature is fixed at 27 °C (`V_T = 25.864 926 mV`) and every junction carries a
 fixed `g_min = 1e-12 S`. Series resistance, breakdown, charge storage, the Early effect, and
-temperature dependence are deliberately omitted. These are proposed simulator models, not
-implemented behavior or manufacturer profiles.
+temperature dependence are deliberately omitted. These are generic simulator models, not manufacturer profiles.
 
 The solver notes are the contract's section 4: Newton–Raphson on the island's nodal
 equations with junction limiting, tests on the update and on the residual of the original

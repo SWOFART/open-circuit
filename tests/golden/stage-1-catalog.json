@@ -263,6 +263,45 @@
         { "id": "closedContactResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.contactor.closedContactResistance", "optional": false, "initialCondition": false }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "diode",
+      "displayNameKey": "component.diode.name",
+      "pins": [
+        {
+          "id": "anode",
+          "role": "positive"
+        },
+        {
+          "id": "cathode",
+          "role": "negative"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "saturationCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 1e-14,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.diode.saturationCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1e-18,
+          "maximumValue": 1e-09
+        },
+        {
+          "id": "emissionCoefficient",
+          "unit": "dimensionless",
+          "defaultValue": 1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.diode.emissionCoefficient",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1,
+          "maximumValue": 2
+        }
+      ],
+      "faultKinds": []
     }
   ]
 }
