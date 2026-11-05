@@ -49,7 +49,7 @@ pub use results::{
     TraceSignal,
 };
 pub use schematic::{
-    AmmeterParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters,
+    AmmeterParameters, BjtParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters,
     DiodeParameters, FuseParameters, GeometryEnvelope, GridPoint, InductorParameters, JunctionSpec,
     PmdcMotorParameters, PushButtonParameters, ReferenceMarkerSpec, RelayParameters,
     ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION, Schematic, SwitchParameters,

@@ -302,6 +302,114 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "bjt_npn",
+      "displayNameKey": "component.bjtNpn.name",
+      "pins": [
+        {
+          "id": "collector",
+          "role": "unpolarized"
+        },
+        {
+          "id": "base",
+          "role": "unpolarized"
+        },
+        {
+          "id": "emitter",
+          "role": "unpolarized"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "saturationCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 1e-14,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.bjtNpn.saturationCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1e-18,
+          "maximumValue": 1e-09
+        },
+        {
+          "id": "forwardBeta",
+          "unit": "dimensionless",
+          "defaultValue": 100,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.bjtNpn.forwardBeta",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1,
+          "maximumValue": 1000
+        },
+        {
+          "id": "reverseBeta",
+          "unit": "dimensionless",
+          "defaultValue": 1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.bjtNpn.reverseBeta",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 100
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "bjt_pnp",
+      "displayNameKey": "component.bjtPnp.name",
+      "pins": [
+        {
+          "id": "collector",
+          "role": "unpolarized"
+        },
+        {
+          "id": "base",
+          "role": "unpolarized"
+        },
+        {
+          "id": "emitter",
+          "role": "unpolarized"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "saturationCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 1e-14,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.bjtPnp.saturationCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1e-18,
+          "maximumValue": 1e-09
+        },
+        {
+          "id": "forwardBeta",
+          "unit": "dimensionless",
+          "defaultValue": 100,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.bjtPnp.forwardBeta",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1,
+          "maximumValue": 1000
+        },
+        {
+          "id": "reverseBeta",
+          "unit": "dimensionless",
+          "defaultValue": 1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.bjtPnp.reverseBeta",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 100
+        }
+      ],
+      "faultKinds": []
     }
   ]
 }

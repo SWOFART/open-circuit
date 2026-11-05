@@ -359,8 +359,9 @@ independently encoded OCF2 frame with the three new state kinds.
 
 The generic diode is implemented in `crates/engine/src/devices/diode.rs` (#111).
 Its input validation, physical outputs and independent-reference verification are
-documented in [the implementation notes](../solver/stage-7-diode.md). NPN/PNP
-production models remain the next model task (#112).
+documented in [the implementation notes](../solver/stage-7-diode.md). The generic
+NPN/PNP models are implemented in `crates/engine/src/devices/bjt.rs` (#112), with
+[transistor implementation notes](../solver/stage-7-bjt.md).
 
 The diode and the NPN and PNP transistors are specified by
 [`stage-7-nonlinear-circuits.md`](../contracts/stage-7-nonlinear-circuits.md). The

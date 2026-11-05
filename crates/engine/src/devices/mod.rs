@@ -1,4 +1,6 @@
 //! Device behavior is separate from the serialized schematic variants.
+mod bjt;
+pub(crate) use bjt::BjtDevice;
 mod diode;
 pub(crate) use diode::DiodeDevice;
 

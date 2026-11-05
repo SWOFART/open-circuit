@@ -55,7 +55,7 @@ describe("component palette", () => {
       catalog.componentTypes
         .filter((entry) => !symbols[entry.typeId])
         .map((entry) => entry.typeId),
-    ).toEqual(["diode"]);
+    ).toEqual(["diode", "bjt_npn", "bjt_pnp"]);
     expect(markup).not.toContain("component.diode.name");
     expect(pressed(markup)).toEqual(["Select"]);
   });

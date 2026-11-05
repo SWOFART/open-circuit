@@ -67,7 +67,9 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::PushButtonNo
         | ComponentTypeId::PushButtonNc
         | ComponentTypeId::Contactor
-        | ComponentTypeId::Diode => &[],
+        | ComponentTypeId::Diode
+        | ComponentTypeId::BjtNpn
+        | ComponentTypeId::BjtPnp => &[],
     }
 }
 

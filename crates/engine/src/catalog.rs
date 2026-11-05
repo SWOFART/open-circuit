@@ -22,6 +22,8 @@ pub enum ComponentTypeId {
     PushButtonNc,
     Contactor,
     Diode,
+    BjtNpn,
+    BjtPnp,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -32,6 +34,9 @@ pub enum PinId {
     Pin2,
     Anode,
     Cathode,
+    Collector,
+    Base,
+    Emitter,
     CoilPositive,
     CoilNegative,
     Common,
@@ -56,6 +61,9 @@ impl PinId {
             Self::Pin2 => "pin2",
             Self::Anode => "anode",
             Self::Cathode => "cathode",
+            Self::Collector => "collector",
+            Self::Base => "base",
+            Self::Emitter => "emitter",
             Self::CoilPositive => "coil_positive",
             Self::CoilNegative => "coil_negative",
             Self::Common => "common",
@@ -103,6 +111,8 @@ pub enum ParameterId {
     InitialClosed,
     SaturationCurrentAmps,
     EmissionCoefficient,
+    ForwardBeta,
+    ReverseBeta,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -209,6 +219,60 @@ impl ParameterDefinition {
         self.domain.accepts(value)
             && self.minimum_value.is_none_or(|minimum| value >= minimum)
             && self.maximum_value.is_none_or(|maximum| value <= maximum)
+    }
+}
+
+fn transistor_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEntry {
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        pins: [PinId::Collector, PinId::Base, PinId::Emitter]
+            .map(|id| PinDefinition {
+                id,
+                role: PinRole::Unpolarized,
+            })
+            .to_vec(),
+        parameters: [
+            (
+                ParameterId::SaturationCurrentAmps,
+                Unit::Amp,
+                1e-14,
+                1e-18,
+                1e-9,
+                "saturationCurrent",
+            ),
+            (
+                ParameterId::ForwardBeta,
+                Unit::Dimensionless,
+                100.0,
+                1.0,
+                1000.0,
+                "forwardBeta",
+            ),
+            (
+                ParameterId::ReverseBeta,
+                Unit::Dimensionless,
+                1.0,
+                0.01,
+                100.0,
+                "reverseBeta",
+            ),
+        ]
+        .map(
+            |(id, unit, default_value, minimum, maximum, key)| ParameterDefinition {
+                id,
+                unit,
+                default_value,
+                domain: NumericDomain::StrictlyPositive,
+                description_key: format!("component.{name}.{key}"),
+                optional: false,
+                initial_condition: false,
+                minimum_value: Some(minimum),
+                maximum_value: Some(maximum),
+            },
+        )
+        .to_vec(),
+        fault_kinds: vec![],
     }
 }
 
@@ -789,6 +853,8 @@ pub fn component_catalog() -> ComponentCatalog {
                 ],
                 fault_kinds: vec![],
             },
+            transistor_entry(ComponentTypeId::BjtNpn, "bjtNpn"),
+            transistor_entry(ComponentTypeId::BjtPnp, "bjtPnp"),
         ],
     }
 }
