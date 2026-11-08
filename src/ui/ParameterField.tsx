@@ -1,7 +1,12 @@
 import { useEffect, useId, useState } from "react";
 import type { ParameterDefinition } from "../generated/ParameterDefinition";
 import { describeInvalidDraft, message } from "./messages";
-import { evaluateParameterDraft, formatSi, unitSymbols } from "./units";
+import {
+  describeRange,
+  evaluateParameterDraft,
+  formatSi,
+  unitSymbols,
+} from "./units";
 
 export interface ParameterFieldProps {
   readonly label: string;
@@ -35,6 +40,7 @@ export function ParameterField({
 
   const evaluation = evaluateParameterDraft(draft, definition, committedValue);
   const invalid = evaluation.state === "invalid";
+  const range = describeRange(definition);
 
   function commit(): void {
     if (evaluation.state === "commit") {
@@ -68,11 +74,15 @@ export function ParameterField({
         }}
       />
       {note !== undefined && <p className="parameter-hint">{note}</p>}
+      {range !== null && (
+        <p className="parameter-hint">Allowed range: {range}.</p>
+      )}
       {evaluation.state === "invalid" && (
         <p id={messageId} className="field-error" role="alert">
           {describeInvalidDraft(
             evaluation.reason,
             unitSymbols[definition.unit],
+            range,
           )}
         </p>
       )}

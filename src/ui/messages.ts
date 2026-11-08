@@ -51,6 +51,17 @@ const messages: Readonly<Record<string, string>> = {
   "component.contactor.pickupCurrent": "Pickup current",
   "component.contactor.dropoutCurrent": "Dropout current",
   "component.contactor.closedContactResistance": "Closed contact resistance",
+  "component.diode.name": "Diode",
+  "component.diode.saturationCurrent": "Saturation current",
+  "component.diode.emissionCoefficient": "Emission coefficient",
+  "component.bjtNpn.name": "NPN transistor",
+  "component.bjtNpn.saturationCurrent": "Saturation current",
+  "component.bjtNpn.forwardBeta": "Forward beta",
+  "component.bjtNpn.reverseBeta": "Reverse beta",
+  "component.bjtPnp.name": "PNP transistor",
+  "component.bjtPnp.saturationCurrent": "Saturation current",
+  "component.bjtPnp.forwardBeta": "Forward beta",
+  "component.bjtPnp.reverseBeta": "Reverse beta",
   "assignment.error.malformed": "The file is not a valid assignment.",
   "assignment.error.unsupportedVersion":
     "This assignment file version is not supported.",
@@ -138,6 +149,7 @@ export function describeDiagnostic(diagnostic: Diagnostic): string {
 export function describeInvalidDraft(
   reason: Extract<DraftEvaluation, { state: "invalid" }>["reason"],
   unitSymbol: string,
+  range?: string | null,
 ): string {
   switch (reason) {
     case "empty":
@@ -148,5 +160,9 @@ export function describeInvalidDraft(
       return "That number is too large.";
     case "domain":
       return "That value is outside the allowed range.";
+    case "range":
+      return range
+        ? `That value is outside the range the circuit model allows: ${range}.`
+        : "That value is outside the allowed range.";
   }
 }

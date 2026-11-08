@@ -578,6 +578,10 @@ input {
   cursor: default;
 }
 
+.readings-unsettled {
+  opacity: 0.55;
+}
+
 .device-badge-fault {
   background: #7f1d1d;
   color: #fecaca;

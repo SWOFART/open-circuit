@@ -28,6 +28,9 @@ const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "push_button_no",
   "push_button_nc",
   "contactor",
+  "diode",
+  "bjt_npn",
+  "bjt_pnp",
 ]);
 
 export function hasDevices(schematic: Schematic): boolean {
@@ -234,6 +237,58 @@ function describe(
           {
             name: "Normally closed contact current",
             value: show(`${id}/nc/current`, "amp"),
+          },
+        ],
+      };
+    }
+    case "diode":
+      // A diode has no state of its own: the Engine reports only the voltage across it and the
+      // current through it, positive entering the anode.
+      return {
+        id,
+        title: `${name} ${message("component.diode.name")}`,
+        rows: [
+          {
+            name: "Voltage (anode − cathode)",
+            value: show(`${id}:voltage`, "volt"),
+          },
+          {
+            name: "Current (into the anode)",
+            value: show(`${id}:current`, "amp"),
+          },
+        ],
+      };
+    case "bjt_npn":
+    case "bjt_pnp": {
+      // The five numbers are the Engine's, read by their keys; the interface derives none of
+      // them, and shows no operating region (the contract defines none).
+      return {
+        id,
+        title: `${name} ${message(
+          component.typeId === "bjt_npn"
+            ? "component.bjtNpn.name"
+            : "component.bjtPnp.name",
+        )}`,
+        rows: [
+          {
+            name: "Base-emitter voltage",
+            value: show(`${id}/base_emitter/voltage`, "volt"),
+          },
+          {
+            name: "Collector-emitter voltage",
+            value: show(`${id}/collector_emitter/voltage`, "volt"),
+          },
+          {
+            name: "Collector current (into the collector)",
+            value: show(`${id}/collector/current`, "amp"),
+          },
+          {
+            name: "Base current (into the base)",
+            value: show(`${id}/base/current`, "amp"),
+          },
+          {
+            name: "Emitter current (into the emitter)",
+            value: show(`${id}/emitter/current`, "amp"),
           },
         ],
       };
