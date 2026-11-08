@@ -1,0 +1,263 @@
+{
+  "schematic": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 5
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 5,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "switch_spst",
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "closedResistanceOhms": 0.01
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 9,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 10000
+        },
+        "id": "00000000-0000-4000-8000-000000000003"
+      },
+      {
+        "typeId": "diode",
+        "position": {
+          "x": 13,
+          "y": 0
+        },
+        "rotationDeg": 180,
+        "parameters": {
+          "saturationCurrentAmps": 1e-14,
+          "emissionCoefficient": 1
+        },
+        "id": "00000000-0000-4000-8000-000000000004"
+      },
+      {
+        "typeId": "capacitor",
+        "position": {
+          "x": 18,
+          "y": 5
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "capacitanceFarads": 0.000001,
+          "initialVoltageVolts": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000005"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "points": [
+          {
+            "x": 0,
+            "y": 4
+          },
+          {
+            "x": 0,
+            "y": 0
+          },
+          {
+            "x": 3,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "points": [
+          {
+            "x": 5,
+            "y": 0
+          },
+          {
+            "x": 8,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "points": [
+          {
+            "x": 10,
+            "y": 0
+          },
+          {
+            "x": 12,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "points": [
+          {
+            "x": 14,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 0
+          },
+          {
+            "x": 18,
+            "y": 4
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000000a",
+        "points": [
+          {
+            "x": 18,
+            "y": 6
+          },
+          {
+            "x": 18,
+            "y": 10
+          },
+          {
+            "x": 0,
+            "y": 10
+          },
+          {
+            "x": 0,
+            "y": 6
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-00000000000b",
+        "position": {
+          "x": 0,
+          "y": 6
+        }
+      }
+    ]
+  },
+  "geometry": {
+    "components": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 0,
+              "y": 4
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000002",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 3,
+              "y": 0
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 5,
+              "y": 0
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000003",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 8,
+              "y": 0
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 10,
+              "y": 0
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000004",
+        "pins": [
+          {
+            "pinId": "anode",
+            "position": {
+              "x": 14,
+              "y": 0
+            }
+          },
+          {
+            "pinId": "cathode",
+            "position": {
+              "x": 12,
+              "y": 0
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000005",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 18,
+              "y": 4
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 18,
+              "y": 6
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "documentRevision": "rev-1"
+}
