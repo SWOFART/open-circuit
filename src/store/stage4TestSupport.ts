@@ -60,6 +60,15 @@ function definitionsOf(typeId: string): readonly Definition[] {
         VOLTAGE("nc/voltage", "/"),
         CURRENT("nc/current", "/"),
       ];
+    case "bjt_npn":
+    case "bjt_pnp":
+      return [
+        VOLTAGE("base_emitter/voltage", "/"),
+        VOLTAGE("collector_emitter/voltage", "/"),
+        CURRENT("collector/current", "/"),
+        CURRENT("base/current", "/"),
+        CURRENT("emitter/current", "/"),
+      ];
     case "fuse":
       return [
         VOLTAGE(),

@@ -14,6 +14,8 @@ const DISPLAY_WORDS: Readonly<Record<string, string>> = {
   angular_velocity: "angular velocity",
   normally_open: "normally open",
   normally_closed: "normally closed",
+  base_emitter: "base-emitter",
+  collector_emitter: "collector-emitter",
 };
 
 /** What the slot measures, such as `voltage`, `coil current`, or `angular velocity`. */

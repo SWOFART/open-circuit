@@ -54,6 +54,12 @@ export interface SimulationState {
    * a new compile, or an update that succeeds, ends the stop.
    */
   readonly stopped: RunStop | null;
+  /**
+   * The engine refused the last live edit (a parameter or a position): it was not applied, the
+   * run is as it was, and `diagnostics` say why. It is told apart from a compile that failed
+   * (`status` is `failed`, no result) and from a stopped run (`stopped`).
+   */
+  readonly refusedUpdate: boolean;
 }
 
 export function initialSimulationState(): SimulationState {
@@ -67,6 +73,7 @@ export function initialSimulationState(): SimulationState {
     updating: false,
     discardedFrames: 0,
     stopped: null,
+    refusedUpdate: false,
   };
 }
 
@@ -565,6 +572,7 @@ export class SimulationController {
           error: null,
           updating: false,
           stopped: null,
+          refusedUpdate: false,
         });
         return true;
       }
@@ -600,6 +608,7 @@ export class SimulationController {
         error: null,
         updating: false,
         stopped: null,
+        refusedUpdate: false,
       });
     } catch (error) {
       // A malformed payload must surface as an error, never as a crash.
@@ -686,10 +695,21 @@ export class SimulationController {
     const { run } = this.state;
 
     if (
-      !run ||
-      notice.runId !== run.runId ||
+      run &&
+      notice.runId === run.runId &&
       notice.documentRevision !== run.documentRevision
     ) {
+      // A stop of this run at an earlier revision: its notice crossed the reply of an update that
+      // has succeeded since, so the Engine run goes on but its stream has ended. Nothing is shown
+      // as stopped; the stream is opened again, and a cause that is still there stops it again
+      // with a notice of the revision on screen.
+      this.setState({ discardedFrames: this.state.discardedFrames + 1 });
+      this.stopFrameStream();
+      void this.openFrameStream(run.runId);
+      return;
+    }
+
+    if (!run || notice.runId !== run.runId) {
       this.setState({ discardedFrames: this.state.discardedFrames + 1 });
       return;
     }
@@ -867,6 +887,7 @@ export class SimulationController {
           run: settledRun,
           diagnostics: result.diagnostics,
           error: null,
+          refusedUpdate: true,
         });
         return operator;
       }
@@ -888,6 +909,7 @@ export class SimulationController {
           run: sentRun,
           diagnostics: result.diagnostics,
           error: null,
+          refusedUpdate: false,
         });
         this.resumeAfterStop(run.runId);
         return true;
@@ -931,6 +953,7 @@ export class SimulationController {
         snapshot: result.snapshot,
         diagnostics: result.diagnostics,
         error: null,
+        refusedUpdate: false,
       });
       this.resumeAfterStop(run.runId);
       return true;

@@ -1,8 +1,10 @@
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import { ammeterSymbol } from "./ammeter";
 import { capacitorSymbol } from "./capacitor";
+import { bjtNpnSymbol, bjtPnpSymbol } from "./bjt";
 import { contactorSymbol } from "./contactor";
 import { dcVoltageSourceSymbol } from "./dcVoltageSource";
+import { diodeSymbol } from "./diode";
 import { fuseSymbol } from "./fuse";
 import { inductorSymbol } from "./inductor";
 import { pmdcMotorSymbol } from "./motor";
@@ -42,6 +44,9 @@ export const symbols: SymbolRegistry = {
   push_button_no: pushButtonNoSymbol,
   push_button_nc: pushButtonNcSymbol,
   contactor: contactorSymbol,
+  diode: diodeSymbol,
+  bjt_npn: bjtNpnSymbol,
+  bjt_pnp: bjtPnpSymbol,
 };
 
 /** Returns a drawing symbol or explains why a component cannot be placed yet. */

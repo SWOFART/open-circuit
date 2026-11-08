@@ -55,6 +55,7 @@ const prefixes = [
   { symbol: "µ", factor: 1e-6 },
   { symbol: "n", factor: 1e-9 },
   { symbol: "p", factor: 1e-12 },
+  { symbol: "f", factor: 1e-15 },
 ] as const;
 
 // Prefix letters accepted when parsing, as powers of ten. Case matters: `m` is
@@ -71,6 +72,9 @@ const parsePrefixExponents: Readonly<Record<string, number>> = {
   u: -6,
   n: -9,
   p: -12,
+  // Femto, for the saturation currents of the semiconductor models (1e-14 A is 10 fA). Where
+  // `f` already means the unit itself (farad), the unit word wins, as it always has.
+  f: -15,
 };
 
 const NUMBER_PATTERN =
@@ -87,6 +91,13 @@ export const DISPLAY_SIGNIFICANT_DIGITS = 7;
 
 /** Formats an SI value with a prefix, such as `1 kΩ` or `2.499875 V`. */
 export function formatSi(value: number, unit: Unit): string {
+  if (unit === "dimensionless") {
+    // A ratio has no unit and no prefix: a current gain is 100, not 100 "units".
+    return Number.isFinite(value)
+      ? String(Number(value.toPrecision(DISPLAY_SIGNIFICANT_DIGITS)))
+      : "—";
+  }
+
   if (unit === "ampere_squared_second" || unit === "kilogram_meter_squared") {
     return formatWithoutPrefix(value, unitSymbols[unit]);
   }
@@ -212,8 +223,33 @@ export function domainAccepts(domain: NumericDomain, value: number): boolean {
   }
 }
 
+/** The allowed range the catalog gives a parameter, as words, or null if it gives none. */
+export function describeRange(
+  definition: Pick<
+    ParameterDefinition,
+    "unit" | "minimumValue" | "maximumValue"
+  >,
+): string | null {
+  const { minimumValue, maximumValue, unit } = definition;
+
+  if (minimumValue !== undefined && maximumValue !== undefined) {
+    return `${formatSi(minimumValue, unit)} to ${formatSi(maximumValue, unit)}`;
+  }
+  if (minimumValue !== undefined) {
+    return `at least ${formatSi(minimumValue, unit)}`;
+  }
+  if (maximumValue !== undefined) {
+    return `at most ${formatSi(maximumValue, unit)}`;
+  }
+
+  return null;
+}
+
 export type DraftEvaluation =
-  | { readonly state: "invalid"; readonly reason: ParseFailure | "domain" }
+  | {
+      readonly state: "invalid";
+      readonly reason: ParseFailure | "domain" | "range";
+    }
   | { readonly state: "unchanged" }
   | { readonly state: "commit"; readonly value: number };
 
@@ -223,7 +259,8 @@ export type DraftEvaluation =
  */
 export function evaluateParameterDraft(
   text: string,
-  definition: Pick<ParameterDefinition, "unit" | "domain">,
+  definition: Pick<ParameterDefinition, "unit" | "domain"> &
+    Partial<Pick<ParameterDefinition, "minimumValue" | "maximumValue">>,
   committedValue: number,
 ): DraftEvaluation {
   // A value is displayed rounded (`formatSi`), so showing it back unedited must
@@ -240,6 +277,16 @@ export function evaluateParameterDraft(
 
   if (!domainAccepts(definition.domain, parsed.value)) {
     return { state: "invalid", reason: "domain" };
+  }
+
+  // The catalog's finite range, when it has one. The Engine checks it again.
+  if (
+    (definition.minimumValue !== undefined &&
+      parsed.value < definition.minimumValue) ||
+    (definition.maximumValue !== undefined &&
+      parsed.value > definition.maximumValue)
+  ) {
+    return { state: "invalid", reason: "range" };
   }
 
   return parsed.value === committedValue

@@ -106,7 +106,11 @@ export function ResultPanel({
   const { run, snapshot } = state;
 
   return (
-    <section className="side-panel" aria-labelledby="results-heading">
+    <section
+      className="side-panel"
+      aria-labelledby="results-heading"
+      aria-busy={state.status === "ready" && state.updating}
+    >
       <h2 id="results-heading">Results</h2>
 
       {(state.status === "idle" || state.status === "loading") && (
@@ -123,7 +127,15 @@ export function ResultPanel({
 
       {state.status === "failed" && (
         <p className="panel-error" role="alert">
-          The engine could not calculate this circuit.
+          The engine could not calculate this circuit. There is no result, and
+          nothing below is a reading of it.
+        </p>
+      )}
+
+      {state.status === "ready" && state.refusedUpdate && (
+        <p className="panel-error" role="alert">
+          The engine refused the last change and did not apply it. The result on
+          screen is the one from before it.
         </p>
       )}
 
@@ -136,7 +148,13 @@ export function ResultPanel({
       )}
 
       {state.status === "ready" && run && snapshot && (
-        <dl className="readings">
+        <dl
+          className={
+            state.updating || state.stopped
+              ? "readings readings-unsettled"
+              : "readings"
+          }
+        >
           {run.layout.slots.map((slot) => {
             const value = snapshot.values[slot.offset];
 
@@ -167,8 +185,9 @@ export function ResultPanel({
       {state.status === "ready" && state.stopped && (
         <p className="panel-error" role="alert">
           The simulation stopped at step {state.stopped.simulationStep}. The
-          last result stays on screen; changing a value or editing the circuit
-          lets it go on.
+          values shown are from the last step before the stop; nothing was
+          calculated after it. Changing a value or editing the circuit lets it
+          go on.
         </p>
       )}
 

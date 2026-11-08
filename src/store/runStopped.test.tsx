@@ -108,19 +108,39 @@ describe("a run that stops on an Engine error", () => {
     expect(state.discardedFrames).toBe(0);
   });
 
-  it("drops a notice of another run or of another revision", async () => {
+  it("drops a notice of another run and shows nothing for it", async () => {
     const { adapter, controller } = setUp();
     await controller.start(dividerSchematic);
 
     adapter.emitNotice(
       notice({ runId: "00000000-0000-4000-8000-0000000000bb" }),
     );
-    adapter.emitNotice(notice({ documentRevision: "rev-0" }));
 
     const state = controller.getState();
     expect(state.stopped).toBeNull();
     expect(state.diagnostics).toEqual([]);
-    expect(state.discardedFrames).toBe(2);
+    expect(state.discardedFrames).toBe(1);
+    expect(adapter.startedRuns).toHaveLength(1);
+  });
+
+  it("opens the stream again for a late notice of an earlier revision of the same run", async () => {
+    const { adapter, controller } = setUp(() => ({
+      status: "success",
+      internalSubsteps: 1,
+      snapshot: snapshot("rev-2", 7n),
+      diagnostics: [],
+    }));
+    await controller.start(dividerSchematic);
+    // The update's reply arrives first; the stop notice of rev-1 arrives after it.
+    await controller.setParameter(R1, "resistanceOhms", 2000);
+    expect(controller.getState().run?.documentRevision).toBe("rev-2");
+
+    adapter.emitNotice(notice({ documentRevision: "rev-1" }));
+
+    const state = controller.getState();
+    expect(state.stopped).toBeNull();
+    expect(state.diagnostics).toEqual([]);
+    expect(adapter.startedRuns).toEqual([RUN_ID, RUN_ID]);
   });
 
   it("ends the stop when the circuit is compiled again", async () => {
