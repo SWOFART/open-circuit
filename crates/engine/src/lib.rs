@@ -45,8 +45,8 @@ pub use results::{
     OperatorPosition, PushButtonPosition, RelayContactState, ResultLayout, ResultQuantity,
     ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
     SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
-    SwitchPosition, TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery, TraceRequest,
-    TraceSignal,
+    StreamNotice, SwitchPosition, TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery,
+    TraceRequest, TraceSignal,
 };
 pub use schematic::{
     AmmeterParameters, BjtParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters,

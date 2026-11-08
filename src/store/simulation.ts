@@ -13,6 +13,7 @@ import type { Schematic } from "../generated/Schematic";
 import type { SetOperatorStateResult } from "../generated/SetOperatorStateResult";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
+import type { StreamNotice } from "../generated/StreamNotice";
 import { symbols, type SymbolRegistry } from "../symbols";
 import type { EngineAdapter } from "./engineAdapter";
 
@@ -33,6 +34,9 @@ export interface ActiveRun {
   readonly documentRevision: string;
 }
 
+/** A run that stopped on an Engine error: what the stop notice said, for the run on screen. */
+export type RunStop = Extract<StreamNotice, { kind: "runStopped" }>;
+
 export interface SimulationState {
   readonly status: SimulationStatus;
   readonly catalog: ComponentCatalog | null;
@@ -45,6 +49,11 @@ export interface SimulationState {
   readonly updating: boolean;
   /** Frames rejected by `isSnapshotCurrent`. */
   readonly discardedFrames: number;
+  /**
+   * The run on screen stopped on an Engine error. Its last committed snapshot stays shown;
+   * a new compile, or an update that succeeds, ends the stop.
+   */
+  readonly stopped: RunStop | null;
 }
 
 export function initialSimulationState(): SimulationState {
@@ -57,6 +66,7 @@ export function initialSimulationState(): SimulationState {
     error: null,
     updating: false,
     discardedFrames: 0,
+    stopped: null,
   };
 }
 
@@ -554,6 +564,7 @@ export class SimulationController {
           diagnostics: result.diagnostics,
           error: null,
           updating: false,
+          stopped: null,
         });
         return true;
       }
@@ -588,6 +599,7 @@ export class SimulationController {
         diagnostics: result.diagnostics,
         error: null,
         updating: false,
+        stopped: null,
       });
     } catch (error) {
       // A malformed payload must surface as an error, never as a crash.
@@ -619,7 +631,10 @@ export class SimulationController {
       return;
     }
 
-    this.settleAmbiguousRevision(snapshot);
+    this.settleAmbiguousRevision(
+      snapshot.metadata.runId,
+      snapshot.metadata.documentRevision,
+    );
 
     if (
       isSnapshotCurrent(
@@ -639,22 +654,66 @@ export class SimulationController {
    * After a position change whose answer was lost, a frame of this run settles which
    * revision the engine is at; any other revision is left to the usual stale-frame rule.
    */
-  private settleAmbiguousRevision(snapshot: ResultSnapshot): void {
+  private settleAmbiguousRevision(runId: StableId, revision: string): void {
     const { run } = this.state;
     const candidates = this.ambiguousRevisions;
 
     if (
       run &&
       candidates &&
-      snapshot.metadata.runId === run.runId &&
-      candidates.includes(snapshot.metadata.documentRevision)
+      runId === run.runId &&
+      candidates.includes(revision)
     ) {
       this.ambiguousRevisions = null;
       this.state = {
         ...this.state,
-        run: { ...run, documentRevision: snapshot.metadata.documentRevision },
+        run: { ...run, documentRevision: revision },
       };
     }
+  }
+
+  /**
+   * The backend says the run stopped on an Engine error. It is shown only if it belongs to the
+   * run and the revision on screen, by the same rule as a frame; a notice of an earlier run or
+   * revision is dropped without a trace on the screen. The last committed snapshot stays.
+   */
+  private readonly handleNotice = (notice: StreamNotice): void => {
+    if (this.disposed || this.state.status !== "ready") {
+      return;
+    }
+
+    this.settleAmbiguousRevision(notice.runId, notice.documentRevision);
+    const { run } = this.state;
+
+    if (
+      !run ||
+      notice.runId !== run.runId ||
+      notice.documentRevision !== run.documentRevision
+    ) {
+      this.setState({ discardedFrames: this.state.discardedFrames + 1 });
+      return;
+    }
+
+    this.setState({
+      stopped: notice,
+      diagnostics: notice.diagnostics,
+      error: null,
+    });
+  };
+
+  /**
+   * An update succeeded on a run that had stopped: the Engine accepted it and its run goes on,
+   * but the stream had ended with the stop, so it is opened again. If the cause is still there
+   * the Engine stops it again and a new notice says so.
+   */
+  private resumeAfterStop(runId: StableId): void {
+    if (this.state.stopped === null) {
+      return;
+    }
+
+    this.setState({ stopped: null });
+    this.stopFrameStream();
+    void this.openFrameStream(runId);
   }
 
   private readonly handleFrameError = (error: Error): void => {
@@ -672,6 +731,7 @@ export class SimulationController {
     try {
       const stop = await this.adapter.startFrames(runId, {
         onFrame: this.handleFrame,
+        onNotice: this.handleNotice,
         onError: this.handleFrameError,
       });
 
@@ -829,6 +889,7 @@ export class SimulationController {
           diagnostics: result.diagnostics,
           error: null,
         });
+        this.resumeAfterStop(run.runId);
         return true;
       }
 
@@ -871,6 +932,7 @@ export class SimulationController {
         diagnostics: result.diagnostics,
         error: null,
       });
+      this.resumeAfterStop(run.runId);
       return true;
     } catch (error) {
       // A malformed payload must surface as an error, never as a crash.

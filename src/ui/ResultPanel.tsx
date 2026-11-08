@@ -164,6 +164,14 @@ export function ResultPanel({
         </p>
       )}
 
+      {state.status === "ready" && state.stopped && (
+        <p className="panel-error" role="alert">
+          The simulation stopped at step {state.stopped.simulationStep}. The
+          last result stays on screen; changing a value or editing the circuit
+          lets it go on.
+        </p>
+      )}
+
       {state.status === "ready" && state.error && (
         <p className="panel-error" role="alert">
           Update failed: {state.error}

@@ -203,7 +203,8 @@ A solve that fails commits nothing: an `advance` stops the run at its last commi
 an update is refused with the run unchanged. The contract adds two diagnostics
 (`NonConvergence`, `ModelRangeExceeded`), optional `minimumValue` and `maximumValue` fields
 to the catalog's parameter definitions, a requirement that the application tells the user when
-a run stops on an Engine error, and no new frame or state kind.
+a run stops on an Engine error (a JSON `StreamNotice` on the frame channel, not a new channel),
+and no new frame or state kind.
 
 The #117 clarification preserves the MNA current convention: nonlinear equivalent
 injections are `G V* - I(V*)`. Mixed motor islands also check angular-speed

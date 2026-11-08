@@ -619,6 +619,7 @@ describe.skipIf(!recorded)("the meters on the real Engine", () => {
           error: null,
           updating: false,
           discardedFrames: 0,
+          stopped: null,
         }}
         schematic={schematic}
         labels={componentLabels(schematic)}

@@ -8,6 +8,7 @@ import type { SetOperatorStateResult } from "../generated/SetOperatorStateResult
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
+import type { StreamNotice } from "../generated/StreamNotice";
 import type { TraceBatch } from "../generated/TraceBatch";
 import type { TraceRequest } from "../generated/TraceRequest";
 import { decodeFrame } from "./frameCodec";
@@ -20,8 +21,46 @@ export const TRACE_DELIVERY_TIMEOUT_MS = 5000;
 export interface FrameHandlers {
   /** A decoded frame. The caller decides, by the contract rules, whether to apply it. */
   onFrame(snapshot: ResultSnapshot): void;
+  /**
+   * A notice that travels beside the frames: the run stopped on an Engine error
+   * (docs/contracts/stage-7-nonlinear-circuits.md section 6.3). The caller decides, by the same
+   * run and revision rules as for a frame, whether it belongs to the run on screen.
+   */
+  onNotice(notice: StreamNotice): void;
   /** A frame that could not be read, or any failure of the frame stream. */
   onError(error: Error): void;
+}
+
+/**
+ * Reads a notice the backend sent as JSON beside the frames. Anything that is not exactly a
+ * known notice is refused, so a malformed message can never be taken for a stop.
+ */
+export function parseStreamNotice(message: unknown): StreamNotice {
+  const value = message as Record<string, unknown> | null;
+
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    value.kind !== "runStopped" ||
+    typeof value.runId !== "string" ||
+    typeof value.documentRevision !== "string" ||
+    typeof value.simulationStep !== "number" ||
+    !Number.isSafeInteger(value.simulationStep) ||
+    value.simulationStep < 0 ||
+    !Array.isArray(value.diagnostics)
+  ) {
+    throw new Error(
+      "The engine sent a message that is neither a frame nor a notice.",
+    );
+  }
+
+  return {
+    kind: "runStopped",
+    runId: value.runId,
+    documentRevision: value.documentRevision,
+    simulationStep: value.simulationStep,
+    diagnostics: value.diagnostics as StreamNotice["diagnostics"],
+  };
 }
 
 /**
@@ -196,9 +235,14 @@ export class TauriEngineAdapter implements EngineAdapter {
       }
 
       if (!(message instanceof ArrayBuffer)) {
-        handlers.onError(
-          new Error("The engine sent a frame that is not binary."),
-        );
+        // The one other kind of message on this channel is a JSON notice.
+        try {
+          handlers.onNotice(parseStreamNotice(message));
+        } catch (error) {
+          handlers.onError(
+            error instanceof Error ? error : new Error(String(error)),
+          );
+        }
         return;
       }
 

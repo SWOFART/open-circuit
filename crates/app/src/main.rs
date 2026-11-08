@@ -14,7 +14,8 @@ use open_circuit_engine::{
     Assignment, AssignmentDecoded, AssignmentSaveOutcome, CheckRequest, CheckResult,
     CompileRequest, CompileResult, ComponentCatalog, DiagnosisChecked, Schematic,
     SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
-    StableId, TraceRequest, check_diagnosis, component_catalog, validate_assignment_value,
+    StableId, StreamNotice, TraceRequest, check_diagnosis, component_catalog,
+    validate_assignment_value,
 };
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Manager, RunEvent, State, WindowEvent};
@@ -23,13 +24,22 @@ use tauri_plugin_dialog::DialogExt;
 /// Managed state: the one simulation thread, shared by every command.
 struct Simulation(Arc<SimulationService>);
 
-/// Sends encoded frames to the webview as raw bytes, which arrive as an `ArrayBuffer`.
+/// Sends encoded frames to the webview as raw bytes, which arrive as an `ArrayBuffer`. A
+/// notice (the stop of a run) goes over the same channel as JSON, which arrives as an object, so
+/// the two kinds of message cannot be mistaken for each other and no second channel exists.
 struct ChannelSink(Channel<InvokeResponseBody>);
 
 impl FrameSink for ChannelSink {
     fn send(&mut self, frame: Vec<u8>) -> Result<(), SinkClosed> {
         self.0
             .send(InvokeResponseBody::Raw(frame))
+            .map_err(|_| SinkClosed)
+    }
+
+    fn notice(&mut self, notice: &StreamNotice) -> Result<(), SinkClosed> {
+        let json = serde_json::to_string(notice).map_err(|_| SinkClosed)?;
+        self.0
+            .send(InvokeResponseBody::Json(json))
             .map_err(|_| SinkClosed)
     }
 }
