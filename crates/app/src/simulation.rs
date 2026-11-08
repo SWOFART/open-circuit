@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use open_circuit_engine::{
     AdvanceRequest, CompileRequest, CompileResult, Diagnostic, DiagnosticCode, Engine,
     SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
-    StableId, TraceRequest,
+    StableId, StreamNotice, TraceRequest,
 };
 
 use crate::frame::{MAX_REVISION_BYTES, encode_frame};
@@ -37,6 +37,12 @@ const REPLY_TIMEOUT: Duration = Duration::from_secs(10);
 /// Where encoded frames go. Returning an error means the receiver is gone for good.
 pub trait FrameSink: Send + 'static {
     fn send(&mut self, frame: Vec<u8>) -> Result<(), SinkClosed>;
+
+    /// Delivers a notice that travels beside the frames, such as the stop of a run. A sink that
+    /// cannot show one drops it (the default); the channel to the webview never does.
+    fn notice(&mut self, _notice: &StreamNotice) -> Result<(), SinkClosed> {
+        Ok(())
+    }
 }
 
 /// Where one encoded, bounded trace response goes. Returning an error means the receiver is gone.
@@ -331,7 +337,20 @@ impl SimulationCore {
                     run_id: active.run_id.clone(),
                     step_count: 1,
                 };
-                if engine.advance(advance).is_err() {
+                if let Err(diagnostics) = engine.advance(advance) {
+                    // The run stopped on an Engine error. Tell the interface which run, which
+                    // revision, and which step the last committed snapshot is, and why. Without
+                    // this the stream would end silently and the screen would look frozen.
+                    if let Some(snapshot) = engine.latest_snapshot()
+                        && snapshot.metadata.run_id == active.run_id
+                    {
+                        let _ = active.sink.notice(&StreamNotice::RunStopped {
+                            run_id: snapshot.metadata.run_id.clone(),
+                            document_revision: snapshot.metadata.document_revision.clone(),
+                            simulation_step: snapshot.metadata.simulation_step,
+                            diagnostics,
+                        });
+                    }
                     *stream = None;
                     return;
                 }

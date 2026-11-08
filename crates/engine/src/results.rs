@@ -267,6 +267,28 @@ pub enum SetOperatorStateResult {
     },
 }
 
+/// A message that travels beside the frames of a live stream (docs/contracts/
+/// stage-7-nonlinear-circuits.md section 6.3). The application builds it from what the Engine
+/// reported; the interface shows it and never infers it from a missing frame.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(
+    tag = "kind",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export, export_to = "StreamNotice.ts")]
+pub enum StreamNotice {
+    /// The run stopped on an Engine error. The run, the revision, and the step are those of
+    /// the last committed snapshot, which stays the latest one; nothing partial follows it.
+    RunStopped {
+        run_id: StableId,
+        document_revision: String,
+        #[ts(type = "number")]
+        simulation_step: u64,
+        diagnostics: Vec<Diagnostic>,
+    },
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "AdvanceRequest.ts")]

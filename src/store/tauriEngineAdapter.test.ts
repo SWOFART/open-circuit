@@ -3,6 +3,7 @@ import frameFixture from "../../tests/golden/stage-1-frame.json";
 import traceFixture from "../../tests/golden/stage-3-trace.json";
 import type { CompileRequest } from "../generated/CompileRequest";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
+import type { StreamNotice } from "../generated/StreamNotice";
 import type { TraceRequest } from "../generated/TraceRequest";
 import { dividerSchematic } from "./fixtures";
 
@@ -235,13 +236,16 @@ describe("commands", () => {
 
 function handlers() {
   const frames: ResultSnapshot[] = [];
+  const notices: StreamNotice[] = [];
   const errors: Error[] = [];
 
   return {
     frames,
+    notices,
     errors,
     handlers: {
       onFrame: (snapshot: ResultSnapshot) => frames.push(snapshot),
+      onNotice: (notice: StreamNotice) => notices.push(notice),
       onError: (error: Error) => errors.push(error),
     },
   };
@@ -311,13 +315,95 @@ describe("the frame stream", () => {
     expect(commandsCalled()).not.toContain("acknowledge_frame");
   });
 
-  it("reports a message that is not binary", async () => {
-    const { channel, frames, errors } = await openStream();
+  it("reports a message that is neither a frame nor a notice", async () => {
+    const { channel, frames, notices, errors } = await openStream();
 
     channel.onmessage({ not: "binary" });
 
     expect(frames).toEqual([]);
-    expect(errors[0]?.message).toMatch(/not binary/);
+    expect(notices).toEqual([]);
+    expect(errors[0]?.message).toMatch(/neither a frame nor a notice/);
+  });
+
+  it("hands on a JSON stop notice beside the frames, and never acknowledges it", async () => {
+    const { channel, frames, notices, errors } = await openStream();
+    const notice: StreamNotice = {
+      kind: "runStopped",
+      runId: RUN_ID,
+      documentRevision: "rev-2",
+      simulationStep: 42,
+      diagnostics: [
+        {
+          code: "NonConvergence",
+          severity: "error",
+          localizationKey: "diagnostic.nonConvergence",
+          references: [
+            {
+              kind: "component",
+              componentId: "00000000-0000-4000-8000-000000000002",
+            },
+          ],
+        },
+      ],
+    };
+
+    channel.onmessage(notice);
+
+    expect(errors).toEqual([]);
+    expect(frames).toEqual([]);
+    expect(notices).toEqual([notice]);
+    expect(commandsCalled()).not.toContain("acknowledge_frame");
+  });
+
+  it.each([
+    ["an unknown kind", { kind: "other" }],
+    [
+      "a missing run",
+      {
+        kind: "runStopped",
+        documentRevision: "r",
+        simulationStep: 1,
+        diagnostics: [],
+      },
+    ],
+    [
+      "a fractional step",
+      {
+        kind: "runStopped",
+        runId: RUN_ID,
+        documentRevision: "r",
+        simulationStep: 1.5,
+        diagnostics: [],
+      },
+    ],
+    [
+      "a negative step",
+      {
+        kind: "runStopped",
+        runId: RUN_ID,
+        documentRevision: "r",
+        simulationStep: -1,
+        diagnostics: [],
+      },
+    ],
+    [
+      "diagnostics that are not a list",
+      {
+        kind: "runStopped",
+        runId: RUN_ID,
+        documentRevision: "r",
+        simulationStep: 1,
+        diagnostics: "x",
+      },
+    ],
+    ["null", null],
+  ])("refuses a notice with %s", async (_name, bad) => {
+    const { channel, notices, errors } = await openStream();
+
+    channel.onmessage(bad);
+
+    expect(notices).toEqual([]);
+    expect(errors).toHaveLength(1);
   });
 
   it("reports a failed acknowledgement", async () => {

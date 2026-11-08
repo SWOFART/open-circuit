@@ -10,6 +10,7 @@ import type { SetOperatorStateResult } from "../generated/SetOperatorStateResult
 import type { SetParameterRequest } from "../generated/SetParameterRequest";
 import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
+import type { StreamNotice } from "../generated/StreamNotice";
 import type { TraceBatch } from "../generated/TraceBatch";
 import type { TraceRequest } from "../generated/TraceRequest";
 import type { EngineAdapter, FrameHandlers } from "./engineAdapter";
@@ -68,6 +69,11 @@ export class PredeterminedEngineAdapter implements EngineAdapter {
   /** Test hook: delivers a frame as the backend would. No-op when not streaming. */
   emitFrame(snapshot: ResultSnapshot): void {
     this.handlers?.onFrame(snapshot);
+  }
+
+  /** Test hook: delivers a stream notice as the backend would. No-op when not streaming. */
+  emitNotice(notice: StreamNotice): void {
+    this.handlers?.onNotice(notice);
   }
 
   /** Test hook: reports a frame that could not be read. */
