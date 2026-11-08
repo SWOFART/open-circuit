@@ -1,0 +1,300 @@
+{
+  "schematic": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 5
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 10,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000001"
+      },
+      {
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 20
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "voltageVolts": 0,
+          "internalResistanceOhms": 0
+        },
+        "id": "00000000-0000-4000-8000-000000000002"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 19,
+          "y": 6
+        },
+        "rotationDeg": 90,
+        "parameters": {
+          "resistanceOhms": 1000
+        },
+        "id": "00000000-0000-4000-8000-000000000003"
+      },
+      {
+        "typeId": "resistor",
+        "position": {
+          "x": 10,
+          "y": 12
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 430000
+        },
+        "id": "00000000-0000-4000-8000-000000000004"
+      },
+      {
+        "typeId": "bjt_npn",
+        "position": {
+          "x": 18,
+          "y": 12
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "saturationCurrentAmps": 1e-14,
+          "forwardBeta": 100,
+          "reverseBeta": 1
+        },
+        "id": "00000000-0000-4000-8000-000000000005"
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "points": [
+          {
+            "x": 0,
+            "y": 4
+          },
+          {
+            "x": 0,
+            "y": -3
+          },
+          {
+            "x": 19,
+            "y": -3
+          },
+          {
+            "x": 19,
+            "y": 5
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "points": [
+          {
+            "x": 19,
+            "y": 7
+          },
+          {
+            "x": 19,
+            "y": 10
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000008",
+        "points": [
+          {
+            "x": 0,
+            "y": 19
+          },
+          {
+            "x": 9,
+            "y": 19
+          },
+          {
+            "x": 9,
+            "y": 12
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000009",
+        "points": [
+          {
+            "x": 11,
+            "y": 12
+          },
+          {
+            "x": 16,
+            "y": 12
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000000a",
+        "points": [
+          {
+            "x": 0,
+            "y": 6
+          },
+          {
+            "x": -3,
+            "y": 6
+          },
+          {
+            "x": -3,
+            "y": 21
+          },
+          {
+            "x": 0,
+            "y": 21
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-00000000000b",
+        "points": [
+          {
+            "x": 0,
+            "y": 21
+          },
+          {
+            "x": 0,
+            "y": 28
+          },
+          {
+            "x": 22,
+            "y": 28
+          },
+          {
+            "x": 22,
+            "y": 14
+          },
+          {
+            "x": 19,
+            "y": 14
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-00000000000c",
+        "position": {
+          "x": 0,
+          "y": 21
+        }
+      }
+    ]
+  },
+  "geometry": {
+    "components": [
+      {
+        "componentId": "00000000-0000-4000-8000-000000000001",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 0,
+              "y": 4
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000002",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 0,
+              "y": 19
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 0,
+              "y": 21
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000003",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 19,
+              "y": 5
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 19,
+              "y": 7
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000004",
+        "pins": [
+          {
+            "pinId": "pin1",
+            "position": {
+              "x": 9,
+              "y": 12
+            }
+          },
+          {
+            "pinId": "pin2",
+            "position": {
+              "x": 11,
+              "y": 12
+            }
+          }
+        ]
+      },
+      {
+        "componentId": "00000000-0000-4000-8000-000000000005",
+        "pins": [
+          {
+            "pinId": "collector",
+            "position": {
+              "x": 19,
+              "y": 10
+            }
+          },
+          {
+            "pinId": "base",
+            "position": {
+              "x": 16,
+              "y": 12
+            }
+          },
+          {
+            "pinId": "emitter",
+            "position": {
+              "x": 19,
+              "y": 14
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "documentRevision": "rev-1"
+}
