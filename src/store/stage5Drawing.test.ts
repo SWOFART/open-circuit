@@ -52,7 +52,7 @@ function goldenPath(name: string): string {
   );
 }
 
-/** Pins `value` as the file's contents, or compares it with the file. */
+/** Pins live DTOs/requests. Legacy .ocassignment encoding is owned and tested by Rust. */
 function pinned(name: string, value: unknown): void {
   const text = `${JSON.stringify(value, null, 2)}\n`;
   const path = goldenPath(name);
@@ -418,7 +418,7 @@ describe("the Stage 5 circuits, drawn and authored", () => {
     expect(draftToAssignment(assignmentToDraft(assignment))).toEqual(
       assignment,
     );
-    pinned("divider-build.ocassignment", assignment);
+    pinned("divider-build.assignment.json", assignment);
   });
 
   it("pins what the student side sends to be checked, for every attempt", async () => {
@@ -466,7 +466,7 @@ describe("the Stage 5 circuits, drawn and authored", () => {
       },
     ]);
     expect(assignment).not.toHaveProperty("checks");
-    pinned("fault-finding.ocassignment", assignment);
+    pinned("fault-finding.assignment.json", assignment);
 
     // The student's session compiles the circuit the student sees with the faults the Engine
     // applies: this is the request the controller sends.

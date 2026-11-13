@@ -559,11 +559,15 @@ fn the_session_is_recorded_for_the_interface() {
         "catalog": component_catalog(),
         "divider": {
             "teacherFile": json_of(DIVIDER),
+            "teacherAssignment": assignment(DIVIDER),
+            "studentAssignment": assignment(DIVIDER).student_copy(),
             "studentCopyText": student_text,
             "attempts": attempts,
         },
         "fault": {
             "teacherFile": json_of(FAULT),
+            "teacherAssignment": assignment(FAULT),
+            "studentAssignment": assignment(FAULT).student_copy(),
             "studentCopyText": fault_text,
             "request": fault_request(Some(faults)),
             "faultedReply": faulted.compile_result,

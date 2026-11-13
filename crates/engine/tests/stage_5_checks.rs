@@ -94,7 +94,7 @@ fn fuse() -> Part {
 fn schematic(parts: &[Part]) -> (Value, Value) {
     (
         json!({
-            "schemaVersion": 1,
+            "schemaVersion": 2,"rails":[],
             "components": parts.iter().map(|(component, _)| component.clone()).collect::<Vec<_>>(),
             "wires": [],
             "junctions": [],

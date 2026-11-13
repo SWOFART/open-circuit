@@ -26,7 +26,7 @@ const transistor = {
 
 function schematic(): Schematic {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     components: [
       {
         typeId: "diode",
@@ -62,6 +62,7 @@ function schematic(): Schematic {
     ],
     junctions: [],
     referenceMarkers: [],
+    rails: [],
   };
 }
 

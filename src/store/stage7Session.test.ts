@@ -20,7 +20,7 @@ const NPN = "00000000-0000-4000-8000-0000000000f2";
 
 function drawing(saturation: number): Schematic {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     components: [
       {
         typeId: "diode",
@@ -47,6 +47,7 @@ function drawing(saturation: number): Schematic {
     wires: [],
     junctions: [],
     referenceMarkers: [],
+    rails: [],
   };
 }
 

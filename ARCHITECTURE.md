@@ -100,7 +100,7 @@ circuit-sim/
 │   │   ├── stage-5-assignments.md
 │   │   ├── stage-6-control-circuits.md
 │   │   ├── stage-7-nonlinear-circuits.md
-│   │   └── stage-8-supply-rails.md ← proposed contract; owner acceptance pending
+│   │   └── stage-8-supply-rails.md ← DC rail contract; staged implementation
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -378,15 +378,20 @@ and positions.
 **Nodes, currents, and simulation state are not saved**; they are computed.
 Export to a SPICE netlist (for ngspice and interchange).
 
-The proposed Stage 8 contract adds named vertical rails as drawn input and a
+The Stage 8 contract adds named vertical rails as drawn input and a
 project-schema v2 boundary, with strict Engine-owned v1-to-v2 migration. Names
 are unique labels, not nonlocal net aliases; only geometric contacts and the
-existing explicit-reference rules connect rails. Current binaries remain v1
-until implementation. Assignment-v1 files retain legacy rail-free embedded
+existing explicit-reference rules connect rails. The schema layer (#130) reads
+strict v1 projects and normalizes them to v2; newly saved projects use v2.
+Assignment-v1 files retain legacy rail-free embedded
 schematics through explicit Engine conversions; rail use in assignments is
-deferred. These decisions require both workstreams' acceptance of
+deferred. The baseline was published by human-merged contract PR #136 (#128).
+Changes to these decisions require both workstreams' review of
 [`docs/contracts/stage-8-supply-rails.md`](docs/contracts/stage-8-supply-rails.md)
-before implementation; this proposal does not record that acceptance.
+before implementation. Rail electrical normalization remains #131; the schema
+layer refuses nonempty rail compiles with `InvalidGeometry` until that resolver
+exists, instead of silently ignoring drawn conductors. This intermediate guard
+is not an assertion that valid rail project geometry is malformed.
 
 The Stage 3 additions (capacitor and inductor components with optional initial
 conditions, which are the only schematic fields for transient state) are
@@ -530,12 +535,12 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 | 7 | Diodes, transistors, extended models | Golden tests on nonlinear circuits pass |
 | 8 | Supply rails (L1, L2, L3, N, PE) and cabinet-style drawing | A control circuit is drawn between named rails and solves like the same circuit drawn with wires; three-phase supply waits for AC analysis |
 
-Stages 6 to 8 are planned, not accepted: each needs a contract (a `docs/contracts/` document) and an acceptance record, as Stages 1 to 5 have, before implementation. Their scope is only what the table says; the notes below are the intent that the contracts will settle.
+Stages 6 to 8 each need a contract (a `docs/contracts/` document) before implementation and an acceptance record before stage closure. Their scope is only what the table says; the notes below describe that intent.
 
 - **Stage 6, switches and buttons.** A switch or push button is a contact that is closed or open, with a small closed resistance and no conduction when open. The operator's position (a held push button, a latching switch) is interactive state, like a fuse's state but set by the user, so the contract must decide what is saved in a project, how a change reaches a running simulation without a recompile, and how it is shown. A contact driven by a relay or contactor coil (symbols in the style of `-Q1` with coil pins A1 and A2) follows the relay model of Stage 4. Symbols follow the electrical-schematic convention.
-- **Stage 8, supply rails.** The proposed contract is
+- **Stage 8, supply rails.** The contract is
   [`docs/contracts/stage-8-supply-rails.md`](docs/contracts/stage-8-supply-rails.md)
-  (issue #128; Engine and Application owner acceptance pending). A rail is a
+  (issue #128, human-merged PR #136). A rail is a
   named vertical conductor, powered only by an explicitly wired existing DC
   source. Names, including L1/L2/L3/N/PE, carry no source, phase, neutral,
   numerical-reference or protective-earth behavior. The proposal settles
@@ -545,8 +550,8 @@ Stages 6 to 8 are planned, not accepted: each needs a contract (a `docs/contract
   editing with fixed wires during rail transforms. The three-phase/PE
   continuation requires separately accepted AC/analysis architecture; DC rails
   add no multi-pole power contacts. Executable fixtures, schema, Engine,
-  bridge/editor and final acceptance remain #129–#135. No rail implementation
-  or completed stage acceptance is claimed by publishing the contract.
+  bridge/editor and final acceptance are tracked by #129–#135. The schema layer
+  does not claim rail solving/drawing or completed Stage 8 acceptance.
 
 ### Editor features outside the stages
 

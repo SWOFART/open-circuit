@@ -889,7 +889,7 @@ fn schematics_are_valid_version_1_documents() {
             edited(divider(), |document| {
                 set(document, "/reference/schemaVersion", json!(2));
             }),
-            vec![at(UnsupportedVersion, "/reference/schemaVersion")],
+            vec![at(InvalidField, "/reference/schemaVersion")],
         ),
         (
             "an invalid ID",

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -8,7 +8,7 @@ use crate::{
     ParameterId, StableId, component_catalog,
 };
 
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 /// Integer world-grid coordinates shared by the schematic and editor layers.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -637,12 +637,13 @@ pub struct ReferenceMarkerSpec {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "Schematic.ts")]
 pub struct Schematic {
-    #[ts(type = "1")]
+    #[ts(type = "2")]
     pub schema_version: u32,
     pub components: Vec<ComponentSpec>,
     pub wires: Vec<WireSpec>,
     pub junctions: Vec<JunctionSpec>,
     pub reference_markers: Vec<ReferenceMarkerSpec>,
+    pub rails: Vec<crate::RailSpec>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
@@ -673,6 +674,12 @@ impl Schematic {
     /// domains. It deliberately does not build topology or solve the circuit.
     pub fn validate(&self) -> Vec<Diagnostic> {
         let mut diagnostics = Vec::new();
+        if self.rails.len() > crate::MAX_RAIL_COUNT {
+            return vec![Diagnostic::error(
+                DiagnosticCode::RailLimitExceeded,
+                Vec::new(),
+            )];
+        }
         if self.schema_version != SCHEMA_VERSION {
             diagnostics.push(Diagnostic::error(
                 DiagnosticCode::InvalidSchemaVersion,
@@ -680,7 +687,7 @@ impl Schematic {
             ));
         }
 
-        let mut ids = HashSet::new();
+        let mut ids = HashMap::new();
         let catalog = component_catalog();
         for component in &self.components {
             record_id(
@@ -815,6 +822,17 @@ impl Schematic {
             );
         }
 
+        diagnostics.extend(self.validate_rails());
+        for rail in &self.rails {
+            record_id(
+                &mut ids,
+                &rail.id,
+                DiagnosticReference::Rail {
+                    rail_id: rail.id.clone(),
+                },
+                &mut diagnostics,
+            );
+        }
         diagnostics
     }
 }
@@ -822,6 +840,13 @@ impl Schematic {
 impl GeometryEnvelope {
     /// Validates the component and pin set against the authoritative Rust catalog.
     pub fn validate_for(&self, schematic: &Schematic) -> Vec<Diagnostic> {
+        let pins = self
+            .components
+            .iter()
+            .try_fold(0usize, |sum, c| sum.checked_add(c.pins.len()));
+        if pins.is_none() || !schematic.rail_work_is_bounded(pins.unwrap_or(usize::MAX)) {
+            return vec![schematic.rail_limit_diagnostic()];
+        }
         let catalog = component_catalog();
         let mut diagnostics = Vec::new();
         let mut seen_components = HashSet::new();
@@ -913,15 +938,17 @@ impl GeometryEnvelope {
 }
 
 fn record_id(
-    ids: &mut HashSet<String>,
+    ids: &mut HashMap<String, DiagnosticReference>,
     id: &StableId,
     reference: DiagnosticReference,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    if !ids.insert(id.as_str().to_owned()) {
+    if let Some(previous) = ids.get(id.as_str()) {
         diagnostics.push(Diagnostic::error(
             DiagnosticCode::DuplicateId,
-            vec![reference],
+            vec![previous.clone(), reference],
         ));
+    } else {
+        ids.insert(id.as_str().to_owned(), reference);
     }
 }

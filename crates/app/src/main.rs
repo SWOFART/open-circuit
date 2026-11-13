@@ -15,7 +15,7 @@ use open_circuit_engine::{
     CompileRequest, CompileResult, ComponentCatalog, DiagnosisChecked, Schematic,
     SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
     StableId, StreamNotice, TraceRequest, check_diagnosis, component_catalog,
-    validate_assignment_value,
+    validate_assignment_draft_value,
 };
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::{Manager, RunEvent, State, WindowEvent};
@@ -187,9 +187,9 @@ async fn open_assignment(
 #[tauri::command]
 async fn validate_assignment(assignment: serde_json::Value) -> Result<AssignmentDecoded, String> {
     run_project_blocking(move || {
-        Ok(AssignmentDecoded::from_result(validate_assignment_value(
-            &assignment,
-        )))
+        Ok(AssignmentDecoded::from_result(
+            validate_assignment_draft_value(&assignment),
+        ))
     })
     .await
 }
@@ -202,7 +202,7 @@ async fn save_assignment(
     session: State<'_, AssignmentSession>,
     assignment: serde_json::Value,
 ) -> Result<AssignmentSaveOutcome, String> {
-    let assignment = match validate_assignment_value(&assignment) {
+    let assignment = match validate_assignment_draft_value(&assignment) {
         Ok(assignment) => assignment,
         Err(errors) => return Ok(AssignmentSaveOutcome::Invalid { errors }),
     };
@@ -220,7 +220,7 @@ async fn save_assignment_as(
     session: State<'_, AssignmentSession>,
     assignment: serde_json::Value,
 ) -> Result<AssignmentSaveOutcome, String> {
-    let assignment = match validate_assignment_value(&assignment) {
+    let assignment = match validate_assignment_draft_value(&assignment) {
         Ok(assignment) => assignment,
         Err(errors) => return Ok(AssignmentSaveOutcome::Invalid { errors }),
     };
@@ -235,7 +235,7 @@ async fn export_student_copy(
     app: tauri::AppHandle,
     assignment: serde_json::Value,
 ) -> Result<AssignmentSaveOutcome, String> {
-    let assignment = match validate_assignment_value(&assignment) {
+    let assignment = match validate_assignment_draft_value(&assignment) {
         Ok(assignment) => assignment.student_copy(),
         Err(errors) => return Ok(AssignmentSaveOutcome::Invalid { errors }),
     };

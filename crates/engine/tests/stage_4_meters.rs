@@ -115,6 +115,7 @@ fn fixture(
 
     (
         Schematic {
+            rails: Vec::new(),
             schema_version: SCHEMA_VERSION,
             components,
             wires: Vec::new(),

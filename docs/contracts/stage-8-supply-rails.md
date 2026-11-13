@@ -1,10 +1,11 @@
 # Stage 8 Contract: Named Supply Rails and Cabinet-Style DC Drawing
 
-**Status:** Proposed for Engine and Application owner review (issue #128).
-This is a documentation candidate, not a claim of either owner's approval or
-implemented rail support. The independent technical review does not replace
-their acceptance. Both owners must accept the same contract before #130–#134
-implement it; any changed decision requires an updated contract and review.
+**Status:** Published contract (issue #128, human-merged PR #136). Stage 8 is
+implemented in separate layers: references #129, schema/compatibility #130,
+electrical connectivity #131, bridge/editor #132–#134, final acceptance #135.
+Changes to a decision still require Engine and Application owner review.
+Neither this document nor an automated technical review declares the whole
+stage accepted.
 
 **Scope:** The DC/named-node portion of Stage 8 in
 [ARCHITECTURE.md](../../ARCHITECTURE.md) section 12. A user draws a control
@@ -500,8 +501,12 @@ do not introduce an alternate RC integration formula to fit these numbers.
 
 ## 10. Verification, acceptance and unresolved approval
 
-This issue changes documentation only. It does not claim that the current
-binary reads schema v2 or draws rails. Implementation ownership and validation:
+Issue #128 published the specification without runtime changes. The schema
+layer #130 introduces v2 storage/validation and legacy conversion; until #131
+assembles rail connectivity it refuses nonempty rail compiles with
+`InvalidGeometry` instead of returning values for ignored conductors. This
+temporary compatibility guard is removed by #131 and is not a new permanent
+rule for valid rail geometry. Drawing remains #133–#134. Ownership and validation:
 
 | Issue             | Required evidence                                                                                                                               |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -513,13 +518,12 @@ binary reads schema v2 or draws rails. Implementation ownership and validation:
 | #134, Application | Keyboard/pointer authoring, history, assignment guards, persistence/reset, real-Engine fixture generation and user guidance.                    |
 | #135, shared      | Exact-candidate three-platform checks/Tauri builds, measured canonical values and actual desktop observations in the Stage 8 acceptance record. |
 
-Owner review must explicitly confirm names without aliases, duplicate-name
-rejection, geometric contact/reference rules, schema v2 migration and the
-assignment-v1 boundary, rail work limits, fixed wires during rail transforms,
-and these numerical fixtures. Neither owner approval is recorded by this
-document's existence or by an automated Gate A PASS. The draft PR is the
-concrete artifact for that review. Until both workstreams accept it, #128's
-owner-acceptance criterion and Stage 8 implementation gate remain pending.
+The published baseline is PR #136, and #128 is closed. Implementation follows
+its names without aliases, duplicate-name rejection, contact/reference rules,
+v2 migration, assignment-v1 boundary, rail limits and numerical fixtures.
+Changes to those decisions require renewed owner review; technical Gate A
+never substitutes for a human merge. Stage 8 closes only after all required
+implementation and acceptance evidence is complete.
 
 All existing applicable checks remain required for implementation and final
 acceptance. Preserve the public 1 ms step, deterministic substeps, coupled motor

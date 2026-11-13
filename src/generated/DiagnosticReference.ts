@@ -4,4 +4,4 @@ import type { StableId } from "./StableId";
 /**
  * Typed references let the UI highlight the affected item without parsing message text.
  */
-export type DiagnosticReference = { "kind": "component", componentId: StableId, } | { "kind": "pin", componentId: StableId, pinId: string, } | { "kind": "wire", wireId: StableId, } | { "kind": "junction", junctionId: StableId, } | { "kind": "referenceMarker", referenceMarkerId: StableId, } | { "kind": "node", nodeId: StableId, };
+export type DiagnosticReference = { "kind": "component", componentId: StableId, } | { "kind": "pin", componentId: StableId, pinId: string, } | { "kind": "wire", wireId: StableId, } | { "kind": "junction", junctionId: StableId, } | { "kind": "referenceMarker", referenceMarkerId: StableId, } | { "kind": "node", nodeId: StableId, } | { "kind": "rail", railId: StableId, };

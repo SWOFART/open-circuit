@@ -5,11 +5,11 @@
 component catalog. This document extends, but does not replace,
 [ARCHITECTURE.md](../../ARCHITECTURE.md) or [stage-1.md](stage-1.md).
 
-**Stage 8 amendment (proposed, owner acceptance pending):**
+**Stage 8 amendment (schema layer #130; rail tools #133–#134):**
 [stage-8-supply-rails.md](stage-8-supply-rails.md) sections 3 and 7 extend this
 contract with normalized/saved project v2, v1 migration, DC rail tools,
-attachment hints, selection, history and fixed-wire rail transforms. After that
-implementation, New/Example and Save use v2; current binaries still use v1.
+attachment hints, selection, history and fixed-wire rail transforms. New/Example
+and Save use v2 with #130; rail rendering/authoring remain #133–#134.
 The earlier component transforms, dirty-state and atomic file-lifecycle rules
 remain in force. Assignment-v1 embedding has a separate boundary in section 8
 of that contract.

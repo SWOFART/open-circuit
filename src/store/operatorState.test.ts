@@ -22,7 +22,7 @@ const BUTTON = "00000000-0000-4000-8000-000000000004";
 
 /** A switch and a normally closed push button in series with a source and a resistor. */
 const schematic: Schematic = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   components: [
     {
       typeId: "dc_voltage_source",
@@ -56,6 +56,7 @@ const schematic: Schematic = {
   wires: [],
   junctions: [],
   referenceMarkers: [],
+  rails: [],
 };
 
 const layout: ResultLayout = {

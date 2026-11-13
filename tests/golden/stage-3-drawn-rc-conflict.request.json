@@ -1,6 +1,6 @@
 {
   "schematic": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "components": [
       {
         "typeId": "dc_voltage_source",
@@ -112,7 +112,8 @@
           "y": 5
         }
       }
-    ]
+    ],
+    "rails": []
   },
   "geometry": {
     "components": [

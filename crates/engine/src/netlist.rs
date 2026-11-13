@@ -75,6 +75,22 @@ pub fn derive_netlist_with_open(
         return Err(diagnostics);
     }
 
+    // Schema-only layer (#130): refuse unsupported conductor geometry rather than
+    // silently solving a rail-bearing document as though its rails did not exist.
+    // The stacked connectivity implementation (#131) replaces this guard with net assembly.
+    if !schematic.rails.is_empty() {
+        let mut errors = vec![Diagnostic::error(
+            DiagnosticCode::InvalidGeometry,
+            schematic
+                .rails
+                .iter()
+                .map(crate::RailSpec::reference)
+                .collect(),
+        )];
+        sort_diagnostics(&mut errors);
+        return Err(errors);
+    }
+
     let (segments, wire_segment_groups) = make_segments(schematic);
     let pins = make_pins(schematic, geometry);
     let mut conductors = DisjointSet::new(segments.len() + pins.len());
@@ -588,7 +604,7 @@ mod tests {
     fn crossing_fixture(with_junction: bool) -> (Schematic, GeometryEnvelope) {
         let mut schematic: Schematic = from_str(
             r#"{
-              "schemaVersion":1,
+              "schemaVersion":2,"rails":[],
               "components":[
                 {"id":"00000000-0000-4000-8000-000000000001","typeId":"resistor","position":{"x":-2,"y":0},"rotationDeg":0,"parameters":{"resistanceOhms":1000}},
                 {"id":"00000000-0000-4000-8000-000000000002","typeId":"resistor","position":{"x":2,"y":0},"rotationDeg":0,"parameters":{"resistanceOhms":1000}},
@@ -818,7 +834,7 @@ mod tests {
         );
 
         let wire_only: Schematic = from_str(
-            r#"{"schemaVersion":1,"components":[],"wires":[{"id":"00000000-0000-4000-8000-000000000008","points":[{"x":0,"y":0},{"x":2,"y":0}]}],"junctions":[],"referenceMarkers":[]}"#,
+            r#"{"schemaVersion":2,"rails":[],"components":[],"wires":[{"id":"00000000-0000-4000-8000-000000000008","points":[{"x":0,"y":0},{"x":2,"y":0}]}],"junctions":[],"referenceMarkers":[]}"#,
         )
         .unwrap();
         let empty_geometry: GeometryEnvelope = from_str(r#"{"components":[]}"#).unwrap();

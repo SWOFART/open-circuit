@@ -214,7 +214,22 @@ pub fn decode_assignment_json(bytes: &[u8]) -> Result<Assignment, Vec<Assignment
 
 /// Validates an assignment document and returns it as the typed assignment.
 pub fn validate_assignment_value(value: &Value) -> Result<Assignment, Vec<AssignmentError>> {
-    let mut report = Report::default();
+    validate_assignment_for_format(value, true)
+}
+
+/// Validates the normalized live DTO. File decoding deliberately retains its frozen v1 shape.
+pub fn validate_assignment_draft_value(value: &Value) -> Result<Assignment, Vec<AssignmentError>> {
+    validate_assignment_for_format(value, false)
+}
+
+fn validate_assignment_for_format(
+    value: &Value,
+    legacy_schematics: bool,
+) -> Result<Assignment, Vec<AssignmentError>> {
+    let mut report = Report {
+        legacy_schematics,
+        ..Report::default()
+    };
     let Some(root) = value.as_object() else {
         return Err(vec![AssignmentError::new(
             AssignmentErrorCode::Malformed,
@@ -270,7 +285,10 @@ pub fn validate_assignment_value(value: &Value) -> Result<Assignment, Vec<Assign
     shared_ids.extend(starting_ids.into_iter().flatten());
     // The reference is the last field, but its IDs are needed to judge the criteria and the
     // faults, so it is read first into a report of its own that is appended at the end.
-    let mut reference_report = Report::default();
+    let mut reference_report = Report {
+        legacy_schematics,
+        ..Report::default()
+    };
     let reference_ids = root
         .get("reference")
         .map(|schematic| reference_report.schematic(schematic, "/reference"));
@@ -298,24 +316,55 @@ pub fn validate_assignment_value(value: &Value) -> Result<Assignment, Vec<Assign
     if !report.errors.is_empty() {
         return Err(report.errors);
     }
-    let assignment: Assignment = serde_json::from_value(value.clone())
+    let mut normalized = value.clone();
+    if legacy_schematics {
+        for field in ["startingCircuit", "reference"] {
+            if let Some(schematic) = normalized.get_mut(field).and_then(Value::as_object_mut) {
+                schematic.insert("schemaVersion".into(), crate::SCHEMA_VERSION.into());
+                schematic.insert("rails".into(), Value::Array(Vec::new()));
+            }
+        }
+    }
+    let assignment: Assignment = serde_json::from_value(normalized)
         .map_err(|_| vec![AssignmentError::new(AssignmentErrorCode::InvalidField, "")])?;
     check_faults_against_the_circuit(&assignment)?;
     Ok(assignment)
 }
 
-/// Validates a typed assignment: the same rules as a file.
+/// Validates a normalized live assignment; file embedding remains legacy v1.
 pub fn validate_assignment(assignment: &Assignment) -> Result<(), Vec<AssignmentError>> {
     let value = serde_json::to_value(assignment)
         .map_err(|_| vec![AssignmentError::new(AssignmentErrorCode::InvalidField, "")])?;
-    validate_assignment_value(&value).map(|_| ())
+    validate_assignment_draft_value(&value).map(|_| ())
 }
 
 /// Encodes a valid assignment as the bytes of an assignment file: readable JSON with a final
 /// newline. An invalid or oversized assignment is refused.
 pub fn encode_assignment_json(assignment: &Assignment) -> Result<Vec<u8>, Vec<AssignmentError>> {
     validate_assignment(assignment)?;
-    let mut bytes = serde_json::to_vec_pretty(assignment)
+    let mut legacy = serde_json::to_value(assignment)
+        .map_err(|_| vec![AssignmentError::new(AssignmentErrorCode::Malformed, "")])?;
+    for (field, schematic) in [
+        ("startingCircuit", assignment.starting_circuit.as_ref()),
+        ("reference", assignment.reference.as_ref()),
+    ] {
+        if let Some(schematic) = schematic {
+            let value =
+                crate::project::LegacySchematicV1::from_current(schematic).map_err(|_| {
+                    vec![AssignmentError::new(
+                        AssignmentErrorCode::InvalidField,
+                        format!("/{field}"),
+                    )]
+                })?;
+            legacy[field] = serde_json::to_value(value).map_err(|_| {
+                vec![AssignmentError::new(
+                    AssignmentErrorCode::Malformed,
+                    format!("/{field}"),
+                )]
+            })?;
+        }
+    }
+    let mut bytes = serde_json::to_vec_pretty(&legacy)
         .map_err(|_| vec![AssignmentError::new(AssignmentErrorCode::Malformed, "")])?;
     bytes.push(b'\n');
     if bytes.len() > MAX_ASSIGNMENT_BYTES {
@@ -408,6 +457,7 @@ struct TextLimits {
 #[derive(Default)]
 struct Report {
     errors: Vec<AssignmentError>,
+    legacy_schematics: bool,
 }
 
 impl Report {
@@ -516,15 +566,40 @@ impl Report {
             self.push(AssignmentErrorCode::InvalidField, path);
             return ids;
         };
-        if object.get("schemaVersion").and_then(Value::as_u64) != Some(1) {
+        let expected = if self.legacy_schematics {
+            1
+        } else {
+            u64::from(crate::SCHEMA_VERSION)
+        };
+        if object.get("schemaVersion").and_then(Value::as_u64) != Some(expected) {
             self.push(
-                AssignmentErrorCode::UnsupportedVersion,
+                if self.legacy_schematics
+                    && object.get("schemaVersion").and_then(Value::as_u64)
+                        == Some(u64::from(crate::SCHEMA_VERSION))
+                {
+                    AssignmentErrorCode::InvalidField
+                } else {
+                    AssignmentErrorCode::UnsupportedVersion
+                },
                 child(path, "schemaVersion"),
             );
             return ids;
         }
         let before = self.errors.len();
-        self.unknown_fields(object, &SCHEMATIC_FIELDS, path);
+        let mut fields = SCHEMATIC_FIELDS.to_vec();
+        if !self.legacy_schematics {
+            fields.push("rails");
+        }
+        self.unknown_fields(object, &fields, path);
+        if !self.legacy_schematics {
+            match object.get("rails").and_then(Value::as_array) {
+                Some(rails) if !rails.is_empty() => {
+                    self.push(AssignmentErrorCode::TaskMismatch, child(path, "rails"))
+                }
+                Some(_) => {}
+                None => self.push(AssignmentErrorCode::InvalidField, child(path, "rails")),
+            }
+        }
         let mut seen = HashSet::new();
         for list in SCHEMATIC_LISTS {
             let items = match object.get(list) {
@@ -552,7 +627,13 @@ impl Report {
             return ids;
         }
 
-        let schematic: Schematic = match serde_json::from_value(value.clone()) {
+        let parsed: Result<Schematic, serde_json::Error> = if self.legacy_schematics {
+            serde_json::from_value::<crate::project::LegacySchematicV1>(value.clone())
+                .map(|s| s.into_current_unvalidated())
+        } else {
+            serde_json::from_value(value.clone())
+        };
+        let schematic: Schematic = match parsed {
             Ok(schematic) => schematic,
             Err(error) => {
                 let code = if error.to_string().starts_with("unknown field") {

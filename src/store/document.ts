@@ -116,6 +116,7 @@ function allIds(schematic: Schematic): StableId[] {
     ...schematic.wires.map((item) => item.id),
     ...schematic.junctions.map((item) => item.id),
     ...schematic.referenceMarkers.map((item) => item.id),
+    ...schematic.rails.map((item) => item.id),
   ];
 }
 
@@ -134,13 +135,14 @@ function assertUniqueIds(schematic: Schematic): void {
 
 function assertSchematicShape(schematic: Schematic): void {
   if (
-    schematic.schemaVersion !== 1 ||
+    schematic.schemaVersion !== 2 ||
     !Array.isArray(schematic.components) ||
     !Array.isArray(schematic.wires) ||
     !Array.isArray(schematic.junctions) ||
-    !Array.isArray(schematic.referenceMarkers)
+    !Array.isArray(schematic.referenceMarkers) ||
+    !Array.isArray(schematic.rails)
   ) {
-    throw new Error("The document is not a version 1 schematic.");
+    throw new Error("The document is not a version 2 schematic.");
   }
 
   assertUniqueIds(schematic);
