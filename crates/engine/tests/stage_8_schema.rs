@@ -399,20 +399,20 @@ fn direct_checks_reject_rails_in_either_input_before_solving_and_bound_reference
 }
 
 #[test]
-fn schema_only_layer_never_silently_solves_a_document_with_ignored_rails() {
+fn pinless_rail_is_saveable_but_not_a_solvable_circuit() {
     let mut engine = Engine::default();
     let result = engine.compile(CompileRequest {
         schematic: decode(&with_rail()).unwrap(),
         geometry: GeometryEnvelope { components: vec![] },
-        document_revision: "pending-connectivity".into(),
+        document_revision: "pinless-rail".into(),
         faults: None,
     });
     let CompileResult::Failure { diagnostics } = result else {
-        panic!("#131 must replace the explicit unsupported-conductor guard");
+        panic!("a pinless conductor must not produce a usable result");
     };
     assert!(
         diagnostics
             .iter()
-            .any(|d| d.code == DiagnosticCode::InvalidGeometry)
+            .any(|d| d.code == DiagnosticCode::FloatingNode)
     );
 }

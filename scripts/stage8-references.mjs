@@ -596,13 +596,6 @@ for (const entry of cases) {
         ? 1
         : 0,
   );
-  if (entry.id === "empty-referenced-rail") {
-    entry.legacyWireLimitation = {
-      issue: 137,
-      reason:
-        "Existing wire netlist incorrectly accepts a referenced pinless island; retain FloatingNode oracle and fix conductor validation in #131.",
-    };
-  }
 }
 
 const circuits = [divider, latch, wrong, rc, isolated, namedIsolation];

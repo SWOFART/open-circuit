@@ -7,10 +7,12 @@ The current application opens the Stage 1 voltage divider (a battery and two res
 Projects now save schematic schema v2, including the `rails` drawing-input
 array. Existing v1 projects open through a lossless Rust migration; opening
 does not rewrite them, and an explicit Save writes v2. Assignment files keep
-their existing v1 format. This schema layer does not yet draw or solve rails:
-rail-bearing compiles are refused until the Stage 8 connectivity implementation,
-and assignment rail inputs are rejected. See
-[the project-format notes](docs/format/stage-8-projects.md).
+their existing v1 format. The Rust Engine resolves DC rails as exact-grid
+conductors and solves them through the existing component models. Names are
+labels; `N` and `PE` create no earth/reference behavior. Canvas rail authoring
+remains planned, and assignment rail inputs are rejected. See
+[the project-format notes](docs/format/stage-8-projects.md) and
+[the connectivity verification](docs/solver/stage-8-connectivity.md).
 
 ## Prerequisites
 

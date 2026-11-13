@@ -23,6 +23,7 @@ pub struct NetNode {
     pub index: usize,
     pub pins: Vec<PinRef>,
     pub wire_ids: Vec<StableId>,
+    pub rail_ids: Vec<StableId>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -75,22 +76,6 @@ pub fn derive_netlist_with_open(
         return Err(diagnostics);
     }
 
-    // Schema-only layer (#130): refuse unsupported conductor geometry rather than
-    // silently solving a rail-bearing document as though its rails did not exist.
-    // The stacked connectivity implementation (#131) replaces this guard with net assembly.
-    if !schematic.rails.is_empty() {
-        let mut errors = vec![Diagnostic::error(
-            DiagnosticCode::InvalidGeometry,
-            schematic
-                .rails
-                .iter()
-                .map(crate::RailSpec::reference)
-                .collect(),
-        )];
-        sort_diagnostics(&mut errors);
-        return Err(errors);
-    }
-
     let (segments, wire_segment_groups) = make_segments(schematic);
     let pins = make_pins(schematic, geometry);
     let mut conductors = DisjointSet::new(segments.len() + pins.len());
@@ -104,7 +89,7 @@ pub fn derive_netlist_with_open(
     // crossing stays separate; an endpoint contact, pin, or junction provides the connection.
     for left in 0..segments.len() {
         for right in (left + 1)..segments.len() {
-            if segments[left].wire_id != segments[right].wire_id
+            if segments[left].owner != segments[right].owner
                 && segments_connect_automatically(&segments[left], &segments[right])
             {
                 conductors.union(left, right);
@@ -128,6 +113,7 @@ pub fn derive_netlist_with_open(
         }
     }
 
+    let mut attached_markers = Vec::new();
     for junction in &schematic.junctions {
         let entities = entities_at(junction.position, &segments, &pins, pin_offset);
         if entities.is_empty() {
@@ -139,6 +125,12 @@ pub fn derive_netlist_with_open(
             ));
         } else {
             union_all(&mut conductors, &entities);
+            attached_markers.push((
+                entities[0],
+                DiagnosticReference::Junction {
+                    junction_id: junction.id.clone(),
+                },
+            ));
         }
     }
 
@@ -153,6 +145,12 @@ pub fn derive_netlist_with_open(
                 }],
             ));
         } else {
+            attached_markers.push((
+                entities[0],
+                DiagnosticReference::ReferenceMarker {
+                    reference_marker_id: marker.id.clone(),
+                },
+            ));
             explicit_reference_entities.extend(entities);
         }
     }
@@ -171,6 +169,13 @@ pub fn derive_netlist_with_open(
     }
 
     let (mut nodes, root_to_node) = make_nodes(&mut conductors, &segments, &pins, pin_offset);
+    let mut node_markers = HashMap::<usize, Vec<DiagnosticReference>>::new();
+    for (entity, reference) in attached_markers {
+        node_markers
+            .entry(root_to_node[&conductors.find(entity)])
+            .or_default()
+            .push(reference);
+    }
     let mut pin_to_node = HashMap::new();
     for node in &nodes {
         for pin in &node.pins {
@@ -233,7 +238,30 @@ pub fn derive_netlist_with_open(
             .copied()
             .find(|node| explicit_reference_nodes.contains(node));
 
-        let (reference_node, reference_kind) = if let Some(node) = explicit_reference_node {
+        // A reference fixes a potential; it cannot turn a pinless conductor into a circuit.
+        // Check this before reference selection (also fixes ordinary-wire defect #137).
+        let (reference_node, reference_kind) = if pins_in_island.is_empty() {
+            let mut references = Vec::new();
+            for index in &node_indices {
+                references.extend(
+                    nodes[*index]
+                        .wire_ids
+                        .iter()
+                        .cloned()
+                        .map(|wire_id| DiagnosticReference::Wire { wire_id }),
+                );
+                references.extend(
+                    nodes[*index]
+                        .rail_ids
+                        .iter()
+                        .cloned()
+                        .map(|rail_id| DiagnosticReference::Rail { rail_id }),
+                );
+                references.extend(node_markers.get(index).into_iter().flatten().cloned());
+            }
+            diagnostics.push(Diagnostic::error(DiagnosticCode::FloatingNode, references));
+            (None, None)
+        } else if let Some(node) = explicit_reference_node {
             (Some(node), Some(ReferenceKind::ExplicitMarker))
         } else if let Some(reference_pin) = pins_in_island.iter().min_by(|left, right| {
             left.component_id
@@ -251,17 +279,7 @@ pub fn derive_netlist_with_open(
             ));
             (Some(node), Some(ReferenceKind::Automatic))
         } else {
-            let mut references = node_indices
-                .iter()
-                .flat_map(|index| nodes[*index].wire_ids.iter().cloned())
-                .map(|wire_id| DiagnosticReference::Wire { wire_id })
-                .collect::<Vec<_>>();
-            sort_references(&mut references);
-            diagnostics.push(Diagnostic::error(DiagnosticCode::FloatingNode, references));
-            (
-                explicit_reference_node,
-                explicit_reference_node.map(|_| ReferenceKind::ExplicitMarker),
-            )
+            unreachable!("a nonempty pin list has a minimum pin")
         };
 
         islands.push(ElectricalIsland {
@@ -288,9 +306,15 @@ pub fn derive_netlist_with_open(
 
 #[derive(Clone)]
 struct Segment {
-    wire_id: StableId,
+    owner: Conductor,
     start: GridPoint,
     end: GridPoint,
+}
+
+#[derive(Clone, PartialEq)]
+enum Conductor {
+    Wire(StableId),
+    Rail(StableId),
 }
 
 #[derive(Clone)]
@@ -310,13 +334,20 @@ fn make_segments(schematic: &Schematic) -> (Vec<Segment>, Vec<Vec<usize>>) {
         for pair in wire.points.windows(2) {
             group.push(segments.len());
             segments.push(Segment {
-                wire_id: wire.id.clone(),
+                owner: Conductor::Wire(wire.id.clone()),
                 start: pair[0],
                 end: pair[1],
             });
         }
         groups.push(group);
     }
+    let mut rails = schematic.rails.iter().collect::<Vec<_>>();
+    rails.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+    segments.extend(rails.into_iter().map(|rail| Segment {
+        owner: Conductor::Rail(rail.id.clone()),
+        start: rail.start,
+        end: rail.end,
+    }));
     (segments, groups)
 }
 
@@ -441,11 +472,12 @@ fn make_nodes(
 ) -> (Vec<NetNode>, HashMap<usize, usize>) {
     let mut grouped = BTreeMap::<usize, NodeBuilder>::new();
     for (index, segment) in segments.iter().enumerate() {
-        grouped
-            .entry(conductors.find(index))
-            .or_default()
-            .wire_ids
-            .insert(segment.wire_id.as_str().to_owned(), segment.wire_id.clone());
+        let builder = grouped.entry(conductors.find(index)).or_default();
+        let (ids, id) = match &segment.owner {
+            Conductor::Wire(id) => (&mut builder.wire_ids, id),
+            Conductor::Rail(id) => (&mut builder.rail_ids, id),
+        };
+        ids.insert(id.as_str().to_owned(), id.clone());
     }
     for (index, pin) in pins.iter().enumerate() {
         grouped
@@ -475,6 +507,7 @@ fn make_nodes(
             index,
             pins: builder.pins,
             wire_ids,
+            rail_ids: builder.rail_ids.into_values().collect(),
         });
     }
     (nodes, root_to_node)
@@ -484,6 +517,7 @@ fn make_nodes(
 struct NodeBuilder {
     pins: Vec<PinRef>,
     wire_ids: BTreeMap<String, StableId>,
+    rail_ids: BTreeMap<String, StableId>,
 }
 
 fn node_sort_key(builder: &NodeBuilder) -> (u8, String, String, i32, i32) {
@@ -497,10 +531,11 @@ fn node_sort_key(builder: &NodeBuilder) -> (u8, String, String, i32, i32) {
         )
     } else {
         (
-            1,
+            if builder.wire_ids.is_empty() { 2 } else { 1 },
             builder
                 .wire_ids
                 .first_key_value()
+                .or_else(|| builder.rail_ids.first_key_value())
                 .map_or_else(String::new, |(id, _)| id.clone()),
             String::new(),
             0,
@@ -524,7 +559,7 @@ fn has_errors(diagnostics: &[Diagnostic]) -> bool {
 }
 
 fn sort_references(references: &mut Vec<DiagnosticReference>) {
-    references.sort_by_key(|reference| format!("{reference:?}"));
+    references.sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
     references.dedup();
 }
 

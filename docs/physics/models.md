@@ -40,6 +40,13 @@ For finite source resistance, the Engine uses the Norton-equivalent MNA stamp wh
 terminal voltage and current using the pin convention above. Exact failure cases for ideal
 sources and the source defaults are specified in the Stage 1 contract.
 
+DC rails are topology, not another physical model: the Engine resolves each
+vertical rail as an ideal conductor using the existing exact-grid wire rules
+before MNA assembly. Names, including `N` and `PE`, supply neither voltage nor
+reference. Existing sources and reference markers retain their meanings;
+independent islands remain separate. There are no rail-current or rail-voltage
+result slots. See [Stage 8 connectivity and verification](../solver/stage-8-connectivity.md).
+
 ## Planned model families
 
 These entries are a research roadmap, not a claim that the models are implemented. Stage

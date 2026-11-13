@@ -388,10 +388,12 @@ schematics through explicit Engine conversions; rail use in assignments is
 deferred. The baseline was published by human-merged contract PR #136 (#128).
 Changes to these decisions require both workstreams' review of
 [`docs/contracts/stage-8-supply-rails.md`](docs/contracts/stage-8-supply-rails.md)
-before implementation. Rail electrical normalization remains #131; the schema
-layer refuses nonempty rail compiles with `InvalidGeometry` until that resolver
-exists, instead of silently ignoring drawn conductors. This intermediate guard
-is not an assertion that valid rail project geometry is malformed.
+before implementation. The Engine netlist (#131) normalizes each rail into one
+exact-grid conductor segment before the existing MNA assembly. Derived nodes
+retain sorted pin, wire and rail identities; names never enter electrical union
+or numerical equations. Pinless conductor islands fail with `FloatingNode`,
+including when explicitly referenced. Rails add no result slot, device state,
+trace quantity or conductor-current model. Canvas authoring remains #133–#134.
 
 The Stage 3 additions (capacitor and inductor components with optional initial
 conditions, which are the only schematic fields for transient state) are

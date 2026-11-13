@@ -502,11 +502,11 @@ do not introduce an alternate RC integration formula to fit these numbers.
 ## 10. Verification, acceptance and unresolved approval
 
 Issue #128 published the specification without runtime changes. The schema
-layer #130 introduces v2 storage/validation and legacy conversion; until #131
-assembles rail connectivity it refuses nonempty rail compiles with
-`InvalidGeometry` instead of returning values for ignored conductors. This
-temporary compatibility guard is removed by #131 and is not a new permanent
-rule for valid rail geometry. Drawing remains #133–#134. Ownership and validation:
+layer #130 introduces v2 storage/validation and legacy conversion. The Engine
+connectivity layer #131 replaces its temporary compile refusal with conductor
+normalization, retaining drawable rail membership for diagnostics. It also
+fixes #137: explicit references cannot bypass pinless-conductor validation.
+Drawing remains #133–#134. Ownership and validation:
 
 | Issue             | Required evidence                                                                                                                               |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |

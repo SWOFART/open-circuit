@@ -93,12 +93,11 @@ against numerical/state observations. Schema/name errors are independent
 future rail-validation inputs, not errors a label-free wire conversion could
 reproduce.
 
-One pre-existing wire-baseline defect is recorded explicitly as
-[issue #137](https://github.com/SWOFART/open-circuit/issues/137): an explicit
-reference bypasses the pinless-island error. Its fixture retains the correct
-`FloatingNode` expectation; `legacyWireLimitation` records that current wire
-behavior separately. #131 must correct conductor validation and remove the
-documented baseline limitation, never change the expected diagnostic.
+An explicit reference previously bypassed the pinless-island error, reported
+as [issue #137](https://github.com/SWOFART/open-circuit/issues/137).
+#131 fixes conductor validation
+for both ordinary wires and rails, and removes `legacyWireLimitation`. Its
+independent `FloatingNode` expectation is unchanged.
 
 #130 uses rail inputs for strict schema/validation tests. #131 loads the actual
 rail side, checks all required diagnostic references/partitions, compares
