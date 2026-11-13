@@ -25,6 +25,37 @@ function createStore(): SchematicDocumentStore {
 }
 
 describe("SchematicDocumentStore", () => {
+  it("preserves normalized rail inputs through unrelated edits and undo/redo", () => {
+    const rails = [
+      {
+        id: "00000000-0000-4000-8000-000000008000",
+        name: "L+",
+        start: { x: -10, y: 0 },
+        end: { x: -10, y: 20 },
+      },
+    ];
+    const store = new SchematicDocumentStore(
+      { ...dividerSchematic, rails },
+      ids(),
+    );
+    store.moveComponent(R1, { x: 6, y: 1 });
+    expect(store.getState().schematic.rails).toEqual(rails);
+    store.undo();
+    expect(store.getState().schematic.rails).toEqual(rails);
+    expect(store.getState().isDirty).toBe(false);
+    store.redo();
+    expect(store.getState().schematic.rails).toEqual(rails);
+  });
+
+  it("includes rails in the cross-kind stable-ID namespace", () => {
+    const rails = [
+      { id: R1, name: "L+", start: { x: -10, y: 0 }, end: { x: -10, y: 20 } },
+    ];
+    expect(
+      () => new SchematicDocumentStore({ ...dividerSchematic, rails }, ids()),
+    ).toThrow(/duplicated/);
+  });
+
   it("keeps an immutable schematic separate from simulation state", () => {
     const store = createStore();
     const original = store.getState().schematic;

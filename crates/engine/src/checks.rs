@@ -378,6 +378,37 @@ enum Start<'a> {
 /// The result depends only on the request. The circuit is compiled without faults in a fresh
 /// `Engine` and advanced through the public steps the criteria need, at most 60 000.
 pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
+    let offending = [&request.starting_circuit, &request.schematic]
+        .into_iter()
+        .filter(|schematic| !schematic.rails.is_empty())
+        .collect::<Vec<_>>();
+    if !offending.is_empty() {
+        let exceeds = offending
+            .iter()
+            .any(|s| s.rails.len() > crate::MAX_RAIL_COUNT);
+        let mut references = if exceeds {
+            Vec::new()
+        } else {
+            offending
+                .iter()
+                .flat_map(|s| s.rails.iter().map(crate::RailSpec::reference))
+                .collect::<Vec<_>>()
+        };
+        references.sort_by(|a, b| a.sort_key().cmp(&b.sort_key()));
+        references.dedup();
+        let diagnostic = Diagnostic::error(
+            if exceeds {
+                crate::DiagnosticCode::RailLimitExceeded
+            } else {
+                crate::DiagnosticCode::UnsupportedAssignmentRails
+            },
+            references,
+        );
+        let mut result = evaluate_started(request, Start::Failed(vec![diagnostic]));
+        result.outcome = CheckOutcome::Failed;
+        result.outcome_key = result.outcome.key().to_owned();
+        return result;
+    }
     let mut engine = Engine::default();
     let start = match engine.compile(CompileRequest {
         schematic: request.schematic.clone(),
@@ -965,7 +996,8 @@ mod tests {
 
     fn empty_schematic() -> Schematic {
         Schematic {
-            schema_version: 1,
+            rails: Vec::new(),
+            schema_version: crate::SCHEMA_VERSION,
             components: Vec::new(),
             wires: Vec::new(),
             junctions: Vec::new(),

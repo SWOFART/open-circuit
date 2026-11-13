@@ -12,11 +12,12 @@ import {
 } from "./assignmentDraft";
 
 export const emptySchematic: Schematic = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   components: [],
   wires: [],
   junctions: [],
   referenceMarkers: [],
+  rails: [],
 };
 
 export type OpenOutcome =

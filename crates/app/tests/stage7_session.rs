@@ -52,7 +52,7 @@ fn pins(id: &str, pins: &[(&str, Value)]) -> Value {
 fn request(components: Vec<Value>, geometry: Vec<Value>) -> CompileRequest {
     serde_json::from_value(json!({
         "schematic": {
-            "schemaVersion": 1,
+            "schemaVersion": 2,"rails":[],
             "components": components,
             "wires": [],
             "junctions": [],

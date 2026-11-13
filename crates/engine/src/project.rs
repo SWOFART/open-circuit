@@ -2,7 +2,63 @@
 
 use std::{error::Error, fmt};
 
-use crate::{DiagnosticCode, DiagnosticSeverity, Schematic};
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    ComponentSpec, DiagnosticCode, DiagnosticSeverity, JunctionSpec, ReferenceMarkerSpec,
+    SCHEMA_VERSION, Schematic, WireSpec,
+};
+
+/// Frozen assignment-v1/project-v1 input shape, never exposed as a second frontend DTO.
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct LegacySchematicV1 {
+    schema_version: u32,
+    components: Vec<ComponentSpec>,
+    wires: Vec<WireSpec>,
+    junctions: Vec<JunctionSpec>,
+    reference_markers: Vec<ReferenceMarkerSpec>,
+}
+
+impl LegacySchematicV1 {
+    pub(crate) fn into_current_unvalidated(self) -> Schematic {
+        Schematic {
+            rails: Vec::new(),
+            schema_version: SCHEMA_VERSION,
+            components: self.components,
+            wires: self.wires,
+            junctions: self.junctions,
+            reference_markers: self.reference_markers,
+        }
+    }
+
+    pub(crate) fn normalize(self) -> Result<Schematic, ProjectDocumentError> {
+        if self.schema_version != 1 {
+            return Err(ProjectDocumentError::Invalid(vec![
+                DiagnosticCode::InvalidSchemaVersion,
+            ]));
+        }
+        let schematic = self.into_current_unvalidated();
+        validate_project_schematic(&schematic)?;
+        Ok(schematic)
+    }
+
+    pub(crate) fn from_current(schematic: &Schematic) -> Result<Self, ProjectDocumentError> {
+        validate_project_schematic(schematic)?;
+        if !schematic.rails.is_empty() {
+            return Err(ProjectDocumentError::Invalid(vec![
+                DiagnosticCode::UnsupportedAssignmentRails,
+            ]));
+        }
+        Ok(Self {
+            schema_version: 1,
+            components: schematic.components.clone(),
+            wires: schematic.wires.clone(),
+            junctions: schematic.junctions.clone(),
+            reference_markers: schematic.reference_markers.clone(),
+        })
+    }
+}
 
 /// A schematic file that is malformed or is not a valid supported document.
 #[derive(Debug)]
@@ -39,9 +95,27 @@ impl Error for ProjectDocumentError {
 
 /// Decodes a persisted schematic and applies the current version's Engine validation.
 ///
-/// This release supports version 1 only. Future migrations belong here so they
-/// remain deterministic and independent of file I/O and desktop transports.
+/// Strict v1 input is migrated without losing fields; v2 is the current input.
+/// Probe only the version, then decode the original bytes into the exact shape,
+/// retaining Serde's duplicate-field detection instead of round-tripping a Value.
 pub fn decode_project_json(bytes: &[u8]) -> Result<Schematic, ProjectDocumentError> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Version {
+        schema_version: u32,
+    }
+    let version: Version =
+        serde_json::from_slice(bytes).map_err(ProjectDocumentError::Malformed)?;
+    if version.schema_version == 1 {
+        let legacy: LegacySchematicV1 =
+            serde_json::from_slice(bytes).map_err(ProjectDocumentError::Malformed)?;
+        return legacy.normalize();
+    }
+    if version.schema_version != SCHEMA_VERSION {
+        return Err(ProjectDocumentError::Invalid(vec![
+            DiagnosticCode::InvalidSchemaVersion,
+        ]));
+    }
     let schematic: Schematic =
         serde_json::from_slice(bytes).map_err(ProjectDocumentError::Malformed)?;
     validate_project_schematic(&schematic)?;
@@ -87,7 +161,7 @@ mod tests {
     #[test]
     fn rejects_unsupported_versions_instead_of_treating_them_as_current() {
         let error = decode_project_json(
-            br#"{"schemaVersion":2,"components":[],"wires":[],"junctions":[],"referenceMarkers":[]}"#,
+            br#"{"schemaVersion":3,"components":[],"wires":[],"junctions":[],"referenceMarkers":[]}"#,
         )
         .expect_err("unsupported schema versions must be rejected");
 
@@ -108,7 +182,8 @@ mod tests {
         assert_eq!(
             schematic,
             Schematic {
-                schema_version: 1,
+                rails: Vec::new(),
+                schema_version: crate::SCHEMA_VERSION,
                 components: vec![],
                 wires: vec![],
                 junctions: vec![],

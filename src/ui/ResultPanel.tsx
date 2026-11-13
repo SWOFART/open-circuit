@@ -29,6 +29,8 @@ function referenceLabel(
       return "junction";
     case "referenceMarker":
       return "ground marker";
+    case "rail":
+      return "DC rail";
     default:
       return undefined;
   }

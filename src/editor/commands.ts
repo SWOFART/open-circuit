@@ -270,10 +270,11 @@ export function placementPreviewSchematic(
   } as unknown as ComponentSpec;
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     components: [component],
     wires: [],
     junctions: [],
     referenceMarkers: [],
+    rails: [],
   };
 }

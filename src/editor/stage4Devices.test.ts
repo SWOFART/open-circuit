@@ -29,7 +29,7 @@ const STAGE_4: readonly ComponentTypeId[] = [
 /** The relay's normally open pin is at (10, -1) when the relay sits at (7, 0). */
 function schematic(): Schematic {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     components: [
       {
         typeId: "relay_spdt",
@@ -94,6 +94,7 @@ function schematic(): Schematic {
     ],
     junctions: [],
     referenceMarkers: [],
+    rails: [],
   };
 }
 

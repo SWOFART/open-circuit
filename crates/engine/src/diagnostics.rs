@@ -10,6 +10,10 @@ use crate::{PinId, StableId};
 pub enum DiagnosticCode {
     InvalidSchemaVersion,
     InvalidGeometry,
+    InvalidRailName,
+    DuplicateRailName,
+    RailLimitExceeded,
+    UnsupportedAssignmentRails,
     InvalidParameter,
     DuplicateId,
     UnknownComponentType,
@@ -36,6 +40,10 @@ impl DiagnosticCode {
         match self {
             Self::InvalidSchemaVersion => "diagnostic.invalidSchemaVersion",
             Self::InvalidGeometry => "diagnostic.invalidGeometry",
+            Self::InvalidRailName => "diagnostic.invalidRailName",
+            Self::DuplicateRailName => "diagnostic.duplicateRailName",
+            Self::RailLimitExceeded => "diagnostic.railLimitExceeded",
+            Self::UnsupportedAssignmentRails => "diagnostic.unsupportedAssignmentRails",
             Self::InvalidParameter => "diagnostic.invalidParameter",
             Self::DuplicateId => "diagnostic.duplicateId",
             Self::UnknownComponentType => "diagnostic.unknownComponentType",
@@ -96,6 +104,9 @@ pub enum DiagnosticReference {
     Node {
         node_id: StableId,
     },
+    Rail {
+        rail_id: StableId,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -129,6 +140,22 @@ impl Diagnostic {
 }
 
 impl DiagnosticReference {
+    pub(crate) fn sort_key(&self) -> (&str, u8, &str) {
+        match self {
+            Self::Component { component_id } => (component_id.as_str(), 0, ""),
+            Self::Pin {
+                component_id,
+                pin_id,
+            } => (component_id.as_str(), 1, pin_id),
+            Self::Wire { wire_id } => (wire_id.as_str(), 2, ""),
+            Self::Junction { junction_id } => (junction_id.as_str(), 3, ""),
+            Self::ReferenceMarker {
+                reference_marker_id,
+            } => (reference_marker_id.as_str(), 4, ""),
+            Self::Node { node_id } => (node_id.as_str(), 5, ""),
+            Self::Rail { rail_id } => (rail_id.as_str(), 6, ""),
+        }
+    }
     pub fn pin(component_id: StableId, pin_id: PinId) -> Self {
         Self::Pin {
             component_id,

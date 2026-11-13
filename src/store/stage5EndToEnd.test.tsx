@@ -51,12 +51,16 @@ interface Attempt {
 interface Session {
   catalog: ComponentCatalog;
   divider: {
-    teacherFile: Assignment;
+    teacherFile: unknown;
+    teacherAssignment: Assignment;
+    studentAssignment: Assignment;
     studentCopyText: string;
     attempts: Attempt[];
   };
   fault: {
-    teacherFile: Assignment;
+    teacherFile: unknown;
+    teacherAssignment: Assignment;
+    studentAssignment: Assignment;
     studentCopyText: string;
     request: CompileRequest;
     faultedReply: CompileResult & { status: "success" };
@@ -260,9 +264,8 @@ afterEach(() => {
 describe.skipIf(!recorded)(
   "the divider assignment, from teacher to student",
   () => {
-    const teacherFile = () => session.divider.teacherFile;
-    const studentCopy = () =>
-      JSON.parse(session.divider.studentCopyText) as Assignment;
+    const teacherFile = () => session.divider.teacherAssignment;
+    const studentCopy = () => session.divider.studentAssignment;
 
     it("is the file the application's own authoring writes, and the student's copy is that file without the reference", () => {
       // The draft the panel builds from the file converts back to the same document.
@@ -529,7 +532,7 @@ describe.skipIf(!recorded)(
 
       expect(text).not.toContain("faults");
       expect(text).not.toContain(fault().request.faults![0]!.id);
-      expect(fault().teacherFile.startingCircuit).toEqual(schematic());
+      expect(fault().teacherAssignment.startingCircuit).toEqual(schematic());
     });
 
     it("asks the Engine to compare each diagnosis and shows as much of the answer as the task allows", async () => {

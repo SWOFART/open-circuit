@@ -73,7 +73,7 @@ impl ProjectSession {
     }
 }
 
-/// Reads, deserializes, and validates a version 1 `.ocircuit` document.
+/// Reads strict version 1 or 2 `.ocircuit` input, returning normalized version 2.
 ///
 /// Electrically incomplete schematics remain valid documents; this validates
 /// structure and parameter domains without compiling or solving the circuit.
@@ -177,6 +177,25 @@ mod tests {
     }
 
     #[test]
+    fn opening_v1_does_not_rewrite_it_and_explicit_save_writes_normalized_v2() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = project_path(&directory, "legacy");
+        let bytes = include_bytes!("../../../tests/golden/stage-8-legacy-divider.ocircuit");
+        fs::write(&path, bytes).unwrap();
+        let session = ProjectSession::default();
+        let schematic = session.load(&path).unwrap();
+        assert_eq!(schematic.schema_version, 2);
+        assert!(schematic.rails.is_empty());
+        assert_eq!(schematic, divider());
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+        session.save_to(&path, &schematic).unwrap();
+        let saved: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["schemaVersion"], 2);
+        assert_eq!(saved["rails"], serde_json::json!([]));
+        assert_eq!(read_project_file(&path).unwrap(), schematic);
+    }
+
+    #[test]
     fn save_and_open_round_trip_only_the_schematic() {
         let directory = tempfile::tempdir().expect("temporary directory should be created");
         let path = project_path(&directory, "divider");
@@ -213,7 +232,7 @@ mod tests {
 
         for contents in [
             "{not json",
-            r#"{"schemaVersion":2,"components":[],"wires":[],"junctions":[],"referenceMarkers":[]}"#,
+            r#"{"schemaVersion":3,"components":[],"wires":[],"junctions":[],"referenceMarkers":[]}"#,
             r#"{"schemaVersion":1,"components":[],"wires":[],"junctions":[],"referenceMarkers":[],"runtimeState":{}}"#,
         ] {
             fs::write(&path, contents).expect("invalid fixture should be written");
@@ -281,7 +300,7 @@ mod tests {
         let before = fs::read(&path).expect("the original bytes should be readable");
 
         let mut invalid = original;
-        invalid.schema_version = 2;
+        invalid.schema_version = open_circuit_engine::SCHEMA_VERSION + 1;
         let session = ProjectSession::default();
         session
             .load(&path)

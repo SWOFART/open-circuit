@@ -30,7 +30,7 @@ fn circuit(c: &Value) -> CompileRequest {
         ((8, 4), (0, 0))
     };
     serde_json::from_value(json!({"documentRevision":"rev-1", "schematic":{
-        "schemaVersion":1,"components":[
+        "schemaVersion":2,"rails":[],"components":[
             component(1,"dc_voltage_source",json!({"voltageVolts":num(&c["vcc"]),"internalResistanceOhms":0})),
             component(2,"dc_voltage_source",json!({"voltageVolts":num(&c["vbb"]),"internalResistanceOhms":0})),
             component(3,"resistor",json!({"resistanceOhms":num(&c["rc"])})),

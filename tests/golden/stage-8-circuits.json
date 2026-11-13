@@ -1,0 +1,3254 @@
+{
+  "circuits": [
+    {
+      "id": "divider",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0.1
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "typeId": "resistor",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "points": [
+              {
+                "x": -1,
+                "y": 4
+              },
+              {
+                "x": 3,
+                "y": 4
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 9,
+                "y": -4
+              },
+              {
+                "x": 1,
+                "y": -4
+              },
+              {
+                "x": 1,
+                "y": 0
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "position": {
+              "x": 1,
+              "y": 0
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": -1,
+              "y": 0
+            },
+            "end": {
+              "x": -1,
+              "y": 4
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "0V",
+            "start": {
+              "x": 9,
+              "y": -4
+            },
+            "end": {
+              "x": 9,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0.1
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "typeId": "resistor",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "points": [
+              {
+                "x": -1,
+                "y": 4
+              },
+              {
+                "x": 3,
+                "y": 4
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 9,
+                "y": -4
+              },
+              {
+                "x": 1,
+                "y": -4
+              },
+              {
+                "x": 1,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": -1,
+                "y": 0
+              },
+              {
+                "x": -1,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 9,
+                "y": -4
+              },
+              {
+                "x": 9,
+                "y": 0
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "position": {
+              "x": 1,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -1,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 1,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 3,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 5,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000003",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 7,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 9,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2",
+          "00000000-0000-4000-8000-000000000003/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2",
+          "00000000-0000-4000-8000-000000000003/pin1"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [
+        {
+          "kind": "parameter",
+          "newestStep": 10,
+          "componentId": "00000000-0000-4000-8000-000000000002",
+          "parameterId": "resistanceOhms",
+          "value": 3000
+        }
+      ],
+      "observations": [
+        {
+          "step": 0,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000001:current",
+              "unit": "amp",
+              "expected": -0.0024998750062496878,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000001:voltage",
+              "unit": "volt",
+              "expected": 4.9997500124993755,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.0024998750062496878,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 2.4998750062496877,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:current",
+              "unit": "amp",
+              "expected": 0.0024998750062496878,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:voltage",
+              "unit": "volt",
+              "expected": 2.4998750062496877,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": []
+        },
+        {
+          "step": 10,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000001:current",
+              "unit": "amp",
+              "expected": -0.0024998750062496878,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000001:voltage",
+              "unit": "volt",
+              "expected": 4.9997500124993755,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.0024998750062496878,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 2.4998750062496877,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:current",
+              "unit": "amp",
+              "expected": 0.0024998750062496878,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:voltage",
+              "unit": "volt",
+              "expected": 2.4998750062496877,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": []
+        },
+        {
+          "step": 10,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000001:current",
+              "unit": "amp",
+              "expected": -0.0012499687507812305,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000001:voltage",
+              "unit": "volt",
+              "expected": 4.999875003124922,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.0012499687507812305,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 3.7499062523436915,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:current",
+              "unit": "amp",
+              "expected": 0.0012499687507812305,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:voltage",
+              "unit": "volt",
+              "expected": 1.2499687507812305,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [],
+          "afterEvent": 0
+        },
+        {
+          "step": 20,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000001:current",
+              "unit": "amp",
+              "expected": -0.0012499687507812305,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000001:voltage",
+              "unit": "volt",
+              "expected": 4.999875003124922,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.0012499687507812305,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 3.7499062523436915,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:current",
+              "unit": "amp",
+              "expected": 0.0012499687507812305,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000003:voltage",
+              "unit": "volt",
+              "expected": 1.2499687507812305,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [],
+          "afterEvent": 0
+        }
+      ],
+      "expectedWarningCodes": []
+    },
+    {
+      "id": "start-stop",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "typeId": "push_button_nc",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "typeId": "push_button_no",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "typeId": "contactor",
+            "position": {
+              "x": 16,
+              "y": 5
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "coilResistanceOhms": 100,
+              "coilInductanceHenries": 0.01,
+              "pickupCurrentAmps": 0.04,
+              "dropoutCurrentAmps": 0.02,
+              "closedContactResistanceOhms": 0.1
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 3
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "points": [
+              {
+                "x": 14,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 6
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "points": [
+              {
+                "x": 7,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": -3
+              },
+              {
+                "x": 18,
+                "y": -3
+              },
+              {
+                "x": 18,
+                "y": 3
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": 18,
+                "y": 7
+              },
+              {
+                "x": 18,
+                "y": 9
+              },
+              {
+                "x": 11,
+                "y": 9
+              },
+              {
+                "x": 11,
+                "y": 0
+              },
+              {
+                "x": 9,
+                "y": 0
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000b",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 4
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "0V",
+            "start": {
+              "x": 14,
+              "y": 7
+            },
+            "end": {
+              "x": 14,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "typeId": "push_button_nc",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "typeId": "push_button_no",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "typeId": "contactor",
+            "position": {
+              "x": 16,
+              "y": 5
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "coilResistanceOhms": 100,
+              "coilInductanceHenries": 0.01,
+              "pickupCurrentAmps": 0.04,
+              "dropoutCurrentAmps": 0.02,
+              "closedContactResistanceOhms": 0.1
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 3
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "points": [
+              {
+                "x": 14,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 6
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "points": [
+              {
+                "x": 7,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": -3
+              },
+              {
+                "x": 18,
+                "y": -3
+              },
+              {
+                "x": 18,
+                "y": 3
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": 18,
+                "y": 7
+              },
+              {
+                "x": 18,
+                "y": 9
+              },
+              {
+                "x": 11,
+                "y": 9
+              },
+              {
+                "x": 11,
+                "y": 0
+              },
+              {
+                "x": 9,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 14,
+                "y": 7
+              },
+              {
+                "x": 14,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000b",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 4
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 0,
+                  "y": 6
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 3,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 5,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000003",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 7,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 9,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000004",
+            "pins": [
+              {
+                "pinId": "a1",
+                "position": {
+                  "x": 14,
+                  "y": 3
+                }
+              },
+              {
+                "pinId": "a2",
+                "position": {
+                  "x": 14,
+                  "y": 7
+                }
+              },
+              {
+                "pinId": "no_1",
+                "position": {
+                  "x": 18,
+                  "y": 3
+                }
+              },
+              {
+                "pinId": "no_2",
+                "position": {
+                  "x": 18,
+                  "y": 7
+                }
+              },
+              {
+                "pinId": "nc_1",
+                "position": {
+                  "x": 21,
+                  "y": 3
+                }
+              },
+              {
+                "pinId": "nc_2",
+                "position": {
+                  "x": 21,
+                  "y": 7
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2",
+          "00000000-0000-4000-8000-000000000004/a2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2",
+          "00000000-0000-4000-8000-000000000003/pin1",
+          "00000000-0000-4000-8000-000000000004/no_1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000003/pin2",
+          "00000000-0000-4000-8000-000000000004/a1",
+          "00000000-0000-4000-8000-000000000004/no_2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000004/nc_1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000004/nc_2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [
+        {
+          "kind": "operator",
+          "newestStep": 5,
+          "effectiveFromStep": 4,
+          "componentId": "00000000-0000-4000-8000-000000000003",
+          "position": "pressed"
+        },
+        {
+          "kind": "operator",
+          "newestStep": 10,
+          "effectiveFromStep": 9,
+          "componentId": "00000000-0000-4000-8000-000000000003",
+          "position": "released"
+        },
+        {
+          "kind": "operator",
+          "newestStep": 15,
+          "effectiveFromStep": 14,
+          "componentId": "00000000-0000-4000-8000-000000000002",
+          "position": "pressed"
+        },
+        {
+          "kind": "operator",
+          "newestStep": 20,
+          "effectiveFromStep": 19,
+          "componentId": "00000000-0000-4000-8000-000000000002",
+          "position": "released"
+        }
+      ],
+      "observations": [
+        {
+          "step": 0,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "released"
+            }
+          ]
+        },
+        {
+          "step": 3,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "released"
+            }
+          ]
+        },
+        {
+          "step": 5,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0.04999045636742077,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "picked"
+            }
+          ]
+        },
+        {
+          "step": 8,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0.04999045636742077,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "picked"
+            }
+          ]
+        },
+        {
+          "step": 12,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0.04994506043352313,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "picked"
+            }
+          ]
+        },
+        {
+          "step": 15,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "released"
+            }
+          ]
+        },
+        {
+          "step": 25,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "released"
+            }
+          ]
+        }
+      ],
+      "expectedWarningCodes": []
+    },
+    {
+      "id": "start-stop-no-seal-in",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "typeId": "push_button_nc",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "typeId": "push_button_no",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "typeId": "contactor",
+            "position": {
+              "x": 16,
+              "y": 5
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "coilResistanceOhms": 100,
+              "coilInductanceHenries": 0.01,
+              "pickupCurrentAmps": 0.04,
+              "dropoutCurrentAmps": 0.02,
+              "closedContactResistanceOhms": 0.1
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 3
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "points": [
+              {
+                "x": 14,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 6
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 4
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "0V",
+            "start": {
+              "x": 14,
+              "y": 7
+            },
+            "end": {
+              "x": 14,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "typeId": "push_button_nc",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "typeId": "push_button_no",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "typeId": "contactor",
+            "position": {
+              "x": 16,
+              "y": 5
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "coilResistanceOhms": 100,
+              "coilInductanceHenries": 0.01,
+              "pickupCurrentAmps": 0.04,
+              "dropoutCurrentAmps": 0.02,
+              "closedContactResistanceOhms": 0.1
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 0
+              },
+              {
+                "x": 14,
+                "y": 3
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "points": [
+              {
+                "x": 14,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 6
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 14,
+                "y": 7
+              },
+              {
+                "x": 14,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 4
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 0,
+                  "y": 6
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 3,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 5,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000003",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 7,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 9,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000004",
+            "pins": [
+              {
+                "pinId": "a1",
+                "position": {
+                  "x": 14,
+                  "y": 3
+                }
+              },
+              {
+                "pinId": "a2",
+                "position": {
+                  "x": 14,
+                  "y": 7
+                }
+              },
+              {
+                "pinId": "no_1",
+                "position": {
+                  "x": 18,
+                  "y": 3
+                }
+              },
+              {
+                "pinId": "no_2",
+                "position": {
+                  "x": 18,
+                  "y": 7
+                }
+              },
+              {
+                "pinId": "nc_1",
+                "position": {
+                  "x": 21,
+                  "y": 3
+                }
+              },
+              {
+                "pinId": "nc_2",
+                "position": {
+                  "x": 21,
+                  "y": 7
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2",
+          "00000000-0000-4000-8000-000000000004/a2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2",
+          "00000000-0000-4000-8000-000000000003/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000003/pin2",
+          "00000000-0000-4000-8000-000000000004/a1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000004/nc_1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000004/nc_2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000004/no_1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000004/no_2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [
+        {
+          "kind": "operator",
+          "newestStep": 5,
+          "effectiveFromStep": 4,
+          "componentId": "00000000-0000-4000-8000-000000000003",
+          "position": "pressed"
+        },
+        {
+          "kind": "operator",
+          "newestStep": 10,
+          "effectiveFromStep": 9,
+          "componentId": "00000000-0000-4000-8000-000000000003",
+          "position": "released"
+        },
+        {
+          "kind": "operator",
+          "newestStep": 15,
+          "effectiveFromStep": 14,
+          "componentId": "00000000-0000-4000-8000-000000000002",
+          "position": "pressed"
+        },
+        {
+          "kind": "operator",
+          "newestStep": 20,
+          "effectiveFromStep": 19,
+          "componentId": "00000000-0000-4000-8000-000000000002",
+          "position": "released"
+        }
+      ],
+      "observations": [
+        {
+          "step": 5,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0.04999000199960008,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "picked"
+            }
+          ]
+        },
+        {
+          "step": 12,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004/coil/current",
+              "unit": "amp",
+              "expected": 0,
+              "toleranceAbs": 0.0001,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000004",
+              "state": "released"
+            }
+          ]
+        }
+      ],
+      "expectedWarningCodes": []
+    },
+    {
+      "id": "rc-hold",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "voltageVolts": 10,
+              "internalResistanceOhms": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "typeId": "push_button_nc",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "typeId": "resistor",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            },
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "typeId": "capacitor",
+            "position": {
+              "x": 12,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "capacitanceFarads": 0.0001,
+              "initialVoltageVolts": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 12,
+                "y": 0
+              },
+              {
+                "x": 12,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "points": [
+              {
+                "x": 12,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 6
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 4
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "0V",
+            "start": {
+              "x": 12,
+              "y": 6
+            },
+            "end": {
+              "x": 12,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "voltageVolts": 10,
+              "internalResistanceOhms": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000001"
+          },
+          {
+            "typeId": "push_button_nc",
+            "position": {
+              "x": 4,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "closedResistanceOhms": 0.01
+            },
+            "id": "00000000-0000-4000-8000-000000000002"
+          },
+          {
+            "typeId": "resistor",
+            "position": {
+              "x": 8,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            },
+            "id": "00000000-0000-4000-8000-000000000003"
+          },
+          {
+            "typeId": "capacitor",
+            "position": {
+              "x": 12,
+              "y": 5
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "capacitanceFarads": 0.0001,
+              "initialVoltageVolts": 0
+            },
+            "id": "00000000-0000-4000-8000-000000000004"
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 3,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "points": [
+              {
+                "x": 5,
+                "y": 0
+              },
+              {
+                "x": 7,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000007",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 12,
+                "y": 0
+              },
+              {
+                "x": 12,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "points": [
+              {
+                "x": 12,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 6
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 4
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 12,
+                "y": 6
+              },
+              {
+                "x": 12,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "position": {
+              "x": 0,
+              "y": 6
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 4
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 0,
+                  "y": 6
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 3,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 5,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000003",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 7,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 9,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000004",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 12,
+                  "y": 4
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 12,
+                  "y": 6
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2",
+          "00000000-0000-4000-8000-000000000004/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2",
+          "00000000-0000-4000-8000-000000000003/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000003/pin2",
+          "00000000-0000-4000-8000-000000000004/pin1"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [
+        {
+          "kind": "operator",
+          "newestStep": 50,
+          "effectiveFromStep": 49,
+          "componentId": "00000000-0000-4000-8000-000000000002",
+          "position": "pressed"
+        },
+        {
+          "kind": "operator",
+          "newestStep": 100,
+          "effectiveFromStep": 99,
+          "componentId": "00000000-0000-4000-8000-000000000002",
+          "position": "released"
+        }
+      ],
+      "observations": [
+        {
+          "step": 0,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 0,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "released",
+              "conducting": true
+            }
+          ]
+        },
+        {
+          "step": 40,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 3.2967727270562666,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "released",
+              "conducting": true
+            }
+          ]
+        },
+        {
+          "step": 49,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 3.8737060396891634,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "released",
+              "conducting": true
+            }
+          ]
+        },
+        {
+          "step": 50,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 3.8737060396891634,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "pressed",
+              "conducting": false
+            }
+          ]
+        },
+        {
+          "step": 75,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 3.8737060396891634,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:current",
+              "unit": "amp",
+              "expected": 0,
+              "toleranceAbs": 1e-12,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "pressed",
+              "conducting": false
+            }
+          ]
+        },
+        {
+          "step": 99,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 3.8737060396891634,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "pressed",
+              "conducting": false
+            }
+          ]
+        },
+        {
+          "step": 100,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 3.9346630765681274,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "released",
+              "conducting": true
+            }
+          ]
+        },
+        {
+          "step": 150,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 6.321168800525397,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "released",
+              "conducting": true
+            }
+          ]
+        },
+        {
+          "step": 200,
+          "afterEventsAtStep": true,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 7.768664929075354,
+              "toleranceAbs": 0.005,
+              "toleranceRel": 0
+            }
+          ],
+          "states": [
+            {
+              "componentId": "00000000-0000-4000-8000-000000000002",
+              "position": "released",
+              "conducting": true
+            }
+          ]
+        }
+      ],
+      "expectedWarningCodes": []
+    },
+    {
+      "id": "two-islands",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 0,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 10,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 10,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "typeId": "resistor",
+            "position": {
+              "x": 10,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "P0",
+            "start": {
+              "x": -1,
+              "y": 0
+            },
+            "end": {
+              "x": -1,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "R0",
+            "start": {
+              "x": 1,
+              "y": 0
+            },
+            "end": {
+              "x": 1,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008002",
+            "name": "P10",
+            "start": {
+              "x": 9,
+              "y": 0
+            },
+            "end": {
+              "x": 9,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008003",
+            "name": "R10",
+            "start": {
+              "x": 11,
+              "y": 0
+            },
+            "end": {
+              "x": 11,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 0,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 10,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 10,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "typeId": "resistor",
+            "position": {
+              "x": 10,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": -1,
+                "y": 0
+              },
+              {
+                "x": -1,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009002",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 9,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009003",
+            "points": [
+              {
+                "x": 11,
+                "y": 0
+              },
+              {
+                "x": 11,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -1,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 1,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -1,
+                  "y": 10
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 1,
+                  "y": 10
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000003",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 9,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 11,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000004",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 9,
+                  "y": 10
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 11,
+                  "y": 10
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2",
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000003/pin1",
+          "00000000-0000-4000-8000-000000000004/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000003/pin2",
+          "00000000-0000-4000-8000-000000000004/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008002",
+          "wireId": "00000000-0000-4000-8000-000000009002"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008003",
+          "wireId": "00000000-0000-4000-8000-000000009003"
+        }
+      ],
+      "events": [],
+      "observations": [
+        {
+          "step": 0,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 5,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.005,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 10,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:current",
+              "unit": "amp",
+              "expected": 0.01,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            }
+          ],
+          "states": []
+        },
+        {
+          "step": 10,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 5,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.005,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 10,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:current",
+              "unit": "amp",
+              "expected": 0.01,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            }
+          ],
+          "states": []
+        }
+      ],
+      "expectedWarningCodes": [
+        "NoGroundReference",
+        "NoGroundReference"
+      ],
+      "expectedIslandCount": 2
+    },
+    {
+      "id": "two-islands-N-PE",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 0,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 10,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 10,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "typeId": "resistor",
+            "position": {
+              "x": 10,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "N",
+            "start": {
+              "x": -1,
+              "y": 0
+            },
+            "end": {
+              "x": -1,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "PE",
+            "start": {
+              "x": 1,
+              "y": 0
+            },
+            "end": {
+              "x": 1,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008002",
+            "name": "L1",
+            "start": {
+              "x": 9,
+              "y": 0
+            },
+            "end": {
+              "x": 9,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008003",
+            "name": "L2",
+            "start": {
+              "x": 11,
+              "y": 0
+            },
+            "end": {
+              "x": 11,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 5,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 0,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "typeId": "dc_voltage_source",
+            "position": {
+              "x": 10,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "voltageVolts": 10,
+              "internalResistanceOhms": 0
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "typeId": "resistor",
+            "position": {
+              "x": 10,
+              "y": 10
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": -1,
+                "y": 0
+              },
+              {
+                "x": -1,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 1,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009002",
+            "points": [
+              {
+                "x": 9,
+                "y": 0
+              },
+              {
+                "x": 9,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009003",
+            "points": [
+              {
+                "x": 11,
+                "y": 0
+              },
+              {
+                "x": 11,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -1,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 1,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -1,
+                  "y": 10
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 1,
+                  "y": 10
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000003",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 9,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 11,
+                  "y": 0
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000004",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 9,
+                  "y": 10
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 11,
+                  "y": 10
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2",
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000003/pin1",
+          "00000000-0000-4000-8000-000000000004/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000003/pin2",
+          "00000000-0000-4000-8000-000000000004/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008002",
+          "wireId": "00000000-0000-4000-8000-000000009002"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008003",
+          "wireId": "00000000-0000-4000-8000-000000009003"
+        }
+      ],
+      "events": [],
+      "observations": [
+        {
+          "step": 0,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 5,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.005,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 10,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:current",
+              "unit": "amp",
+              "expected": 0.01,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            }
+          ],
+          "states": []
+        },
+        {
+          "step": 10,
+          "values": [
+            {
+              "key": "00000000-0000-4000-8000-000000000002:voltage",
+              "unit": "volt",
+              "expected": 5,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000002:current",
+              "unit": "amp",
+              "expected": 0.005,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:voltage",
+              "unit": "volt",
+              "expected": 10,
+              "toleranceAbs": 0.000001,
+              "toleranceRel": 0
+            },
+            {
+              "key": "00000000-0000-4000-8000-000000000004:current",
+              "unit": "amp",
+              "expected": 0.01,
+              "toleranceAbs": 1e-9,
+              "toleranceRel": 0
+            }
+          ],
+          "states": []
+        }
+      ],
+      "expectedWarningCodes": [
+        "NoGroundReference",
+        "NoGroundReference"
+      ],
+      "expectedIslandCount": 2
+    }
+  ]
+}

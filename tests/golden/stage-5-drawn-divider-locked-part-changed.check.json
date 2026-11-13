@@ -38,7 +38,7 @@
     "00000000-0000-4000-8000-000000000002"
   ],
   "startingCircuit": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "components": [
       {
         "typeId": "dc_voltage_source",
@@ -98,10 +98,11 @@
           "y": 7
         }
       }
-    ]
+    ],
+    "rails": []
   },
   "schematic": {
-    "schemaVersion": 1,
+    "schemaVersion": 2,
     "components": [
       {
         "typeId": "dc_voltage_source",
@@ -237,7 +238,8 @@
           "y": 7
         }
       }
-    ]
+    ],
+    "rails": []
   },
   "geometry": {
     "components": [

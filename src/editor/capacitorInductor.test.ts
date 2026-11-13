@@ -14,7 +14,7 @@ const WIRE = "00000000-0000-4000-8000-0000000000c3";
 
 function schematic(): Schematic {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     components: [
       {
         typeId: "capacitor",
@@ -42,6 +42,7 @@ function schematic(): Schematic {
     ],
     junctions: [],
     referenceMarkers: [],
+    rails: [],
   };
 }
 

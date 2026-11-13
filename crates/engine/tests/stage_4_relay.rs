@@ -22,6 +22,7 @@ fn id(value: &str) -> StableId {
 fn fixture() -> (Schematic, GeometryEnvelope) {
     let point = |x, y| GridPoint { x, y };
     let schematic = Schematic {
+        rails: Vec::new(),
         schema_version: SCHEMA_VERSION,
         components: vec![
             ComponentSpec::DcVoltageSource {

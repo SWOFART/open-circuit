@@ -106,6 +106,14 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.invalidSchemaVersion":
     "The circuit file version is not supported.",
   "diagnostic.invalidGeometry": "The circuit geometry is invalid.",
+  "diagnostic.invalidRailName":
+    "Use a DC rail name of 1–32 ASCII letters, digits, underscores, plus or minus signs; begin with a letter or digit.",
+  "diagnostic.duplicateRailName":
+    "DC rail names must be unique in this document.",
+  "diagnostic.railLimitExceeded":
+    "The document exceeds the DC rail count or connection-work limit.",
+  "diagnostic.unsupportedAssignmentRails":
+    "DC rails are not supported in assignments yet.",
   "diagnostic.invalidParameter": "A component parameter is out of range.",
   "diagnostic.duplicateId": "Two circuit objects share the same ID.",
   "diagnostic.unknownComponentType":

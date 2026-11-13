@@ -5,11 +5,11 @@
 This document specifies Stage 1 details under [`ARCHITECTURE.md`](../../ARCHITECTURE.md);
 it does not replace that document or define deferred device models.
 
-**Stage 8 amendment (proposed, owner acceptance pending):**
+**Stage 8 amendment (schema layer #130; connectivity #131):**
 [stage-8-supply-rails.md](stage-8-supply-rails.md) sections 2–5 define project
 schema v2 with drawn rails, strict legacy-v1 migration, rail conductor contacts
-and diagnostic references. They extend the v1 rules below only when Stage 8 is
-implemented; existing binary frames and component signal quantities do not
+and diagnostic references. The current project/DTO shape is v2, with strict
+legacy-v1 file migration; existing binary frames and component quantities do not
 change. Rail names never establish nonlocal connections or implicit ground.
 
 ## 1. Contract boundaries

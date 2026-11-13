@@ -402,7 +402,7 @@ fn ideal_source_conflicts_singular_loops_and_non_finite_values_fail_with_diagnos
 fn bridge_fixture() -> (Schematic, GeometryEnvelope) {
     let schematic: Schematic = from_str(
         r#"{
-          "schemaVersion":1,
+          "schemaVersion":2,"rails":[],
           "components":[
             {"id":"00000000-0000-4000-8000-000000000001","typeId":"dc_voltage_source","position":{"x":0,"y":0},"rotationDeg":0,"parameters":{"voltageVolts":10,"internalResistanceOhms":0}},
             {"id":"00000000-0000-4000-8000-000000000002","typeId":"resistor","position":{"x":1,"y":0},"rotationDeg":0,"parameters":{"resistanceOhms":1000}},

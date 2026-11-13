@@ -254,7 +254,7 @@ describe("opening an assignment as a student", () => {
 
     expect(outcome).toMatchObject({
       status: "opened",
-      circuit: { schemaVersion: 1, components: [], wires: [] },
+      circuit: { schemaVersion: 2, rails: [], components: [], wires: [] },
     });
   });
 

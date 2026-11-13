@@ -405,7 +405,7 @@ fn signed_initial_current_is_valid_and_initial_current_is_not_a_live_parameter()
 #[test]
 fn unequal_explicit_currents_in_series_inductors_report_inconsistent_state() {
     let schematic_json = serde_json::json!({
-        "schemaVersion": 1,
+        "schemaVersion": 2,"rails":[],
         "components": [
             {
                 "id": "00000000-0000-4000-8000-000000000001",
@@ -455,7 +455,7 @@ fn unequal_explicit_currents_in_series_inductors_report_inconsistent_state() {
 #[test]
 fn explicit_inductor_current_is_checked_against_unspecified_dc_state() {
     let schematic_json = serde_json::json!({
-        "schemaVersion": 1,
+        "schemaVersion": 2,"rails":[],
         "components": [
             {
                 "id": "00000000-0000-4000-8000-000000000001",
@@ -529,7 +529,7 @@ fn explicit_inductor_current_is_checked_against_unspecified_dc_state() {
 #[test]
 fn dc_inductor_short_conflicting_with_an_ideal_source_reports_constraint_error() {
     let schematic = serde_json::json!({
-        "schemaVersion": 1,
+        "schemaVersion": 2,"rails":[],
         "components": [
             {
                 "id": "00000000-0000-4000-8000-000000000001",

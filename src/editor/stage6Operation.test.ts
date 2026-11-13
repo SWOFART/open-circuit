@@ -46,7 +46,7 @@ function component(
 }
 
 const schematic: Schematic = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   components: [
     component("switch_spst", SWITCH, 0),
     component("push_button_no", BUTTON, 10),
@@ -56,6 +56,7 @@ const schematic: Schematic = {
   wires: [],
   junctions: [],
   referenceMarkers: [],
+  rails: [],
 };
 
 function setUp(operable = true) {

@@ -46,6 +46,7 @@ fn canonical_fixture_round_trips_and_contains_no_computed_state() {
         [
             "components",
             "junctions",
+            "rails",
             "referenceMarkers",
             "schemaVersion",
             "wires"
@@ -56,7 +57,7 @@ fn canonical_fixture_round_trips_and_contains_no_computed_state() {
 #[test]
 fn rejects_unknown_schema_versions_and_noncanonical_ids() {
     let mut value: Value = serde_json::from_str(SCHEMATIC).unwrap();
-    value["schemaVersion"] = json!(2);
+    value["schemaVersion"] = json!(open_circuit_engine::SCHEMA_VERSION + 1);
     let unsupported: Schematic = serde_json::from_value(value).unwrap();
     assert!(diagnostic_codes(&unsupported).contains(&DiagnosticCode::InvalidSchemaVersion));
 

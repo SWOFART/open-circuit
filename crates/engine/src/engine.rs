@@ -855,6 +855,7 @@ fn compute_circuit(
         Ok(specs) => specs,
         Err(mut errors) => {
             diagnostics.append(&mut errors);
+            add_source_rail_references(&mut diagnostics, schematic, &netlist);
             sort_diagnostics(&mut diagnostics);
             return Err(diagnostics);
         }
@@ -869,6 +870,7 @@ fn compute_circuit(
         check_ideal_voltage_constraints(&device_specs, netlist.nodes.len(), mode);
     if !constraint_errors.is_empty() {
         diagnostics.extend(constraint_errors);
+        add_source_rail_references(&mut diagnostics, schematic, &netlist);
         sort_diagnostics(&mut diagnostics);
         return Err(diagnostics);
     }
@@ -881,6 +883,7 @@ fn compute_circuit(
         );
         if !state_errors.is_empty() {
             diagnostics.extend(state_errors);
+            add_source_rail_references(&mut diagnostics, schematic, &netlist);
             sort_diagnostics(&mut diagnostics);
             return Err(diagnostics);
         }
@@ -1068,6 +1071,7 @@ fn compute_circuit(
         }
     }
 
+    add_source_rail_references(&mut diagnostics, schematic, &netlist);
     sort_diagnostics(&mut diagnostics);
     if has_errors(&diagnostics) {
         return Err(diagnostics);
@@ -1075,6 +1079,52 @@ fn compute_circuit(
     results.extend(open_results(&netlist, open, &solved_nodes));
     results.sort_by(|left, right| left.component_id.as_str().cmp(right.component_id.as_str()));
     Ok((results, diagnostics, memory))
+}
+
+/// Keep source diagnostics drawable after topology normalization. Rails are node
+/// members, never synthetic components or result slots. Preserve all original references.
+fn add_source_rail_references(
+    diagnostics: &mut [Diagnostic],
+    schematic: &Schematic,
+    netlist: &Netlist,
+) {
+    if schematic.rails.is_empty() || diagnostics.is_empty() {
+        return;
+    }
+    let source_ids = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            matches!(component, ComponentSpec::DcVoltageSource { .. }).then_some(component.id())
+        })
+        .collect::<HashSet<_>>();
+    for diagnostic in diagnostics {
+        let affected = diagnostic
+            .references
+            .iter()
+            .filter_map(|reference| match reference {
+                DiagnosticReference::Component { component_id }
+                | DiagnosticReference::Pin { component_id, .. }
+                    if source_ids.contains(component_id) =>
+                {
+                    Some(component_id)
+                }
+                _ => None,
+            })
+            .collect::<HashSet<_>>();
+        let rails = netlist
+            .nodes
+            .iter()
+            .filter(|node| {
+                node.pins
+                    .iter()
+                    .any(|pin| affected.contains(&pin.component_id))
+            })
+            .flat_map(|node| node.rail_ids.iter().cloned())
+            .map(|rail_id| DiagnosticReference::Rail { rail_id })
+            .collect::<Vec<_>>();
+        diagnostic.references.extend(rails);
+    }
 }
 
 /// The results of the open components: no current, and the voltage between the nodes their
@@ -2350,7 +2400,7 @@ fn sort_diagnostics(diagnostics: &mut Vec<Diagnostic>) {
     for diagnostic in diagnostics.iter_mut() {
         diagnostic
             .references
-            .sort_by_key(|reference| format!("{reference:?}"));
+            .sort_by(|left, right| left.sort_key().cmp(&right.sort_key()));
         diagnostic.references.dedup();
     }
     diagnostics.sort_by_key(|diagnostic| format!("{diagnostic:?}"));

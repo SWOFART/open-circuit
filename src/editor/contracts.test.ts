@@ -19,7 +19,7 @@ describe("generated Stage 1 contract types", () => {
       .map((component) => component.typeId)
       .filter(isComponentTypeId);
 
-    expect(schematicFixture.schemaVersion).toBe(1);
+    expect(schematicFixture.schemaVersion).toBe(2);
     expect(componentIds).toEqual([
       "00000000-0000-4000-8000-000000000001",
       "00000000-0000-4000-8000-000000000002",

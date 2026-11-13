@@ -16,11 +16,12 @@ export type CircuitSource = Schematic | (() => Promise<Schematic | null>);
 export type UnsavedChoice = "save" | "discard" | "cancel";
 
 export const blankSchematic: Schematic = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   components: [],
   wires: [],
   junctions: [],
   referenceMarkers: [],
+  rails: [],
 };
 
 /** Applies file operations only after Rust has returned a validated document. */

@@ -126,6 +126,7 @@ fn request(parts: Vec<Part>, ground: GridPoint, revision: &str) -> CompileReques
     };
     CompileRequest {
         schematic: Schematic {
+            rails: Vec::new(),
             schema_version: SCHEMA_VERSION,
             components: parts.into_iter().map(|part| part.spec).collect(),
             wires: Vec::new(),
