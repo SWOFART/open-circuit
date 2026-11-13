@@ -3,6 +3,15 @@
 **Status:** Draft for review by the Engine and Application workstreams (issue #79).
 **Scope:** An assignment file, the checks that judge a student's circuit, the faults that make a circuit misbehave, and the fault-finding task. This document extends, but does not replace, [`ARCHITECTURE.md`](../../ARCHITECTURE.md), [stage-1.md](stage-1.md), [stage-2-editor.md](stage-2-editor.md), [stage-3-dynamics.md](stage-3-dynamics.md), and [stage-4-components.md](stage-4-components.md). Where it states a rule for an earlier topic, section 1.2 lists the earlier text it amends. The fault models and the fixture references are in [../physics/models.md](../physics/models.md).
 
+**Stage 8 amendment (proposed, owner acceptance pending):**
+[stage-8-supply-rails.md](stage-8-supply-rails.md) section 8 preserves assignment
+file v1 and its embedded legacy schematic-v1 shape while the application's
+normalized project type becomes v2. Engine-owned decode/export conversions
+preserve rail-free assignments. Rail-bearing assignment/student inputs are
+explicitly refused, and assignment mode offers no rail authoring; new rail
+faults, checks and restrictions remain deferred. This proposal does not change
+the currently implemented assignment format.
+
 ## 1. Boundaries and compatibility
 
 ### 1.1 What Stage 5 adds
