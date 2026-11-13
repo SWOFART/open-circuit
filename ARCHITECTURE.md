@@ -99,7 +99,8 @@ circuit-sim/
 │   │   ├── stage-4-components.md
 │   │   ├── stage-5-assignments.md
 │   │   ├── stage-6-control-circuits.md
-│   │   └── stage-7-nonlinear-circuits.md
+│   │   ├── stage-7-nonlinear-circuits.md
+│   │   └── stage-8-supply-rails.md ← proposed contract; owner acceptance pending
 │   └── devices.md              ← how to add a new device
 ├── ARCHITECTURE.md
 ├── CONTRIBUTING.md
@@ -377,6 +378,16 @@ and positions.
 **Nodes, currents, and simulation state are not saved**; they are computed.
 Export to a SPICE netlist (for ngspice and interchange).
 
+The proposed Stage 8 contract adds named vertical rails as drawn input and a
+project-schema v2 boundary, with strict Engine-owned v1-to-v2 migration. Names
+are unique labels, not nonlocal net aliases; only geometric contacts and the
+existing explicit-reference rules connect rails. Current binaries remain v1
+until implementation. Assignment-v1 files retain legacy rail-free embedded
+schematics through explicit Engine conversions; rail use in assignments is
+deferred. These decisions require both workstreams' acceptance of
+[`docs/contracts/stage-8-supply-rails.md`](docs/contracts/stage-8-supply-rails.md)
+before implementation; this proposal does not record that acceptance.
+
 The Stage 3 additions (capacitor and inductor components with optional initial
 conditions, which are the only schematic fields for transient state) are
 specified in [`docs/contracts/stage-3-dynamics.md`](docs/contracts/stage-3-dynamics.md);
@@ -522,7 +533,20 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 Stages 6 to 8 are planned, not accepted: each needs a contract (a `docs/contracts/` document) and an acceptance record, as Stages 1 to 5 have, before implementation. Their scope is only what the table says; the notes below are the intent that the contracts will settle.
 
 - **Stage 6, switches and buttons.** A switch or push button is a contact that is closed or open, with a small closed resistance and no conduction when open. The operator's position (a held push button, a latching switch) is interactive state, like a fuse's state but set by the user, so the contract must decide what is saved in a project, how a change reaches a running simulation without a recompile, and how it is shown. A contact driven by a relay or contactor coil (symbols in the style of `-Q1` with coil pins A1 and A2) follows the relay model of Stage 4. Symbols follow the electrical-schematic convention.
-- **Stage 8, supply rails.** A rail is a named node that wires attach to (L1, L2, L3, N, PE), drawn as a long vertical line. For direct current it is a named node with a source; phases and the protective earth have no meaning without AC or phasor analysis, which is deferred (section 10), so the three-phase part of this stage depends on that analysis being accepted first.
+- **Stage 8, supply rails.** The proposed contract is
+  [`docs/contracts/stage-8-supply-rails.md`](docs/contracts/stage-8-supply-rails.md)
+  (issue #128; Engine and Application owner acceptance pending). A rail is a
+  named vertical conductor, powered only by an explicitly wired existing DC
+  source. Names, including L1/L2/L3/N/PE, carry no source, phase, neutral,
+  numerical-reference or protective-earth behavior. The proposal settles
+  exact-grid wire/pin/junction/reference attachment, unique names without
+  nonlocal aliases, project v2 migration, bounded rail input/work, diagnostics
+  without new numeric/state/frame slots, and transactional cabinet-style
+  editing with fixed wires during rail transforms. The three-phase/PE
+  continuation requires separately accepted AC/analysis architecture; DC rails
+  add no multi-pole power contacts. Executable fixtures, schema, Engine,
+  bridge/editor and final acceptance remain #129–#135. No rail implementation
+  or completed stage acceptance is claimed by publishing the contract.
 
 ### Editor features outside the stages
 
