@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "issue": 129,
+  "contract": "docs/contracts/stage-8-supply-rails.md",
+  "baseline": "f0737763f3881140d0a6d97a10b8beb95b7ed1e1",
+  "generator": "node scripts/stage8-references.mjs --write",
+  "check": "node scripts/stage8-references.mjs --check",
+  "provenance": "Original project fixtures and direct Ohm/Kirchhoff/closed-form RC equations; no Engine-derived answers or added external models. Reuses Stage 1/6 known answers; new ngspice data is unnecessary for a topology-only feature.",
+  "runtime": "Node 24.19.0 (pinned .node-version), standard library only; routine tests offline",
+  "files": [
+    "stage-8-circuits.json",
+    "stage-8-connectivity.json"
+  ],
+  "equivalence": {
+    "absolute": 1e-9,
+    "relative": 1e-9,
+    "transitionTimeSeconds": 1e-9
+  },
+  "tolerances": {
+    "kclAmps": 1e-9,
+    "terminalPowerWatts": 1e-8
+  },
+  "conventions": "SI; current positive entering pin1 (source delivering is negative). Contactor coil current enters a1. Component IDs, pin IDs and signal keys match exactly across pairs; derived node/wire/rail IDs do not. Wire snapshots use schema v1 for pre-#130 executability; the project decoder migrates them to the current schema thereafter.",
+  "observationOrder": "afterEventsAtStep means operate before reading that sample. Divider observations without afterEvent precede the same-step parameter edit; afterEvent:0 follows its first edit. Event takes effect from (newestStep-1)*0.001 s (zero at step 0).",
+  "sources": [
+    "stage-1-divider.expected.json",
+    "stage-6-start-stop-latching.expected.json",
+    "stage-6-button-capacitor-hold.expected.json"
+  ],
+  "consumers": {
+    "references": "#129 validates data and wire-side netlists/physics only; it does not implement or certify rail solving",
+    "engine": "#130 decodes/validates rails; #131 consumes rail side plus partitions, mapped values/states and permutation/repeat checks",
+    "application": "#132 bridge and #133 editor-hint tests consume the same JSON; #134 draws these circuits with editor commands and matches component/pin keys; #135 records real desktop evidence"
+  }
+}

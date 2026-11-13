@@ -1,0 +1,5014 @@
+{
+  "cases": [
+    {
+      "id": "interior-crossing",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "crossing-junction",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 5
+            }
+          }
+        ],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 5
+            }
+          }
+        ],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "crossing-reference",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 5
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 5
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "wire-end-rail-interior",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 0,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 0,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "wire-end-rail-end",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -2,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -2,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 0
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "rail-end-wire-interior",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 5
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "collinear-wire-overlap",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 8
+              },
+              {
+                "x": 0,
+                "y": 8
+              },
+              {
+                "x": 0,
+                "y": 15
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 8
+              },
+              {
+                "x": 0,
+                "y": 8
+              },
+              {
+                "x": 0,
+                "y": 15
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "pin-on-rail-interior",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -1,
+              "y": 5
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -1,
+              "y": 5
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 0,
+                  "y": 5
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "rail-overlap",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "CONT",
+            "start": {
+              "x": 0,
+              "y": 8
+            },
+            "end": {
+              "x": 0,
+              "y": 15
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 0,
+                "y": 8
+              },
+              {
+                "x": 0,
+                "y": 15
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "rail-end-touch",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "CONT",
+            "start": {
+              "x": 0,
+              "y": 10
+            },
+            "end": {
+              "x": 0,
+              "y": 15
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 15
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "rail-gap",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "CONT",
+            "start": {
+              "x": 0,
+              "y": 11
+            },
+            "end": {
+              "x": 0,
+              "y": 15
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 0,
+                "y": 11
+              },
+              {
+                "x": 0,
+                "y": 15
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "FloatingNode"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008001"
+        }
+      ]
+    },
+    {
+      "id": "dangling-extension",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "unique-rename",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "PE",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "case-sensitive-names",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L1",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "l1",
+            "start": {
+              "x": 0,
+              "y": 8
+            },
+            "end": {
+              "x": 0,
+              "y": 15
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 0,
+                "y": 8
+              },
+              {
+                "x": 0,
+                "y": 15
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "duplicate-name",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 8
+            },
+            "end": {
+              "x": 0,
+              "y": 15
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 0,
+                "y": 8
+              },
+              {
+                "x": 0,
+                "y": 15
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "DuplicateRailName"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        },
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008001"
+        }
+      ]
+    },
+    {
+      "id": "invalid-name",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": " L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "InvalidRailName"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        }
+      ]
+    },
+    {
+      "id": "diagonal-rail",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 1,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 1,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "InvalidGeometry"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        }
+      ]
+    },
+    {
+      "id": "reversed-rail",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 10
+            },
+            "end": {
+              "x": 0,
+              "y": 0
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 10
+              },
+              {
+                "x": 0,
+                "y": 0
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "InvalidGeometry"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        }
+      ]
+    },
+    {
+      "id": "one-unit-rail",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 1
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 1
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "InvalidGeometry"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        }
+      ]
+    },
+    {
+      "id": "overflow-safe-extent",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": -2147483648
+            },
+            "end": {
+              "x": 0,
+              "y": 2147483647
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": -2147483648
+              },
+              {
+                "x": 0,
+                "y": 2147483647
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "InvalidGeometry"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        }
+      ]
+    },
+    {
+      "id": "detached-reference",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 3,
+              "y": 5
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 3,
+              "y": 5
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "DetachedReferenceMarker"
+      ],
+      "errorReferences": [
+        {
+          "kind": "referenceMarker",
+          "referenceMarkerId": "00000000-0000-4000-8000-000000000014"
+        }
+      ]
+    },
+    {
+      "id": "reference-on-rail",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 2
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 2
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "global-reference-union",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 2
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000015",
+            "position": {
+              "x": -4,
+              "y": 2
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "RETURN",
+            "start": {
+              "x": -4,
+              "y": 0
+            },
+            "end": {
+              "x": -4,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": -4,
+                "y": 0
+              },
+              {
+                "x": -4,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 2
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000015",
+            "position": {
+              "x": -4,
+              "y": 2
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    },
+    {
+      "id": "empty-rail",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": []
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "FloatingNode"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        }
+      ]
+    },
+    {
+      "id": "empty-referenced-rail",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [],
+        "wires": [],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 2
+            }
+          }
+        ],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [
+          {
+            "id": "00000000-0000-4000-8000-000000000014",
+            "position": {
+              "x": 0,
+              "y": 2
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "components": []
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "FloatingNode"
+      ],
+      "errorReferences": [
+        {
+          "kind": "referenceMarker",
+          "referenceMarkerId": "00000000-0000-4000-8000-000000000014"
+        },
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        }
+      ],
+      "legacyWireLimitation": {
+        "issue": 137,
+        "reason": "Existing wire netlist incorrectly accepts a referenced pinless island; retain FloatingNode oracle and fix conductor validation in #131."
+      }
+    },
+    {
+      "id": "duplicate-disconnected-name",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000008001",
+            "name": "L+",
+            "start": {
+              "x": 10,
+              "y": 0
+            },
+            "end": {
+              "x": 10,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": 2,
+                "y": 5
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009001",
+            "points": [
+              {
+                "x": 10,
+                "y": 0
+              },
+              {
+                "x": 10,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        },
+        {
+          "railId": "00000000-0000-4000-8000-000000008001",
+          "wireId": "00000000-0000-4000-8000-000000009001"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [
+        "DuplicateRailName"
+      ],
+      "errorReferences": [
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008000"
+        },
+        {
+          "kind": "rail",
+          "railId": "00000000-0000-4000-8000-000000008001"
+        }
+      ]
+    },
+    {
+      "id": "collinear-wire-end-touch",
+      "railSchematic": {
+        "schemaVersion": 2,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 15
+              },
+              {
+                "x": 0,
+                "y": 15
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": [],
+        "rails": [
+          {
+            "id": "00000000-0000-4000-8000-000000008000",
+            "name": "L+",
+            "start": {
+              "x": 0,
+              "y": 0
+            },
+            "end": {
+              "x": 0,
+              "y": 10
+            }
+          }
+        ]
+      },
+      "wireSchematic": {
+        "schemaVersion": 1,
+        "components": [
+          {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "typeId": "resistor",
+            "position": {
+              "x": -2,
+              "y": 6
+            },
+            "rotationDeg": 90,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "typeId": "resistor",
+            "position": {
+              "x": 1,
+              "y": 0
+            },
+            "rotationDeg": 0,
+            "parameters": {
+              "resistanceOhms": 1000
+            }
+          }
+        ],
+        "wires": [
+          {
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "points": [
+              {
+                "x": -2,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 5
+              },
+              {
+                "x": -4,
+                "y": 15
+              },
+              {
+                "x": 0,
+                "y": 15
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000009000",
+            "points": [
+              {
+                "x": 0,
+                "y": 0
+              },
+              {
+                "x": 0,
+                "y": 10
+              }
+            ]
+          }
+        ],
+        "junctions": [],
+        "referenceMarkers": []
+      },
+      "geometry": {
+        "components": [
+          {
+            "componentId": "00000000-0000-4000-8000-000000000001",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": -2,
+                  "y": 5
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": -2,
+                  "y": 7
+                }
+              }
+            ]
+          },
+          {
+            "componentId": "00000000-0000-4000-8000-000000000002",
+            "pins": [
+              {
+                "pinId": "pin1",
+                "position": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "pinId": "pin2",
+                "position": {
+                  "x": 2,
+                  "y": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "connectedPins": [
+        [
+          "00000000-0000-4000-8000-000000000001/pin1",
+          "00000000-0000-4000-8000-000000000002/pin1"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000001/pin2"
+        ],
+        [
+          "00000000-0000-4000-8000-000000000002/pin2"
+        ]
+      ],
+      "railWireMap": [
+        {
+          "railId": "00000000-0000-4000-8000-000000008000",
+          "wireId": "00000000-0000-4000-8000-000000009000"
+        }
+      ],
+      "events": [],
+      "observations": [],
+      "expectedWarningCodes": [],
+      "errorCodes": [],
+      "errorReferences": []
+    }
+  ]
+}
