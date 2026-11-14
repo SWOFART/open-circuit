@@ -54,6 +54,11 @@ measurements. More than 256 rails produces `RailLimitExceeded` first with no
 individual references. Static component-count/locked criteria retain their
 existing meanings. These are rejection guards, not new rail fault/check kinds.
 
+The native Open command takes an optional `forbidRails` argument that the interface sets while an
+assignment is open. `ProjectSession::load_with` then refuses a project that contains rails after
+reading and validating it and before the active project path changes, with the message in
+`RAILS_IN_ASSIGNMENT`; the document, history and path stay as they were.
+
 ## Fixtures and verification
 
 Current compile/check/drawing fixtures are normalized to v2 by metadata-only

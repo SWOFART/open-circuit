@@ -115,8 +115,16 @@ export function App({
     () => new SchematicDocumentStore(dividerSchematic),
     [],
   );
+  // Whether an assignment is open, read when Open runs: the native side then refuses a
+  // project with DC rails before the project path changes.
+  const assignmentOpenRef = useRef(false);
   const projectWorkflow = useMemo(
-    () => new ProjectWorkflow(documentStore, projectFiles),
+    () =>
+      new ProjectWorkflow(
+        documentStore,
+        projectFiles,
+        () => assignmentOpenRef.current,
+      ),
     [documentStore, projectFiles],
   );
   // The teacher's draft is authoring state of its own, apart from the document and editor.
@@ -167,6 +175,7 @@ export function App({
     assignmentPanel !== "none" || session.assignment !== null
       ? "DC rails are not available in an assignment. Leave assignment mode to edit DC rails."
       : null;
+  assignmentOpenRef.current = railUnavailable !== null;
   const railNames = useMemo(
     () => new Map(document.schematic.rails.map((rail) => [rail.id, rail.name])),
     [document.schematic.rails],

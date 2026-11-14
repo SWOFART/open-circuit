@@ -52,7 +52,18 @@ impl ProjectSession {
     /// Replaces the active path only after the selected file has been fully read
     /// and validated. A failed open leaves the current project location intact.
     pub fn load(&self, path: &Path) -> Result<Schematic, String> {
+        self.load_with(path, true)
+    }
+
+    /// Like `load`, but with `allow_rails` false a file that contains DC rails is refused after it
+    /// has been read and before the active path changes: assignments do not support rails
+    /// (docs/contracts/stage-8-supply-rails.md section 8), and a refused document must not move
+    /// the project location.
+    pub fn load_with(&self, path: &Path, allow_rails: bool) -> Result<Schematic, String> {
         let schematic = read_project_file(path)?;
+        if !allow_rails && !schematic.rails.is_empty() {
+            return Err(RAILS_IN_ASSIGNMENT.to_owned());
+        }
         let mut active_path = self
             .path
             .lock()
@@ -72,6 +83,9 @@ impl ProjectSession {
         Ok(saved_path)
     }
 }
+
+/// Why a project with DC rails is not opened while an assignment is open.
+pub const RAILS_IN_ASSIGNMENT: &str = "This project contains DC rails, which assignments do not support. Leave assignment mode to open it.";
 
 /// Reads strict version 1 or 2 `.ocircuit` input, returning normalized version 2.
 ///
@@ -164,7 +178,7 @@ mod tests {
 
     use open_circuit_engine::Schematic;
 
-    use super::{ProjectSession, read_project_file, write_project_file};
+    use super::{ProjectSession, RAILS_IN_ASSIGNMENT, read_project_file, write_project_file};
 
     const DIVIDER: &str = include_str!("../../../tests/golden/stage-1-divider.schematic.json");
 
@@ -289,6 +303,42 @@ mod tests {
         assert!(session.load(&invalid).is_err());
 
         assert_eq!(session.current_path().unwrap(), Some(existing));
+    }
+
+    #[test]
+    fn a_rail_project_is_refused_for_an_assignment_and_keeps_the_active_path() {
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let existing = project_path(&directory, "existing");
+        let railed = project_path(&directory, "railed");
+        write_project_file(&existing, &divider()).expect("existing project should be written");
+        fs::write(
+            &railed,
+            r#"{"schemaVersion":2,"components":[],"wires":[],"junctions":[],"referenceMarkers":[],
+"rails":[{"id":"00000000-0000-4000-8000-000000000080","name":"L+","start":{"x":0,"y":0},"end":{"x":0,"y":20}}]}"#,
+        )
+        .expect("rail project should be written");
+        let before = fs::read(&railed).expect("the file can be read");
+
+        let session = ProjectSession::default();
+        session
+            .load(&existing)
+            .expect("the existing project should load");
+
+        // Refused after reading, before the path moves, and the file is untouched.
+        assert_eq!(
+            session.load_with(&railed, false).unwrap_err(),
+            RAILS_IN_ASSIGNMENT
+        );
+        assert_eq!(session.current_path().unwrap(), Some(existing.clone()));
+        assert_eq!(fs::read(&railed).unwrap(), before);
+
+        // A rail-free project still opens for an assignment, and a rail project opens as before.
+        assert!(session.load_with(&existing, false).is_ok());
+        let opened = session
+            .load(&railed)
+            .expect("a rail project opens normally");
+        assert_eq!(opened.rails.len(), 1);
+        assert_eq!(session.current_path().unwrap(), Some(railed));
     }
 
     #[test]
