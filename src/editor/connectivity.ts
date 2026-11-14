@@ -16,15 +16,17 @@ import { resolvePinPositions } from "./geometry";
 export interface EditorGeometry {
   /** Every wire path by ID. */
   readonly wires: ReadonlyMap<StableId, readonly GridPoint[]>;
+  /** Every rail's vertical line by ID: `[start, end]`, top first. */
+  readonly rails: ReadonlyMap<StableId, readonly [GridPoint, GridPoint]>;
   readonly junctions: ReadonlyMap<StableId, GridPoint>;
   readonly referenceMarkers: ReadonlyMap<StableId, GridPoint>;
   /** Points where the Junction tool may place a marker. */
   readonly junctionSpots: readonly GridPoint[];
   /** Derived connection dots: T-junctions and similar joins. Never saved. */
   readonly connectionDots: readonly GridPoint[];
-  /** Junctions and reference markers with no pin or wire at their point. */
+  /** Junctions and reference markers with no pin, wire or rail at their point. */
   readonly detachedMarkers: ReadonlySet<StableId>;
-  /** A pin or a point of a wire (ends included) is exactly at `point`. */
+  /** A pin or a point of a wire or rail (ends included) is exactly at `point`. */
   isAttachment(point: GridPoint): boolean;
   /** The Junction tool may place a marker at `point`. */
   isJunctionSpot(point: GridPoint): boolean;
@@ -34,6 +36,7 @@ export interface EditorGeometry {
 
 export const EMPTY_GEOMETRY: EditorGeometry = {
   wires: new Map(),
+  rails: new Map(),
   junctions: new Map(),
   referenceMarkers: new Map(),
   junctionSpots: [],
@@ -44,7 +47,9 @@ export const EMPTY_GEOMETRY: EditorGeometry = {
   hasReferenceMarkerAt: () => false,
 };
 
+/** One straight piece of a conductor: a wire's segment, or a whole rail. */
 interface Segment {
+  /** The wire or rail it belongs to; IDs are unique across kinds. */
   readonly wireId: StableId;
   readonly a: GridPoint;
   readonly b: GridPoint;
@@ -105,6 +110,12 @@ function wireSegments(
   return segments;
 }
 
+function railSegments(
+  rails: ReadonlyMap<StableId, readonly [GridPoint, GridPoint]>,
+): Segment[] {
+  return [...rails].map(([wireId, [a, b]]) => ({ wireId, a, b }));
+}
+
 function countPoints(points: readonly GridPoint[]): Map<string, number> {
   const counts = new Map<string, number>();
 
@@ -117,7 +128,9 @@ function countPoints(points: readonly GridPoint[]): Map<string, number> {
 
 /**
  * Derives the editor geometry of `schematic`. Pin positions come from the
- * symbol registry, exactly as for the Engine's compile request.
+ * symbol registry, exactly as for the Engine's compile request. A rail is one
+ * more conductor, a closed vertical segment (docs/contracts/stage-8-supply-rails.md
+ * section 4); a label is never one.
  */
 export function analyzeGeometry(
   schematic: Schematic,
@@ -125,6 +138,12 @@ export function analyzeGeometry(
 ): EditorGeometry {
   const wires = new Map(
     schematic.wires.map((wire) => [wire.id, wire.points] as const),
+  );
+  const rails = new Map(
+    schematic.rails.map(
+      (rail) =>
+        [rail.id, [rail.start, rail.end] as [GridPoint, GridPoint]] as const,
+    ),
   );
   const junctions = new Map(
     schematic.junctions.map((item) => [item.id, item.position] as const),
@@ -135,7 +154,7 @@ export function analyzeGeometry(
   const pins = schematic.components.flatMap((component) =>
     resolvePinPositions(component, registry).map((pin) => pin.position),
   );
-  const segments = wireSegments(wires);
+  const segments = [...wireSegments(wires), ...railSegments(rails)];
 
   const pinCounts = countPoints(pins);
   const endCounts = countPoints(
@@ -148,9 +167,9 @@ export function analyzeGeometry(
     pinCounts.has(keyOf(point)) ||
     segments.some((segment) => onSegment(point, segment));
 
-  // A spot is a place where two different wire paths cross with the crossing
-  // strictly inside both segments and nothing else already connects there.
-  // A path crossing itself is one conductor already.
+  // A spot is a place where two different conductors (wire paths or rails) cross
+  // with the crossing strictly inside both segments and nothing else already
+  // connects there. A path crossing itself is one conductor already.
   const spots = new Map<string, GridPoint>();
   for (const [index, first] of segments.entries()) {
     for (const second of segments.slice(index + 1)) {
@@ -212,6 +231,7 @@ export function analyzeGeometry(
 
   return {
     wires,
+    rails,
     junctions,
     referenceMarkers,
     junctionSpots: [...spots.values()],

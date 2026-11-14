@@ -441,6 +441,22 @@ export function App({
     );
   }, [shownStates, state.status, state.run]);
 
+  // The rails that the Engine's diagnostics name are drawn as warnings.
+  const flaggedRails = useMemo(
+    () =>
+      new Set(
+        state.diagnostics.flatMap((diagnostic) =>
+          diagnostic.references.flatMap((reference) =>
+            reference.kind === "rail" ? [reference.railId] : [],
+          ),
+        ),
+      ),
+    [state.diagnostics],
+  );
+  useEffect(() => {
+    editorRef.current?.setFlaggedRails(flaggedRails);
+  }, [flaggedRails]);
+
   // Every document change reaches the Engine; parameter edits are sent
   // directly by the Inspector, so this then finds nothing new.
   useEffect(() => {

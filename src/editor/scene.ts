@@ -19,7 +19,7 @@ export interface Bounds {
 }
 
 export type SelectableKind =
-  "component" | "wire" | "junction" | "referenceMarker";
+  "component" | "wire" | "junction" | "referenceMarker" | "rail";
 
 /** The schematic object a shape belongs to; selection and hit tests use it. */
 export interface SceneOwner {
@@ -30,25 +30,30 @@ export interface SceneOwner {
 export type SceneShape =
   | {
       readonly kind: "polyline";
-      readonly role: "wire" | "symbol" | "reference";
+      readonly role: "wire" | "symbol" | "reference" | "rail";
       readonly owner: SceneOwner;
       readonly points: readonly ScenePoint[];
       /** A marker with no pin or wire at its point; drawn as a warning. */
       readonly detached?: boolean;
+      /** A rail that a diagnostic names; drawn as a warning, like a detached marker. */
+      readonly flagged?: boolean;
     }
   | {
       readonly kind: "circle";
-      readonly role: "junction" | "symbol";
+      readonly role: "junction" | "symbol" | "railEnd";
       readonly owner: SceneOwner;
       readonly center: ScenePoint;
       readonly radius: number;
       readonly detached?: boolean;
+      readonly flagged?: boolean;
     }
   | {
       readonly kind: "label";
       readonly owner: SceneOwner;
       readonly text: string;
       readonly position: ScenePoint;
+      /** Half the text's extent in grid units; the default is `LABEL_HALF_WIDTH`. */
+      readonly halfWidth?: number;
     };
 
 /** Everything the renderer draws, in logical grid units. No Pixi types. */
@@ -68,6 +73,8 @@ export interface SceneOptions {
   readonly states?: ReadonlyMap<StableId, DeviceState>;
   /** Adds derived connection dots and flags detached markers. */
   readonly geometry?: EditorGeometry;
+  /** Rails that diagnostics name, drawn as warnings. */
+  readonly flaggedRails?: ReadonlySet<StableId>;
 }
 
 export const JUNCTION_RADIUS = 0.12;
@@ -75,6 +82,19 @@ export const JUNCTION_RADIUS = 0.12;
 export const LABEL_HALF_WIDTH = 0.8;
 export const LABEL_HALF_HEIGHT = 0.3;
 const LABEL_OFFSET_Y = -1;
+// A rail name sits above the line's top end, centred on it. Its extent follows its length:
+// the rendered text is about this many grid units wide per character at the default zoom.
+export const RAIL_LABEL_OFFSET_Y = -0.8;
+export const RAIL_END_RADIUS = 0.1;
+const RAIL_LABEL_HALF_WIDTH_PER_CHARACTER = 0.2;
+
+/** Half the extent of a rail's name, in grid units. */
+export function railLabelHalfWidth(name: string): number {
+  return Math.max(
+    LABEL_HALF_WIDTH / 2,
+    name.length * RAIL_LABEL_HALF_WIDTH_PER_CHARACTER,
+  );
+}
 
 /** The ground glyph of a reference marker whose stem starts at `position`. */
 export function referenceMarkerShapes(
@@ -121,17 +141,19 @@ function shapePoints(shape: SceneShape): ScenePoint[] {
         { x: shape.center.x - shape.radius, y: shape.center.y - shape.radius },
         { x: shape.center.x + shape.radius, y: shape.center.y + shape.radius },
       ];
-    case "label":
+    case "label": {
+      const halfWidth = shape.halfWidth ?? LABEL_HALF_WIDTH;
       return [
         {
-          x: shape.position.x - LABEL_HALF_WIDTH,
+          x: shape.position.x - halfWidth,
           y: shape.position.y - LABEL_HALF_HEIGHT,
         },
         {
-          x: shape.position.x + LABEL_HALF_WIDTH,
+          x: shape.position.x + halfWidth,
           y: shape.position.y + LABEL_HALF_HEIGHT,
         },
       ];
+    }
   }
 }
 
@@ -171,6 +193,41 @@ export function buildScene(
       role: "wire",
       owner: { kind: "wire", id: wire.id },
       points: wire.points.map((point) => ({ x: point.x, y: point.y })),
+    });
+  }
+
+  for (const rail of schematic.rails) {
+    const owner: SceneOwner = { kind: "rail", id: rail.id };
+    const flagged = options.flaggedRails?.has(rail.id) ? { flagged: true } : {};
+    const [start, end] = [rail.start, rail.end].map((point) => ({
+      x: point.x,
+      y: point.y,
+    })) as [ScenePoint, ScenePoint];
+
+    shapes.push({
+      kind: "polyline",
+      role: "rail",
+      owner,
+      ...flagged,
+      points: [start, end],
+    });
+    for (const center of [start, end]) {
+      shapes.push({
+        kind: "circle",
+        role: "railEnd",
+        owner,
+        ...flagged,
+        center,
+        radius: RAIL_END_RADIUS,
+      });
+    }
+    shapes.push({
+      kind: "label",
+      owner,
+      // Plain text: never markup, and never an identity.
+      text: rail.name,
+      position: { x: start.x, y: start.y + RAIL_LABEL_OFFSET_Y },
+      halfWidth: railLabelHalfWidth(rail.name),
     });
   }
 
