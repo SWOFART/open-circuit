@@ -12,7 +12,9 @@ const R1 = "00000000-0000-4000-8000-000000000002";
 
 function createFiles() {
   return {
-    open: vi.fn<() => Promise<Schematic | null>>().mockResolvedValue(null),
+    open: vi
+      .fn<(options?: { forbidRails?: boolean }) => Promise<Schematic | null>>()
+      .mockResolvedValue(null),
     save: vi.fn<(_: Schematic) => Promise<boolean>>().mockResolvedValue(true),
     saveAs: vi.fn<(_: Schematic) => Promise<boolean>>().mockResolvedValue(true),
     clearPath: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -35,6 +37,40 @@ describe("ProjectWorkflow", () => {
       canRedo: false,
       isDirty: false,
     });
+  });
+
+  it("asks the native Open to refuse DC rails only while an assignment is open", async () => {
+    const files = createFiles();
+    const store = new SchematicDocumentStore(dividerSchematic);
+    let assignment = false;
+    const workflow = new ProjectWorkflow(store, files, () => assignment);
+
+    await workflow.perform("open");
+    assignment = true;
+    await workflow.perform("open");
+
+    expect(files.open.mock.calls).toEqual([
+      [{ forbidRails: false }],
+      [{ forbidRails: true }],
+    ]);
+  });
+
+  it("keeps the document, the history and the dirty state when the native side refuses a rail project", async () => {
+    const files = createFiles();
+    const store = new SchematicDocumentStore(dividerSchematic);
+    store.moveComponent(R1, { x: 40, y: 40 });
+    const before = store.getState();
+    files.open.mockRejectedValueOnce(
+      new Error(
+        "This project contains DC rails, which assignments do not support.",
+      ),
+    );
+    const workflow = new ProjectWorkflow(store, files, () => true);
+
+    await expect(workflow.perform("open")).rejects.toThrow(/DC rails/);
+
+    expect(store.getState()).toBe(before);
+    expect(files.clearPath).not.toHaveBeenCalled();
   });
 
   it("keeps the current document when opening is cancelled or fails", async () => {

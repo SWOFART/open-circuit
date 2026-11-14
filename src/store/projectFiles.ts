@@ -2,8 +2,17 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { Schematic } from "../generated/Schematic";
 
 /** The UI works with document values; paths and filesystem access stay in Rust. */
+/** What a native Open is asked to refuse. */
+export interface OpenOptions {
+  /**
+   * An assignment is open: a project with DC rails is refused by the native side before the
+   * project path changes, because assignments do not support rails.
+   */
+  readonly forbidRails?: boolean;
+}
+
 export interface ProjectFilePort {
-  open(): Promise<Schematic | null>;
+  open(options?: OpenOptions): Promise<Schematic | null>;
   save(schematic: Schematic): Promise<boolean>;
   saveAs(schematic: Schematic): Promise<boolean>;
   clearPath(): Promise<void>;
@@ -28,7 +37,10 @@ async function invokeProject<T>(
 
 /** Calls the native project commands exposed by `crates/app`. */
 export const tauriProjectFiles: ProjectFilePort = {
-  open: () => invokeProject<Schematic | null>("open_project"),
+  open: (options) =>
+    invokeProject<Schematic | null>("open_project", {
+      forbidRails: options?.forbidRails ?? false,
+    }),
   save: (schematic) => invokeProject<boolean>("save_project", { schematic }),
   saveAs: (schematic) =>
     invokeProject<boolean>("save_project_as", { schematic }),

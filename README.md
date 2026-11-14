@@ -20,7 +20,8 @@ A rail is a named vertical conductor. It is not a source and carries no voltage 
 put an existing DC voltage source between two rails and mark the return with the Ground tool.
 Names such as `L1`, `L2`, `L3`, `N` or `PE` are plain labels; they add no phase, neutral or
 earth behavior, and there is no AC, three-phase or protective-earth simulation. Rails are not
-available while an assignment is open.
+available while an assignment is open, and Open refuses a project that contains rails then
+(before the project path changes); leave assignment mode to open it.
 
 1. Choose **DC rail** and click once for one end, then again for the other end at the same x
    (the line shown before the first click is only a 20-unit preview; Esc cancels, a second Esc

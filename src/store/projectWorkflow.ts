@@ -29,6 +29,8 @@ export class ProjectWorkflow {
   constructor(
     private readonly document: SchematicDocumentStore,
     private readonly files: ProjectFilePort,
+    /** True while an assignment is open: Open then refuses a project with DC rails. */
+    private readonly assignmentOpen: () => boolean = () => false,
   ) {}
 
   async save(saveAs = false): Promise<boolean> {
@@ -64,7 +66,9 @@ export class ProjectWorkflow {
         return true;
       }
       case "open": {
-        const schematic = await this.files.open();
+        const schematic = await this.files.open({
+          forbidRails: this.assignmentOpen(),
+        });
         if (schematic === null) return false;
         this.document.replaceDocument(schematic);
         return true;
