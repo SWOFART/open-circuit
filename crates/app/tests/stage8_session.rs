@@ -924,3 +924,94 @@ fn a_saved_and_reopened_rail_drawing_recomputes_a_fresh_run_without_the_operator
         },
     );
 }
+
+const DRAWN_DIVIDER: &str =
+    include_str!("../../../tests/golden/stage-8-drawn-divider.request.json");
+const DRAWN_RC_HOLD: &str =
+    include_str!("../../../tests/golden/stage-8-drawn-rc-hold.request.json");
+const DRAWN_TWO_ISLANDS: &str =
+    include_str!("../../../tests/golden/stage-8-drawn-two-islands.request.json");
+const DRAWN_ISLANDS_N_PE: &str =
+    include_str!("../../../tests/golden/stage-8-drawn-two-islands-N-PE.request.json");
+
+fn bits(replay: &Replay) -> Vec<Vec<u64>> {
+    replay
+        .snapshots
+        .iter()
+        .map(|snapshot| {
+            snapshot
+                .values
+                .iter()
+                .map(|value| value.to_bits())
+                .collect()
+        })
+        .collect()
+}
+
+#[test]
+fn every_circuit_drawn_between_rails_matches_its_answers_its_wired_twin_and_itself() {
+    let equivalence = serde_json::from_str::<Value>(MANIFEST).unwrap()["equivalence"].clone();
+    let (abs, rel) = (
+        number(&equivalence["absolute"]),
+        number(&equivalence["relative"]),
+    );
+    let all = [
+        ("divider", DRAWN_DIVIDER),
+        ("rc-hold", DRAWN_RC_HOLD),
+        ("start-stop", DRAWN_START_STOP),
+        ("start-stop-no-seal-in", DRAWN_NO_SEAL_IN),
+        ("two-islands", DRAWN_TWO_ISLANDS),
+        ("two-islands-N-PE", DRAWN_ISLANDS_N_PE),
+    ];
+    assert_eq!(all.len(), pairs().len(), "every fixture circuit is drawn");
+
+    for (id, text) in all {
+        let pair = pair(id);
+        let request = drawn(text);
+
+        // The independent observations and events, applied to the drawing.
+        let first = replay(&pair, request.clone());
+        // The same inputs and events again: the same bits, in this environment.
+        let second = replay(&pair, request.clone());
+        assert_eq!(bits(&first), bits(&second), "{id}: deterministic");
+        assert_eq!(first.snapshots.len(), second.snapshots.len());
+
+        // The explicitly wired reference of the same circuit, within the contract's tolerance.
+        let wired = replay(&pair, wire_request(&pair));
+        assert_eq!(first.layout, wired.layout, "{id}: one layout");
+        for (rail, wire) in first.snapshots.iter().zip(&wired.snapshots) {
+            assert_eq!(rail.states, wire.states, "{id}: discrete states");
+            for (a, b) in rail.values.iter().zip(&wire.values) {
+                assert_close(
+                    *a,
+                    *b,
+                    abs + rel * b.abs(),
+                    &format!("{id}: drawn vs wired"),
+                );
+            }
+        }
+
+        // Only the warnings the fixture expects.
+        let run = Run::start_every_step(request);
+        let CompileResult::Success { diagnostics, .. } = &run.compile_result else {
+            panic!("{id} compiles");
+        };
+        let mut warnings = diagnostics
+            .iter()
+            .map(|diagnostic| format!("{:?}", diagnostic.code))
+            .collect::<Vec<_>>();
+        warnings.sort();
+        let mut expected = pair["expectedWarningCodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(text_of)
+            .collect::<Vec<_>>();
+        expected.sort();
+        assert_eq!(warnings, expected, "{id}: warnings");
+    }
+}
+
+fn text_of(value: &Value) -> String {
+    value.as_str().expect("a string").to_owned()
+}
