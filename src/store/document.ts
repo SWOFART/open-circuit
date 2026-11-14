@@ -16,6 +16,12 @@ import type { ReferenceMarkerSpec } from "../generated/ReferenceMarkerSpec";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { WireSpec } from "../generated/WireSpec";
+import {
+  MAX_RAILS,
+  nextRailName,
+  railExtentProblem,
+  railNameProblem,
+} from "../editor/railRules";
 import { ComponentLabels } from "./labels";
 
 enablePatches();
@@ -24,6 +30,50 @@ type WithoutId<T> = T extends { id: StableId } ? Omit<T, "id"> : never;
 
 export type NewComponentSpec = WithoutId<ComponentSpec>;
 export type NewWireSpec = WithoutId<WireSpec>;
+
+/** A rail to add: the name is optional, and the smallest unused `RAIL<n>` fills it in. */
+export interface NewRailSpec {
+  readonly name?: string;
+  readonly x: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/** What a rail edit changes; whatever is left out stays. */
+export interface RailPatch {
+  readonly name?: string;
+  readonly x?: number;
+  readonly top?: number;
+  readonly bottom?: number;
+}
+
+function assertRailName(name: string, others: readonly string[]): void {
+  switch (railNameProblem(name, others)) {
+    case "empty":
+      throw new Error("A rail needs a name.");
+    case "grammar":
+      throw new Error(
+        "A rail name is 1 to 32 letters, digits, underscores, plus signs or hyphens, and starts with a letter or digit.",
+      );
+    case "duplicate":
+      throw new Error(`Another rail is already named ${name}.`);
+    case null:
+      return;
+  }
+}
+
+function assertRailExtent(x: number, top: number, bottom: number): void {
+  switch (railExtentProblem(x, top, bottom)) {
+    case "coordinate":
+      throw new Error("A rail coordinate must be a whole number on the grid.");
+    case "extent":
+      throw new Error(
+        "A rail must be between 2 and 1,000,000 grid units long.",
+      );
+    case null:
+      return;
+  }
+}
 
 export interface SchematicDocumentState {
   readonly schematic: Schematic;
@@ -481,6 +531,74 @@ export class SchematicDocumentStore {
 
   removeReferenceMarker(id: StableId): void {
     this.removeMarker("referenceMarkers", id);
+  }
+
+  /**
+   * Adds a vertical rail as one history entry and returns its ID. A rail is drawn input only:
+   * adding one moves no wire, part or marker.
+   */
+  addRail(rail: NewRailSpec): StableId {
+    const others = this.schematic.rails.map((item) => item.name);
+    if (others.length >= MAX_RAILS) {
+      throw new Error(`A schematic holds at most ${MAX_RAILS} rails.`);
+    }
+    const name = rail.name ?? nextRailName(others);
+    assertRailName(name, others);
+    assertRailExtent(rail.x, rail.top, rail.bottom);
+
+    const id = this.nextId();
+    const created = {
+      id,
+      name,
+      start: { x: rail.x, y: rail.top },
+      end: { x: rail.x, y: rail.bottom },
+    };
+    this.commit((draft) => {
+      draft.rails.push(created);
+    });
+    return id;
+  }
+
+  /**
+   * Renames, moves or resizes a rail as one history entry; the rail keeps its ID. Wires, parts,
+   * junctions and markers do not follow: attachment is geometric, not stored. An edit that
+   * changes nothing records nothing.
+   */
+  editRail(id: StableId, patch: RailPatch): void {
+    const current = this.schematic.rails.find((item) => item.id === id);
+    if (!current) throw new Error(`Rail ${id} does not exist.`);
+
+    const name = patch.name ?? current.name;
+    const x = patch.x ?? current.start.x;
+    const top = patch.top ?? current.start.y;
+    const bottom = patch.bottom ?? current.end.y;
+    assertRailName(
+      name,
+      this.schematic.rails
+        .filter((item) => item.id !== id)
+        .map((item) => item.name),
+    );
+    assertRailExtent(x, top, bottom);
+
+    this.commit((draft) => {
+      const rail = draft.rails.find((item) => item.id === id);
+      if (!rail) throw new Error(`Rail ${id} does not exist.`);
+      // Field by field: an unchanged value records no patch, so a no-op is no history entry.
+      rail.name = name;
+      rail.start.x = x;
+      rail.start.y = top;
+      rail.end.x = x;
+      rail.end.y = bottom;
+    });
+  }
+
+  /** Removes only the rail; wires and markers that touched it stay for editing. */
+  removeRail(id: StableId): void {
+    this.commit((draft) => {
+      const index = draft.rails.findIndex((item) => item.id === id);
+      if (index < 0) throw new Error(`Rail ${id} does not exist.`);
+      draft.rails.splice(index, 1);
+    });
   }
 
   undo(): boolean {

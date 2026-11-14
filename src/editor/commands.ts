@@ -56,6 +56,25 @@ export type EditorCommand =
       readonly position: GridPoint;
     }
   | { readonly kind: "deleteReferenceMarker"; readonly id: StableId }
+  | {
+      readonly kind: "addRail";
+      /** Left out, the smallest unused `RAIL<n>` names the new rail. */
+      readonly name?: string;
+      readonly x: number;
+      readonly top: number;
+      readonly bottom: number;
+    }
+  | {
+      readonly kind: "editRail";
+      readonly railId: StableId;
+      readonly patch: {
+        readonly name?: string;
+        readonly x?: number;
+        readonly top?: number;
+        readonly bottom?: number;
+      };
+    }
+  | { readonly kind: "deleteRail"; readonly railId: StableId }
   | { readonly kind: "undo" }
   | { readonly kind: "redo" };
 
@@ -136,6 +155,21 @@ export function commandForIntent(
       return exists(schematic.wires, intent.wireId)
         ? { kind: "editWire", wireId: intent.wireId, points: intent.points }
         : null;
+    case "addRail":
+      return {
+        kind: "addRail",
+        x: intent.x,
+        top: intent.top,
+        bottom: intent.bottom,
+      };
+    case "editRail":
+      return exists(schematic.rails, intent.railId)
+        ? {
+            kind: "editRail",
+            railId: intent.railId,
+            patch: { x: intent.x, top: intent.top, bottom: intent.bottom },
+          }
+        : null;
     case "addJunction":
     case "addReferenceMarker":
       return { kind: intent.kind, position: intent.position };
@@ -191,9 +225,9 @@ function deleteCommand(
         ? { kind: "deleteReferenceMarker", id: target.id }
         : null;
     case "rail":
-      // A rail can be selected and shown, but creating, moving and deleting one are the
-      // authoring commands of the next issue (#134); here nothing is deleted.
-      return null;
+      return exists(schematic.rails, target.id)
+        ? { kind: "deleteRail", railId: target.id }
+        : null;
   }
 }
 
@@ -236,6 +270,26 @@ export function dragPreviewSchematic(
             ),
           }
         : schematic;
+    }
+    case "rail": {
+      // A drag that the contract does not allow shows the drawing as it is; it is canceled on
+      // release.
+      if (!drag.valid) {
+        return schematic;
+      }
+
+      return {
+        ...schematic,
+        rails: schematic.rails.map((item) =>
+          item.id === drag.railId
+            ? {
+                ...item,
+                start: { x: drag.x, y: drag.top },
+                end: { x: drag.x, y: drag.bottom },
+              }
+            : item,
+        ),
+      };
     }
     case "marker": {
       if (!drag.valid) {

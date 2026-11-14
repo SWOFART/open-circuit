@@ -349,8 +349,12 @@ label and supplies no attachment. The scene draws each rail as a line, a marker
 on each end and its name above the top end (plain text, never an identity), and
 shows a rail that a diagnostic names as a warning. In Select the hit priority is
 markers, components, rails, then wires; `railHandleAt` answers the selected
-rail's handles, which come first. Creating, moving and deleting rails are the
-authoring issue's commands. The hints only guide the user; the Rust Engine alone
+rail's end handles, which come first. The rail tool (two clicks at one x, a
+20-unit preview before the first), dragging a rail or an end, and deleting one
+are document commands (`addRail`, `editRail`, `deleteRail`), one history entry
+each; a rename, move, resize or delete recompiles from time zero and moves no
+wire, part or marker. The DC rails panel offers the same actions with the
+keyboard and validates names against the contract's grammar. The hints only guide the user; the Rust Engine alone
 decides connectivity, and `tests/golden/stage-2-connectivity.json` and
 `tests/golden/stage-8-connectivity.json` check both against the same
 drawings. `SimulationController.syncDocument` then brings

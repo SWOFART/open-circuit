@@ -3,8 +3,15 @@ import type { GridPoint } from "../generated/GridPoint";
 import type { StableId } from "../generated/StableId";
 import { EMPTY_GEOMETRY, type EditorGeometry } from "./connectivity";
 import type { Rotation } from "./geometry";
-import { hitTest, sceneContains, type SelectionTarget } from "./hitTest";
+import {
+  hitTest,
+  railHandleAt,
+  sceneContains,
+  type RailHandle,
+  type SelectionTarget,
+} from "./hitTest";
 import { operatingTargetAt, type OperatingTarget } from "./operate";
+import { DEFAULT_RAIL_LENGTH, isLegalRail, orderedExtent } from "./railRules";
 import type { SceneModel, ScenePoint } from "./scene";
 import {
   fitView,
@@ -69,7 +76,9 @@ export type EditorTool =
     }
   | { readonly kind: "wire" }
   | { readonly kind: "junction" }
-  | { readonly kind: "reference" };
+  | { readonly kind: "reference" }
+  /** Draws a vertical DC rail: the first click fixes x and one y, the second the other y. */
+  | { readonly kind: "rail" };
 
 /** Why the last click of a drawing tool did nothing, until the pointer moves. */
 export type Rejection = "crossing" | "attachment";
@@ -79,7 +88,11 @@ export interface EditorStatus {
   readonly tool: EditorTool;
   /** A wire route is being drawn. */
   readonly routing: boolean;
+  /** The first click of a rail is made and the second is awaited. */
+  readonly railStarted: boolean;
   readonly rejected: Rejection | null;
+  /** The selected object, so a panel can follow it. */
+  readonly selection: SelectionTarget | null;
 }
 
 /**
@@ -117,6 +130,20 @@ export type InteractionIntent =
       readonly wireId: StableId;
       readonly points: readonly GridPoint[];
     }
+  | {
+      readonly kind: "addRail";
+      readonly x: number;
+      readonly top: number;
+      readonly bottom: number;
+    }
+  | {
+      /** A dragged rail or end: the rail's new x and ends. Never a rename. */
+      readonly kind: "editRail";
+      readonly railId: StableId;
+      readonly x: number;
+      readonly top: number;
+      readonly bottom: number;
+    }
   | { readonly kind: "addJunction"; readonly position: GridPoint }
   | {
       readonly kind: "moveJunction";
@@ -153,9 +180,28 @@ export type DragPreview =
       readonly to: GridPoint;
       /** Releasing here would land on a valid target. */
       readonly valid: boolean;
+    }
+  | {
+      /** A rail, or one of its ends, being moved or resized; `to` is the rail as dragged. */
+      readonly kind: "rail";
+      readonly railId: StableId;
+      readonly handle: RailHandle;
+      readonly x: number;
+      readonly top: number;
+      readonly bottom: number;
+      /** Releasing here would commit a legal rail. */
+      readonly valid: boolean;
     };
 
 type DragTarget =
+  | {
+      readonly kind: "rail";
+      readonly id: StableId;
+      readonly handle: RailHandle;
+      readonly x: number;
+      readonly top: number;
+      readonly bottom: number;
+    }
   | { readonly kind: "component"; readonly id: StableId }
   | {
       readonly kind: "junction" | "referenceMarker";
@@ -196,6 +242,25 @@ function samePoint(a: GridPoint, b: GridPoint): boolean {
   return a.x === b.x && a.y === b.y;
 }
 
+type RailDragTarget = Extract<DragTarget, { readonly kind: "rail" }>;
+
+/**
+ * The rail as a drag leaves it: the line moves both ends by the whole offset, an end moves only
+ * vertically at the x of the rail. `valid` is false for a rail the contract does not allow (too
+ * short, reversed, too long, off the 32-bit grid); such a drag is canceled on release.
+ */
+function draggedRail(
+  target: RailDragTarget,
+  delta: GridPoint,
+): { x: number; top: number; bottom: number; valid: boolean } {
+  const x = target.handle === "line" ? target.x + delta.x : target.x;
+  const top = target.handle === "end" ? target.top : target.top + delta.y;
+  const bottom =
+    target.handle === "start" ? target.bottom : target.bottom + delta.y;
+
+  return { x, top, bottom, valid: isLegalRail(x, top, bottom) };
+}
+
 /**
  * Pointer and keyboard state for the canvas: view transform, pan and zoom
  * gestures, the snapped pointer position, the single selection, the active
@@ -225,6 +290,8 @@ export class CanvasInteraction {
   // waypoint. Null when no route is in progress.
   private route: GridPoint[] | null = null;
   private verticalFirst = false;
+  // The first click of the rail tool: the x and one y of the rail being drawn.
+  private railStart: GridPoint | null = null;
   private rejected: Rejection | null = null;
 
   constructor(
@@ -240,7 +307,9 @@ export class CanvasInteraction {
     return {
       tool: this.currentTool,
       routing: this.route !== null,
+      railStarted: this.railStart !== null,
       rejected: this.rejected,
+      selection: this.selected,
     };
   }
 
@@ -255,6 +324,14 @@ export class CanvasInteraction {
     if (target.kind === "component") {
       return { kind: "component", componentId: target.id, delta };
     }
+    if (target.kind === "rail") {
+      return {
+        kind: "rail",
+        railId: target.id,
+        handle: target.handle,
+        ...draggedRail(target, delta),
+      };
+    }
 
     const to = { x: target.origin.x + delta.x, y: target.origin.y + delta.y };
     return target.kind === "vertex"
@@ -266,6 +343,38 @@ export class CanvasInteraction {
           to,
           valid: this.isMarkerTarget(target.kind, to),
         };
+  }
+
+  /**
+   * The rail the next click of the rail tool would draw: a 20-unit line downward from the
+   * pointer before the first click, then the line between the two clicks, ordered. `valid`
+   * says whether a click would commit it. Null when the tool or the pointer is absent.
+   */
+  get railPreview(): {
+    readonly x: number;
+    readonly top: number;
+    readonly bottom: number;
+    readonly valid: boolean;
+  } | null {
+    if (this.currentTool.kind !== "rail" || !this.pointer) {
+      return null;
+    }
+
+    const { x, top, bottom } = this.railStart
+      ? {
+          x: this.railStart.x,
+          ...orderedExtent(this.railStart, {
+            x: this.railStart.x,
+            y: this.pointer.y,
+          }),
+        }
+      : {
+          x: this.pointer.x,
+          top: this.pointer.y,
+          bottom: this.pointer.y + DEFAULT_RAIL_LENGTH,
+        };
+
+    return { x, top, bottom, valid: isLegalRail(x, top, bottom) };
   }
 
   /** The wire being drawn, with the leg to the pointer; null when idle. */
@@ -451,6 +560,9 @@ export class CanvasInteraction {
       case "wire":
         this.routeClick(at);
         return false;
+      case "rail":
+        this.railClick(at);
+        return false;
       case "junction":
         if (this.geometry.isJunctionSpot(at)) {
           this.setRejected(null);
@@ -486,6 +598,13 @@ export class CanvasInteraction {
       return this.armDrag(pointer, at, vertex);
     }
 
+    // So do the end handles of the selected rail (its line is picked in the usual order, so a
+    // marker on the line stays directly selectable).
+    const end = this.railEndUnder(exact, tolerance);
+    if (end) {
+      return this.armDrag(pointer, at, end);
+    }
+
     const operated = operatingTargetAt(this.operable, exact, tolerance);
     if (operated) {
       return this.operate(pointer, operated);
@@ -496,6 +615,11 @@ export class CanvasInteraction {
 
     if (hit?.kind === "component") {
       return this.armDrag(pointer, at, { kind: "component", id: hit.id });
+    }
+
+    if (hit?.kind === "rail") {
+      const line = this.railTarget(hit.id, "line");
+      return line ? this.armDrag(pointer, at, line) : false;
     }
 
     if (hit?.kind === "junction" || hit?.kind === "referenceMarker") {
@@ -560,6 +684,39 @@ export class CanvasInteraction {
       : null;
   }
 
+  private railTarget(id: StableId, handle: RailHandle): RailDragTarget | null {
+    const rail = this.geometry.rails.get(id);
+
+    return rail
+      ? {
+          kind: "rail",
+          id,
+          handle,
+          x: rail[0].x,
+          top: rail[0].y,
+          bottom: rail[1].y,
+        }
+      : null;
+  }
+
+  private railEndUnder(
+    point: ScenePoint,
+    tolerance: number,
+  ): RailDragTarget | null {
+    if (this.selected?.kind !== "rail") {
+      return null;
+    }
+
+    const rail = this.geometry.rails.get(this.selected.id);
+    const handle = rail
+      ? railHandleAt({ start: rail[0], end: rail[1] }, point, tolerance)
+      : null;
+
+    return handle === "start" || handle === "end"
+      ? this.railTarget(this.selected.id, handle)
+      : null;
+  }
+
   private armDrag(
     pointer: CanvasPointer,
     at: GridPoint,
@@ -602,6 +759,31 @@ export class CanvasInteraction {
 
     this.route = path;
     this.onChange("preview");
+  }
+
+  /**
+   * A click with the rail tool. The first fixes x and one y; the second chooses the other y at
+   * that x and commits the ordered rail if its extent is legal. An illegal second click commits
+   * nothing and the rail stays open for another try; Escape drops it.
+   */
+  private railClick(at: GridPoint): void {
+    if (!this.railStart) {
+      this.railStart = at;
+      this.onChange("preview");
+      this.onChange("tool");
+      return;
+    }
+
+    const { x } = this.railStart;
+    const { top, bottom } = orderedExtent(this.railStart, { x, y: at.y });
+    if (!isLegalRail(x, top, bottom)) {
+      return;
+    }
+
+    this.railStart = null;
+    this.onChange("preview");
+    this.onChange("tool");
+    this.onIntent({ kind: "addRail", x, top, bottom });
   }
 
   /** Enter: finishes the route at the snapped pointer, a free point. */
@@ -745,6 +927,25 @@ export class CanvasInteraction {
         }
         return;
       }
+      case "rail": {
+        const rail = this.geometry.rails.get(preview.railId);
+        if (
+          preview.valid &&
+          rail &&
+          (rail[0].x !== preview.x ||
+            rail[0].y !== preview.top ||
+            rail[1].y !== preview.bottom)
+        ) {
+          this.onIntent({
+            kind: "editRail",
+            railId: preview.railId,
+            x: preview.x,
+            top: preview.top,
+            bottom: preview.bottom,
+          });
+        }
+        return;
+      }
       case "marker":
         if (preview.valid) {
           this.onIntent(
@@ -860,11 +1061,12 @@ export class CanvasInteraction {
   private cancelGesture(): boolean {
     const previous = this.gesture;
     if (previous.kind === "idle") {
-      if (!this.route) {
+      if (!this.route && !this.railStart) {
         return false;
       }
 
       this.route = null;
+      this.railStart = null;
       this.onChange("preview");
       this.onChange("tool");
       return true;

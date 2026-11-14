@@ -14,11 +14,14 @@ export interface ResultPanelProps {
    * `Vout`. The Stage 1 divider defines it as the voltage across R2.
    */
   readonly outputComponentId?: StableId;
+  /** Rail names by ID, so a diagnostic can say which rail it names. */
+  readonly railNames?: ReadonlyMap<StableId, string>;
 }
 
 function referenceLabel(
   reference: DiagnosticReference,
   labels: ReadonlyMap<StableId, string>,
+  railNames: ReadonlyMap<StableId, string>,
 ): string | undefined {
   switch (reference.kind) {
     case "component":
@@ -29,19 +32,25 @@ function referenceLabel(
       return "junction";
     case "referenceMarker":
       return "ground marker";
-    case "rail":
-      return "DC rail";
+    case "rail": {
+      const name = railNames.get(reference.railId);
+      return name === undefined ? "DC rail" : `DC rail ${name}`;
+    }
     default:
       return undefined;
   }
 }
 
+const NO_RAIL_NAMES: ReadonlyMap<StableId, string> = new Map();
+
 function DiagnosticsList({
   diagnostics,
   labels,
+  railNames,
 }: {
   readonly diagnostics: readonly Diagnostic[];
   readonly labels: ReadonlyMap<StableId, string>;
+  readonly railNames: ReadonlyMap<StableId, string>;
 }) {
   if (diagnostics.length === 0) {
     return null;
@@ -51,7 +60,7 @@ function DiagnosticsList({
     <ul className="diagnostics">
       {diagnostics.map((diagnostic, index) => {
         const affected = diagnostic.references
-          .map((reference) => referenceLabel(reference, labels))
+          .map((reference) => referenceLabel(reference, labels, railNames))
           .filter((label): label is string => label !== undefined);
 
         return (
@@ -104,6 +113,7 @@ export function ResultPanel({
   state,
   labels,
   outputComponentId,
+  railNames = NO_RAIL_NAMES,
 }: ResultPanelProps) {
   const { run, snapshot } = state;
 
@@ -199,7 +209,11 @@ export function ResultPanel({
         </p>
       )}
 
-      <DiagnosticsList diagnostics={state.diagnostics} labels={labels} />
+      <DiagnosticsList
+        diagnostics={state.diagnostics}
+        labels={labels}
+        railNames={railNames}
+      />
     </section>
   );
 }

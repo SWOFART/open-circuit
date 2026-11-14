@@ -46,13 +46,14 @@ describe("component palette", () => {
       "Diode",
       "NPN transistor",
       "PNP transistor",
+      "DC rail",
       "Wire",
       "Junction",
       "Ground",
     ]) {
       expect(markup).toContain(`>${label}<`);
     }
-    expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 4);
+    expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 5);
     // Every catalog type has a symbol, so every one is offered.
     expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
     // The names come from the interface's messages, never the raw catalog keys.
@@ -83,7 +84,7 @@ describe("component palette", () => {
     );
 
     expect(markup.match(/disabled=""/g)).toHaveLength(
-      placeableTypes.length + 4,
+      placeableTypes.length + 5,
     );
   });
 
@@ -91,6 +92,7 @@ describe("component palette", () => {
     [{ kind: "wire" }, "Wire"],
     [{ kind: "junction" }, "Junction"],
     [{ kind: "reference" }, "Ground"],
+    [{ kind: "rail" }, "DC rail"],
   ] as const)("marks the %o tool", (tool, label) => {
     const markup = renderToStaticMarkup(
       <Palette catalog={catalog} tool={tool} onSelectTool={noTool} />,
@@ -108,7 +110,7 @@ describe("component palette", () => {
       />,
     );
 
-    expect(markup.match(/<button/g)).toHaveLength(4);
+    expect(markup.match(/<button/g)).toHaveLength(5);
     expect(markup).not.toContain("Resistor");
   });
 });
@@ -117,7 +119,9 @@ describe("tool hint", () => {
   const status = (partial: Partial<EditorStatus>): EditorStatus => ({
     tool: { kind: "select" },
     routing: false,
+    railStarted: false,
     rejected: null,
+    selection: null,
     ...partial,
   });
 

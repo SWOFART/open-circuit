@@ -8,6 +8,11 @@ export interface PaletteProps {
   readonly catalog: ComponentCatalog | null;
   readonly tool: EditorTool;
   readonly disabled?: boolean;
+  /**
+   * Why the DC rail tool is unavailable (for example, an assignment is open); null or absent
+   * when it is available. The button stays visible and says why.
+   */
+  readonly railUnavailable?: string | null;
   readonly onSelectTool: (tool: EditorTool) => void;
 }
 
@@ -41,6 +46,7 @@ export function Palette({
   catalog,
   tool,
   disabled = false,
+  railUnavailable = null,
   onSelectTool,
 }: PaletteProps) {
   return (
@@ -74,6 +80,19 @@ export function Palette({
             {message(entry.displayNameKey)}
           </button>
         ))}
+      <button
+        type="button"
+        className="toolbar-button"
+        disabled={disabled || railUnavailable !== null}
+        title={
+          railUnavailable ??
+          "Draw a vertical named DC rail. A rail is a conductor, not a source: it carries no voltage of its own."
+        }
+        aria-pressed={tool.kind === "rail"}
+        onClick={() => onSelectTool({ kind: "rail" })}
+      >
+        DC rail
+      </button>
       {DRAWING_TOOLS.map((entry) => (
         <button
           key={entry.tool.kind}
@@ -114,6 +133,13 @@ export function toolHint(status: EditorStatus): {
         text: status.routing
           ? "Click for a corner. Click a pin or wire, or the last point again, to finish. Enter finishes here, Esc cancels, Shift bends vertical-first."
           : "Click to start a wire. Corners are added for you. Esc stops drawing.",
+        warning: false,
+      };
+    case "rail":
+      return {
+        text: status.railStarted
+          ? "Click the other end of the rail at the same x. Esc cancels this rail."
+          : "Click to fix one end of a vertical DC rail; the line shown is only a preview. Esc stops drawing. A rail is a conductor only: names such as L1, N or PE carry no meaning.",
         warning: false,
       };
     case "junction":

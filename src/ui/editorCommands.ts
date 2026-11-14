@@ -126,6 +126,20 @@ export function applyEditorCommand(
     case "deleteReferenceMarker":
       store.removeReferenceMarker(command.id);
       return;
+    case "addRail":
+      store.addRail({
+        ...(command.name === undefined ? {} : { name: command.name }),
+        x: command.x,
+        top: command.top,
+        bottom: command.bottom,
+      });
+      return;
+    case "editRail":
+      store.editRail(command.railId, command.patch);
+      return;
+    case "deleteRail":
+      store.removeRail(command.railId);
+      return;
     case "undo":
       store.undo();
       return;
