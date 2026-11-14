@@ -10,10 +10,10 @@
 [Stage 8 references](../solver/stage-8-references.md) and
 [connectivity verification](../solver/stage-8-connectivity.md).
 
-**Status:** local automated checks are recorded below. Independent Gate A, the candidate's
-Windows/Ubuntu/macOS CI and Tauri builds, the **native desktop walkthrough** and the acceptance of both
-workstreams are **pending**. This record does not declare Stage 8 accepted; issue #135 and the parent
-#127 must stay open until those items are done.
+**Status:** local automated checks, the candidate's Windows/Ubuntu/macOS CI and Tauri builds, and a native
+Windows desktop walkthrough are recorded below. The acceptance of both workstreams is **pending**, as is any
+native observation on macOS or Ubuntu (only CI ran there). This record does not declare Stage 8 accepted;
+issue #135 and the parent #127 must stay open until both workstreams accept it.
 
 ## Editor-to-Engine evidence
 
@@ -95,28 +95,63 @@ mock):
 | `node scripts/check-types.mjs` | Pass: generated bindings unchanged |
 | `node scripts/check-boundaries.mjs` | Pass |
 | `vite build`; `node scripts/check-production-bundle.mjs` | Pass: seven production scripts, no mock adapter |
-| Windows Tauri release build | Built locally as `target/release/open-circuit-app.exe`; the candidate's CI build is pending |
+| Windows Tauri release build | Built locally with `tauri build --no-bundle` (frontend embedded) for the walkthrough below; the CI builds are listed next |
 
 Existing non-fatal messages: ts-rs does not parse `deny_unknown_fields`; Vite reports a bundle chunk over
 500 kB. No lint, compiler or CI setting was weakened.
 
+## Cross-platform CI and Tauri builds
+
+| Run | Revision | Windows | Ubuntu | macOS |
+|---|---|---|---|---|
+| [43634831275](https://github.com/SWOFART/open-circuit/actions/runs/43634831275), pull request #147 (**the candidate**) | `ba0f7b9`, tree `ad9e42bc601b3c7e23bf5bcae600a58424b05a58` | Pass | Pass | Pass |
+| [43640067212](https://github.com/SWOFART/open-circuit/actions/runs/43640067212), pull request #148 (adds #146, same Stage 8 tests) | `cbce9d9` | Pass | Pass | Pass |
+| [43637193497](https://github.com/SWOFART/open-circuit/actions/runs/43637193497), push of the merge commit to `main` | `093ed70` | Pass | Pass | **Fail** |
+
+Each job is "Checks and Tauri build", so it includes the checks of the table above and the Tauri build. The
+base `main` run [43632821665](https://github.com/SWOFART/open-circuit/actions/runs/43632821665) is baseline
+evidence only.
+
+The failure on the merge commit is a test of an earlier stage, not of Stage 8:
+`a_fast_ui_does_not_speed_physics_up_or_slow_it_down` (`crates/app/tests/simulation_core.rs`) reached step 1956
+where it expects 1980 to 2000, on the macOS runner only; the same tree passed on all three platforms in the run
+of the pull request above. It is a timing dependence and is tracked as
+[#149](https://github.com/SWOFART/open-circuit/issues/149). It is recorded here rather than hidden: macOS
+passed for the candidate's own run, but `main` at the merge commit was red there once.
+
+## Native Windows desktop walkthrough
+
+**Platform and build.** Windows 11 Pro 10.0.26100, one monitor in use. The executable was built on 2026-11-14 at
+21:59 with `tauri build --no-bundle` from the tree of pull request #148 (`main` at `093ed70` plus the #146
+change, commit `cbce9d9`), so the frontend is embedded and no dev server was involved. The agent controlled the
+native window with the computer-use plugin after the user granted access. The input projects were written from
+the `schematic` of the pinned drawn requests (`tests/golden/stage-8-drawn-*.request.json`) into ignored
+`target/tmp/stage8-live/*.ocircuit` and opened through the native Open dialog. The Engine, the bridge and the
+numbers were the real ones. Press and release times were human-scale, so the exact millisecond timelines are
+established by the automated replay above, not by this walkthrough.
+
+| Check | Observed result |
+|---|---|
+| Open `start-stop` | The native canvas draws the rails `L+` and `0V` as green lines with end dots and their names, the STOP and START buttons, the contactor and the seal-in wires. The panel lists `L+ (x 0, y 0 to 4)` and `0V (x 14, y 7 to 10)`. At rest: V1 5 V, every current 0 A, S1 (NC) released and conducting, S2 (NO) released and not conducting, Q1 released. |
+| Press and release START | Q1 picked, coil current 49.94506 mA (the independent answer is 49.94506 mA), S2 released and not conducting, S1 carrying 49.94506 mA: the contactor stays picked through the seal-in contact. |
+| Press and release STOP | Q1 released. |
+| Open `start-stop-no-seal-in` (wrong wiring) | The drawing visibly lacks the two seal-in wires. A fresh run starts (simulation time back to about 3.8 s, Q1 released). After START is pressed and released, Q1 is released with coil current 0 A, and its last change shows it did switch and drop: the distinct result, nothing repaired. |
+| Open the `duplicate-name` case saved as a project | Refused: "The project operation failed: Project schematic failed validation: DuplicateRailName." The current document and run stay. |
+| DC rail tool: two clicks at a place no conductor touches | A rail `RAIL1` is drawn and drawn in red; Results reads "The engine could not calculate this circuit. There is no result, and nothing below is a reading of it. ERROR A node is not connected to any reference. (DC rail RAIL1)"; Devices says there is no active run. |
+| Undo | The rail disappears, Undo is disabled and Redo enabled, and the red marking is gone. |
+| Rename, save, reopen | From `start-stop`, the rail `L+` was selected on the canvas and renamed to `SUPPLY` in the panel (the canvas label and the list followed). Save As wrote `saved-supply.ocircuit` and the title returned from "Unsaved changes" to "Project". The file is schema 2 with the rails `SUPPLY` and `0V`, identical to the original except the name, with no state, result or trace word. Reopened: the name `SUPPLY` is back, history is empty, a fresh run starts (simulation time about 3.8 s, Q1 released, all currents 0 A), and START then gives Q1 picked with 49.94506 mA. |
+| #146 in the native window | With the Student assignment panel open the DC rail tool is disabled; Open on `start-stop` is refused with "The project operation failed: This project contains DC rails, which assignments do not support. Leave assignment mode to open it." and the document and the picked contactor are unchanged. (This confirms Tauri maps `forbidRails` to `forbid_rails`.) |
+
+Not done on the desktop and not claimed: the keyboard-only **Create rail** form, dragging a rail or an end handle,
+rail deletion and Redo in the native window (they are covered by the Vitest tests of #134), diagnostics for
+the rail-name and limit errors (they are covered by the real-Engine tests), keyboard accessibility audit, and any
+macOS or Ubuntu desktop run. One defect was seen: a project-operation banner stays after later successful edits
+([#150](https://github.com/SWOFART/open-circuit/issues/150)).
+
 ## Pending
 
-- **Independent Gate A** for the exact candidate (AGENTS.md).
-- **Candidate CI.** The base `main` revision passed
-  [CI run 43632821665](https://github.com/SWOFART/open-circuit/actions/runs/43632821665); that is baseline
-  evidence only. After Gate A passes, a draft PR is opened and its Windows, Ubuntu and macOS checks and Tauri
-  builds must be added here.
-- **Native desktop walkthrough.** **Not performed.** A request to control the native window was declined, so
-  nothing below was done on the desktop: opening the rail projects (`target/tmp/stage8-live`, written from the
-  pinned requests), the canvas rendering of the rails and their names, drawing a circuit with the DC rail tool,
-  pressing and releasing START and STOP and reading the coil current and contactor state, the highlighted rail
-  for a diagnostic (`duplicate-name`), and a save and reopen. The automated results above run the real Engine
-  through the application's simulation core and its binary and JSON transports; they are a transport replay,
-  not desktop evidence. A browser run of the real interface (no engine) showed the rail tool, the panel and the
-  validation in #134, which is also not native evidence.
 - **Acceptance by both workstreams** and the closing of #135 and #127.
-- **#146** (refuse opening a rail-bearing project while an assignment is open) is a known gap in the contract's
-  assignment section, not part of this record's evidence.
+- **Native observations on macOS and Ubuntu**, which this record does not have; CI built and tested there only.
+- #149 (the timing-dependent test) and #150 (the stale banner) are open and are not Stage 8 acceptance items.
 - No three-phase, AC or protective-earth behavior is advertised: the interface says rails are DC conductors and
   that `L1`, `N` and `PE` are labels.
