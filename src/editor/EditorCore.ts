@@ -19,6 +19,7 @@ import {
   EMPTY_GEOMETRY,
   type EditorGeometry,
 } from "./connectivity";
+import type { SelectionTarget } from "./hitTest";
 import { operatingTargets } from "./operate";
 import {
   CanvasInteraction,
@@ -239,6 +240,11 @@ export class EditorCore {
   }
 
   /** Frames the whole circuit, as on startup. */
+  /** Selects an object of the drawing, for a panel that lists them; null clears. */
+  select(target: SelectionTarget | null): void {
+    this.interaction.select(target);
+  }
+
   fitToCircuit(): void {
     this.interaction.fitToCircuit();
   }
@@ -269,7 +275,9 @@ export class EditorCore {
     if (change !== "pointer") {
       this.contentStale = true;
     }
-    if (change !== "selection") {
+    if (change === "selection") {
+      this.host.onStatusChange?.(this.interaction.status);
+    } else {
       this.overlayStale = true;
     }
   };
@@ -393,6 +401,19 @@ export class EditorCore {
       this.traceRoute(route, view);
     }
 
+    // The rail the next click would draw; red when a click would not commit it.
+    const rail = this.interaction.railPreview;
+    if (rail) {
+      this.traceRoute(
+        [
+          { x: rail.x, y: rail.top },
+          { x: rail.x, y: rail.bottom },
+        ],
+        view,
+        rail.valid ? COLORS.preview : COLORS.detached,
+      );
+    }
+
     const point = this.interaction.pointerGridPoint;
     if (drag?.kind === "marker" && !drag.valid && point) {
       this.traceRing(point, view, 1, COLORS.detached);
@@ -463,6 +484,7 @@ export class EditorCore {
   private traceRoute(
     route: readonly { readonly x: number; readonly y: number }[],
     view: ViewTransform,
+    color: number = COLORS.preview,
   ): void {
     const [first, ...rest] = route.map((point) => toScreen(point, view));
     if (!first) {
@@ -474,7 +496,7 @@ export class EditorCore {
       this.overlay.lineTo(point.x, point.y);
     }
     this.overlay.stroke({
-      color: COLORS.preview,
+      color,
       width: STROKE_WIDTH_PX,
       join: "round",
       cap: "round",

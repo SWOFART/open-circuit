@@ -9,10 +9,40 @@ array. Existing v1 projects open through a lossless Rust migration; opening
 does not rewrite them, and an explicit Save writes v2. Assignment files keep
 their existing v1 format. The Rust Engine resolves DC rails as exact-grid
 conductors and solves them through the existing component models. Names are
-labels; `N` and `PE` create no earth/reference behavior. Canvas rail authoring
-remains planned, and assignment rail inputs are rejected. See
-[the project-format notes](docs/format/stage-8-projects.md) and
+labels; `N` and `PE` create no earth/reference behavior. Assignment rail inputs
+are rejected. See [the project-format notes](docs/format/stage-8-projects.md) and
 [the connectivity verification](docs/solver/stage-8-connectivity.md).
+
+### Drawing a control circuit between DC rails
+
+The **DC rail** tool and the **DC rails** panel draw a cabinet-style direct-current circuit.
+A rail is a named vertical conductor. It is not a source and carries no voltage of its own:
+put an existing DC voltage source between two rails and mark the return with the Ground tool.
+Names such as `L1`, `L2`, `L3`, `N` or `PE` are plain labels; they add no phase, neutral or
+earth behavior, and there is no AC, three-phase or protective-earth simulation. Rails are not
+available while an assignment is open.
+
+1. Choose **DC rail** and click once for one end, then again for the other end at the same x
+   (the line shown before the first click is only a 20-unit preview; Esc cancels, a second Esc
+   leaves the tool). The smallest unused name `RAIL<n>` is given; rename it in the panel.
+   Without the pointer, type a name, x and the two y values in the panel and use **Create rail**.
+2. Select a rail by clicking it, or from the list in the panel. Drag the line to move it, or an
+   end handle to resize it. Wires, parts and markers do not move with a rail: attachment is
+   exact-grid geometry, not a stored link. Delete removes only the rail.
+3. Wire parts to a rail at any point of it (a wire ending on a rail's interior gets a dot); a wire
+   that only crosses a rail needs the Junction tool to connect. Every create, rename, move,
+   resize and delete is one undo step and compiles a new run from time zero.
+4. A rail name is 1 to 32 letters, digits, `_`, `+` or `-`, starting with a letter or digit,
+   and unique in the document. An invalid or duplicate name, an extent shorter than 2 or longer
+   than 1,000,000 units, or more than 256 rails is refused with the reason, and nothing changes.
+5. To build the START/STOP seal-in circuit: rails `L+` and `0V`, a 5 V source between them, an NC
+   STOP and an NO START in series with a contactor coil, the contactor's NO contact across
+   START, and a Ground marker on the source's negative terminal. Press and release START and
+   STOP with the Devices panel or the canvas: the coil current and the contactor state come
+   from the engine, and operating a button is not an edit of the project. The drawing is
+   pinned as `tests/golden/stage-8-drawn-start-stop.request.json` (and, without the seal-in
+   wires, `...-no-seal-in...`, which drops out when START is released: wrong wiring is shown, not
+   repaired).
 
 ## Prerequisites
 

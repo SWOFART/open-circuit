@@ -57,6 +57,7 @@ import { Oscilloscope } from "./Oscilloscope";
 import { operatorPosition } from "./operatorPosition";
 import { Palette, toolHint } from "./Palette";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
+import { RailPanel, type RailFields } from "./RailPanel";
 import { ResultPanel } from "./ResultPanel";
 import { useOscilloscope } from "./useOscilloscope";
 import { useSimulation } from "./useSimulation";
@@ -68,7 +69,9 @@ const usingMockAdapter =
 const IDLE_STATUS: EditorStatus = {
   tool: { kind: "select" },
   routing: false,
+  railStarted: false,
   rejected: null,
+  selection: null,
 };
 
 interface AppProps {
@@ -158,6 +161,45 @@ export function App({
   // Names stay with their components through edits, undo, and redo.
   const labels = document.labels;
   const hint = toolHint(status);
+  // DC rails are not part of assignments (contract section 8): while one is open, the rail
+  // tool and panel are off, and the user is told how to get them back.
+  const railUnavailable =
+    assignmentPanel !== "none" || session.assignment !== null
+      ? "DC rails are not available in an assignment. Leave assignment mode to edit DC rails."
+      : null;
+  const railNames = useMemo(
+    () => new Map(document.schematic.rails.map((rail) => [rail.id, rail.name])),
+    [document.schematic.rails],
+  );
+  const selectedRailId =
+    status.selection?.kind === "rail" ? status.selection.id : null;
+
+  /** Applies a rail command and returns the reason it was refused, or null. */
+  const applyRailCommand = (command: EditorCommand): string | null => {
+    if (projectOperationLocked) return "A project operation is in progress.";
+    if (railUnavailable !== null) {
+      setEditError(railUnavailable);
+      return railUnavailable;
+    }
+    try {
+      const verdict = applyRestrictedCommand(
+        documentStore,
+        command,
+        state.catalog,
+        restrictions,
+      );
+      if (!verdict.allowed) {
+        setEditError(verdict.reason);
+        return verdict.reason;
+      }
+      setEditError(null);
+      return null;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      setEditError(reason);
+      return reason;
+    }
+  };
 
   const saveProject = async (saveAs = false): Promise<boolean> => {
     setProjectError(null);
@@ -387,6 +429,10 @@ export function App({
   useEffect(() => {
     commandHandler.current = (command) => {
       if (projectBusy || pendingActionRef.current !== null) return;
+      if (command.kind === "addRail" && railUnavailable !== null) {
+        setEditError(railUnavailable);
+        return;
+      }
       try {
         // The assignment's restrictions are checked before the document's own rules apply.
         const verdict = applyRestrictedCommand(
@@ -535,6 +581,7 @@ export function App({
               catalog={allowedCatalog(state.catalog, restrictions)}
               tool={status.tool}
               disabled={projectOperationLocked}
+              railUnavailable={railUnavailable}
               onSelectTool={(next) => editorRef.current?.setTool(next)}
             />
             <div className="editor-actions">
@@ -711,10 +758,39 @@ export function App({
               void controller?.syncDocument(documentStore.getState().schematic);
             }}
           />
+          <RailPanel
+            rails={document.schematic.rails}
+            selectedId={selectedRailId}
+            diagnostics={state.diagnostics}
+            disabled={projectOperationLocked}
+            unavailable={railUnavailable}
+            onSelect={(id) =>
+              editorRef.current?.select(id ? { kind: "rail", id } : null)
+            }
+            onCreate={(fields: RailFields) => {
+              const reason = applyRailCommand({ kind: "addRail", ...fields });
+              if (reason === null) {
+                const created = documentStore
+                  .getState()
+                  .schematic.rails.find((rail) => rail.name === fields.name);
+                if (created) {
+                  editorRef.current?.select({ kind: "rail", id: created.id });
+                }
+              }
+              return reason;
+            }}
+            onEdit={(id, patch) =>
+              applyRailCommand({ kind: "editRail", railId: id, patch })
+            }
+            onDelete={(id) => {
+              applyRailCommand({ kind: "deleteRail", railId: id });
+            }}
+          />
           <ResultPanel
             state={state}
             labels={labels}
             outputComponentId={DIVIDER_OUTPUT_COMPONENT_ID}
+            railNames={railNames}
           />
           <DevicePanel
             state={state}

@@ -822,3 +822,105 @@ fn same_json(left: &Value, right: &Value) -> bool {
         _ => left == right,
     }
 }
+
+const DRAWN_START_STOP: &str =
+    include_str!("../../../tests/golden/stage-8-drawn-start-stop.request.json");
+const DRAWN_NO_SEAL_IN: &str =
+    include_str!("../../../tests/golden/stage-8-drawn-start-stop-no-seal-in.request.json");
+
+fn drawn(text: &str) -> CompileRequest {
+    serde_json::from_str(text).expect("a drawn compile request")
+}
+
+#[test]
+fn the_start_stop_circuit_drawn_between_rails_runs_to_the_independent_answers() {
+    // Drawn from a blank document by editor commands (`src/store/stage8Drawing.test.ts`), with
+    // the same component IDs as the fixture, so its observations and events apply as they are.
+    for (text, id) in [
+        (DRAWN_START_STOP, "start-stop"),
+        (DRAWN_NO_SEAL_IN, "start-stop-no-seal-in"),
+    ] {
+        replay(&pair(id), drawn(text));
+    }
+}
+
+#[test]
+fn the_wrong_wiring_is_visible_and_gives_the_distinct_result() {
+    // Without the seal-in contact the contactor drops out when START is released; with it, it
+    // stays picked. Both drawings are accepted as drawn: nothing repairs the missing wires.
+    let correct = replay(&pair("start-stop"), drawn(DRAWN_START_STOP));
+    let wrong = replay(&pair("start-stop-no-seal-in"), drawn(DRAWN_NO_SEAL_IN));
+    let contactor = text(&pair("start-stop")["railSchematic"]["components"][3]["id"]).to_owned();
+    let picked = |snapshot: &ResultSnapshot| {
+        snapshot.states.iter().any(|state| {
+            state.component_id().as_str() == contactor
+                && serde_json::to_value(state).unwrap()["state"] == "picked"
+        })
+    };
+
+    // Step 12 is after START was released (step 10) and before STOP was pressed (step 15).
+    assert!(
+        picked(&correct.snapshots[12]),
+        "the seal-in circuit stays picked"
+    );
+    assert!(
+        !picked(&wrong.snapshots[12]),
+        "without the contact it drops out"
+    );
+    let coil = format!("{contactor}/coil/current");
+    let at = |replay: &Replay| {
+        let slot = replay
+            .layout
+            .slots
+            .iter()
+            .find(|slot| slot.key == coil)
+            .unwrap();
+        replay.snapshots[12].values[slot.offset as usize]
+    };
+    assert!(at(&correct) > 0.049);
+    assert!(at(&wrong).abs() < 1e-4);
+}
+
+#[test]
+fn a_saved_and_reopened_rail_drawing_recomputes_a_fresh_run_without_the_operator_positions() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("start-stop.ocircuit");
+    let request = drawn(DRAWN_START_STOP);
+    let switch = pair("start-stop")["railSchematic"]["components"][2]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    // Operate the circuit, then save: no position, state or result reaches the file.
+    let mut run = Run::start_every_step(request.clone());
+    run.advance(3);
+    run.set_operator_state(&switch, OperatorPosition::Pressed);
+    run.advance(3);
+    write_project_file(&path, &request.schematic).expect("saved after operating");
+    let file = std::fs::read_to_string(&path).unwrap();
+    for operated in [
+        "pressed",
+        "picked",
+        "released",
+        "operator",
+        "conducting",
+        "coil/current",
+    ] {
+        assert!(!file.contains(operated), "the file holds `{operated}`");
+    }
+    let saved: Value = serde_json::from_str(&file).unwrap();
+    assert_eq!(saved["rails"][0]["name"], "L+");
+    assert_eq!(saved["rails"][1]["name"], "0V");
+
+    // The reopened drawing is the drawn one, and a fresh run of it passes the independent
+    // observations again from step 0.
+    let reopened = read_project_file(&path).expect("reopens");
+    assert_eq!(reopened, request.schematic);
+    replay(
+        &pair("start-stop"),
+        CompileRequest {
+            schematic: reopened,
+            ..request
+        },
+    );
+}

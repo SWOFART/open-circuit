@@ -63,6 +63,13 @@ export function commandVerdict(
             allowed: false,
             reason: "The assignment does not allow adding that kind of part.",
           };
+    case "addRail":
+      // Rails are not part of assignments (docs/contracts/stage-8-supply-rails.md section 8).
+      return {
+        allowed: false,
+        reason:
+          "DC rails are not available in an assignment. Leave assignment mode to edit DC rails.",
+      };
     case "deleteComponent":
       return restrictions.locked.has(command.componentId)
         ? {
