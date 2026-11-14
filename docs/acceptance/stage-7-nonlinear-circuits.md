@@ -9,10 +9,10 @@
 **Contract:** [Stage 7 nonlinear circuits](../contracts/stage-7-nonlinear-circuits.md). **Reference
 data:** [Stage 7 references](../solver/stage-7-references.md).
 
-**Status:** local automated checks are recorded below. Independent Gate A, the candidate's
-Windows/Ubuntu/macOS CI and Tauri builds, and the live native-desktop walkthrough are **pending**.
-This record does not declare Stage 7 accepted, and issue #115 and the Stage 7 parent (#107) must
-stay open until those gates pass.
+**Status:** local automated checks, the candidate's Windows/Ubuntu/macOS CI and Tauri builds, and a live
+Windows desktop walkthrough are recorded below. Independent Gate A for the final update of this record is
+the remaining gate. This record does not itself close Stage 7: issue #115 and the Stage 7 parent (#107)
+are closed by a human.
 
 ## Editor-to-Engine evidence
 
@@ -134,21 +134,51 @@ parameters on open, and reopens every earlier-stage golden file unchanged.
 | `node scripts/check-types.mjs` | Pass: generated bindings unchanged |
 | `node scripts/check-boundaries.mjs` | Pass |
 | `vite build`; `node scripts/check-production-bundle.mjs` | Pass: seven production scripts, no mock adapter |
-| Windows Tauri release build | Not run on the recording machine; it is part of the candidate's CI |
+| Windows Tauri release build | Not run when the checks above were recorded; built later (`tauri build --no-bundle` after `vite build`) for the desktop walkthrough, and part of the candidate's CI |
 
 Existing non-fatal messages: ts-rs does not parse `deny_unknown_fields`; Vite reports a bundle chunk over
 500 kB. No lint, compiler or CI setting was weakened.
 
-## Pending
+## Candidate CI
 
-- **Independent Gate A** for the exact candidate (AGENTS.md).
-- **Candidate CI.** The base `main` revision passed
-  [CI run 42519565679](https://github.com/SWOFART/open-circuit/actions/runs/42519565679); that is baseline
-  evidence only. After Gate A passes, a draft PR is opened and its Windows, Ubuntu and macOS checks and
-  Tauri builds must be added here.
-- **Live native-desktop walkthrough.** Not performed. The automated results above run the real Engine
-  through the application's simulation core and its binary and JSON transports; they are a transport
-  replay, not desktop evidence. A person (or a computer-use run) must still open the native application,
-  draw or open the diode and NPN/PNP circuits, observe the symbols, readings, the stop and failure
-  presentations, and a save and reopen, and record what was seen here.
-- **Stage closure.** #115 and #107 close only when the items above are complete.
+The candidate (the commit of pull request #126, tree `b5ad905e0539eb40e17911166ec4f9ed12a80158`) passed
+[CI run 42520866999](https://github.com/SWOFART/open-circuit/actions/runs/42520866999) on Windows, Ubuntu
+and macOS, including the Tauri builds. The merge commit on `main` (`96be206`) passed
+[CI run 42522603856](https://github.com/SWOFART/open-circuit/actions/runs/42522603856) on the same three
+platforms. Results are held to the tolerances above on all three; no stored bit pattern is compared across
+platforms.
+
+## Live Windows desktop
+
+Recorded 2026-11-13 by the agent controlling the native Open Circuit window with the computer-use plugin,
+on `main` at `fa3e032` (which includes this stage and later merged work). The release executable was built
+with `tauri build --no-bundle` after `vite build`, and started from `target/release`. The input projects
+were extracted from the pinned editor-drawn requests into ignored `target/tmp/stage7-live/*.ocircuit` and
+opened through the native Open dialog; the canvas, inspector, panels, oscilloscope and numbers are the real
+Tauri and Engine connection. The automated sections above establish the exact millisecond timelines; the
+desktop observations use human-scale times.
+
+| Check | Observed result |
+|---|---|
+| Palette | The toolbar offers Diode, NPN transistor and PNP transistor beside the earlier parts. |
+| Diode forward (5 V, 1 kΩ) | The symbol is a triangle from anode to cathode with the bar at the cathode. D1 voltage 692.8878 mV and current 4.307112 mA, equal to the reference 0.6928878 V and 4.307112 mA. The Devices panel reads "Voltage (Anode − Cathode)" and "Current (Into The Anode)" with the same numbers. The oscilloscope offers D1 voltage and current, and tracing D1 voltage draws a flat line at about 693 mV. |
+| Inspector, diode | "D1 saturation current" shows 10 fA with "Allowed range: 0.001 fA to 1 nA." and the emission coefficient shows 1 with "Allowed range: 1 to 2." Typing 2 nA shows "That value is outside the range the circuit model allows: 0.001 fA to 1 nA." and is not applied (the readings stay 692.8878 mV). Typing 20 fA is applied: D1 675.0664 mV, 4.324934 mA, as the diode law gives. |
+| NPN active (10 V, 5 V, 430 kΩ) | The NPN symbol has its emitter arrow pointing out of the base. T1 base-emitter 655.3851 mV, collector-emitter 8.989624 V, collector 1.010376 mA, base 10.10376 µA, emitter −1.02048 mA, all equal to the reference. The Devices panel names each quantity by its terminals and shows no operating region. |
+| NPN with collector and emitter exchanged | The transistor is drawn turned half a turn. The load R1 carries 10.37916 mV instead of 1.010 V, the reference's reverse-active answer, so the wrong wiring is visibly different from the correct stage. |
+| PNP active | The PNP arrow points toward the base. The load voltage is −1.010376 V, the NPN's with the sign changed. |
+| Switched nonlinear RC | With S1 open the circuit is idle. Clicking the lever closes S1 (Closed, Conducting Yes); C1 charges through R1 and D1 to 4.6585 V while the diode current falls to 5.4 nA and its voltage to 341 mV. The diode, capacitor and switch readings agree with each other (the same current in S1, R1, D1 and C1). |
+| Compile failure | Opening the ideal-source-across-diode drawing shows, in the Results panel, "The engine could not calculate this circuit. There is no result, and nothing below is a reading of it." and "ERROR A junction exceeds the supported model range. (D1)", with D1 highlighted. The Devices panel and the oscilloscope say that there is no active run. The document stays editable: setting V1 to 0.5 V gives a result (D1 500 mV, 2.485608 µA) without reopening. |
+| Save and reopen | Saving the diode with 20 fA wrote a file holding only the version, components, wires, junctions, reference markers and rails, and no computed word. Reopening it shows 20 fA and 675.0664 mV, and the simulation time restarts from zero: the result is recalculated. The unsaved-changes prompt appeared before Open and Discard returned to a clean state. |
+
+Not covered by the desktop walkthrough and not claimed: a stop notice from an advancing run (it has no short
+deterministic example; the automated test uses an overflowing circuit, see PR #124), keyboard-only
+editing and screen-reader names (covered by the interface tests, not audited live), and the macOS and Linux
+desktops (only their CI builds and tests). Two small presentation points were seen and are not defects of
+this stage: the device panel capitalizes "Into The Anode" in each word, as it does for the earlier devices'
+labels, and the readings are not annotated with their sign convention beyond the row names.
+
+## Remaining
+
+- **Independent Gate A** for the change that adds this section (AGENTS.md).
+- **Stage closure.** All acceptance items of #115 now have recorded evidence. #115 and the Stage 7 parent
+  (#107) are closed by a human after reading this record.
