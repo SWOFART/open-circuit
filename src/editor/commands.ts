@@ -190,6 +190,10 @@ function deleteCommand(
       return exists(schematic.referenceMarkers, target.id)
         ? { kind: "deleteReferenceMarker", id: target.id }
         : null;
+    case "rail":
+      // A rail can be selected and shown, but creating, moving and deleting one are the
+      // authoring commands of the next issue (#134); here nothing is deleted.
+      return null;
   }
 }
 

@@ -344,8 +344,15 @@ the wires that follow its pins, wire, junction, and reference-marker edits,
 deletion, undo, redo), which the application applies to the document store.
 `src/editor/connectivity.ts` derives drawing hints from the geometry (where a
 route may end, where a junction can go, connection dots, detached markers).
-They only guide the user; the Rust Engine alone decides connectivity, and
-`tests/golden/stage-2-connectivity.json` checks both against the same
+A rail is one more conductor there, a closed vertical segment; its name is a
+label and supplies no attachment. The scene draws each rail as a line, a marker
+on each end and its name above the top end (plain text, never an identity), and
+shows a rail that a diagnostic names as a warning. In Select the hit priority is
+markers, components, rails, then wires; `railHandleAt` answers the selected
+rail's handles, which come first. Creating, moving and deleting rails are the
+authoring issue's commands. The hints only guide the user; the Rust Engine alone
+decides connectivity, and `tests/golden/stage-2-connectivity.json` and
+`tests/golden/stage-8-connectivity.json` check both against the same
 drawings. `SimulationController.syncDocument` then brings
 the Engine to the new document: a lone parameter edit uses the lightweight
 parameter update (except an initial condition of a capacitor or inductor, which

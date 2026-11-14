@@ -14,13 +14,15 @@ import {
 /** The one selected schematic object. Multi-selection is deferred. */
 export type SelectionTarget = SceneOwner;
 
-// Lower wins. Matches the drawing order: point markers are drawn over
-// components, and components over wires.
+// Lower wins: point markers, then components, rails, and ordinary wires
+// (docs/contracts/stage-8-supply-rails.md section 7.1). The selected object's editing
+// handles come before all of them; see `railHandleAt`.
 const PRIORITY: Readonly<Record<SelectableKind, number>> = {
   junction: 0,
   referenceMarker: 0,
   component: 1,
-  wire: 2,
+  rail: 2,
+  wire: 3,
 };
 
 function distance(a: ScenePoint, b: ScenePoint): number {
@@ -78,13 +80,15 @@ function shapeDistance(shape: SceneShape, point: ScenePoint): number {
     case "circle":
       // Junction dots are filled, and a symbol circle is a body to click on.
       return Math.max(distance(point, shape.center) - shape.radius, 0);
-    case "label":
+    case "label": {
+      const halfWidth = shape.halfWidth ?? LABEL_HALF_WIDTH;
       return distanceToBounds(point, {
-        minX: shape.position.x - LABEL_HALF_WIDTH,
+        minX: shape.position.x - halfWidth,
         minY: shape.position.y - LABEL_HALF_HEIGHT,
-        maxX: shape.position.x + LABEL_HALF_WIDTH,
+        maxX: shape.position.x + halfWidth,
         maxY: shape.position.y + LABEL_HALF_HEIGHT,
       });
+    }
   }
 }
 
@@ -144,6 +148,30 @@ export function hitTest(
   }
 
   return best ? { kind: best.owner.kind, id: best.owner.id } : null;
+}
+
+export type RailHandle = "start" | "end" | "line";
+
+/**
+ * Which editing handle of the selected rail is under `point`: its top end, its bottom end, or
+ * the line itself (to move it). The handles come before every other object, so they are asked
+ * first; a point within `tolerance` of both ends takes the nearer. `null` when none is hit.
+ */
+export function railHandleAt(
+  rail: { readonly start: ScenePoint; readonly end: ScenePoint },
+  point: ScenePoint,
+  tolerance: number,
+): RailHandle | null {
+  const toStart = distance(point, rail.start);
+  const toEnd = distance(point, rail.end);
+
+  if (Math.min(toStart, toEnd) <= tolerance) {
+    return toStart <= toEnd ? "start" : "end";
+  }
+
+  return distanceToSegment(point, rail.start, rail.end) <= tolerance
+    ? "line"
+    : null;
 }
 
 /** True when `target` still names an object drawn in `scene`. */

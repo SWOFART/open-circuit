@@ -41,6 +41,7 @@ const COLORS = {
   background: "#111827",
   grid: 0x263244,
   wire: 0x60a5fa,
+  rail: 0x34d399,
   symbol: 0xe5e7eb,
   reference: 0x94a3b8,
   junction: 0x60a5fa,
@@ -90,6 +91,8 @@ export class EditorCore {
   private initialized = false;
   private schematic: Schematic | null = null;
   private labels: ReadonlyMap<StableId, string> | undefined;
+  /** Rails that diagnostics name; drawn as warnings. */
+  private flaggedRails: ReadonlySet<StableId> = new Set();
   // The device states of the run on screen; an empty map draws every part at rest.
   private deviceStates: ReadonlyMap<StableId, DeviceState> = new Map();
   private deviceStatesKey = "";
@@ -157,11 +160,36 @@ export class EditorCore {
       labels,
       geometry: this.geometry,
       states: this.deviceStates,
+      flaggedRails: this.flaggedRails,
     });
     this.interaction.setScene(this.scene, this.geometry);
     this.syncOperable();
     this.contentStale = true;
     this.overlayStale = true;
+  }
+
+  /** Marks the rails that the Engine's diagnostics name; an empty set clears the marks. */
+  setFlaggedRails(ids: ReadonlySet<StableId>): void {
+    const same =
+      ids.size === this.flaggedRails.size &&
+      [...ids].every((id) => this.flaggedRails.has(id));
+
+    if (same) {
+      return;
+    }
+
+    this.flaggedRails = ids;
+
+    if (this.schematic) {
+      this.scene = buildScene(this.schematic, this.registry, {
+        labels: this.labels,
+        geometry: this.geometry,
+        states: this.deviceStates,
+        flaggedRails: this.flaggedRails,
+      });
+      this.interaction.setScene(this.scene, this.geometry);
+      this.contentStale = true;
+    }
   }
 
   /**
@@ -184,6 +212,7 @@ export class EditorCore {
           labels: this.labels,
           geometry: this.geometry,
           states: this.deviceStates,
+          flaggedRails: this.flaggedRails,
         });
         this.interaction.setScene(this.scene, this.geometry);
         this.contentStale = true;
@@ -309,6 +338,7 @@ export class EditorCore {
         labels: this.labels,
         geometry,
         states: this.deviceStates,
+        flaggedRails: this.flaggedRails,
       });
     }
 
@@ -332,7 +362,9 @@ export class EditorCore {
     const handles =
       selection?.kind === "wire" && shown
         ? geometry.wires.get(selection.id)
-        : null;
+        : selection?.kind === "rail" && shown
+          ? geometry.rails.get(selection.id)
+          : null;
     if (handles) {
       this.content.addChild(this.drawHandles(handles, view));
     }
@@ -570,10 +602,11 @@ export class EditorCore {
     }
 
     const graphics = new Graphics();
-    // A marker with nothing under it is drawn as a warning, not hidden.
+    // A marker with nothing under it, or a rail that a diagnostic names, is drawn as a
+    // warning, not hidden.
     const color = selected
       ? COLORS.selected
-      : shape.detached
+      : shape.detached || shape.flagged
         ? COLORS.detached
         : null;
 
@@ -604,6 +637,8 @@ export class EditorCore {
 
     if (shape.role === "junction") {
       graphics.fill(color ?? COLORS.junction);
+    } else if (shape.role === "railEnd") {
+      graphics.fill(color ?? COLORS.rail);
     } else {
       graphics.stroke({
         color: color ?? COLORS.symbol,
