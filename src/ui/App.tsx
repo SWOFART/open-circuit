@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
   useSyncExternalStore,
@@ -58,6 +59,7 @@ import { operatorPosition } from "./operatorPosition";
 import { Palette, toolHint } from "./Palette";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { RailPanel, type RailFields } from "./RailPanel";
+import { bannerReducer, NO_BANNERS } from "./banners";
 import { ResultPanel } from "./ResultPanel";
 import { useOscilloscope } from "./useOscilloscope";
 import { useSimulation } from "./useSimulation";
@@ -94,8 +96,22 @@ export function App({
     () => {},
   );
   const [editorError, setEditorError] = useState<string | null>(null);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [projectError, setProjectError] = useState<string | null>(null);
+  const [banners, dispatchBanner] = useReducer(bannerReducer, NO_BANNERS);
+  const { edit: editError, project: projectError } = banners;
+  // `null` means "it worked": a successful edit clears both banners, and a project operation
+  // that starts clears its own.
+  const setEditError = (reason: string | null): void =>
+    dispatchBanner(
+      reason === null
+        ? { kind: "editSucceeded" }
+        : { kind: "editFailed", reason },
+    );
+  const setProjectError = (reason: string | null): void =>
+    dispatchBanner(
+      reason === null
+        ? { kind: "projectStarted" }
+        : { kind: "projectFailed", reason },
+    );
   const [projectBusy, setProjectBusy] = useState(false);
   const [pendingAction, setPendingAction] = useState<
     ProjectAction | "close" | null
