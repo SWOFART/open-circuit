@@ -162,7 +162,10 @@ conflicts with ideal algebraic circuit constraints, return a structured
 initialization diagnostic. Impulse currents and voltages are not modeled.
 User-specified initial conditions are schematic inputs; evolving simulation
 state remains runtime data and is not serialized. Lamps warm up, relays click,
-motors spin up. A phasor/AC-analysis mode can be added separately later.
+motors spin up. Alternating current is calculated in the time domain by this
+same engine (Stage 9, [`docs/contracts/stage-9-three-phase-foundation.md`](docs/contracts/stage-9-three-phase-foundation.md));
+a phasor/frequency-domain mode is not part of Stages 9 to 16, and a frequency
+response is a separate analysis (Stage 17).
 
 ### 3.4 Time and integration
 
@@ -520,7 +523,7 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 - WASM/web version (the architecture allows it, but it is an extra build for now).
 - Adaptive time step.
 - State transfer across recompiles (through Stage 3 every compile restarts at time zero).
-- AC/phasor analysis.
+- Phasor (frequency-domain) analysis. Time-domain alternating current arrives in Stage 9.
 - AI explanations, collaboration, electro-pneumatics. (Assignment mode and fault finding are Stage 5; see [`docs/contracts/stage-5-assignments.md`](docs/contracts/stage-5-assignments.md).)
 - Smart A* wire routing.
 
@@ -546,7 +549,7 @@ GPL-3.0-or-later. It allows porting ideas from GPL projects (e.g. Falstad Circui
 | 5 | Assignments and fault finding | A teacher creates an assignment, a student completes it and gets checked |
 | 6 | Switches, push buttons, and controlled contacts (control circuits) | A start/stop self-latching circuit with push buttons and a contactor works, with the operator's switch state shown and recalculated by the Engine |
 | 7 | Diodes, transistors, extended models | Golden tests on nonlinear circuits pass |
-| 8 | Supply rails (L1, L2, L3, N, PE) and cabinet-style drawing | A control circuit is drawn between named rails and solves like the same circuit drawn with wires; three-phase supply waits for AC analysis |
+| 8 | Supply rails (L1, L2, L3, N, PE) and cabinet-style drawing | A control circuit is drawn between named rails and solves like the same circuit drawn with wires; three-phase supply arrives in Stage 9 (time-domain AC) |
 | 9 | Three-phase foundation: sinusoidal sources, three-phase source with neutral, RMS and power measurements | A balanced and an unbalanced three-phase load match independent analytical and ngspice references; the Engine reports RMS, phase, frequency, P, Q, S and cos φ |
 | 10 | Three-phase equipment: multi-pole contactor, breaker, thermal overload relay, induction motor, transformer, three-phase loads | A direct-on-line starter with overload protection and a star-delta starter are drawn from blank documents and run as the independent references say |
 | 11 | Parts drawer and double-click editing | A sliding drawer with categories and search places any catalog part, and a double-click on a part edits its parameters; neither adds UI-side physics |

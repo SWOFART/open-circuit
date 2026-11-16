@@ -391,6 +391,27 @@ circuits are cross-checked against ngspice 47 with netlists, a manifest, and a d
 regeneration command ([`stage-7-references.md`](../solver/stage-7-references.md)); the
 simulator certifies the equations and is never the Engine's oracle.
 
+### Stage 9 model baseline
+
+Alternating current is calculated in the time domain by the existing transient engine; the
+contract is [`docs/contracts/stage-9-three-phase-foundation.md`](../contracts/stage-9-three-phase-foundation.md).
+
+- **Sinusoidal source.** `e(t) = √2 · E · sin(2π f t + φ0)`, RMS `E`, frequency `f`, phase `φ0`,
+  with a series resistance. It is a time-dependent voltage source: the value at the end of each
+  internal interval is enforced (ideal) or stamped as a Norton equivalent (finite resistance);
+  the reactive elements keep their trapezoidal companion models. The circuit starts from the
+  operating point with the source at `e(0)`, so a start-up transient follows.
+- **Three-phase source.** One device with the phase relations `0`, `-120°`, `+120°` (positive
+  sequence) from a phase voltage in star, or from a line voltage in delta; the delta windings are
+  never ideal because an ideal loop is singular.
+- **Measurements.** Over the last period `T = 1/f` of a meter: mean, RMS `√((1/T)∫x²dt)`, peak,
+  real power `P = (1/T)∫v·i dt`, apparent power `S = V_rms · I_rms`, reactive power
+  `Q = sgn(C)·√(S²−P²)` with the quarter-period correlation `C = (1/T)∫v(t−T/4)·i(t)dt`, power
+  factor `P/S`, and phase angle `atan2(Q, P)`. For a sinusoid these are the textbook values; for a
+  distorted signal `Q` includes the distortion power.
+- **Not modeled.** Coils driven by an alternating current (their contacts toggle between steps with no protection until Stage 10), harmonics,
+  source inductance, a DC offset, unbalanced three-phase sources, phasor mode.
+
 ### Stage 5 fault models
 
 [`stage-5-assignments.md`](../contracts/stage-5-assignments.md) defines three
@@ -472,3 +493,5 @@ the generic component model separate.
 - Littelfuse, [Fuseology Design Guide](https://www.littelfuse.com/assetdocs/fuseology-selection-guide?assetguid=d812dff2-1c47-4dc3-bce7-07a4001ddc32): melting versus clearing I²t and time-current curve variability.
 - MIT OpenCourseWare, [Introduction to Robotics, Chapter 2: Actuators and Drive Systems](https://ocw.mit.edu/courses/2-12-introduction-to-robotics-fall-2005/9158f91fc935aae58345446fc110f6e7_chapter2.pdf): PMDC armature, torque, and back-EMF equations.
 - Fluke, [78 Automotive Meter manual](https://assets.fluke.com/manuals/78______umeng0100.pdf) and [87 Multimeter manual](https://assets.fluke.com/manuals/87______umeng0800.pdf): model-specific voltage input impedance and current burden-voltage examples.
+- IEEE Std 1459-2010, *Definitions for the Measurement of Electric Power Quantities Under Sinusoidal, Non-sinusoidal, Balanced, or Unbalanced Conditions*: real, reactive and apparent power and the distortion power that this project does not separate.
+- Nagel, L. W., SPICE2 memorandum ERL-M520 (1975), and the ngspice manual's transient analysis section: source evaluation at the time point and trapezoidal integration, the treatment the Stage 9 references assume.
