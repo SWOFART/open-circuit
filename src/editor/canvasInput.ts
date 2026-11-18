@@ -7,6 +7,8 @@ export interface CanvasInputSurface extends EventTarget {
   releasePointerCapture(pointerId: number): void;
   hasPointerCapture(pointerId: number): boolean;
   readonly style: { cursor: string };
+  /** Gives the canvas the keyboard focus, so Enter reaches it after a click. */
+  focus?(options?: { preventScroll?: boolean }): void;
 }
 
 const MIDDLE_BUTTON = 1;
@@ -73,6 +75,7 @@ export function bindCanvasInput(
       button: event.button,
       pointerId: event.pointerId,
       shiftKey: event.shiftKey,
+      time: event.timeStamp,
     };
   };
 
@@ -89,6 +92,8 @@ export function bindCanvasInput(
   };
 
   const onPointerDown = (event: PointerEvent): void => {
+    // The press is not left to the browser, so the canvas takes the focus itself.
+    surface.focus?.({ preventScroll: true });
     if (interaction.pointerDown(local(event))) {
       event.preventDefault();
       try {
@@ -165,12 +170,13 @@ export function bindCanvasInput(
         interaction.escape();
         return true;
       case "Enter":
-        // Otherwise Enter belongs to whatever control has the focus.
-        if (!interaction.status.routing) {
-          return false;
+        if (interaction.status.routing) {
+          interaction.finishRoute();
+          return true;
         }
-        interaction.finishRoute();
-        return true;
+        // The editor opens only for an Enter aimed at the canvas itself; otherwise Enter
+        // belongs to whatever control has the focus.
+        return event.target === surface && interaction.openEditorForSelection();
       case "Delete":
       case "Backspace":
         interaction.deleteSelection();

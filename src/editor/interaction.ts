@@ -49,7 +49,13 @@ export interface CanvasPointer {
   readonly pointerId: number;
   /** Shift held: routes bend vertical-first. Absent means "unchanged". */
   readonly shiftKey?: boolean;
+  /** The event time in milliseconds; a press without it is never half of a double press. */
+  readonly time?: number;
 }
+
+/** A second press within this time and distance of the first, on the same object (stage 11, 5.2). */
+export const DOUBLE_PRESS_MS = 400;
+export const DOUBLE_PRESS_PX = 4;
 
 /** A wheel event in canvas pixels; `deltaMode` follows `WheelEvent`. */
 export interface CanvasWheel {
@@ -122,6 +128,11 @@ export type InteractionIntent =
       readonly componentId: StableId;
       readonly action: OperateAction;
     }
+  /**
+   * A double press, or Enter on the canvas, asks for the editor of an object: a component's
+   * parameters, or a rail's properties. The host shows it; nothing here changes the document.
+   */
+  | { readonly kind: "openEditor"; readonly target: SelectionTarget }
   | { readonly kind: "undo" }
   | { readonly kind: "redo" }
   | { readonly kind: "addWire"; readonly points: readonly GridPoint[] }
@@ -293,6 +304,15 @@ export class CanvasInteraction {
   // The first click of the rail tool: the x and one y of the rail being drawn.
   private railStart: GridPoint | null = null;
   private rejected: Rejection | null = null;
+  // The last press of the Select tool, to recognize a double press. Cleared by a drag, a tool
+  // change and any press that is not a press of the Select tool.
+  private lastPress: {
+    readonly key: string;
+    readonly pointerId: number;
+    readonly time: number;
+    readonly x: number;
+    readonly y: number;
+  } | null = null;
 
   constructor(
     private readonly onChange: (change: InteractionChange) => void = () => {},
@@ -497,6 +517,7 @@ export class CanvasInteraction {
   setTool(tool: EditorTool): void {
     this.cancelGesture();
     this.currentTool = tool;
+    this.lastPress = null;
     this.rejected = null;
     if (tool.kind !== "select") {
       this.select(null);
@@ -547,6 +568,10 @@ export class CanvasInteraction {
     }
 
     const at = screenToGridPoint(pointer, this.currentView);
+
+    if (this.currentTool.kind !== "select") {
+      this.lastPress = null;
+    }
 
     switch (this.currentTool.kind) {
       case "place":
@@ -607,11 +632,36 @@ export class CanvasInteraction {
 
     const operated = operatingTargetAt(this.operable, exact, tolerance);
     if (operated) {
+      // The second press of a double press on an operating area is ignored: a switch toggles
+      // once and the editor does not open (stage 11, 5.3).
+      if (this.isDoublePress(pointer, `operate:${operated.componentId}`)) {
+        this.lastPress = null;
+        return false;
+      }
+      this.rememberPress(pointer, `operate:${operated.componentId}`);
       return this.operate(pointer, operated);
     }
 
     const hit = this.scene ? hitTest(this.scene, exact, tolerance) : null;
+    const hitKey = hit ? `${hit.kind}:${hit.id}` : null;
+    const double =
+      hit !== null &&
+      (hit.kind === "component" || hit.kind === "rail") &&
+      hitKey !== null &&
+      this.isDoublePress(pointer, hitKey);
+
     this.select(hit);
+
+    if (double && hit) {
+      this.lastPress = null;
+      this.onIntent({ kind: "openEditor", target: hit });
+      return false;
+    }
+    if (hitKey !== null) {
+      this.rememberPress(pointer, hitKey);
+    } else {
+      this.lastPress = null;
+    }
 
     if (hit?.kind === "component") {
       return this.armDrag(pointer, at, { kind: "component", id: hit.id });
@@ -635,6 +685,50 @@ export class CanvasInteraction {
     }
 
     return false;
+  }
+
+  private rememberPress(pointer: CanvasPointer, key: string): void {
+    this.lastPress =
+      pointer.time === undefined
+        ? null
+        : {
+            key,
+            pointerId: pointer.pointerId,
+            time: pointer.time,
+            x: pointer.x,
+            y: pointer.y,
+          };
+  }
+
+  private isDoublePress(pointer: CanvasPointer, key: string): boolean {
+    const last = this.lastPress;
+
+    return (
+      last !== null &&
+      pointer.time !== undefined &&
+      last.key === key &&
+      last.pointerId === pointer.pointerId &&
+      pointer.time - last.time <= DOUBLE_PRESS_MS &&
+      pointer.time >= last.time &&
+      Math.hypot(pointer.x - last.x, pointer.y - last.y) <= DOUBLE_PRESS_PX
+    );
+  }
+
+  /**
+   * Enter on the canvas: asks for the editor of the selected component. Nothing happens for
+   * any other selection, or while a gesture or a route is in progress.
+   */
+  openEditorForSelection(): boolean {
+    if (
+      this.selected?.kind !== "component" ||
+      this.gesture.kind !== "idle" ||
+      this.route !== null
+    ) {
+      return false;
+    }
+
+    this.onIntent({ kind: "openEditor", target: this.selected });
+    return true;
   }
 
   /**
@@ -880,6 +974,8 @@ export class CanvasInteraction {
         delta.y !== this.gesture.delta.y
       ) {
         this.gesture = { ...this.gesture, kind: "dragging", delta };
+        // A press that became a drag is not the first half of a double press.
+        this.lastPress = null;
         this.onChange("preview");
       }
     }

@@ -78,6 +78,14 @@ export interface EditorHost {
    * position to the Engine: the editor never decides what conducts.
    */
   onOperate?(componentId: StableId, action: OperateAction): void;
+  /**
+   * A double press or Enter asked for the editor of a component or a rail. `anchor` is the
+   * object's position in canvas pixels, to place the editor next to it.
+   */
+  onOpenEditor?(
+    target: SelectionTarget,
+    anchor: { readonly x: number; readonly y: number } | null,
+  ): void;
 }
 
 /**
@@ -335,6 +343,18 @@ export class EditorCore {
 
     if (intent.kind === "operate") {
       this.host.onOperate?.(intent.componentId, intent.action);
+      return;
+    }
+
+    if (intent.kind === "openEditor") {
+      const component =
+        intent.target.kind === "component"
+          ? this.schematic.components.find(({ id }) => id === intent.target.id)
+          : undefined;
+      this.host.onOpenEditor?.(
+        intent.target,
+        component ? toScreen(component.position, this.interaction.view) : null,
+      );
       return;
     }
 

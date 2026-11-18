@@ -10,6 +10,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { EditorCommand } from "../editor/commands";
 import type { AssignmentError } from "../generated/AssignmentError";
+import type { ParameterId } from "../generated/ParameterId";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import { EditorCore } from "../editor/EditorCore";
@@ -56,6 +57,7 @@ import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
 import { operatorPosition } from "./operatorPosition";
+import { ComponentEditor } from "./ComponentEditor";
 import { PartsDrawer } from "./drawer/PartsDrawer";
 import { usePartsDrawer } from "./drawer/usePartsDrawer";
 import { Palette, toolHint } from "./Palette";
@@ -88,6 +90,7 @@ export function App({
   assignments = tauriAssignments,
 }: AppProps = {}) {
   const canvasHost = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorCore | null>(null);
   const allowNextCloseRef = useRef(false);
   const pendingActionRef = useRef<ProjectAction | "close" | null>(null);
@@ -129,6 +132,11 @@ export function App({
   >(null);
   const [faultViewShown, setFaultViewShown] = useState(false);
   const [status, setStatus] = useState<EditorStatus>(IDLE_STATUS);
+  // The part whose parameter editor is open (opened by a double-click or Enter on the canvas).
+  const [editing, setEditing] = useState<{
+    readonly componentId: StableId;
+    readonly position: { readonly left: number; readonly top: number };
+  } | null>(null);
   const documentStore = useMemo(
     () => new SchematicDocumentStore(dividerSchematic),
     [],
@@ -434,6 +442,12 @@ export function App({
   // Moves a switch or a push button of the run on screen. It reads the position the
   // Engine last reported and sends the position it wants; the interface decides nothing
   // about what conducts.
+  const openEditorHandler = useRef<
+    (
+      target: { readonly kind: string; readonly id: StableId },
+      anchor: { readonly x: number; readonly y: number } | null,
+    ) => void
+  >(() => {});
   const operateHandler = useRef<
     (componentId: StableId, action: OperateAction) => void
   >(() => {});
@@ -495,6 +509,8 @@ export function App({
       onOperate: (componentId, action) =>
         operateHandler.current(componentId, action),
       onStatusChange: setStatus,
+      onOpenEditor: (target, anchor) =>
+        openEditorHandler.current(target, anchor),
     });
     editorRef.current = editor;
     void editor.mount(host).catch((error: unknown) => {
@@ -559,6 +575,124 @@ export function App({
   useEffect(() => {
     void controller?.setFaults(activeFaults);
   }, [controller, activeFaults]);
+
+  openEditorHandler.current = (target, anchor) => {
+    if (projectOperationLocked) return;
+
+    if (target.kind === "rail") {
+      // A rail has no part editor: the panel's rail properties take the focus.
+      window.requestAnimationFrame(() =>
+        globalThis.document
+          .querySelector<HTMLElement>('[aria-label="Rail properties"] input')
+          ?.focus(),
+      );
+      return;
+    }
+    if (target.kind !== "component") return;
+
+    const stage = stageRef.current;
+    const canvas = canvasHost.current;
+    const EDITOR_WIDTH = 300;
+    const left = Math.max(
+      0,
+      Math.min(
+        (canvas?.offsetLeft ?? 0) + (anchor?.x ?? 0) + 16,
+        (stage?.clientWidth ?? EDITOR_WIDTH + 16) - EDITOR_WIDTH - 8,
+      ),
+    );
+    const top = Math.max(
+      0,
+      Math.min(
+        (canvas?.offsetTop ?? 0) + (anchor?.y ?? 0) - 12,
+        (stage?.clientHeight ?? 240) - 240,
+      ),
+    );
+    setEditing({ componentId: target.id, position: { left, top } });
+  };
+  const closeEditor = (refocusCanvas: boolean) => {
+    setEditing(null);
+    if (refocusCanvas) editorRef.current?.focusCanvas();
+  };
+  // The editor follows the selection and the document: selecting another object, deleting the
+  // part, or replacing the document closes it. Undo and redo keep it open.
+  useEffect(() => {
+    if (editing === null) return;
+    const selected = status.selection;
+    const present = document.schematic.components.some(
+      ({ id }) => id === editing.componentId,
+    );
+    if (
+      !present ||
+      selected?.kind !== "component" ||
+      selected.id !== editing.componentId
+    ) {
+      setEditing(null);
+    }
+  }, [editing, status.selection, document.schematic.components]);
+
+  const commitParameter = (
+    componentId: StableId,
+    parameterId: ParameterId,
+    value: number,
+  ) => {
+    if (projectOperationLocked) return;
+    if (!state.catalog) return;
+    try {
+      const verdict = setRestrictedParameter(
+        documentStore,
+        componentId,
+        parameterId,
+        value,
+        state.catalog,
+        restrictions,
+      );
+      if (!verdict.allowed) {
+        setEditError(verdict.reason);
+        return;
+      }
+      setEditError(null);
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    const schematic = documentStore.getState().schematic;
+    // An initial condition only sets the state at time zero, so
+    // setting one recompiles instead of sending a lightweight update.
+    void controller?.syncDocument(
+      schematic,
+      liveParameterUpdate(
+        state.catalog,
+        schematic,
+        componentId,
+        parameterId,
+        value,
+      ),
+    );
+  };
+
+  const clearParameter = (componentId: StableId, parameterId: ParameterId) => {
+    if (projectOperationLocked) return;
+    if (!state.catalog) return;
+    try {
+      const verdict = clearRestrictedParameter(
+        documentStore,
+        componentId,
+        parameterId,
+        state.catalog,
+        restrictions,
+      );
+      if (!verdict.allowed) {
+        setEditError(verdict.reason);
+        return;
+      }
+      setEditError(null);
+    } catch (error) {
+      setEditError(error instanceof Error ? error.message : String(error));
+      return;
+    }
+    // Clearing an optional parameter always recompiles.
+    void controller?.syncDocument(documentStore.getState().schematic);
+  };
 
   return (
     <main className="workspace">
@@ -692,6 +826,7 @@ export function App({
             </div>
           </div>
           <div
+            ref={stageRef}
             className={
               drawer.open && drawer.preferences.docked
                 ? "editor-stage editor-stage-docked"
@@ -719,6 +854,20 @@ export function App({
                   : "editor-canvas"
               }
             />
+            {editing !== null && (
+              <ComponentEditor
+                state={state}
+                schematic={document.schematic}
+                labels={labels}
+                componentId={editing.componentId}
+                position={editing.position}
+                enabled={!projectOperationLocked}
+                locked={restrictions?.locked.has(editing.componentId) ?? false}
+                onCommit={commitParameter}
+                onClear={clearParameter}
+                onClose={() => closeEditor(true)}
+              />
+            )}
           </div>
           <p
             className={
@@ -752,68 +901,8 @@ export function App({
             labels={labels}
             disabled={projectOperationLocked}
             lockedComponents={restrictions?.locked}
-            onCommit={(componentId, parameterId, value) => {
-              if (projectOperationLocked) return;
-              if (!state.catalog) return;
-              try {
-                const verdict = setRestrictedParameter(
-                  documentStore,
-                  componentId,
-                  parameterId,
-                  value,
-                  state.catalog,
-                  restrictions,
-                );
-                if (!verdict.allowed) {
-                  setEditError(verdict.reason);
-                  return;
-                }
-                setEditError(null);
-              } catch (error) {
-                setEditError(
-                  error instanceof Error ? error.message : String(error),
-                );
-                return;
-              }
-              const schematic = documentStore.getState().schematic;
-              // An initial condition only sets the state at time zero, so
-              // setting one recompiles instead of sending a lightweight update.
-              void controller?.syncDocument(
-                schematic,
-                liveParameterUpdate(
-                  state.catalog,
-                  schematic,
-                  componentId,
-                  parameterId,
-                  value,
-                ),
-              );
-            }}
-            onClear={(componentId, parameterId) => {
-              if (projectOperationLocked) return;
-              if (!state.catalog) return;
-              try {
-                const verdict = clearRestrictedParameter(
-                  documentStore,
-                  componentId,
-                  parameterId,
-                  state.catalog,
-                  restrictions,
-                );
-                if (!verdict.allowed) {
-                  setEditError(verdict.reason);
-                  return;
-                }
-                setEditError(null);
-              } catch (error) {
-                setEditError(
-                  error instanceof Error ? error.message : String(error),
-                );
-                return;
-              }
-              // Clearing an optional parameter always recompiles.
-              void controller?.syncDocument(documentStore.getState().schematic);
-            }}
+            onCommit={commitParameter}
+            onClear={clearParameter}
           />
           <RailPanel
             rails={document.schematic.rails}
