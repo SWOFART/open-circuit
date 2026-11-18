@@ -223,6 +223,8 @@ describe("the units of the Stage 4 signals", () => {
     const every: Record<Unit, true> = {
       ohm: true,
       volt: true,
+      hertz: true,
+      degree: true,
       amp: true,
       farad: true,
       henry: true,

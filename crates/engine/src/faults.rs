@@ -62,8 +62,9 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::PmdcMotor
         | ComponentTypeId::Voltmeter
         | ComponentTypeId::Ammeter => &[FaultKind::Parameter],
-        // Stage 6 contract section 7.2: an operator-controlled contact has no fault kinds.
-        ComponentTypeId::SwitchSpst
+        // Stage 6 operator controls and Stage 9 AC sources have no fault kinds.
+        ComponentTypeId::AcVoltageSource
+        | ComponentTypeId::SwitchSpst
         | ComponentTypeId::PushButtonNo
         | ComponentTypeId::PushButtonNc
         | ComponentTypeId::Contactor

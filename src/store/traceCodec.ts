@@ -23,6 +23,8 @@ const MAGIC = [0x4f, 0x43, 0x54, 0x31]; // "OCT1"
 const UNITS: Readonly<Record<Unit, true>> = {
   ohm: true,
   volt: true,
+  hertz: true,
+  degree: true,
   amp: true,
   farad: true,
   henry: true,

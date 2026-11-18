@@ -51,6 +51,16 @@ pub struct DcVoltageSourceParameters {
     pub internal_resistance_ohms: f64,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "AcVoltageSourceParameters.ts")]
+pub struct AcVoltageSourceParameters {
+    pub voltage_rms_volts: f64,
+    pub frequency_hz: f64,
+    pub phase_offset_degrees: f64,
+    pub internal_resistance_ohms: f64,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "CapacitorParameters.ts")]
@@ -247,9 +257,8 @@ pub struct PushButtonParameters {
     pub closed_resistance_ohms: f64,
 }
 
-/// Saved schema version 1 supports resistors, independent voltage sources,
-/// capacitors, inductors, relays, fuses, permanent-magnet DC motors, voltmeters,
-/// ammeters, latching switches, push buttons, contactors, diodes, and NPN/PNP transistors.
+/// A typed component understood by the current Engine. Persisted project versions and
+/// assignment support have their own compatibility boundaries.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(
     tag = "typeId",
@@ -294,6 +303,13 @@ pub enum ComponentSpec {
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
         parameters: DcVoltageSourceParameters,
+    },
+    AcVoltageSource {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: AcVoltageSourceParameters,
     },
     Capacitor {
         id: StableId,
@@ -382,6 +398,7 @@ impl ComponentSpec {
             | Self::Diode { id, .. }
             | Self::Resistor { id, .. }
             | Self::DcVoltageSource { id, .. }
+            | Self::AcVoltageSource { id, .. }
             | Self::Capacitor { id, .. }
             | Self::Inductor { id, .. }
             | Self::RelaySpdt { id, .. }
@@ -403,6 +420,7 @@ impl ComponentSpec {
             | Self::Diode { position, .. }
             | Self::Resistor { position, .. }
             | Self::DcVoltageSource { position, .. }
+            | Self::AcVoltageSource { position, .. }
             | Self::Capacitor { position, .. }
             | Self::Inductor { position, .. }
             | Self::RelaySpdt { position, .. }
@@ -424,6 +442,7 @@ impl ComponentSpec {
             | Self::Diode { rotation_deg, .. }
             | Self::Resistor { rotation_deg, .. }
             | Self::DcVoltageSource { rotation_deg, .. }
+            | Self::AcVoltageSource { rotation_deg, .. }
             | Self::Capacitor { rotation_deg, .. }
             | Self::Inductor { rotation_deg, .. }
             | Self::RelaySpdt { rotation_deg, .. }
@@ -445,6 +464,7 @@ impl ComponentSpec {
             Self::Diode { .. } => ComponentTypeId::Diode,
             Self::Resistor { .. } => ComponentTypeId::Resistor,
             Self::DcVoltageSource { .. } => ComponentTypeId::DcVoltageSource,
+            Self::AcVoltageSource { .. } => ComponentTypeId::AcVoltageSource,
             Self::Capacitor { .. } => ComponentTypeId::Capacitor,
             Self::Inductor { .. } => ComponentTypeId::Inductor,
             Self::RelaySpdt { .. } => ComponentTypeId::RelaySpdt,
@@ -484,6 +504,18 @@ impl ComponentSpec {
             }
             Self::DcVoltageSource { parameters, .. } => vec![
                 (ParameterId::VoltageVolts, parameters.voltage_volts),
+                (
+                    ParameterId::InternalResistanceOhms,
+                    parameters.internal_resistance_ohms,
+                ),
+            ],
+            Self::AcVoltageSource { parameters, .. } => vec![
+                (ParameterId::VoltageRmsVolts, parameters.voltage_rms_volts),
+                (ParameterId::FrequencyHz, parameters.frequency_hz),
+                (
+                    ParameterId::PhaseOffsetDegrees,
+                    parameters.phase_offset_degrees,
+                ),
                 (
                     ParameterId::InternalResistanceOhms,
                     parameters.internal_resistance_ohms,
@@ -704,6 +736,7 @@ impl Schematic {
             | ComponentSpec::Diode { rotation_deg, .. }
             | ComponentSpec::Resistor { rotation_deg, .. }
             | ComponentSpec::DcVoltageSource { rotation_deg, .. }
+            | ComponentSpec::AcVoltageSource { rotation_deg, .. }
             | ComponentSpec::Capacitor { rotation_deg, .. }
             | ComponentSpec::Inductor { rotation_deg, .. }
             | ComponentSpec::RelaySpdt { rotation_deg, .. }

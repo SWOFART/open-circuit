@@ -29,8 +29,8 @@ use crate::{
 };
 use trace::TraceHistory;
 use transient::{
-    CapacitorState, CircuitInput, CircuitStates, InductorState, MotorState, SolveMode,
-    advance_public_steps, choose_internal_substeps, circuit_states_from_results,
+    AccumulatedPhase, CapacitorState, CircuitInput, CircuitStates, InductorState, MotorState,
+    SolveMode, advance_public_steps, choose_internal_substeps, circuit_states_from_results,
     settle_discrete_events,
 };
 
@@ -851,7 +851,7 @@ fn compute_circuit(
 > {
     let netlist = derive_netlist_with_open(schematic, geometry, open)?;
     let mut diagnostics = netlist.diagnostics.clone();
-    let device_specs = match build_device_specs(schematic, &netlist) {
+    let device_specs = match build_device_specs(schematic, &netlist, mode) {
         Ok(specs) => specs,
         Err(mut errors) => {
             diagnostics.append(&mut errors);
@@ -1095,7 +1095,11 @@ fn add_source_rail_references(
         .components
         .iter()
         .filter_map(|component| {
-            matches!(component, ComponentSpec::DcVoltageSource { .. }).then_some(component.id())
+            matches!(
+                component,
+                ComponentSpec::DcVoltageSource { .. } | ComponentSpec::AcVoltageSource { .. }
+            )
+            .then_some(component.id())
         })
         .collect::<HashSet<_>>();
     for diagnostic in diagnostics {
@@ -1315,6 +1319,7 @@ fn local_reference_nodes(
 fn build_device_specs(
     schematic: &Schematic,
     netlist: &Netlist,
+    mode: SolveMode<'_>,
 ) -> Result<Vec<DeviceSpec>, Vec<Diagnostic>> {
     let mut pin_to_node = HashMap::<PinRef, usize>::new();
     for node in &netlist.nodes {
@@ -1405,6 +1410,51 @@ fn build_device_specs(
                 }
                 DeviceModel::DcVoltageSource {
                     voltage_volts: parameters.voltage_volts,
+                    internal_resistance_ohms: parameters.internal_resistance_ohms,
+                }
+            }
+            ComponentSpec::AcVoltageSource { id, parameters, .. } => {
+                if parameters.internal_resistance_ohms == 0.0 && pin1 == pin2 {
+                    diagnostics.push(Diagnostic::error(
+                        DiagnosticCode::ShortCircuit,
+                        vec![
+                            DiagnosticReference::Component {
+                                component_id: component.id().clone(),
+                            },
+                            DiagnosticReference::pin(component.id().clone(), PinId::Pin1),
+                            DiagnosticReference::pin(component.id().clone(), PinId::Pin2),
+                        ],
+                    ));
+                }
+                let (phase, phase_step_fraction) = match mode {
+                    SolveMode::OperatingPoint => (AccumulatedPhase::default(), 0.0),
+                    SolveMode::InitialState(states) => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        states.ac_source_step_fraction,
+                    ),
+                    SolveMode::Transient {
+                        states,
+                        phase_advance_fraction,
+                        ..
+                    } => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        phase_advance_fraction,
+                    ),
+                };
+                let Some(voltage_volts) = phase.instantaneous_voltage(
+                    parameters.voltage_rms_volts,
+                    parameters.frequency_hz,
+                    parameters.phase_offset_degrees,
+                    phase_step_fraction,
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidParameter,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::DcVoltageSource {
+                    voltage_volts,
                     internal_resistance_ohms: parameters.internal_resistance_ohms,
                 }
             }
@@ -1572,6 +1622,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states
                         .capacitors
@@ -1611,6 +1662,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states
                         .inductors
@@ -1661,6 +1713,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states.relays.get(&spec.component_id);
                     RelayCoilMode::Transient {
@@ -1713,6 +1766,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states.relays.get(&spec.component_id);
                     RelayCoilMode::Transient {
@@ -1787,6 +1841,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states
                         .motors
@@ -2318,6 +2373,15 @@ pub(crate) fn update_parameter(
         }
         ComponentSpec::DcVoltageSource { parameters, .. } => match parameter_id {
             ParameterId::VoltageVolts => parameters.voltage_volts = value,
+            ParameterId::InternalResistanceOhms => {
+                parameters.internal_resistance_ohms = value;
+            }
+            _ => return false,
+        },
+        ComponentSpec::AcVoltageSource { parameters, .. } => match parameter_id {
+            ParameterId::VoltageRmsVolts => parameters.voltage_rms_volts = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            ParameterId::PhaseOffsetDegrees => parameters.phase_offset_degrees = value,
             ParameterId::InternalResistanceOhms => {
                 parameters.internal_resistance_ohms = value;
             }

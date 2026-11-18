@@ -81,6 +81,29 @@ fn v1_migrates_losslessly_and_v2_roundtrips_only_drawn_inputs() {
 }
 
 #[test]
+fn v1_migration_rejects_stage_9_component_types() {
+    let mut current = fixture("stage-1-divider.schematic.json");
+    current["components"][0]["typeId"] = json!("ac_voltage_source");
+    current["components"][0]["parameters"] = json!({
+        "voltageRmsVolts": 10.0,
+        "frequencyHz": 50.0,
+        "phaseOffsetDegrees": 0.0,
+        "internalResistanceOhms": 0.1
+    });
+    assert!(decode(&current).is_ok(), "project v2 accepts the AC source");
+
+    let mut legacy = current;
+    legacy["schemaVersion"] = 1.into();
+    legacy.as_object_mut().unwrap().remove("rails");
+    let error = decode(&legacy).expect_err("AC sources require the project v2 format");
+    assert!(matches!(
+        error,
+        open_circuit_engine::ProjectDocumentError::Invalid(codes)
+            if codes == vec![DiagnosticCode::UnknownComponentType]
+    ));
+}
+
+#[test]
 fn strict_version_shapes_reject_unknown_null_missing_and_duplicate_fields() {
     for key in ["schemaVersion", "rails"] {
         let mut v = with_rail();

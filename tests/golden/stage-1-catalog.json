@@ -410,6 +410,59 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "ac_voltage_source",
+      "displayNameKey": "component.acVoltageSource.name",
+      "pins": [
+        { "id": "pin1", "role": "positive" },
+        { "id": "pin2", "role": "negative" }
+      ],
+      "parameters": [
+        {
+          "id": "voltageRmsVolts",
+          "unit": "volt",
+          "defaultValue": 230.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltageSource.voltageRms",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 100000.0
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltageSource.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        },
+        {
+          "id": "phaseOffsetDegrees",
+          "unit": "degree",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.acVoltageSource.phaseOffset",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": -360.0,
+          "maximumValue": 360.0
+        },
+        {
+          "id": "internalResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "non_negative",
+          "descriptionKey": "component.acVoltageSource.internalResistance",
+          "optional": false,
+          "initialCondition": false
+        }
+      ],
+      "faultKinds": []
     }
   ]
 }

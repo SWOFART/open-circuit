@@ -11,6 +11,7 @@ const catalog = catalogFixture as ComponentCatalog;
 const V1 = "00000000-0000-4000-8000-000000000001";
 const R1 = "00000000-0000-4000-8000-000000000002";
 const R2 = "00000000-0000-4000-8000-000000000003";
+const AC_SOURCE_ID = "00000000-0000-4000-8000-000000000005";
 
 function idFactory(): () => StableId {
   let next = 0xd1;
@@ -197,6 +198,29 @@ describe("component display names", () => {
 });
 
 describe("ComponentLabels", () => {
+  it("shares the V prefix with DC voltage sources", () => {
+    const dcSource = dividerSchematic.components[0]!;
+    const acSource: Schematic["components"][number] = {
+      id: AC_SOURCE_ID,
+      typeId: "ac_voltage_source",
+      position: { x: 3, y: 0 },
+      rotationDeg: 0,
+      parameters: {
+        voltageRmsVolts: 230,
+        frequencyHz: 50,
+        phaseOffsetDegrees: 0,
+        internalResistanceOhms: 0.1,
+      },
+    };
+    const labels = new ComponentLabels().labelsFor({
+      ...dividerSchematic,
+      components: [dcSource, acSource],
+    });
+
+    expect(labels.get(dcSource.id)).toBe("V1");
+    expect(labels.get(AC_SOURCE_ID)).toBe("V2");
+  });
+
   it("returns the same instance when nothing new was seen", () => {
     const labels = new ComponentLabels();
     const first = labels.labelsFor(dividerSchematic);

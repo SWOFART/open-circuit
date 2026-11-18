@@ -54,8 +54,11 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 5);
-    // Every catalog type has a symbol, so every one is offered.
-    expect(placeableTypes).toHaveLength(catalog.componentTypes.length);
+    // The AC source is an Engine catalog type whose editor symbol is not yet registered.
+    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(
+      "ac_voltage_source",
+    );
+    expect(placeableTypes).toHaveLength(catalog.componentTypes.length - 1);
     // The names come from the interface's messages, never the raw catalog keys.
     expect(markup).not.toContain("component.diode.name");
     expect(pressed(markup)).toEqual(["Select"]);

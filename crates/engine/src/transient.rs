@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
     RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
-    devices::{DeviceResult, IntegrationMethod},
+    devices::{DeviceResult, IntegrationMethod, component_diagnostic},
     netlist::derive_netlist_with_open,
 };
 
@@ -20,6 +20,51 @@ type PublicStepOutcome = Result<
     ),
     Vec<Diagnostic>,
 >;
+
+/// The phase of a periodic source, accumulated without multiplying the public
+/// simulation time by its frequency.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct AccumulatedPhase {
+    whole_cycles: u64,
+    fractional_cycles: f64,
+}
+
+impl AccumulatedPhase {
+    pub(super) fn advanced_by_cycles(self, cycles: f64) -> Option<Self> {
+        if !cycles.is_finite() || cycles < 0.0 || !(0.0..1.0).contains(&self.fractional_cycles) {
+            return None;
+        }
+        let whole = cycles.floor();
+        if whole > u64::MAX as f64 {
+            return None;
+        }
+        let whole_cycles = self.whole_cycles.checked_add(whole as u64)?;
+        let fractional_cycles = self.fractional_cycles + cycles.fract();
+        let carry = u64::from(fractional_cycles >= 1.0);
+        Some(Self {
+            whole_cycles: whole_cycles.checked_add(carry)?,
+            fractional_cycles: fractional_cycles - carry as f64,
+        })
+    }
+
+    pub(super) fn instantaneous_voltage(
+        self,
+        voltage_rms_volts: f64,
+        frequency_hz: f64,
+        phase_offset_degrees: f64,
+        public_step_fraction: f64,
+    ) -> Option<f64> {
+        if !public_step_fraction.is_finite() || !(0.0..=1.0).contains(&public_step_fraction) {
+            return None;
+        }
+        let within_step_cycles = frequency_hz * public_step_fraction * SIMULATION_TIMESTEP_SECONDS;
+        let phase = self.advanced_by_cycles(within_step_cycles)?;
+        let radians =
+            std::f64::consts::TAU * phase.fractional_cycles + phase_offset_degrees.to_radians();
+        let voltage = std::f64::consts::SQRT_2 * voltage_rms_volts * radians.sin();
+        voltage.is_finite().then_some(voltage)
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct CapacitorState {
@@ -66,6 +111,10 @@ pub(super) struct CircuitStates {
     pub(super) relays: HashMap<StableId, RelayState>,
     pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
     pub(super) motors: HashMap<StableId, MotorState>,
+    /// Committed phase pairs are held at the start of each public 1 ms step.
+    pub(super) ac_source_phases: HashMap<StableId, AccumulatedPhase>,
+    /// Progress within the current public step, used by same-time event re-solves.
+    pub(super) ac_source_step_fraction: f64,
     pub(super) simulation_time_seconds: f64,
     pub(super) backward_euler_next_step: bool,
 }
@@ -119,6 +168,7 @@ pub(super) enum SolveMode<'a> {
         step_seconds: f64,
         states: &'a CircuitStates,
         integration_method: IntegrationMethod,
+        phase_advance_fraction: f64,
     },
 }
 
@@ -255,6 +305,16 @@ pub(super) fn circuit_states_from_results(
             ))
         })
         .collect();
+    let ac_source_phases = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::AcVoltageSource { id, .. } = component else {
+                return None;
+            };
+            Some((id.clone(), AccumulatedPhase::default()))
+        })
+        .collect();
     CircuitStates {
         solver_memory: crate::newton::SolverMemory::default(),
         capacitors,
@@ -262,6 +322,8 @@ pub(super) fn circuit_states_from_results(
         relays,
         fuses,
         motors,
+        ac_source_phases,
+        ac_source_step_fraction: 0.0,
         simulation_time_seconds,
         backward_euler_next_step: false,
     }
@@ -337,6 +399,8 @@ pub(super) fn advance_public_steps(
                     step_seconds: internal_step_seconds,
                     states: &states,
                     integration_method,
+                    phase_advance_fraction: f64::from(internal_step_index + 1)
+                        / f64::from(internal_substeps),
                 },
             )?;
             diagnostics.extend(step_diagnostics);
@@ -346,6 +410,9 @@ pub(super) fn advance_public_steps(
             // relay transition below can schedule another backward-Euler interval.
             candidate.solver_memory = memory;
             candidate.backward_euler_next_step = false;
+            candidate.ac_source_phases = states.ac_source_phases.clone();
+            candidate.ac_source_step_fraction =
+                f64::from(internal_step_index + 1) / f64::from(internal_substeps);
             let fuse_transitions = accumulate_fuse_i2t(
                 schematic,
                 &interval_start_states,
@@ -368,9 +435,36 @@ pub(super) fn advance_public_steps(
             states = candidate;
             results = step_results;
         }
+        states.ac_source_phases = advance_ac_source_phases(schematic, &step_start_states)?;
+        states.ac_source_step_fraction = 0.0;
     }
     sort_diagnostics(&mut diagnostics);
     Ok((results, states, step_start_states, diagnostics))
+}
+
+fn advance_ac_source_phases(
+    schematic: &Schematic,
+    start_states: &CircuitStates,
+) -> Result<HashMap<StableId, AccumulatedPhase>, Vec<Diagnostic>> {
+    let mut phases = start_states.ac_source_phases.clone();
+    for component in &schematic.components {
+        let ComponentSpec::AcVoltageSource { id, parameters, .. } = component else {
+            continue;
+        };
+        let Some(phase) = phases
+            .get(id)
+            .copied()
+            .unwrap_or_default()
+            .advanced_by_cycles(parameters.frequency_hz * SIMULATION_TIMESTEP_SECONDS)
+        else {
+            return Err(vec![component_diagnostic(
+                DiagnosticCode::InvalidParameter,
+                id,
+            )]);
+        };
+        phases.insert(id.clone(), phase);
+    }
+    Ok(phases)
 }
 
 fn accumulate_fuse_i2t(
@@ -526,6 +620,8 @@ pub(super) fn settle_discrete_events(
         // device results carry that same vector and its exact transition times.
         resolved_states.solver_memory = memory;
         resolved_states.simulation_time_seconds = event_time_seconds;
+        resolved_states.ac_source_phases = states.ac_source_phases.clone();
+        resolved_states.ac_source_step_fraction = states.ac_source_step_fraction;
         resolved_states.backward_euler_next_step = states.backward_euler_next_step;
         *states = resolved_states;
         same_time_resolves += 1;
@@ -563,7 +659,20 @@ pub(super) fn choose_internal_substeps(
     open: &HashSet<StableId>,
 ) -> (u32, bool) {
     const MAX_SUBSTEPS: u32 = 64;
-    let omega_hat = estimate_transient_rate_bound(schematic, geometry, open).unwrap_or(f64::MAX);
+    let source_rate = schematic
+        .components
+        .iter()
+        .filter(|component| !open.contains(component.id()))
+        .filter_map(|component| match component {
+            ComponentSpec::AcVoltageSource { parameters, .. } => {
+                Some(std::f64::consts::TAU * parameters.frequency_hz)
+            }
+            _ => None,
+        })
+        .fold(0.0_f64, f64::max);
+    let omega_hat = estimate_transient_rate_bound(schematic, geometry, open)
+        .unwrap_or(f64::MAX)
+        .max(source_rate);
     let limit = 0.03_f64.sqrt();
     let mut substeps = 1;
     while substeps < MAX_SUBSTEPS
@@ -587,7 +696,7 @@ fn estimate_transient_rate_bound(
     open: &HashSet<StableId>,
 ) -> Option<f64> {
     let netlist = derive_netlist_with_open(schematic, geometry, open).ok()?;
-    let specs = super::build_device_specs(schematic, &netlist)
+    let specs = super::build_device_specs(schematic, &netlist, SolveMode::OperatingPoint)
         .ok()?
         .into_iter()
         .filter(|spec| !open.contains(&spec.component_id))

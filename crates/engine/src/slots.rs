@@ -150,6 +150,7 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
         ComponentTypeId::Diode
         | ComponentTypeId::Resistor
         | ComponentTypeId::DcVoltageSource
+        | ComponentTypeId::AcVoltageSource
         | ComponentTypeId::Capacitor
         | ComponentTypeId::Inductor
         | ComponentTypeId::Voltmeter

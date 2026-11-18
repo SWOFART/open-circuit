@@ -8,6 +8,8 @@ import type { Unit } from "../generated/Unit";
 export const unitSymbols: Readonly<Record<Unit, string>> = {
   ohm: "Ω",
   volt: "V",
+  hertz: "Hz",
+  degree: "°",
   amp: "A",
   farad: "F",
   henry: "H",
@@ -23,6 +25,8 @@ export const unitSymbols: Readonly<Record<Unit, string>> = {
 const unitWords: Readonly<Record<Unit, readonly string[]>> = {
   ohm: ["Ω", "ohm", "ohms"],
   volt: ["v", "volt", "volts"],
+  hertz: ["hz", "hertz"],
+  degree: ["°", "degree", "degrees"],
   amp: ["a", "amp", "amps"],
   farad: ["f", "farad", "farads"],
   henry: ["h", "henry", "henries"],
@@ -100,6 +104,12 @@ export function formatSi(value: number, unit: Unit): string {
 
   if (unit === "ampere_squared_second" || unit === "kilogram_meter_squared") {
     return formatWithoutPrefix(value, unitSymbols[unit]);
+  }
+
+  if (unit === "degree") {
+    return Number.isFinite(value)
+      ? `${Number(value.toPrecision(DISPLAY_SIGNIFICANT_DIGITS))}°`
+      : "—";
   }
 
   return formatWithSymbol(value, unitSymbols[unit]);
@@ -180,7 +190,8 @@ export function parseSi(text: string, unit: Unit): ParseResult {
     prefixExponent = 0;
   } else if (
     unit !== "ampere_squared_second" &&
-    unit !== "kilogram_meter_squared"
+    unit !== "kilogram_meter_squared" &&
+    unit !== "degree"
   ) {
     const candidate = parsePrefixExponents[suffix.charAt(0)];
     const remainder = suffix.slice(1).trim();

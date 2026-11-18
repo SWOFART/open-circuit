@@ -51,11 +51,11 @@ pub use results::{
     TraceRequest, TraceSignal,
 };
 pub use schematic::{
-    AmmeterParameters, BjtParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters,
-    DiodeParameters, FuseParameters, GeometryEnvelope, GridPoint, InductorParameters, JunctionSpec,
-    PmdcMotorParameters, PushButtonParameters, ReferenceMarkerSpec, RelayParameters,
-    ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION, Schematic, SwitchParameters,
-    VoltmeterParameters, WireSpec,
+    AcVoltageSourceParameters, AmmeterParameters, BjtParameters, ComponentGeometry, ComponentSpec,
+    DcVoltageSourceParameters, DiodeParameters, FuseParameters, GeometryEnvelope, GridPoint,
+    InductorParameters, JunctionSpec, PmdcMotorParameters, PushButtonParameters,
+    ReferenceMarkerSpec, RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
+    Schematic, SwitchParameters, VoltmeterParameters, WireSpec,
 };
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");

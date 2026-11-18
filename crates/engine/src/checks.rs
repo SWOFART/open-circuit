@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::assignment::assignment_component_type_supported;
 use crate::{
     AdvanceRequest, CompileRequest, CompileResult, ComponentSpec, ComponentTypeId, DeviceState,
     Diagnostic, DiagnosticReference, DiagnosticSeverity, Engine, FuseState, GeometryEnvelope,
@@ -378,6 +379,37 @@ enum Start<'a> {
 /// The result depends only on the request. The circuit is compiled without faults in a fresh
 /// `Engine` and advanced through the public steps the criteria need, at most 60 000.
 pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
+    let mut unsupported_references = [&request.starting_circuit, &request.schematic]
+        .into_iter()
+        .flat_map(|schematic| {
+            schematic
+                .components
+                .iter()
+                .filter(|component| !assignment_component_type_supported(component.type_id()))
+                .map(|component| DiagnosticReference::Component {
+                    component_id: component.id().clone(),
+                })
+        })
+        .collect::<Vec<_>>();
+    let has_unsupported_count = request.checks.iter().any(|criterion| {
+        matches!(
+            criterion,
+            CheckCriterion::ComponentCount { type_id, .. }
+                if !assignment_component_type_supported(*type_id)
+        )
+    });
+    if !unsupported_references.is_empty() || has_unsupported_count {
+        unsupported_references.sort_by(|a, b| a.sort_key().cmp(&b.sort_key()));
+        unsupported_references.dedup();
+        let diagnostic = Diagnostic::error(
+            crate::DiagnosticCode::UnknownComponentType,
+            unsupported_references,
+        );
+        let mut result = evaluate_started(request, Start::Failed(vec![diagnostic]));
+        result.outcome = CheckOutcome::Failed;
+        result.outcome_key = result.outcome.key().to_owned();
+        return result;
+    }
     let offending = [&request.starting_circuit, &request.schematic]
         .into_iter()
         .filter(|schematic| !schematic.rails.is_empty())
@@ -694,10 +726,12 @@ fn plan(criterion: &CheckCriterion) -> Plan {
             Some(step) => Plan::State { step },
             None => Plan::Unevaluable,
         },
-        CheckCriterion::ComponentCount { min, max, .. } => {
+        CheckCriterion::ComponentCount {
+            type_id, min, max, ..
+        } => {
             let bounded = *min <= MAX_COMPONENT_COUNT
                 && max.is_none_or(|max| max >= *min && max <= MAX_COMPONENT_COUNT);
-            if bounded {
+            if bounded && assignment_component_type_supported(*type_id) {
                 Plan::Schematic
             } else {
                 Plan::Unevaluable
