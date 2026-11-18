@@ -1,0 +1,18 @@
+* Stage 9 reference circuit: delta-load-on-delta-source-unbalanced
+* unbalanced_delta_resistive delta load on the delta three-phase source.
+Rsource_l1l2 l1 src_l1_l2 0.1000000000000000
+Vl1l2 src_l1_l2 l2 SIN(0 565.6854249492380 50.00000000000000 0 0 0)
+Rsource_l2l3 l2 src_l2_l3 0.1000000000000000
+Vl2l3 src_l2_l3 0 SIN(0 565.6854249492380 50.00000000000000 0 0 -120.0000000000000)
+Rsource_l3l1 0 src_l3_l1 0.1000000000000000
+Vl3l1 src_l3_l1 l1 SIN(0 565.6854249492380 50.00000000000000 0 0 120.0000000000000)
+Rload12 l1 l2 100.0000000000000
+Rload23 l2 0 220.0000000000000
+Rload31 0 l1 470.0000000000000
+.options temp=27 tnom=27 gmin=0 method=trap reltol=1e-10 vntol=1e-12 abstol=1e-14 savecurrents
+.control
+tran 0.00005000000000000000 0.1200000000000000 0 0.000001000000000000000 uic
+set wr_singlescale
+wrdata delta-load-on-delta-source-unbalanced.out v(l1) v(l2) v(src_l1_l2) v(src_l2_l3) v(src_l3_l1) @rsource_l1l2[i] @rsource_l2l3[i] @rsource_l3l1[i] @rload12[i] @rload23[i] @rload31[i]
+.endc
+.end

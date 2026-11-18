@@ -3,4 +3,4 @@
 /**
  * Stable IDs are serialized exactly as specified by the Stage 1 contract.
  */
-export type ComponentTypeId = "resistor" | "dc_voltage_source" | "capacitor" | "inductor" | "relay_spdt" | "fuse" | "pmdc_motor" | "voltmeter" | "ammeter" | "switch_spst" | "push_button_no" | "push_button_nc" | "contactor" | "diode" | "bjt_npn" | "bjt_pnp";
+export type ComponentTypeId = "resistor" | "dc_voltage_source" | "ac_voltage_source" | "three_phase_source_star" | "three_phase_source_delta" | "ac_voltmeter" | "ac_ammeter" | "wattmeter" | "capacitor" | "inductor" | "relay_spdt" | "fuse" | "pmdc_motor" | "voltmeter" | "ammeter" | "switch_spst" | "push_button_no" | "push_button_nc" | "contactor" | "diode" | "bjt_npn" | "bjt_pnp";

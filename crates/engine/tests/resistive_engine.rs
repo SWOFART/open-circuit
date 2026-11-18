@@ -112,6 +112,20 @@ fn divider_matches_golden_values_signs_kcl_and_power_balance() {
         ResultQuantity::Current => slot.unit == Unit::Amp,
         ResultQuantity::AccumulatedI2t => slot.unit == Unit::AmpereSquaredSecond,
         ResultQuantity::AngularVelocity => slot.unit == Unit::RadianPerSecond,
+        ResultQuantity::RmsVoltage | ResultQuantity::MeanVoltage | ResultQuantity::PeakVoltage => {
+            slot.unit == Unit::Volt
+        }
+        ResultQuantity::RmsCurrent | ResultQuantity::MeanCurrent | ResultQuantity::PeakCurrent => {
+            slot.unit == Unit::Amp
+        }
+        ResultQuantity::Frequency => slot.unit == Unit::Hertz,
+        ResultQuantity::RealPower => slot.unit == Unit::Watt,
+        ResultQuantity::ReactivePower => slot.unit == Unit::VoltAmpereReactive,
+        ResultQuantity::ApparentPower => slot.unit == Unit::VoltAmpere,
+        ResultQuantity::PowerFactor | ResultQuantity::Valid => {
+            slot.unit == Unit::Dimensionless
+        }
+        ResultQuantity::PhaseAngle => slot.unit == Unit::Degree,
     }));
 
     let source_current = component_value(

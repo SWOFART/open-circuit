@@ -38,6 +38,35 @@ const MAX_TITLE_CHARS: usize = 120;
 const MAX_INSTRUCTIONS_CHARS: usize = 8000;
 const MAX_LABEL_CHARS: usize = 120;
 
+// Assignments deliberately keep the Stage 1–8 type set even as the shared project catalog
+// grows. New devices need an explicit assignment contract before teachers can use them.
+const ASSIGNMENT_COMPONENT_TYPES: &[ComponentTypeId] = &[
+    ComponentTypeId::Resistor,
+    ComponentTypeId::DcVoltageSource,
+    ComponentTypeId::Capacitor,
+    ComponentTypeId::Inductor,
+    ComponentTypeId::RelaySpdt,
+    ComponentTypeId::Fuse,
+    ComponentTypeId::PmdcMotor,
+    ComponentTypeId::Voltmeter,
+    ComponentTypeId::Ammeter,
+    ComponentTypeId::SwitchSpst,
+    ComponentTypeId::PushButtonNo,
+    ComponentTypeId::PushButtonNc,
+    ComponentTypeId::Contactor,
+    ComponentTypeId::Diode,
+    ComponentTypeId::BjtNpn,
+    ComponentTypeId::BjtPnp,
+];
+
+pub(crate) fn assignment_component_type_supported(type_id: ComponentTypeId) -> bool {
+    ASSIGNMENT_COMPONENT_TYPES.contains(&type_id)
+}
+
+const fn assignment_component_type_count() -> usize {
+    ASSIGNMENT_COMPONENT_TYPES.len()
+}
+
 /// What the application shows of a fault-finding result (section 5.7). A presentation policy
 /// of the local application, not a protection.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -645,6 +674,14 @@ impl Report {
                 return ids;
             }
         };
+        for (index, component) in schematic.components.iter().enumerate() {
+            if !assignment_component_type_supported(component.type_id()) {
+                self.push(
+                    AssignmentErrorCode::InvalidField,
+                    child(&child(path, "components"), index),
+                );
+            }
+        }
         for diagnostic in schematic.validate() {
             if diagnostic.severity != crate::DiagnosticSeverity::Error
                 || diagnostic.code == DiagnosticCode::DuplicateId
@@ -686,17 +723,17 @@ impl Report {
             None | Some(Value::Null) => {}
             Some(Value::Array(types)) => {
                 let path = "/restrictions/allowedComponentTypes";
-                if types.len() > component_catalog().component_types.len() {
+                if types.len() > assignment_component_type_count() {
                     self.push(AssignmentErrorCode::TooLarge, path);
                 } else {
                     for (index, type_id) in types.iter().enumerate() {
                         let item = child(path, index);
                         match type_id.as_str() {
                             None => self.push(AssignmentErrorCode::InvalidField, item),
-                            Some(text) if parse_enum::<ComponentTypeId>(text).is_none() => {
-                                self.push(AssignmentErrorCode::UnknownReference, item);
-                            }
-                            Some(_) => {}
+                            Some(text) => match parse_enum::<ComponentTypeId>(text) {
+                                Some(type_id) if assignment_component_type_supported(type_id) => {}
+                                _ => self.push(AssignmentErrorCode::UnknownReference, item),
+                            },
                         }
                     }
                 }
@@ -859,10 +896,10 @@ impl Report {
             _ => {
                 match criterion.get("typeId").and_then(Value::as_str) {
                     None => self.push(AssignmentErrorCode::InvalidField, at("typeId")),
-                    Some(text) if parse_enum::<ComponentTypeId>(text).is_none() => {
-                        self.push(AssignmentErrorCode::UnknownReference, at("typeId"));
-                    }
-                    Some(_) => {}
+                    Some(text) => match parse_enum::<ComponentTypeId>(text) {
+                        Some(type_id) if assignment_component_type_supported(type_id) => {}
+                        _ => self.push(AssignmentErrorCode::UnknownReference, at("typeId")),
+                    },
                 }
                 let min = self.count(
                     criterion.get("min"),

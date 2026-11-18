@@ -23,6 +23,8 @@ const MAGIC = [0x4f, 0x43, 0x54, 0x31]; // "OCT1"
 const UNITS: Readonly<Record<Unit, true>> = {
   ohm: true,
   volt: true,
+  hertz: true,
+  degree: true,
   amp: true,
   farad: true,
   henry: true,
@@ -32,6 +34,9 @@ const UNITS: Readonly<Record<Unit, true>> = {
   newton_meter_per_amp: true,
   newton_meter_second_per_radian: true,
   radian_per_second: true,
+  watt: true,
+  volt_ampere: true,
+  volt_ampere_reactive: true,
   dimensionless: true,
 };
 const STABLE_ID =

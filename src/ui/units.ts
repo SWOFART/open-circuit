@@ -8,6 +8,8 @@ import type { Unit } from "../generated/Unit";
 export const unitSymbols: Readonly<Record<Unit, string>> = {
   ohm: "Ω",
   volt: "V",
+  hertz: "Hz",
+  degree: "°",
   amp: "A",
   farad: "F",
   henry: "H",
@@ -17,12 +19,17 @@ export const unitSymbols: Readonly<Record<Unit, string>> = {
   newton_meter_per_amp: "N·m/A",
   newton_meter_second_per_radian: "N·m·s/rad",
   radian_per_second: "rad/s",
+  watt: "W",
+  volt_ampere: "VA",
+  volt_ampere_reactive: "var",
   dimensionless: "",
 };
 
 const unitWords: Readonly<Record<Unit, readonly string[]>> = {
   ohm: ["Ω", "ohm", "ohms"],
   volt: ["v", "volt", "volts"],
+  hertz: ["hz", "hertz"],
+  degree: ["°", "degree", "degrees"],
   amp: ["a", "amp", "amps"],
   farad: ["f", "farad", "farads"],
   henry: ["h", "henry", "henries"],
@@ -43,6 +50,13 @@ const unitWords: Readonly<Record<Unit, readonly string[]>> = {
     "newton meter second per radian",
   ],
   radian_per_second: ["rad/s", "radian per second", "radians per second"],
+  watt: ["w", "watt", "watts"],
+  volt_ampere: ["va", "volt ampere", "volt amperes"],
+  volt_ampere_reactive: [
+    "var",
+    "volt ampere reactive",
+    "volt amperes reactive",
+  ],
   dimensionless: [],
 };
 
@@ -100,6 +114,12 @@ export function formatSi(value: number, unit: Unit): string {
 
   if (unit === "ampere_squared_second" || unit === "kilogram_meter_squared") {
     return formatWithoutPrefix(value, unitSymbols[unit]);
+  }
+
+  if (unit === "degree") {
+    return Number.isFinite(value)
+      ? `${Number(value.toPrecision(DISPLAY_SIGNIFICANT_DIGITS))}°`
+      : "—";
   }
 
   return formatWithSymbol(value, unitSymbols[unit]);
@@ -180,7 +200,8 @@ export function parseSi(text: string, unit: Unit): ParseResult {
     prefixExponent = 0;
   } else if (
     unit !== "ampere_squared_second" &&
-    unit !== "kilogram_meter_squared"
+    unit !== "kilogram_meter_squared" &&
+    unit !== "degree"
   ) {
     const candidate = parsePrefixExponents[suffix.charAt(0)];
     const remainder = suffix.slice(1).trim();

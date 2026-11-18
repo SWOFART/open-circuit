@@ -40,9 +40,14 @@ const fn slot(
 /// The slots of a type, in layout order. A relay has six ports; a fuse also reports its
 /// accumulated `I^2 t`, and a motor its angular velocity.
 pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> {
-    use ResultQuantity::{AccumulatedI2t, AngularVelocity, Current, Voltage};
+    use ResultQuantity::{
+        AccumulatedI2t, AngularVelocity, ApparentPower, Current, Frequency, MeanCurrent,
+        MeanVoltage, PeakCurrent, PeakVoltage, PhaseAngle, PowerFactor, ReactivePower, RealPower,
+        RmsCurrent, RmsVoltage, Valid, Voltage,
+    };
     use ResultSignConvention::{
-        CurrentIntoPin1, PositiveRotationWithPositivePin1Current, VoltagePin1MinusPin2,
+        CurrentIntoPin1, Flag, LoadConvention, PositiveRotationWithPositivePin1Current, Unsigned,
+        VoltagePin1MinusPin2,
     };
 
     let voltage = slot(Voltage, Unit::Volt, ':', "voltage", VoltagePin1MinusPin2);
@@ -150,6 +155,7 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
         ComponentTypeId::Diode
         | ComponentTypeId::Resistor
         | ComponentTypeId::DcVoltageSource
+        | ComponentTypeId::AcVoltageSource
         | ComponentTypeId::Capacitor
         | ComponentTypeId::Inductor
         | ComponentTypeId::Voltmeter
@@ -157,6 +163,97 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
         | ComponentTypeId::SwitchSpst
         | ComponentTypeId::PushButtonNo
         | ComponentTypeId::PushButtonNc => vec![voltage, current],
+        ComponentTypeId::ThreePhaseSourceStar => vec![
+            slot(Voltage, Unit::Volt, '/', "l1/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "l1/current", CurrentIntoPin1),
+            slot(Voltage, Unit::Volt, '/', "l2/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "l2/current", CurrentIntoPin1),
+            slot(Voltage, Unit::Volt, '/', "l3/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "l3/current", CurrentIntoPin1),
+            slot(Current, Unit::Amp, '/', "n/current", CurrentIntoPin1),
+        ],
+        ComponentTypeId::ThreePhaseSourceDelta => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "l12/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "l23/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "l31/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "l1/current", CurrentIntoPin1),
+            slot(Current, Unit::Amp, '/', "l2/current", CurrentIntoPin1),
+            slot(Current, Unit::Amp, '/', "l3/current", CurrentIntoPin1),
+        ],
+        ComponentTypeId::AcVoltmeter => vec![
+            voltage,
+            current,
+            slot(RmsVoltage, Unit::Volt, '/', "rms_voltage", Unsigned),
+            slot(
+                MeanVoltage,
+                Unit::Volt,
+                '/',
+                "mean_voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(PeakVoltage, Unit::Volt, '/', "peak_voltage", Unsigned),
+            slot(Frequency, Unit::Hertz, '/', "frequency", Unsigned),
+            slot(Valid, Unit::Dimensionless, '/', "frequency_valid", Flag),
+            slot(Valid, Unit::Dimensionless, '/', "valid", Flag),
+        ],
+        ComponentTypeId::AcAmmeter => vec![
+            voltage,
+            current,
+            slot(RmsCurrent, Unit::Amp, '/', "rms_current", Unsigned),
+            slot(MeanCurrent, Unit::Amp, '/', "mean_current", CurrentIntoPin1),
+            slot(PeakCurrent, Unit::Amp, '/', "peak_current", Unsigned),
+            slot(Frequency, Unit::Hertz, '/', "frequency", Unsigned),
+            slot(Valid, Unit::Dimensionless, '/', "frequency_valid", Flag),
+            slot(Valid, Unit::Dimensionless, '/', "valid", Flag),
+        ],
+        ComponentTypeId::Wattmeter => vec![
+            slot(Voltage, Unit::Volt, '/', "voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "current", CurrentIntoPin1),
+            slot(RmsVoltage, Unit::Volt, '/', "rms_voltage", Unsigned),
+            slot(RmsCurrent, Unit::Amp, '/', "rms_current", Unsigned),
+            slot(RealPower, Unit::Watt, '/', "real_power", LoadConvention),
+            slot(
+                ReactivePower,
+                Unit::VoltAmpereReactive,
+                '/',
+                "reactive_power",
+                LoadConvention,
+            ),
+            slot(
+                ApparentPower,
+                Unit::VoltAmpere,
+                '/',
+                "apparent_power",
+                Unsigned,
+            ),
+            slot(
+                PowerFactor,
+                Unit::Dimensionless,
+                '/',
+                "power_factor",
+                LoadConvention,
+            ),
+            slot(PhaseAngle, Unit::Degree, '/', "phase_angle", LoadConvention),
+            slot(Valid, Unit::Dimensionless, '/', "valid", Flag),
+        ],
     }
 }
 

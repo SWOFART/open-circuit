@@ -630,6 +630,76 @@ fn references_must_resolve_in_the_starting_circuit_and_the_catalog() {
 }
 
 #[test]
+fn stage_9_component_types_remain_outside_assignments() {
+    let unsupported_palette = edited(divider(), |document| {
+        set(
+            document,
+            "/restrictions/allowedComponentTypes",
+            json!([
+                "ac_voltage_source",
+                "three_phase_source_star",
+                "three_phase_source_delta",
+                "ac_voltmeter",
+                "ac_ammeter",
+                "wattmeter"
+            ]),
+        );
+    });
+    assert_eq!(
+        errors(&unsupported_palette),
+        vec![
+            at(UnknownReference, "/restrictions/allowedComponentTypes/0"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/1"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/2"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/3"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/4"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/5"),
+        ]
+    );
+
+    let unsupported_count = edited(divider(), |document| {
+        set(document, "/checks/2/typeId", json!("ac_voltage_source"));
+    });
+    assert_eq!(
+        errors(&unsupported_count),
+        vec![at(UnknownReference, "/checks/2/typeId")]
+    );
+
+    let ac_source = |document: &mut Value, pointer: &str| {
+        set(
+            document,
+            &format!("{pointer}/typeId"),
+            json!("ac_voltage_source"),
+        );
+        set(
+            document,
+            &format!("{pointer}/parameters"),
+            json!({
+                "voltageRmsVolts": 10.0,
+                "frequencyHz": 50.0,
+                "phaseOffsetDegrees": 0.0,
+                "internalResistanceOhms": 0.1
+            }),
+        );
+    };
+    let unsupported_starting_circuit = edited(divider(), |document| {
+        ac_source(document, "/startingCircuit/components/0");
+    });
+    assert_eq!(
+        errors(&unsupported_starting_circuit),
+        vec![at(InvalidField, "/startingCircuit/components/0")]
+    );
+
+    let unsupported_reference = edited(divider(), |document| {
+        ac_source(document, "/reference/components/0");
+    });
+    assert_eq!(
+        errors(&unsupported_reference),
+        vec![at(InvalidField, "/reference/components/0")]
+    );
+}
+
+#[test]
 fn criteria_fields_follow_the_contracts_limits() {
     let cases: Vec<PointerCase> = vec![
         // Times are non-negative multiples of the public step, at most 60 s.
@@ -854,10 +924,8 @@ fn limits_on_lists_are_too_large_and_never_a_partial_read() {
             );
         })
     };
-    // The limit is the number of types in the catalog.
-    let type_count = open_circuit_engine::component_catalog()
-        .component_types
-        .len();
+    // The assignment contract has 16 Stage 1–8 component types; the catalog also contains Stage 9.
+    let type_count = 16;
     assert_eq!(errors(&types(type_count)), vec![]);
     assert_eq!(
         errors(&types(type_count + 1)),

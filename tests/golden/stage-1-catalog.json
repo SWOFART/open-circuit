@@ -410,6 +410,294 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "ac_voltage_source",
+      "displayNameKey": "component.acVoltageSource.name",
+      "pins": [
+        { "id": "pin1", "role": "positive" },
+        { "id": "pin2", "role": "negative" }
+      ],
+      "parameters": [
+        {
+          "id": "voltageRmsVolts",
+          "unit": "volt",
+          "defaultValue": 230.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltageSource.voltageRms",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 100000.0
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltageSource.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        },
+        {
+          "id": "phaseOffsetDegrees",
+          "unit": "degree",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.acVoltageSource.phaseOffset",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": -360.0,
+          "maximumValue": 360.0
+        },
+        {
+          "id": "internalResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "non_negative",
+          "descriptionKey": "component.acVoltageSource.internalResistance",
+          "optional": false,
+          "initialCondition": false
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "three_phase_source_star",
+      "displayNameKey": "component.threePhaseSourceStar.name",
+      "pins": [
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" },
+        { "id": "n", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "phaseVoltageRmsVolts",
+          "unit": "volt",
+          "defaultValue": 230.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseSourceStar.phaseVoltageRms",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 100000.0
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseSourceStar.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        },
+        {
+          "id": "phaseOffsetDegrees",
+          "unit": "degree",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.threePhaseSourceStar.phaseOffset",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": -360.0,
+          "maximumValue": 360.0
+        },
+        {
+          "id": "internalResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "non_negative",
+          "descriptionKey": "component.threePhaseSourceStar.internalResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "reversedSequence",
+          "unit": "dimensionless",
+          "defaultValue": 0.0,
+          "domain": "zero_or_one",
+          "descriptionKey": "component.threePhaseSourceStar.reversedSequence",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 1.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "three_phase_source_delta",
+      "displayNameKey": "component.threePhaseSourceDelta.name",
+      "pins": [
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "lineVoltageRmsVolts",
+          "unit": "volt",
+          "defaultValue": 400.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseSourceDelta.lineVoltageRms",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 100000.0
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseSourceDelta.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        },
+        {
+          "id": "phaseOffsetDegrees",
+          "unit": "degree",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.threePhaseSourceDelta.phaseOffset",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": -360.0,
+          "maximumValue": 360.0
+        },
+        {
+          "id": "internalResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseSourceDelta.internalResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "reversedSequence",
+          "unit": "dimensionless",
+          "defaultValue": 0.0,
+          "domain": "zero_or_one",
+          "descriptionKey": "component.threePhaseSourceDelta.reversedSequence",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 1.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "ac_voltmeter",
+      "displayNameKey": "component.acVoltmeter.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "inputResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 10000000.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltmeter.inputResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltmeter.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "ac_ammeter",
+      "displayNameKey": "component.acAmmeter.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "burdenResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acAmmeter.burdenResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acAmmeter.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "wattmeter",
+      "displayNameKey": "component.wattmeter.name",
+      "pins": [
+        { "id": "v1", "role": "unpolarized" },
+        { "id": "v2", "role": "unpolarized" },
+        { "id": "i1", "role": "unpolarized" },
+        { "id": "i2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "inputResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 10000000.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.wattmeter.inputResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "burdenResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.wattmeter.burdenResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.wattmeter.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        }
+      ],
+      "faultKinds": []
     }
   ]
 }

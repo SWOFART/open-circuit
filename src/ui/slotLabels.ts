@@ -44,6 +44,9 @@ const AXIS_NAMES: Readonly<Partial<Record<Unit, string>>> = {
   amp: "Current",
   radian_per_second: "Angular velocity",
   ampere_squared_second: "Accumulated I²t",
+  watt: "Real power",
+  volt_ampere: "Apparent power",
+  volt_ampere_reactive: "Reactive power",
 };
 
 /** The name of the quantity a unit's axis shows, such as `Voltage` for volts. */

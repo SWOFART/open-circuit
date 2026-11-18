@@ -24,9 +24,34 @@ import { checkResultBelongsTo, type AssignmentPort } from "./assignmentBridge";
 
 /** The editor restrictions of an assignment (contract section 3). */
 export interface EditorRestrictions {
-  /** `null`: every catalog type. */
+  /** `null`: every component type supported by assignment mode. */
   readonly allowedTypes: readonly ComponentTypeId[] | null;
   readonly locked: ReadonlySet<StableId>;
+}
+
+// Stage 9 extends the project catalog, while assignment support remains at Stage 1–8.
+// Keep this an allowlist so a later catalog addition does not silently enter assignments.
+const ASSIGNMENT_COMPONENT_TYPES: ReadonlySet<ComponentTypeId> = new Set([
+  "resistor",
+  "dc_voltage_source",
+  "capacitor",
+  "inductor",
+  "relay_spdt",
+  "fuse",
+  "pmdc_motor",
+  "voltmeter",
+  "ammeter",
+  "switch_spst",
+  "push_button_no",
+  "push_button_nc",
+  "contactor",
+  "diode",
+  "bjt_npn",
+  "bjt_pnp",
+]);
+
+function assignmentSupports(typeId: ComponentTypeId): boolean {
+  return ASSIGNMENT_COMPONENT_TYPES.has(typeId);
 }
 
 export function restrictionsOf(assignment: Assignment): EditorRestrictions {
@@ -56,8 +81,9 @@ export function commandVerdict(
 
   switch (command.kind) {
     case "placeComponent":
-      return restrictions.allowedTypes === null ||
-        restrictions.allowedTypes.includes(command.typeId)
+      return assignmentSupports(command.typeId) &&
+        (restrictions.allowedTypes === null ||
+          restrictions.allowedTypes.includes(command.typeId))
         ? ALLOWED
         : {
             allowed: false,
@@ -101,13 +127,15 @@ export function allowedCatalog(
   catalog: ComponentCatalog | null,
   restrictions: EditorRestrictions | null,
 ): ComponentCatalog | null {
-  if (catalog === null || restrictions?.allowedTypes == null) return catalog;
+  if (catalog === null || restrictions === null) return catalog;
 
   const allowed = restrictions.allowedTypes;
   return {
     ...catalog,
-    componentTypes: catalog.componentTypes.filter((entry) =>
-      allowed.includes(entry.typeId),
+    componentTypes: catalog.componentTypes.filter(
+      (entry) =>
+        assignmentSupports(entry.typeId) &&
+        (allowed === null || allowed.includes(entry.typeId)),
     ),
   };
 }

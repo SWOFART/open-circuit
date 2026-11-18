@@ -81,6 +81,73 @@ fn v1_migrates_losslessly_and_v2_roundtrips_only_drawn_inputs() {
 }
 
 #[test]
+fn v1_migration_rejects_stage_9_component_types() {
+    let stage_9_sources = [
+        (
+            "ac_voltage_source",
+            json!({
+                "voltageRmsVolts": 10.0,
+                "frequencyHz": 50.0,
+                "phaseOffsetDegrees": 0.0,
+                "internalResistanceOhms": 0.1
+            }),
+        ),
+        (
+            "three_phase_source_star",
+            json!({
+                "phaseVoltageRmsVolts": 230.0,
+                "frequencyHz": 50.0,
+                "phaseOffsetDegrees": 0.0,
+                "internalResistanceOhms": 0.1,
+                "reversedSequence": 0.0
+            }),
+        ),
+        (
+            "three_phase_source_delta",
+            json!({
+                "lineVoltageRmsVolts": 400.0,
+                "frequencyHz": 50.0,
+                "phaseOffsetDegrees": 0.0,
+                "internalResistanceOhms": 0.1,
+                "reversedSequence": 0.0
+            }),
+        ),
+        (
+            "ac_voltmeter",
+            json!({ "inputResistanceOhms": 10000000.0, "frequencyHz": 50.0 }),
+        ),
+        (
+            "ac_ammeter",
+            json!({ "burdenResistanceOhms": 0.1, "frequencyHz": 50.0 }),
+        ),
+        (
+            "wattmeter",
+            json!({
+                "inputResistanceOhms": 10000000.0,
+                "burdenResistanceOhms": 0.1,
+                "frequencyHz": 50.0
+            }),
+        ),
+    ];
+    for (type_id, parameters) in stage_9_sources {
+        let mut current = fixture("stage-1-divider.schematic.json");
+        current["components"][0]["typeId"] = json!(type_id);
+        current["components"][0]["parameters"] = parameters;
+        assert!(decode(&current).is_ok(), "project v2 accepts {type_id}");
+
+        let mut legacy = current;
+        legacy["schemaVersion"] = 1.into();
+        legacy.as_object_mut().unwrap().remove("rails");
+        let error = decode(&legacy).expect_err("Stage 9 sources require project v2");
+        assert!(matches!(
+            error,
+            open_circuit_engine::ProjectDocumentError::Invalid(codes)
+                if codes == vec![DiagnosticCode::UnknownComponentType]
+        ));
+    }
+}
+
+#[test]
 fn strict_version_shapes_reject_unknown_null_missing_and_duplicate_fields() {
     for key in ["schemaVersion", "rails"] {
         let mut v = with_rail();

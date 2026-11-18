@@ -27,8 +27,8 @@ Validity restarts on a change of a source or meter frequency (contract section 5
 
 The public step only sets how often frames and traces are published; the calculation and the measurements use the internal
 substeps. 50 Hz is exactly 20 public steps per period; 60 Hz is not a whole number of steps, which matters for the display
-only. The internal step has `ω h ≤ √0.03 ≈ 0.173`, where the trapezoidal rule's relative amplitude error is about
-`(ω h)² / 12 ≈ 0.25 %`, which is why the contract's amplitude tolerance is 5e-3.
+only. The internal step has `ω h ≤ √0.03`. The Stage 9 solver error budget estimates about 0.8% worst-case amplitude
+error at 400 Hz, so the contract uses a separate 1e-2 amplitude tolerance there and keeps the 5e-3 limit for 50/60 Hz.
 
 ## Known limit
 

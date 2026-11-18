@@ -1,5 +1,7 @@
 //! Stateful Engine API for compiling, updating, and advancing circuit simulations.
 
+#[path = "measurements.rs"]
+mod measurements;
 #[path = "trace.rs"]
 mod trace;
 #[path = "transient.rs"]
@@ -19,7 +21,8 @@ use crate::{
     devices::{
         CapacitorDevice, CapacitorMode, ContactorDevice, DcVoltageSourceDevice, Device,
         DeviceResult, FuseDevice, InductorDevice, InductorMode, PmdcMotorDevice, PmdcMotorMode,
-        RelayCoilMode, RelayDevice, ResistorDevice, Terminals, component_diagnostic,
+        RelayCoilMode, RelayDevice, ResistorDevice, Terminals, ThreePhaseSourceDevice,
+        WattmeterDevice, component_diagnostic,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
@@ -29,8 +32,8 @@ use crate::{
 };
 use trace::TraceHistory;
 use transient::{
-    CapacitorState, CircuitInput, CircuitStates, InductorState, MotorState, SolveMode,
-    advance_public_steps, choose_internal_substeps, circuit_states_from_results,
+    AccumulatedPhase, CapacitorState, CircuitInput, CircuitStates, InductorState, MotorState,
+    SolveMode, advance_public_steps, choose_internal_substeps, circuit_states_from_results,
     settle_discrete_events,
 };
 
@@ -92,6 +95,17 @@ enum DeviceModel {
     DcVoltageSource {
         voltage_volts: f64,
         internal_resistance_ohms: f64,
+    },
+    ThreePhaseSource {
+        windings: [Terminals; 3],
+        winding_voltages: [f64; 3],
+        internal_resistance_ohms: f64,
+        star: bool,
+    },
+    Wattmeter {
+        current_terminals: Terminals,
+        input_resistance_ohms: f64,
+        burden_resistance_ohms: f64,
     },
     Capacitor {
         capacitance_farads: f64,
@@ -283,12 +297,29 @@ impl Engine {
         let layout = active.layout.clone();
         let simulation_step = active.snapshot.metadata.simulation_step;
         let document_revision = request.document_revision;
-        let previous_step_states = active.step_start_states.clone();
+        let mut previous_step_states = active.step_start_states.clone();
+        let invalidated_measurements = match measurement_ids_invalidated_by_frequency_change(
+            &active.schematic,
+            &candidate_overlay.schematic,
+            &candidate_open,
+            &geometry,
+            &request.component_id,
+        ) {
+            Ok(ids) => ids,
+            Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+        };
+        measurements::reset_epoch(
+            &mut previous_step_states.measurements,
+            invalidated_measurements,
+            previous_step_states.simulation_time_seconds,
+        );
         let (internal_substeps, limited) =
             choose_internal_substeps(&candidate_overlay.schematic, &geometry, &candidate_open);
-        let (device_results, states, mut diagnostics) = if simulation_step == 0 {
+        let (device_results, states, step_start_states, mut diagnostics) = if simulation_step == 0 {
             match initialize_circuit(&candidate_overlay.schematic, &geometry, &candidate_open) {
-                Ok(computed) => computed,
+                Ok((results, states, diagnostics)) => {
+                    (results, states.clone(), states, diagnostics)
+                }
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             }
         } else {
@@ -301,8 +332,8 @@ impl Engine {
                 simulation_step,
                 1,
             ) {
-                Ok((results, states, _step_start_states, diagnostics)) => {
-                    (results, states, diagnostics)
+                Ok((results, states, step_start_states, diagnostics)) => {
+                    (results, states, step_start_states, diagnostics)
                 }
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             }
@@ -370,9 +401,7 @@ impl Engine {
         active.stopped = None;
         active.snapshot = snapshot.clone();
         active.states = states.clone();
-        if simulation_step == 0 {
-            active.step_start_states = states;
-        }
+        active.step_start_states = step_start_states;
         active.internal_substeps = internal_substeps;
         SetParameterResult::Success {
             snapshot,
@@ -832,6 +861,7 @@ fn initialize_circuit(
         0.0,
         &mut diagnostics,
     )?;
+    states.measurements = measurements::seed(schematic, &mut results, 0.0);
     sort_diagnostics(&mut diagnostics);
     Ok((results, states, diagnostics))
 }
@@ -851,7 +881,7 @@ fn compute_circuit(
 > {
     let netlist = derive_netlist_with_open(schematic, geometry, open)?;
     let mut diagnostics = netlist.diagnostics.clone();
-    let device_specs = match build_device_specs(schematic, &netlist) {
+    let device_specs = match build_device_specs(schematic, &netlist, mode) {
         Ok(specs) => specs,
         Err(mut errors) => {
             diagnostics.append(&mut errors);
@@ -930,6 +960,7 @@ fn compute_circuit(
             &additional_reference_nodes,
         );
         let mut branch_variables = HashMap::new();
+        let mut three_phase_ideal_branch_variables = HashMap::new();
         let mut motor_speed_variables = HashMap::new();
         let mut next_variable = variables.voltage_variable_count();
         for spec in &island_specs {
@@ -947,6 +978,20 @@ fn compute_circuit(
             if ideal_source || initial_capacitor || operating_point_inductor {
                 branch_variables.insert(spec.component_id.as_str().to_owned(), next_variable);
                 next_variable += 1;
+            }
+            if matches!(
+                spec.model,
+                DeviceModel::ThreePhaseSource {
+                    star: true,
+                    internal_resistance_ohms: 0.0,
+                    ..
+                }
+            ) {
+                three_phase_ideal_branch_variables.insert(
+                    spec.component_id.as_str().to_owned(),
+                    [next_variable, next_variable + 1, next_variable + 2],
+                );
+                next_variable += 3;
             }
             if matches!(spec.model, DeviceModel::PmdcMotor { .. }) {
                 if matches!(
@@ -970,6 +1015,9 @@ fn compute_circuit(
                 make_device(
                     spec,
                     branch_variables.get(spec.component_id.as_str()).copied(),
+                    three_phase_ideal_branch_variables
+                        .get(spec.component_id.as_str())
+                        .copied(),
                     motor_speed_variables
                         .get(spec.component_id.as_str())
                         .copied(),
@@ -1095,7 +1143,14 @@ fn add_source_rail_references(
         .components
         .iter()
         .filter_map(|component| {
-            matches!(component, ComponentSpec::DcVoltageSource { .. }).then_some(component.id())
+            matches!(
+                component,
+                ComponentSpec::DcVoltageSource { .. }
+                    | ComponentSpec::AcVoltageSource { .. }
+                    | ComponentSpec::ThreePhaseSourceStar { .. }
+                    | ComponentSpec::ThreePhaseSourceDelta { .. }
+            )
+            .then_some(component.id())
         })
         .collect::<HashSet<_>>();
     for diagnostic in diagnostics {
@@ -1197,6 +1252,17 @@ fn local_reference_nodes(
             | DeviceModel::Resistor { .. }
             | DeviceModel::DcVoltageSource { .. } => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
+            }
+            DeviceModel::Wattmeter {
+                current_terminals, ..
+            } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                connect(current_terminals.pin1, current_terminals.pin2);
+            }
+            DeviceModel::ThreePhaseSource { windings, .. } => {
+                for winding in windings {
+                    connect(winding.pin1, winding.pin2);
+                }
             }
             DeviceModel::Fuse { .. } => {
                 let fuse_state = match mode {
@@ -1315,6 +1381,7 @@ fn local_reference_nodes(
 fn build_device_specs(
     schematic: &Schematic,
     netlist: &Netlist,
+    mode: SolveMode<'_>,
 ) -> Result<Vec<DeviceSpec>, Vec<Diagnostic>> {
     let mut pin_to_node = HashMap::<PinRef, usize>::new();
     for node in &netlist.nodes {
@@ -1343,6 +1410,12 @@ fn build_device_specs(
             (PinId::Base, PinId::Emitter)
         } else if matches!(component, ComponentSpec::Diode { .. }) {
             (PinId::Anode, PinId::Cathode)
+        } else if matches!(component, ComponentSpec::ThreePhaseSourceStar { .. }) {
+            (PinId::L1, PinId::N)
+        } else if matches!(component, ComponentSpec::ThreePhaseSourceDelta { .. }) {
+            (PinId::L1, PinId::L2)
+        } else if matches!(component, ComponentSpec::Wattmeter { .. }) {
+            (PinId::V1, PinId::V2)
         } else if matches!(component, ComponentSpec::RelaySpdt { .. }) {
             (PinId::CoilPositive, PinId::CoilNegative)
         } else if matches!(component, ComponentSpec::Contactor { .. }) {
@@ -1390,6 +1463,27 @@ fn build_device_specs(
             ComponentSpec::Ammeter { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.burden_resistance_ohms,
             },
+            ComponentSpec::AcVoltmeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.input_resistance_ohms,
+            },
+            ComponentSpec::AcAmmeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.burden_resistance_ohms,
+            },
+            ComponentSpec::Wattmeter { parameters, .. } => {
+                let (Some(i1), Some(i2)) = (node_for_pin(PinId::I1), node_for_pin(PinId::I2))
+                else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Wattmeter {
+                    current_terminals: Terminals { pin1: i1, pin2: i2 },
+                    input_resistance_ohms: parameters.input_resistance_ohms,
+                    burden_resistance_ohms: parameters.burden_resistance_ohms,
+                }
+            }
             ComponentSpec::DcVoltageSource { parameters, .. } => {
                 if parameters.internal_resistance_ohms == 0.0 && pin1 == pin2 {
                     diagnostics.push(Diagnostic::error(
@@ -1406,6 +1500,165 @@ fn build_device_specs(
                 DeviceModel::DcVoltageSource {
                     voltage_volts: parameters.voltage_volts,
                     internal_resistance_ohms: parameters.internal_resistance_ohms,
+                }
+            }
+            ComponentSpec::AcVoltageSource { id, parameters, .. } => {
+                if parameters.internal_resistance_ohms == 0.0 && pin1 == pin2 {
+                    diagnostics.push(Diagnostic::error(
+                        DiagnosticCode::ShortCircuit,
+                        vec![
+                            DiagnosticReference::Component {
+                                component_id: component.id().clone(),
+                            },
+                            DiagnosticReference::pin(component.id().clone(), PinId::Pin1),
+                            DiagnosticReference::pin(component.id().clone(), PinId::Pin2),
+                        ],
+                    ));
+                }
+                let (phase, phase_step_fraction) = match mode {
+                    SolveMode::OperatingPoint => (AccumulatedPhase::default(), 0.0),
+                    SolveMode::InitialState(states) => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        states.ac_source_step_fraction,
+                    ),
+                    SolveMode::Transient {
+                        states,
+                        phase_advance_fraction,
+                        ..
+                    } => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        phase_advance_fraction,
+                    ),
+                };
+                let Some(voltage_volts) = phase.instantaneous_voltage(
+                    parameters.voltage_rms_volts,
+                    parameters.frequency_hz,
+                    parameters.phase_offset_degrees,
+                    phase_step_fraction,
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidParameter,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::DcVoltageSource {
+                    voltage_volts,
+                    internal_resistance_ohms: parameters.internal_resistance_ohms,
+                }
+            }
+            ComponentSpec::ThreePhaseSourceStar { id, .. }
+            | ComponentSpec::ThreePhaseSourceDelta { id, .. } => {
+                let star = matches!(component, ComponentSpec::ThreePhaseSourceStar { .. });
+                let (phase_rms, frequency_hz, phase_offset_degrees, reversed_sequence, resistance) =
+                    match component {
+                        ComponentSpec::ThreePhaseSourceStar { parameters, .. } => (
+                            parameters.phase_voltage_rms_volts,
+                            parameters.frequency_hz,
+                            parameters.phase_offset_degrees,
+                            parameters.reversed_sequence,
+                            parameters.internal_resistance_ohms,
+                        ),
+                        ComponentSpec::ThreePhaseSourceDelta { parameters, .. } => (
+                            parameters.line_voltage_rms_volts,
+                            parameters.frequency_hz,
+                            parameters.phase_offset_degrees,
+                            parameters.reversed_sequence,
+                            parameters.internal_resistance_ohms,
+                        ),
+                        _ => unreachable!(),
+                    };
+                let (phase, phase_step_fraction) = match mode {
+                    SolveMode::OperatingPoint => (AccumulatedPhase::default(), 0.0),
+                    SolveMode::InitialState(states) => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        states.ac_source_step_fraction,
+                    ),
+                    SolveMode::Transient {
+                        states,
+                        phase_advance_fraction,
+                        ..
+                    } => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        phase_advance_fraction,
+                    ),
+                };
+                let phase_offsets = if reversed_sequence == 0.0 {
+                    [0.0, -120.0, 120.0]
+                } else {
+                    [0.0, 120.0, -120.0]
+                };
+                let mut winding_voltages = [0.0; 3];
+                let mut phase_is_valid = true;
+                for (index, phase_offset) in phase_offsets.into_iter().enumerate() {
+                    match phase.instantaneous_voltage(
+                        phase_rms,
+                        frequency_hz,
+                        phase_offset_degrees + phase_offset,
+                        phase_step_fraction,
+                    ) {
+                        Some(voltage) => winding_voltages[index] = voltage,
+                        None => phase_is_valid = false,
+                    }
+                }
+                let (winding_pins, star) = if star {
+                    (
+                        [
+                            (PinId::L1, PinId::N),
+                            (PinId::L2, PinId::N),
+                            (PinId::L3, PinId::N),
+                        ],
+                        true,
+                    )
+                } else {
+                    (
+                        [
+                            (PinId::L1, PinId::L2),
+                            (PinId::L2, PinId::L3),
+                            (PinId::L3, PinId::L1),
+                        ],
+                        false,
+                    )
+                };
+                let windings = winding_pins.map(|(first, second)| {
+                    match (node_for_pin(first), node_for_pin(second)) {
+                        (Some(pin1), Some(pin2)) => Some(Terminals { pin1, pin2 }),
+                        _ => None,
+                    }
+                });
+                let [Some(winding1), Some(winding2), Some(winding3)] = windings else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                if !phase_is_valid {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidParameter,
+                        component.id(),
+                    ));
+                    continue;
+                }
+                let windings = [winding1, winding2, winding3];
+                if resistance == 0.0 && windings.iter().any(|winding| winding.pin1 == winding.pin2)
+                {
+                    let mut references = vec![DiagnosticReference::Component {
+                        component_id: id.clone(),
+                    }];
+                    for (first_pin, second_pin) in winding_pins {
+                        if node_for_pin(first_pin) == node_for_pin(second_pin) {
+                            references.push(DiagnosticReference::pin(id.clone(), first_pin));
+                            references.push(DiagnosticReference::pin(id.clone(), second_pin));
+                        }
+                    }
+                    diagnostics.push(Diagnostic::error(DiagnosticCode::ShortCircuit, references));
+                }
+                DeviceModel::ThreePhaseSource {
+                    windings,
+                    winding_voltages,
+                    internal_resistance_ohms: resistance,
+                    star,
                 }
             }
             ComponentSpec::Capacitor { parameters, .. } => DeviceModel::Capacitor {
@@ -1506,6 +1759,7 @@ fn build_device_specs(
 fn make_device(
     spec: &DeviceSpec,
     branch_variable: Option<usize>,
+    three_phase_ideal_branch_variables: Option<[usize; 3]>,
     motor_speed_variable: Option<usize>,
     mode: SolveMode<'_>,
 ) -> Box<dyn Device> {
@@ -1552,6 +1806,31 @@ fn make_device(
             internal_resistance_ohms,
             branch_variable,
         )),
+        DeviceModel::ThreePhaseSource {
+            windings,
+            winding_voltages,
+            internal_resistance_ohms,
+            star,
+            ..
+        } => Box::new(ThreePhaseSourceDevice::new(
+            spec.component_id.clone(),
+            windings,
+            winding_voltages,
+            internal_resistance_ohms,
+            star,
+            three_phase_ideal_branch_variables,
+        )),
+        DeviceModel::Wattmeter {
+            current_terminals,
+            input_resistance_ohms,
+            burden_resistance_ohms,
+        } => Box::new(WattmeterDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            current_terminals,
+            input_resistance_ohms,
+            burden_resistance_ohms,
+        )),
         DeviceModel::Capacitor {
             capacitance_farads, ..
         } => {
@@ -1572,6 +1851,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states
                         .capacitors
@@ -1611,6 +1891,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states
                         .inductors
@@ -1661,6 +1942,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states.relays.get(&spec.component_id);
                     RelayCoilMode::Transient {
@@ -1713,6 +1995,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states.relays.get(&spec.component_id);
                     RelayCoilMode::Transient {
@@ -1787,6 +2070,7 @@ fn make_device(
                     step_seconds,
                     states,
                     integration_method,
+                    ..
                 } => {
                     let state = states
                         .motors
@@ -1828,27 +2112,23 @@ fn check_ideal_voltage_constraints(
 ) -> Vec<Diagnostic> {
     let mut adjacency = vec![Vec::<(usize, f64, StableId)>::new(); node_count];
     for spec in specs {
-        let voltage = match spec.model {
-            DeviceModel::DcVoltageSource {
+        let constraints = ideal_voltage_constraints(spec);
+        for (terminals, voltage_volts) in constraints.into_iter().chain(
+            matches!(spec.model, DeviceModel::Inductor { .. }
+                if matches!(mode, SolveMode::OperatingPoint))
+            .then_some((spec.terminals, 0.0)),
+        ) {
+            adjacency[terminals.pin1].push((
+                terminals.pin2,
+                -voltage_volts,
+                spec.component_id.clone(),
+            ));
+            adjacency[terminals.pin2].push((
+                terminals.pin1,
                 voltage_volts,
-                internal_resistance_ohms: 0.0,
-            } => Some(voltage_volts),
-            DeviceModel::Inductor { .. } if matches!(mode, SolveMode::OperatingPoint) => Some(0.0),
-            _ => None,
-        };
-        let Some(voltage_volts) = voltage else {
-            continue;
-        };
-        adjacency[spec.terminals.pin1].push((
-            spec.terminals.pin2,
-            -voltage_volts,
-            spec.component_id.clone(),
-        ));
-        adjacency[spec.terminals.pin2].push((
-            spec.terminals.pin1,
-            voltage_volts,
-            spec.component_id.clone(),
-        ));
+                spec.component_id.clone(),
+            ));
+        }
     }
 
     let mut potentials = vec![None::<f64>; node_count];
@@ -1884,8 +2164,26 @@ fn check_ideal_voltage_constraints(
                         if (actual - expected).abs() > tolerance
                             && reported_conflicts.insert(source_id.clone())
                         {
+                            let is_ideal_star_source = specs
+                                .iter()
+                                .find(|spec| spec.component_id.as_str() == source_id.as_str())
+                                .is_some_and(|spec| {
+                                    matches!(
+                                        spec.model,
+                                        DeviceModel::ThreePhaseSource {
+                                            internal_resistance_ohms: 0.0,
+                                            star: true,
+                                            ..
+                                        }
+                                    )
+                                });
+                            let code = if is_ideal_star_source {
+                                DiagnosticCode::ShortCircuit
+                            } else {
+                                DiagnosticCode::InconsistentIdealConstraint
+                            };
                             diagnostics.push(Diagnostic::error(
-                                DiagnosticCode::InconsistentIdealConstraint,
+                                code,
                                 vec![DiagnosticReference::Component {
                                     component_id: source_id.clone(),
                                 }],
@@ -1897,6 +2195,23 @@ fn check_ideal_voltage_constraints(
         }
     }
     diagnostics
+}
+
+fn ideal_voltage_constraints(spec: &DeviceSpec) -> Vec<(Terminals, f64)> {
+    match spec.model {
+        DeviceModel::DcVoltageSource {
+            voltage_volts,
+            internal_resistance_ohms: 0.0,
+        } => vec![(spec.terminals, voltage_volts)],
+        DeviceModel::ThreePhaseSource {
+            windings,
+            winding_voltages,
+            internal_resistance_ohms: 0.0,
+            star: true,
+            ..
+        } => windings.into_iter().zip(winding_voltages).collect(),
+        _ => Vec::new(),
+    }
 }
 
 fn check_initial_state_constraints(
@@ -1924,11 +2239,16 @@ fn check_initial_state_constraints(
         let mut adjacency = vec![Vec::<VoltageEdge>::new(); node_count];
         let mut explicit_capacitors = Vec::new();
         for spec in &island_specs {
+            for (terminals, voltage) in ideal_voltage_constraints(spec) {
+                add_voltage_constraint(
+                    &mut adjacency,
+                    terminals.pin1,
+                    terminals.pin2,
+                    voltage,
+                    None,
+                );
+            }
             let constraint = match spec.model {
-                DeviceModel::DcVoltageSource {
-                    voltage_volts,
-                    internal_resistance_ohms: 0.0,
-                } => Some((voltage_volts, None)),
                 DeviceModel::Capacitor {
                     initial_voltage_volts: Some(voltage_volts),
                     ..
@@ -2010,6 +2330,13 @@ fn check_initial_state_constraints(
             ) {
                 adjacency[spec.terminals.pin1].push(spec.terminals.pin2);
                 adjacency[spec.terminals.pin2].push(spec.terminals.pin1);
+                if let DeviceModel::Wattmeter {
+                    current_terminals, ..
+                } = spec.model
+                {
+                    adjacency[current_terminals.pin1].push(current_terminals.pin2);
+                    adjacency[current_terminals.pin2].push(current_terminals.pin1);
+                }
             }
         }
         let mut groups = vec![usize::MAX; node_count];
@@ -2226,6 +2553,82 @@ fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagno
     })
 }
 
+fn measurement_ids_invalidated_by_frequency_change(
+    previous: &Schematic,
+    candidate: &Schematic,
+    open: &HashSet<StableId>,
+    geometry: &GeometryEnvelope,
+    changed_component_id: &StableId,
+) -> Result<Vec<StableId>, Vec<Diagnostic>> {
+    let previous_frequency = previous
+        .components
+        .iter()
+        .find(|component| component.id() == changed_component_id)
+        .and_then(component_frequency_hz);
+    let candidate_component = candidate
+        .components
+        .iter()
+        .find(|component| component.id() == changed_component_id);
+    let candidate_frequency = candidate_component.and_then(component_frequency_hz);
+    if previous_frequency == candidate_frequency {
+        return Ok(Vec::new());
+    }
+    let Some(component) = candidate_component else {
+        return Ok(Vec::new());
+    };
+    if is_measurement_component(component) {
+        return Ok(vec![changed_component_id.clone()]);
+    }
+    let is_ac_source = matches!(
+        component,
+        ComponentSpec::AcVoltageSource { .. }
+            | ComponentSpec::ThreePhaseSourceStar { .. }
+            | ComponentSpec::ThreePhaseSourceDelta { .. }
+    );
+    if !is_ac_source {
+        return Ok(Vec::new());
+    }
+    let netlist = derive_netlist_with_open(candidate, geometry, open)?;
+    let Some(island) = netlist
+        .islands
+        .iter()
+        .find(|island| island.component_ids.contains(changed_component_id))
+    else {
+        return Ok(Vec::new());
+    };
+    let mut ids = candidate
+        .components
+        .iter()
+        .filter(|component| {
+            island.component_ids.contains(component.id()) && is_measurement_component(component)
+        })
+        .map(|component| component.id().clone())
+        .collect::<Vec<_>>();
+    ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    Ok(ids)
+}
+
+fn component_frequency_hz(component: &ComponentSpec) -> Option<f64> {
+    match component {
+        ComponentSpec::AcVoltageSource { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::ThreePhaseSourceStar { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::ThreePhaseSourceDelta { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::AcVoltmeter { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::AcAmmeter { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::Wattmeter { parameters, .. } => Some(parameters.frequency_hz),
+        _ => None,
+    }
+}
+
+fn is_measurement_component(component: &ComponentSpec) -> bool {
+    matches!(
+        component,
+        ComponentSpec::AcVoltmeter { .. }
+            | ComponentSpec::AcAmmeter { .. }
+            | ComponentSpec::Wattmeter { .. }
+    )
+}
+
 fn values_for_layout(
     layout: &ResultLayout,
     results: &[DeviceResult],
@@ -2252,8 +2655,21 @@ fn values_for_layout(
             .unwrap_or_else(|| match slot.quantity {
                 ResultQuantity::Voltage => result.voltage_volts,
                 ResultQuantity::Current => result.current_amps,
-                ResultQuantity::AccumulatedI2t => f64::NAN,
-                ResultQuantity::AngularVelocity => f64::NAN,
+                ResultQuantity::AccumulatedI2t
+                | ResultQuantity::AngularVelocity
+                | ResultQuantity::RmsVoltage
+                | ResultQuantity::MeanVoltage
+                | ResultQuantity::PeakVoltage
+                | ResultQuantity::RmsCurrent
+                | ResultQuantity::MeanCurrent
+                | ResultQuantity::PeakCurrent
+                | ResultQuantity::Frequency
+                | ResultQuantity::RealPower
+                | ResultQuantity::ReactivePower
+                | ResultQuantity::ApparentPower
+                | ResultQuantity::PowerFactor
+                | ResultQuantity::PhaseAngle
+                | ResultQuantity::Valid => f64::NAN,
             });
         if value.is_finite() {
             values[slot.offset as usize] = value;
@@ -2321,6 +2737,55 @@ pub(crate) fn update_parameter(
             ParameterId::InternalResistanceOhms => {
                 parameters.internal_resistance_ohms = value;
             }
+            _ => return false,
+        },
+        ComponentSpec::AcVoltageSource { parameters, .. } => match parameter_id {
+            ParameterId::VoltageRmsVolts => parameters.voltage_rms_volts = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            ParameterId::PhaseOffsetDegrees => parameters.phase_offset_degrees = value,
+            ParameterId::InternalResistanceOhms => {
+                parameters.internal_resistance_ohms = value;
+            }
+            _ => return false,
+        },
+        ComponentSpec::ThreePhaseSourceStar { parameters, .. } => match parameter_id {
+            ParameterId::PhaseVoltageRmsVolts => {
+                parameters.phase_voltage_rms_volts = value;
+            }
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            ParameterId::PhaseOffsetDegrees => parameters.phase_offset_degrees = value,
+            ParameterId::InternalResistanceOhms => {
+                parameters.internal_resistance_ohms = value;
+            }
+            ParameterId::ReversedSequence => parameters.reversed_sequence = value,
+            _ => return false,
+        },
+        ComponentSpec::ThreePhaseSourceDelta { parameters, .. } => match parameter_id {
+            ParameterId::LineVoltageRmsVolts => {
+                parameters.line_voltage_rms_volts = value;
+            }
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            ParameterId::PhaseOffsetDegrees => parameters.phase_offset_degrees = value,
+            ParameterId::InternalResistanceOhms => {
+                parameters.internal_resistance_ohms = value;
+            }
+            ParameterId::ReversedSequence => parameters.reversed_sequence = value,
+            _ => return false,
+        },
+        ComponentSpec::AcVoltmeter { parameters, .. } => match parameter_id {
+            ParameterId::InputResistanceOhms => parameters.input_resistance_ohms = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            _ => return false,
+        },
+        ComponentSpec::AcAmmeter { parameters, .. } => match parameter_id {
+            ParameterId::BurdenResistanceOhms => parameters.burden_resistance_ohms = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            _ => return false,
+        },
+        ComponentSpec::Wattmeter { parameters, .. } => match parameter_id {
+            ParameterId::InputResistanceOhms => parameters.input_resistance_ohms = value,
+            ParameterId::BurdenResistanceOhms => parameters.burden_resistance_ohms = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
             _ => return false,
         },
         ComponentSpec::Capacitor { parameters, .. } => match parameter_id {

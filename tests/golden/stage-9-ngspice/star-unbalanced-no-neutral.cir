@@ -1,0 +1,18 @@
+* Stage 9 reference circuit: star-unbalanced-no-neutral
+* Wrong variant: the unbalanced star load's neutral wire is missing, so its neutral point floats.
+Rsource_l1 l1 src_l1 0.1000000000000000
+V1 src_l1 0 SIN(0 325.2691193458119 50.00000000000000 0 0 0)
+Rsource_l2 l2 src_l2 0.1000000000000000
+V2 src_l2 0 SIN(0 325.2691193458119 50.00000000000000 0 0 -120.0000000000000)
+Rsource_l3 l3 src_l3 0.1000000000000000
+V3 src_l3 0 SIN(0 325.2691193458119 50.00000000000000 0 0 120.0000000000000)
+Rphase1 l1 nload 100.0000000000000
+Rphase2 l2 nload 220.0000000000000
+Rphase3 l3 nload 470.0000000000000
+.options temp=27 tnom=27 gmin=0 method=trap reltol=1e-10 vntol=1e-12 abstol=1e-14 savecurrents
+.control
+tran 0.00005000000000000000 0.1200000000000000 0 0.000001000000000000000 uic
+set wr_singlescale
+wrdata star-unbalanced-no-neutral.out v(l1) v(l2) v(l3) v(nload) v(src_l1) v(src_l2) v(src_l3) @rsource_l1[i] @rsource_l2[i] @rsource_l3[i] @rphase1[i] @rphase2[i] @rphase3[i]
+.endc
+.end

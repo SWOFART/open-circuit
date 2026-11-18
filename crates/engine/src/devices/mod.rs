@@ -12,6 +12,7 @@ mod motor;
 mod relay;
 mod resistor;
 mod source;
+mod wattmeter;
 
 use crate::{DeviceState, Diagnostic, StableId};
 
@@ -24,7 +25,8 @@ pub(crate) use inductor::{InductorDevice, InductorMode};
 pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};
 pub(crate) use relay::{RelayCoilMode, RelayDevice};
 pub(crate) use resistor::ResistorDevice;
-pub(crate) use source::DcVoltageSourceDevice;
+pub(crate) use source::{DcVoltageSourceDevice, ThreePhaseSourceDevice};
+pub(crate) use wattmeter::WattmeterDevice;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Terminals {

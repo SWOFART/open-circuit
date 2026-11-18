@@ -11,6 +11,7 @@ const catalog = catalogFixture as ComponentCatalog;
 const V1 = "00000000-0000-4000-8000-000000000001";
 const R1 = "00000000-0000-4000-8000-000000000002";
 const R2 = "00000000-0000-4000-8000-000000000003";
+const AC_SOURCE_ID = "00000000-0000-4000-8000-000000000005";
 
 function idFactory(): () => StableId {
   let next = 0xd1;
@@ -197,6 +198,107 @@ describe("component display names", () => {
 });
 
 describe("ComponentLabels", () => {
+  it("shares the V prefix with DC voltage sources", () => {
+    const dcSource = dividerSchematic.components[0]!;
+    const acSource: Schematic["components"][number] = {
+      id: AC_SOURCE_ID,
+      typeId: "ac_voltage_source",
+      position: { x: 3, y: 0 },
+      rotationDeg: 0,
+      parameters: {
+        voltageRmsVolts: 230,
+        frequencyHz: 50,
+        phaseOffsetDegrees: 0,
+        internalResistanceOhms: 0.1,
+      },
+    };
+    const labels = new ComponentLabels().labelsFor({
+      ...dividerSchematic,
+      components: [dcSource, acSource],
+    });
+
+    expect(labels.get(dcSource.id)).toBe("V1");
+    expect(labels.get(AC_SOURCE_ID)).toBe("V2");
+  });
+
+  it("shares the G prefix between star and delta sources", () => {
+    const starId = "00000000-0000-4000-8000-000000000006" as StableId;
+    const deltaId = "00000000-0000-4000-8000-000000000007" as StableId;
+    const components: Schematic["components"] = [
+      {
+        id: starId,
+        typeId: "three_phase_source_star",
+        position: { x: 4, y: 0 },
+        rotationDeg: 0,
+        parameters: {
+          phaseVoltageRmsVolts: 230,
+          frequencyHz: 50,
+          phaseOffsetDegrees: 0,
+          internalResistanceOhms: 0.1,
+          reversedSequence: 0,
+        },
+      },
+      {
+        id: deltaId,
+        typeId: "three_phase_source_delta",
+        position: { x: 8, y: 0 },
+        rotationDeg: 0,
+        parameters: {
+          lineVoltageRmsVolts: 400,
+          frequencyHz: 50,
+          phaseOffsetDegrees: 0,
+          internalResistanceOhms: 0.1,
+          reversedSequence: 0,
+        },
+      },
+    ];
+    const labels = new ComponentLabels().labelsFor({
+      ...dividerSchematic,
+      components,
+    });
+
+    expect(labels.get(starId)).toBe("G1");
+    expect(labels.get(deltaId)).toBe("G2");
+  });
+
+  it("uses the contracted prefixes for AC meters", () => {
+    const components: Schematic["components"] = [
+      {
+        id: "00000000-0000-4000-8000-000000000008" as StableId,
+        typeId: "ac_voltmeter",
+        position: { x: 0, y: 0 },
+        rotationDeg: 0,
+        parameters: { inputResistanceOhms: 10_000_000, frequencyHz: 50 },
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000009" as StableId,
+        typeId: "ac_ammeter",
+        position: { x: 4, y: 0 },
+        rotationDeg: 0,
+        parameters: { burdenResistanceOhms: 0.1, frequencyHz: 50 },
+      },
+      {
+        id: "00000000-0000-4000-8000-00000000000a" as StableId,
+        typeId: "wattmeter",
+        position: { x: 8, y: 0 },
+        rotationDeg: 0,
+        parameters: {
+          inputResistanceOhms: 10_000_000,
+          burdenResistanceOhms: 0.1,
+          frequencyHz: 50,
+        },
+      },
+    ];
+    const labels = new ComponentLabels().labelsFor({
+      ...dividerSchematic,
+      components,
+    });
+
+    expect(labels.get(components[0]!.id)).toBe("PV1");
+    expect(labels.get(components[1]!.id)).toBe("PA1");
+    expect(labels.get(components[2]!.id)).toBe("PW1");
+  });
+
   it("returns the same instance when nothing new was seen", () => {
     const labels = new ComponentLabels();
     const first = labels.labelsFor(dividerSchematic);

@@ -124,7 +124,9 @@ function diagnosisFor(outcome: DiagnosisResult["outcome"]): DiagnosisResult {
 describe("the editor restrictions of an assignment", () => {
   const restrictions = restrictionsOf(teacherFile);
 
-  const place = (typeId: "resistor" | "fuse"): EditorCommand => ({
+  const place = (
+    typeId: "resistor" | "fuse" | "ac_voltage_source",
+  ): EditorCommand => ({
     kind: "placeComponent",
     typeId,
     position: { x: 0, y: 0 },
@@ -155,6 +157,33 @@ describe("the editor restrictions of an assignment", () => {
       allowed: false,
       reason: "The assignment does not allow adding that kind of part.",
     });
+    expect(
+      commandVerdict(place("ac_voltage_source"), restrictions).allowed,
+    ).toBe(false);
+  });
+
+  it("keeps Stage 9 types out of unrestricted assignment placement", () => {
+    const unrestrictedAssignment = {
+      allowedTypes: null,
+      locked: new Set<string>(),
+    };
+
+    expect(commandVerdict(place("resistor"), unrestrictedAssignment)).toEqual({
+      allowed: true,
+    });
+    expect(
+      commandVerdict(place("ac_voltage_source"), unrestrictedAssignment),
+    ).toEqual({
+      allowed: false,
+      reason: "The assignment does not allow adding that kind of part.",
+    });
+    // A malformed caller cannot re-enable a type by listing it explicitly.
+    expect(
+      commandVerdict(place("ac_voltage_source"), {
+        allowedTypes: ["ac_voltage_source"],
+        locked: new Set<string>(),
+      }).allowed,
+    ).toBe(false);
   });
 
   it("refuses to delete a locked part and allows deleting any other", () => {
@@ -214,15 +243,30 @@ describe("the editor restrictions of an assignment", () => {
     expect(allowedCatalog(catalog, null)).toBe(catalog);
   });
 
-  it("offers the palette only the allowed part types, and every type for null", () => {
+  it("offers only assignment-supported types when the assignment allows every type", () => {
     const only = allowedCatalog(catalog, restrictions);
 
     expect(only?.componentTypes.map((entry) => entry.typeId)).toEqual([
       "resistor",
     ]);
+    const allAssignmentTypes = allowedCatalog(catalog, {
+      allowedTypes: null,
+      locked: new Set<string>(),
+    });
+    expect(allAssignmentTypes?.componentTypes).toHaveLength(
+      catalog.componentTypes.length - 6,
+    );
     expect(
-      allowedCatalog(catalog, { allowedTypes: null, locked: new Set() }),
-    ).toBe(catalog);
+      allAssignmentTypes?.componentTypes.some(
+        (entry) =>
+          entry.typeId === "ac_voltage_source" ||
+          entry.typeId === "three_phase_source_star" ||
+          entry.typeId === "three_phase_source_delta" ||
+          entry.typeId === "ac_voltmeter" ||
+          entry.typeId === "ac_ammeter" ||
+          entry.typeId === "wattmeter",
+      ),
+    ).toBe(false);
     expect(allowedCatalog(null, restrictions)).toBeNull();
   });
 });

@@ -38,6 +38,22 @@ impl LegacySchematicV1 {
                 DiagnosticCode::InvalidSchemaVersion,
             ]));
         }
+        // Project schema v1 predates Stage 9; Stage 9 devices require the current v2 format.
+        if self.components.iter().any(|component| {
+            matches!(
+                component,
+                ComponentSpec::AcVoltageSource { .. }
+                    | ComponentSpec::ThreePhaseSourceStar { .. }
+                    | ComponentSpec::ThreePhaseSourceDelta { .. }
+                    | ComponentSpec::AcVoltmeter { .. }
+                    | ComponentSpec::AcAmmeter { .. }
+                    | ComponentSpec::Wattmeter { .. }
+            )
+        }) {
+            return Err(ProjectDocumentError::Invalid(vec![
+                DiagnosticCode::UnknownComponentType,
+            ]));
+        }
         let schematic = self.into_current_unvalidated();
         validate_project_schematic(&schematic)?;
         Ok(schematic)

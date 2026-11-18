@@ -13,6 +13,19 @@ pub enum ResultQuantity {
     Current,
     AccumulatedI2t,
     AngularVelocity,
+    RmsVoltage,
+    MeanVoltage,
+    PeakVoltage,
+    RmsCurrent,
+    MeanCurrent,
+    PeakCurrent,
+    Frequency,
+    RealPower,
+    ReactivePower,
+    ApparentPower,
+    PowerFactor,
+    PhaseAngle,
+    Valid,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -22,6 +35,9 @@ pub enum ResultSignConvention {
     VoltagePin1MinusPin2,
     CurrentIntoPin1,
     PositiveRotationWithPositivePin1Current,
+    Unsigned,
+    LoadConvention,
+    Flag,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
