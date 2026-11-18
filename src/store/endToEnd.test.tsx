@@ -60,7 +60,7 @@ if (!recorded && process.env.CI) {
 
 const session: Session = recorded
   ? (JSON.parse(readFileSync(sessionPath, "utf8")) as Session)
-  : { catalog: { componentTypes: [] }, steps: [] };
+  : { catalog: { componentTypes: [], categories: [] }, steps: [] };
 
 // A stand-in for the Tauri JavaScript API that answers from the recording.
 const tauri = vi.hoisted(() => {

@@ -234,6 +234,10 @@ pub struct ParameterDefinition {
 pub struct ComponentCatalogEntry {
     pub type_id: ComponentTypeId,
     pub display_name_key: String,
+    // The drawer category (docs/contracts/stage-11-drawer-and-editing.md section 2).
+    pub category: CategoryId,
+    // Message keys of alternative names and related words for search.
+    pub search_keyword_keys: Vec<String>,
     pub pins: Vec<PinDefinition>,
     pub parameters: Vec<ParameterDefinition>,
     // The fault kinds this type supports (docs/contracts/stage-5-assignments.md section 5.2).
@@ -245,6 +249,34 @@ pub struct ComponentCatalogEntry {
 #[ts(export, export_to = "ComponentCatalog.ts")]
 pub struct ComponentCatalog {
     pub component_types: Vec<ComponentCatalogEntry>,
+    // The categories in display order, each once; a category with no part is not listed.
+    pub categories: Vec<CategoryId>,
+}
+
+/// The drawer category of a part, in display order.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+#[ts(export, export_to = "CategoryId.ts")]
+pub enum CategoryId {
+    Sources,
+    Passive,
+    Protection,
+    Switching,
+    Measurement,
+    MotorsAndLoads,
+    Semiconductors,
+}
+
+impl CategoryId {
+    const ALL: [Self; 7] = [
+        Self::Sources,
+        Self::Passive,
+        Self::Protection,
+        Self::Switching,
+        Self::Measurement,
+        Self::MotorsAndLoads,
+        Self::Semiconductors,
+    ];
 }
 
 impl ParameterDefinition {
@@ -259,6 +291,8 @@ fn transistor_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEnt
     ComponentCatalogEntry {
         type_id,
         display_name_key: format!("component.{name}.name"),
+        category: CategoryId::Semiconductors,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
         pins: [PinId::Collector, PinId::Base, PinId::Emitter]
             .map(|id| PinDefinition {
                 id,
@@ -324,11 +358,13 @@ pub fn component_catalog() -> ComponentCatalog {
         ]
     };
 
-    ComponentCatalog {
+    let mut catalog = ComponentCatalog {
         component_types: vec![
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Resistor,
                 display_name_key: "component.resistor.name".to_owned(),
+                category: CategoryId::Passive,
+                search_keyword_keys: vec!["component.resistor.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![ParameterDefinition {
                     id: ParameterId::ResistanceOhms,
@@ -346,6 +382,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::DcVoltageSource,
                 display_name_key: "component.dcVoltageSource.name".to_owned(),
+                category: CategoryId::Sources,
+                search_keyword_keys: vec!["component.dcVoltageSource.keywords".to_owned()],
                 pins: vec![
                     PinDefinition {
                         id: PinId::Pin1,
@@ -385,6 +423,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Capacitor,
                 display_name_key: "component.capacitor.name".to_owned(),
+                category: CategoryId::Passive,
+                search_keyword_keys: vec!["component.capacitor.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![
                     ParameterDefinition {
@@ -415,6 +455,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Inductor,
                 display_name_key: "component.inductor.name".to_owned(),
+                category: CategoryId::Passive,
+                search_keyword_keys: vec!["component.inductor.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![
                     ParameterDefinition {
@@ -445,6 +487,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::RelaySpdt,
                 display_name_key: "component.relaySpdt.name".to_owned(),
+                category: CategoryId::Switching,
+                search_keyword_keys: vec!["component.relaySpdt.keywords".to_owned()],
                 pins: vec![
                     PinDefinition {
                         id: PinId::CoilPositive,
@@ -529,6 +573,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Fuse,
                 display_name_key: "component.fuse.name".to_owned(),
+                category: CategoryId::Protection,
+                search_keyword_keys: vec!["component.fuse.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![
                     ParameterDefinition {
@@ -559,6 +605,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::PmdcMotor,
                 display_name_key: "component.pmdcMotor.name".to_owned(),
+                category: CategoryId::MotorsAndLoads,
+                search_keyword_keys: vec!["component.pmdcMotor.keywords".to_owned()],
                 pins: vec![
                     PinDefinition {
                         id: PinId::Pin1,
@@ -664,6 +712,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Voltmeter,
                 display_name_key: "component.voltmeter.name".to_owned(),
+                category: CategoryId::Measurement,
+                search_keyword_keys: vec!["component.voltmeter.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![ParameterDefinition {
                     id: ParameterId::InputResistanceOhms,
@@ -681,6 +731,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Ammeter,
                 display_name_key: "component.ammeter.name".to_owned(),
+                category: CategoryId::Measurement,
+                search_keyword_keys: vec!["component.ammeter.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![ParameterDefinition {
                     id: ParameterId::BurdenResistanceOhms,
@@ -698,6 +750,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::SwitchSpst,
                 display_name_key: "component.switchSpst.name".to_owned(),
+                category: CategoryId::Switching,
+                search_keyword_keys: vec!["component.switchSpst.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![
                     ParameterDefinition {
@@ -728,6 +782,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::PushButtonNo,
                 display_name_key: "component.pushButtonNo.name".to_owned(),
+                category: CategoryId::Switching,
+                search_keyword_keys: vec!["component.pushButtonNo.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![ParameterDefinition {
                     id: ParameterId::ClosedResistanceOhms,
@@ -745,6 +801,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::PushButtonNc,
                 display_name_key: "component.pushButtonNc.name".to_owned(),
+                category: CategoryId::Switching,
+                search_keyword_keys: vec!["component.pushButtonNc.keywords".to_owned()],
                 pins: two_unpolarized_pins(),
                 parameters: vec![ParameterDefinition {
                     id: ParameterId::ClosedResistanceOhms,
@@ -762,6 +820,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Contactor,
                 display_name_key: "component.contactor.name".to_owned(),
+                category: CategoryId::Switching,
+                search_keyword_keys: vec!["component.contactor.keywords".to_owned()],
                 pins: vec![
                     PinDefinition {
                         id: PinId::A1,
@@ -850,6 +910,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Diode,
                 display_name_key: "component.diode.name".into(),
+                category: CategoryId::Semiconductors,
+                search_keyword_keys: vec!["component.diode.keywords".to_owned()],
                 pins: vec![
                     PinDefinition {
                         id: PinId::Anode,
@@ -891,6 +953,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::AcVoltageSource,
                 display_name_key: "component.acVoltageSource.name".to_owned(),
+                category: CategoryId::Sources,
+                search_keyword_keys: vec!["component.acVoltageSource.keywords".to_owned()],
                 pins: vec![
                     PinDefinition {
                         id: PinId::Pin1,
@@ -952,6 +1016,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::ThreePhaseSourceStar,
                 display_name_key: "component.threePhaseSourceStar.name".to_owned(),
+                category: CategoryId::Sources,
+                search_keyword_keys: vec!["component.threePhaseSourceStar.keywords".to_owned()],
                 pins: [PinId::L1, PinId::L2, PinId::L3, PinId::N]
                     .map(|id| PinDefinition {
                         id,
@@ -1026,6 +1092,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::ThreePhaseSourceDelta,
                 display_name_key: "component.threePhaseSourceDelta.name".to_owned(),
+                category: CategoryId::Sources,
+                search_keyword_keys: vec!["component.threePhaseSourceDelta.keywords".to_owned()],
                 pins: [PinId::L1, PinId::L2, PinId::L3]
                     .map(|id| PinDefinition {
                         id,
@@ -1100,6 +1168,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::AcVoltmeter,
                 display_name_key: "component.acVoltmeter.name".to_owned(),
+                category: CategoryId::Measurement,
+                search_keyword_keys: vec!["component.acVoltmeter.keywords".to_owned()],
                 pins: [PinId::Pin1, PinId::Pin2]
                     .map(|id| PinDefinition {
                         id,
@@ -1135,6 +1205,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::AcAmmeter,
                 display_name_key: "component.acAmmeter.name".to_owned(),
+                category: CategoryId::Measurement,
+                search_keyword_keys: vec!["component.acAmmeter.keywords".to_owned()],
                 pins: [PinId::Pin1, PinId::Pin2]
                     .map(|id| PinDefinition {
                         id,
@@ -1170,6 +1242,8 @@ pub fn component_catalog() -> ComponentCatalog {
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Wattmeter,
                 display_name_key: "component.wattmeter.name".to_owned(),
+                category: CategoryId::Measurement,
+                search_keyword_keys: vec!["component.wattmeter.keywords".to_owned()],
                 pins: [PinId::V1, PinId::V2, PinId::I1, PinId::I2]
                     .map(|id| PinDefinition {
                         id,
@@ -1214,5 +1288,16 @@ pub fn component_catalog() -> ComponentCatalog {
                 fault_kinds: vec![],
             },
         ],
-    }
+        categories: Vec::new(),
+    };
+    catalog.categories = CategoryId::ALL
+        .into_iter()
+        .filter(|category| {
+            catalog
+                .component_types
+                .iter()
+                .any(|entry| entry.category == *category)
+        })
+        .collect();
+    catalog
 }

@@ -43,11 +43,11 @@ The interface keeps no hand-written list of parts, categories or keywords: they 
 
 | Category | Parts |
 |---|---|
-| `sources` | `dc_voltage_source` |
+| `sources` | `dc_voltage_source`, `ac_voltage_source`, `three_phase_source_star`, `three_phase_source_delta` |
 | `passive` | `resistor`, `capacitor`, `inductor` |
 | `protection` | `fuse` |
 | `switching` | `switch_spst`, `push_button_no`, `push_button_nc`, `relay_spdt`, `contactor` |
-| `measurement` | `voltmeter`, `ammeter` |
+| `measurement` | `voltmeter`, `ammeter`, `ac_voltmeter`, `ac_ammeter`, `wattmeter` |
 | `motors_and_loads` | `pmdc_motor` |
 | `semiconductors` | `diode`, `bjt_npn`, `bjt_pnp` |
 
