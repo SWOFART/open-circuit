@@ -28,8 +28,8 @@ pub use assignment::{
     validate_assignment, validate_assignment_draft_value, validate_assignment_value,
 };
 pub use catalog::{
-    ComponentCatalog, ComponentCatalogEntry, ComponentTypeId, NumericDomain, ParameterDefinition,
-    ParameterId, PinDefinition, PinId, PinRole, Unit, component_catalog,
+    CategoryId, ComponentCatalog, ComponentCatalogEntry, ComponentTypeId, NumericDomain,
+    ParameterDefinition, ParameterId, PinDefinition, PinId, PinRole, Unit, component_catalog,
 };
 pub use checks::{
     CheckCounts, CheckCriterion, CheckOutcome, CheckRequest, CheckResult, CheckSignal,

@@ -3,6 +3,8 @@
     {
       "typeId": "resistor",
       "displayNameKey": "component.resistor.name",
+      "category": "passive",
+      "searchKeywordKeys": ["component.resistor.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -18,15 +20,13 @@
           "initialCondition": false
         }
       ],
-      "faultKinds": [
-        "open",
-        "short",
-        "parameter"
-      ]
+      "faultKinds": ["open", "short", "parameter"]
     },
     {
       "typeId": "dc_voltage_source",
       "displayNameKey": "component.dcVoltageSource.name",
+      "category": "sources",
+      "searchKeywordKeys": ["component.dcVoltageSource.keywords"],
       "pins": [
         { "id": "pin1", "role": "positive" },
         { "id": "pin2", "role": "negative" }
@@ -51,14 +51,13 @@
           "initialCondition": false
         }
       ],
-      "faultKinds": [
-        "open",
-        "parameter"
-      ]
+      "faultKinds": ["open", "parameter"]
     },
     {
       "typeId": "capacitor",
       "displayNameKey": "component.capacitor.name",
+      "category": "passive",
+      "searchKeywordKeys": ["component.capacitor.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -67,7 +66,7 @@
         {
           "id": "capacitanceFarads",
           "unit": "farad",
-          "defaultValue": 1e-5,
+          "defaultValue": 0.00001,
           "domain": "strictly_positive",
           "descriptionKey": "component.capacitor.capacitance",
           "optional": false,
@@ -83,15 +82,13 @@
           "initialCondition": true
         }
       ],
-      "faultKinds": [
-        "open",
-        "short",
-        "parameter"
-      ]
+      "faultKinds": ["open", "short", "parameter"]
     },
     {
       "typeId": "inductor",
       "displayNameKey": "component.inductor.name",
+      "category": "passive",
+      "searchKeywordKeys": ["component.inductor.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -116,15 +113,13 @@
           "initialCondition": true
         }
       ],
-      "faultKinds": [
-        "open",
-        "short",
-        "parameter"
-      ]
+      "faultKinds": ["open", "short", "parameter"]
     },
     {
       "typeId": "relay_spdt",
       "displayNameKey": "component.relaySpdt.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.relaySpdt.keywords"],
       "pins": [
         { "id": "coil_positive", "role": "positive" },
         { "id": "coil_negative", "role": "negative" },
@@ -133,120 +128,294 @@
         { "id": "normally_closed", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "coilResistanceOhms", "unit": "ohm", "defaultValue": 100.0, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.coilResistance", "optional": false, "initialCondition": false },
-        { "id": "coilInductanceHenries", "unit": "henry", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.coilInductance", "optional": false, "initialCondition": false },
-        { "id": "pickupCurrentAmps", "unit": "amp", "defaultValue": 0.04, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.pickupCurrent", "optional": false, "initialCondition": false },
-        { "id": "dropoutCurrentAmps", "unit": "amp", "defaultValue": 0.02, "domain": "non_negative", "descriptionKey": "component.relaySpdt.dropoutCurrent", "optional": false, "initialCondition": false },
-        { "id": "closedContactResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.relaySpdt.closedContactResistance", "optional": false, "initialCondition": false }
+        {
+          "id": "coilResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.relaySpdt.coilResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "coilInductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.relaySpdt.coilInductance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "pickupCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.04,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.relaySpdt.pickupCurrent",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "dropoutCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.02,
+          "domain": "non_negative",
+          "descriptionKey": "component.relaySpdt.dropoutCurrent",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "closedContactResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.relaySpdt.closedContactResistance",
+          "optional": false,
+          "initialCondition": false
+        }
       ],
-      "faultKinds": [
-        "parameter"
-      ]
+      "faultKinds": ["parameter"]
     },
     {
       "typeId": "fuse",
       "displayNameKey": "component.fuse.name",
+      "category": "protection",
+      "searchKeywordKeys": ["component.fuse.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "intactResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.fuse.intactResistance", "optional": false, "initialCondition": false },
-        { "id": "tripI2tAmpereSquaredSeconds", "unit": "ampere_squared_second", "defaultValue": 0.004, "domain": "strictly_positive", "descriptionKey": "component.fuse.tripI2t", "optional": false, "initialCondition": false }
+        {
+          "id": "intactResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.fuse.intactResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "tripI2tAmpereSquaredSeconds",
+          "unit": "ampere_squared_second",
+          "defaultValue": 0.004,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.fuse.tripI2t",
+          "optional": false,
+          "initialCondition": false
+        }
       ],
-      "faultKinds": [
-        "parameter"
-      ]
+      "faultKinds": ["parameter"]
     },
     {
       "typeId": "pmdc_motor",
       "displayNameKey": "component.pmdcMotor.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": ["component.pmdcMotor.keywords"],
       "pins": [
         { "id": "pin1", "role": "positive" },
         { "id": "pin2", "role": "negative" }
       ],
       "parameters": [
-        { "id": "armatureResistanceOhms", "unit": "ohm", "defaultValue": 2.0, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.armatureResistance", "optional": false, "initialCondition": false },
-        { "id": "armatureInductanceHenries", "unit": "henry", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.armatureInductance", "optional": false, "initialCondition": false },
-        { "id": "motorConstantNewtonMetersPerAmp", "unit": "newton_meter_per_amp", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.motorConstant", "optional": false, "initialCondition": false },
-        { "id": "rotorInertiaKilogramMetersSquared", "unit": "kilogram_meter_squared", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.pmdcMotor.rotorInertia", "optional": false, "initialCondition": false },
-        { "id": "viscousFrictionNewtonMeterSecondsPerRadian", "unit": "newton_meter_second_per_radian", "defaultValue": 0.01, "domain": "non_negative", "descriptionKey": "component.pmdcMotor.viscousFriction", "optional": false, "initialCondition": false },
-        { "id": "loadTorqueNewtonMeters", "unit": "newton_meter", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.loadTorque", "optional": false, "initialCondition": false },
-        { "id": "initialAngularVelocityRadiansPerSecond", "unit": "radian_per_second", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialAngularVelocity", "optional": true, "initialCondition": true },
-        { "id": "initialArmatureCurrentAmps", "unit": "amp", "defaultValue": 0.0, "domain": "finite", "descriptionKey": "component.pmdcMotor.initialArmatureCurrent", "optional": true, "initialCondition": true }
+        {
+          "id": "armatureResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 2.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.pmdcMotor.armatureResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "armatureInductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.pmdcMotor.armatureInductance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "motorConstantNewtonMetersPerAmp",
+          "unit": "newton_meter_per_amp",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.pmdcMotor.motorConstant",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "rotorInertiaKilogramMetersSquared",
+          "unit": "kilogram_meter_squared",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.pmdcMotor.rotorInertia",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "viscousFrictionNewtonMeterSecondsPerRadian",
+          "unit": "newton_meter_second_per_radian",
+          "defaultValue": 0.01,
+          "domain": "non_negative",
+          "descriptionKey": "component.pmdcMotor.viscousFriction",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "loadTorqueNewtonMeters",
+          "unit": "newton_meter",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.pmdcMotor.loadTorque",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "initialAngularVelocityRadiansPerSecond",
+          "unit": "radian_per_second",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.pmdcMotor.initialAngularVelocity",
+          "optional": true,
+          "initialCondition": true
+        },
+        {
+          "id": "initialArmatureCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.pmdcMotor.initialArmatureCurrent",
+          "optional": true,
+          "initialCondition": true
+        }
       ],
-      "faultKinds": [
-        "parameter"
-      ]
+      "faultKinds": ["parameter"]
     },
     {
       "typeId": "voltmeter",
       "displayNameKey": "component.voltmeter.name",
+      "category": "measurement",
+      "searchKeywordKeys": ["component.voltmeter.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "inputResistanceOhms", "unit": "ohm", "defaultValue": 10000000.0, "domain": "strictly_positive", "descriptionKey": "component.voltmeter.inputResistance", "optional": false, "initialCondition": false }
+        {
+          "id": "inputResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 10000000.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.voltmeter.inputResistance",
+          "optional": false,
+          "initialCondition": false
+        }
       ],
-      "faultKinds": [
-        "parameter"
-      ]
+      "faultKinds": ["parameter"]
     },
     {
       "typeId": "ammeter",
       "displayNameKey": "component.ammeter.name",
+      "category": "measurement",
+      "searchKeywordKeys": ["component.ammeter.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "burdenResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.ammeter.burdenResistance", "optional": false, "initialCondition": false }
+        {
+          "id": "burdenResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.ammeter.burdenResistance",
+          "optional": false,
+          "initialCondition": false
+        }
       ],
-      "faultKinds": [
-        "parameter"
-      ]
+      "faultKinds": ["parameter"]
     },
     {
       "typeId": "switch_spst",
       "displayNameKey": "component.switchSpst.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.switchSpst.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "closedResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.switchSpst.closedResistance", "optional": false, "initialCondition": false },
-        { "id": "initialClosed", "unit": "dimensionless", "defaultValue": 0.0, "domain": "zero_or_one", "descriptionKey": "component.switchSpst.initialClosed", "optional": true, "initialCondition": true }
+        {
+          "id": "closedResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.switchSpst.closedResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "initialClosed",
+          "unit": "dimensionless",
+          "defaultValue": 0.0,
+          "domain": "zero_or_one",
+          "descriptionKey": "component.switchSpst.initialClosed",
+          "optional": true,
+          "initialCondition": true
+        }
       ],
       "faultKinds": []
     },
     {
       "typeId": "push_button_no",
       "displayNameKey": "component.pushButtonNo.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.pushButtonNo.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "closedResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.pushButtonNo.closedResistance", "optional": false, "initialCondition": false }
+        {
+          "id": "closedResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.pushButtonNo.closedResistance",
+          "optional": false,
+          "initialCondition": false
+        }
       ],
       "faultKinds": []
     },
     {
       "typeId": "push_button_nc",
       "displayNameKey": "component.pushButtonNc.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.pushButtonNc.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "closedResistanceOhms", "unit": "ohm", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.pushButtonNc.closedResistance", "optional": false, "initialCondition": false }
+        {
+          "id": "closedResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.pushButtonNc.closedResistance",
+          "optional": false,
+          "initialCondition": false
+        }
       ],
       "faultKinds": []
     },
     {
       "typeId": "contactor",
       "displayNameKey": "component.contactor.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.contactor.keywords"],
       "pins": [
         { "id": "a1", "role": "positive" },
         { "id": "a2", "role": "negative" },
@@ -256,26 +425,62 @@
         { "id": "nc_2", "role": "unpolarized" }
       ],
       "parameters": [
-        { "id": "coilResistanceOhms", "unit": "ohm", "defaultValue": 100.0, "domain": "strictly_positive", "descriptionKey": "component.contactor.coilResistance", "optional": false, "initialCondition": false },
-        { "id": "coilInductanceHenries", "unit": "henry", "defaultValue": 0.01, "domain": "strictly_positive", "descriptionKey": "component.contactor.coilInductance", "optional": false, "initialCondition": false },
-        { "id": "pickupCurrentAmps", "unit": "amp", "defaultValue": 0.04, "domain": "strictly_positive", "descriptionKey": "component.contactor.pickupCurrent", "optional": false, "initialCondition": false },
-        { "id": "dropoutCurrentAmps", "unit": "amp", "defaultValue": 0.02, "domain": "non_negative", "descriptionKey": "component.contactor.dropoutCurrent", "optional": false, "initialCondition": false },
-        { "id": "closedContactResistanceOhms", "unit": "ohm", "defaultValue": 0.1, "domain": "strictly_positive", "descriptionKey": "component.contactor.closedContactResistance", "optional": false, "initialCondition": false }
+        {
+          "id": "coilResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.contactor.coilResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "coilInductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.contactor.coilInductance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "pickupCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.04,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.contactor.pickupCurrent",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "dropoutCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.02,
+          "domain": "non_negative",
+          "descriptionKey": "component.contactor.dropoutCurrent",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "closedContactResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.contactor.closedContactResistance",
+          "optional": false,
+          "initialCondition": false
+        }
       ],
       "faultKinds": []
     },
     {
       "typeId": "diode",
       "displayNameKey": "component.diode.name",
+      "category": "semiconductors",
+      "searchKeywordKeys": ["component.diode.keywords"],
       "pins": [
-        {
-          "id": "anode",
-          "role": "positive"
-        },
-        {
-          "id": "cathode",
-          "role": "negative"
-        }
+        { "id": "anode", "role": "positive" },
+        { "id": "cathode", "role": "negative" }
       ],
       "parameters": [
         {
@@ -287,18 +492,18 @@
           "optional": false,
           "initialCondition": false,
           "minimumValue": 1e-18,
-          "maximumValue": 1e-09
+          "maximumValue": 1e-9
         },
         {
           "id": "emissionCoefficient",
           "unit": "dimensionless",
-          "defaultValue": 1,
+          "defaultValue": 1.0,
           "domain": "strictly_positive",
           "descriptionKey": "component.diode.emissionCoefficient",
           "optional": false,
           "initialCondition": false,
-          "minimumValue": 1,
-          "maximumValue": 2
+          "minimumValue": 1.0,
+          "maximumValue": 2.0
         }
       ],
       "faultKinds": []
@@ -306,19 +511,12 @@
     {
       "typeId": "bjt_npn",
       "displayNameKey": "component.bjtNpn.name",
+      "category": "semiconductors",
+      "searchKeywordKeys": ["component.bjtNpn.keywords"],
       "pins": [
-        {
-          "id": "collector",
-          "role": "unpolarized"
-        },
-        {
-          "id": "base",
-          "role": "unpolarized"
-        },
-        {
-          "id": "emitter",
-          "role": "unpolarized"
-        }
+        { "id": "collector", "role": "unpolarized" },
+        { "id": "base", "role": "unpolarized" },
+        { "id": "emitter", "role": "unpolarized" }
       ],
       "parameters": [
         {
@@ -330,29 +528,29 @@
           "optional": false,
           "initialCondition": false,
           "minimumValue": 1e-18,
-          "maximumValue": 1e-09
+          "maximumValue": 1e-9
         },
         {
           "id": "forwardBeta",
           "unit": "dimensionless",
-          "defaultValue": 100,
+          "defaultValue": 100.0,
           "domain": "strictly_positive",
           "descriptionKey": "component.bjtNpn.forwardBeta",
           "optional": false,
           "initialCondition": false,
-          "minimumValue": 1,
-          "maximumValue": 1000
+          "minimumValue": 1.0,
+          "maximumValue": 1000.0
         },
         {
           "id": "reverseBeta",
           "unit": "dimensionless",
-          "defaultValue": 1,
+          "defaultValue": 1.0,
           "domain": "strictly_positive",
           "descriptionKey": "component.bjtNpn.reverseBeta",
           "optional": false,
           "initialCondition": false,
           "minimumValue": 0.01,
-          "maximumValue": 100
+          "maximumValue": 100.0
         }
       ],
       "faultKinds": []
@@ -360,19 +558,12 @@
     {
       "typeId": "bjt_pnp",
       "displayNameKey": "component.bjtPnp.name",
+      "category": "semiconductors",
+      "searchKeywordKeys": ["component.bjtPnp.keywords"],
       "pins": [
-        {
-          "id": "collector",
-          "role": "unpolarized"
-        },
-        {
-          "id": "base",
-          "role": "unpolarized"
-        },
-        {
-          "id": "emitter",
-          "role": "unpolarized"
-        }
+        { "id": "collector", "role": "unpolarized" },
+        { "id": "base", "role": "unpolarized" },
+        { "id": "emitter", "role": "unpolarized" }
       ],
       "parameters": [
         {
@@ -384,29 +575,29 @@
           "optional": false,
           "initialCondition": false,
           "minimumValue": 1e-18,
-          "maximumValue": 1e-09
+          "maximumValue": 1e-9
         },
         {
           "id": "forwardBeta",
           "unit": "dimensionless",
-          "defaultValue": 100,
+          "defaultValue": 100.0,
           "domain": "strictly_positive",
           "descriptionKey": "component.bjtPnp.forwardBeta",
           "optional": false,
           "initialCondition": false,
-          "minimumValue": 1,
-          "maximumValue": 1000
+          "minimumValue": 1.0,
+          "maximumValue": 1000.0
         },
         {
           "id": "reverseBeta",
           "unit": "dimensionless",
-          "defaultValue": 1,
+          "defaultValue": 1.0,
           "domain": "strictly_positive",
           "descriptionKey": "component.bjtPnp.reverseBeta",
           "optional": false,
           "initialCondition": false,
           "minimumValue": 0.01,
-          "maximumValue": 100
+          "maximumValue": 100.0
         }
       ],
       "faultKinds": []
@@ -414,6 +605,8 @@
     {
       "typeId": "ac_voltage_source",
       "displayNameKey": "component.acVoltageSource.name",
+      "category": "sources",
+      "searchKeywordKeys": ["component.acVoltageSource.keywords"],
       "pins": [
         { "id": "pin1", "role": "positive" },
         { "id": "pin2", "role": "negative" }
@@ -467,6 +660,8 @@
     {
       "typeId": "three_phase_source_star",
       "displayNameKey": "component.threePhaseSourceStar.name",
+      "category": "sources",
+      "searchKeywordKeys": ["component.threePhaseSourceStar.keywords"],
       "pins": [
         { "id": "l1", "role": "unpolarized" },
         { "id": "l2", "role": "unpolarized" },
@@ -533,6 +728,8 @@
     {
       "typeId": "three_phase_source_delta",
       "displayNameKey": "component.threePhaseSourceDelta.name",
+      "category": "sources",
+      "searchKeywordKeys": ["component.threePhaseSourceDelta.keywords"],
       "pins": [
         { "id": "l1", "role": "unpolarized" },
         { "id": "l2", "role": "unpolarized" },
@@ -598,6 +795,8 @@
     {
       "typeId": "ac_voltmeter",
       "displayNameKey": "component.acVoltmeter.name",
+      "category": "measurement",
+      "searchKeywordKeys": ["component.acVoltmeter.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -629,6 +828,8 @@
     {
       "typeId": "ac_ammeter",
       "displayNameKey": "component.acAmmeter.name",
+      "category": "measurement",
+      "searchKeywordKeys": ["component.acAmmeter.keywords"],
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -660,6 +861,8 @@
     {
       "typeId": "wattmeter",
       "displayNameKey": "component.wattmeter.name",
+      "category": "measurement",
+      "searchKeywordKeys": ["component.wattmeter.keywords"],
       "pins": [
         { "id": "v1", "role": "unpolarized" },
         { "id": "v2", "role": "unpolarized" },
@@ -699,5 +902,14 @@
       ],
       "faultKinds": []
     }
+  ],
+  "categories": [
+    "sources",
+    "passive",
+    "protection",
+    "switching",
+    "measurement",
+    "motors_and_loads",
+    "semiconductors"
   ]
 }
