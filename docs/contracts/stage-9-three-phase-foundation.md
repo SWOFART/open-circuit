@@ -289,6 +289,7 @@ These are the canonical tolerances, to be confirmed against the reference data o
 | Quantity | Tolerance |
 |---|---|
 | Steady-state amplitude (RMS) of a linear circuit against the closed form, 50 Hz and 60 Hz | 5e-3 relative |
+| Steady-state amplitude (RMS) of a linear circuit against the closed form, 400 Hz | 1e-2 relative |
 | Steady-state phase against the closed form | 0.3 degree |
 | Start-up transient samples against the closed form | 1e-2 of the source amplitude, absolute |
 | Measured RMS, mean, peak, P, Q, S of a sinusoid after one period | 2e-3 relative of the larger of the reference and the signal's own RMS scale |
@@ -297,11 +298,11 @@ These are the canonical tolerances, to be confirmed against the reference data o
 | Three-phase balance: sum of the three line currents of a balanced load without neutral | 1e-9 A absolute plus 1e-6 of the largest line current |
 | Kirchhoff current sum at every node and the power balance, at each step | 1e-9 A and 1e-8 W absolute |
 
-The amplitude and phase tolerances above are those of 50 Hz and 60 Hz. A circuit at 400 Hz (about 0.8 percent of the amplitude at the worst case) gets its own tolerance, fixed in issue #165 from the reference data.
+The phase tolerance above and the first amplitude tolerance are those of 50 Hz and 60 Hz. At 400 Hz, the solver error budget estimates about 0.8 percent worst-case amplitude error, so the separate 1e-2 relative amplitude tolerance leaves a small margin. The fixtures and provenance are documented in [stage-9-references.md](../solver/stage-9-references.md).
 
 ### 10.2 Canonical circuits
 
-Each has an independently computed answer (the closed form of the references, and an ngspice run with the version pinned, as in stage-7-references.md), the exact observation steps, and a wrong variant that must give a distinct answer.
+Each has an independently computed answer (the closed form of the references and an ngspice run with the version pinned), the exact observation steps, and a wrong variant that must give a distinct answer. See [stage-9-references.md](../solver/stage-9-references.md) for the case inventory and regeneration process.
 
 1. **Series RC, RL and RLC on a sinusoidal source**, 50 Hz and 60 Hz: the steady-state amplitude and phase, and the start-up transient, with the source at phase 0 and at phase 90 degrees.
 2. **A wattmeter on an RL load** at 50 Hz: `P`, `Q`, `S`, `PF`, `φ`; the same load with the wattmeter's current circuit reversed (wrong variant: the sign of `P` flips).

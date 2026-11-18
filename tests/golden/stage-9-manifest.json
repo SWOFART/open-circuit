@@ -1,0 +1,1119 @@
+{
+  "manifestVersion": 1,
+  "issue": "https://github.com/SWOFART/open-circuit/issues/165",
+  "parent": "https://github.com/SWOFART/open-circuit/issues/154",
+  "contract": "docs/contracts/stage-9-three-phase-foundation.md",
+  "documentation": "docs/solver/stage-9-references.md",
+  "sources": {
+    "analytical": {
+      "tool": "scripts/stage9-references.mjs",
+      "method": "Closed-form first-order RC and RL startup responses, the underdamped RLC response, sinusoidal steady-state phasors, and a complex nodal solve for the three-phase linear loads. Uses Node's built-in Math only; no Engine, simulator, or package.",
+      "file": "stage-9-analytical.expected.json"
+    },
+    "ngspice": {
+      "simulator": "ngspice-47",
+      "release": "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/47/ngspice-47_64.7z",
+      "archiveSha256": "59225971bd68cdd1199443649aa4615a9e6d684933f205ab49006a3942518f5a",
+      "license": "Modified BSD (ngspice COPYING); ngspice is not stored in this repository and is not a build or normal-test dependency.",
+      "options": "temp=27 tnom=27 gmin=0 method=trap reltol=1e-10 vntol=1e-12 abstol=1e-14 savecurrents",
+      "transient": "tran 0.00005000000000000000 <stop> 0 0.000001000000000000000 uic; passive currents are recorded with savecurrents",
+      "file": "stage-9-ngspice.expected.json"
+    }
+  },
+  "signAndTimeConventions": {
+    "source": "SIN(0, sqrt(2) * Vrms, frequencyHz, 0, 0, phaseOffsetDegrees); pin1 or the first winding terminal is positive.",
+    "branchCurrent": "Positive from the first node named in each netlist element to the second.",
+    "threePhase": "Positive sequence is 0, -120, +120 degrees; reversed sequence swaps the second and third phases.",
+    "startup": "The RC, RL, and RLC cases set C/L initial states to the Stage 9 operating point at e(0) and retain the start-up transient.",
+    "threePhaseObservations": "The three-phase cases are observed after 0.1 s, at 21 evenly spaced times over one 50 Hz period; RL startup has decayed before the window."
+  },
+  "tolerances": {
+    "engine": {
+      "steadyStateAmplitudeRelative50And60Hz": 0.005,
+      "steadyStatePhaseDegrees50And60Hz": 0.3,
+      "startupSignalAbsoluteFraction": 0.01,
+      "measuredRmsMeanPeakPowerRelative": 0.002,
+      "powerFactorAbsolute": 0.002,
+      "measuredPhaseAngleDegrees": 0.3,
+      "measuredFrequencyRelative": 0.001,
+      "steadyStateAmplitudeRelative400Hz": 0.01,
+      "balanceCurrentAbsoluteAmps": 1e-9,
+      "balancePowerAbsoluteWatts": 1e-8
+    },
+    "ngspiceAgainstAnalytical": {
+      "voltageAbsVolts": 0.0001,
+      "currentAbsAmps": 0.000001,
+      "powerAbsWatts": 0.0001,
+      "powerFactorAbs": 0.000001,
+      "phaseAngleAbsDegrees": 0.0001,
+      "relative": 0.000001
+    },
+    "storedAnswerBalance": {
+      "currentAbsAmps": 1e-9,
+      "powerAbsWatts": 1e-8
+    },
+    "ngspiceBalance": {
+      "currentAbsAmps": 1e-8,
+      "powerAbsWatts": 0.001
+    },
+    "basis": "The contract estimates about 0.8% worst-case amplitude error at 400 Hz. Issue #165 fixes a 1e-2 relative tolerance, leaving a small margin; the 50/60 Hz tolerances remain the contract's values."
+  },
+  "regeneration": {
+    "netlists": "node scripts/stage9-references.mjs --write-netlists",
+    "analytical": "node scripts/stage9-references.mjs --analytical --write",
+    "ngspice": "node scripts/stage9-references.mjs --ngspice <path to ngspice-47 console executable> --write",
+    "offline": "node scripts/stage9-references.mjs --check",
+    "rule": "Expected values are generated only from the closed-form references. The simulator validates those values and never replaces them; nothing is overwritten without --write."
+  },
+  "referenceError": {
+    "voltageAbsVolts": 0.0001,
+    "currentAbsAmps": 0.000001,
+    "powerAbsWatts": 0.0001,
+    "powerFactorAbs": 0.000001,
+    "phaseAngleAbsDegrees": 0.0001,
+    "relative": 0.000001
+  },
+  "balanceChecks": {
+    "currentAbsAmps": 1e-9,
+    "powerAbsWatts": 1e-8
+  },
+  "fixtures": [
+    {
+      "id": "rc-50-phase-0",
+      "kind": "series_rc",
+      "role": "canonical",
+      "description": "series_rc on a 10 V RMS sinusoidal source at 50 Hz and 0 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 50,
+        "sourcePhaseOffsetDegrees": 0,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "capacitanceFarads": 0.0001
+      },
+      "netlist": "stage-9-ngspice/rc-50-phase-0.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.201, 0.202, 0.203, 0.204, 0.205, 0.206, 0.207, 0.208,
+        0.209, 0.21, 0.211, 0.212, 0.213, 0.214, 0.215, 0.216, 0.217, 0.218,
+        0.219, 0.22
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.042856228604592,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rl-50-phase-0",
+      "kind": "series_rl",
+      "role": "canonical",
+      "description": "series_rl on a 10 V RMS sinusoidal source at 50 Hz and 0 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 50,
+        "sourcePhaseOffsetDegrees": 0,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rl-50-phase-0.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.201, 0.202, 0.203, 0.204, 0.205, 0.206, 0.207, 0.208,
+        0.209, 0.21, 0.211, 0.212, 0.213, 0.214, 0.215, 0.216, 0.217, 0.218,
+        0.219, 0.22
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.001347972703337,
+        "startupSignalUnit": "amp"
+      }
+    },
+    {
+      "id": "rlc-50-phase-0",
+      "kind": "series_rlc",
+      "role": "canonical",
+      "description": "series_rlc on a 10 V RMS sinusoidal source at 50 Hz and 0 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 50,
+        "sourcePhaseOffsetDegrees": 0,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 20,
+        "capacitanceFarads": 0.0001,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rlc-50-phase-0.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.201, 0.202, 0.203, 0.204, 0.205, 0.206, 0.207, 0.208,
+        0.209, 0.21, 0.211, 0.212, 0.213, 0.214, 0.215, 0.216, 0.217, 0.218,
+        0.219, 0.22
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.22391154792444,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rc-50-phase-90",
+      "kind": "series_rc",
+      "role": "canonical",
+      "description": "series_rc on a 10 V RMS sinusoidal source at 50 Hz and 90 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 50,
+        "sourcePhaseOffsetDegrees": 90,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "capacitanceFarads": 0.0001
+      },
+      "netlist": "stage-9-ngspice/rc-50-phase-90.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.201, 0.202, 0.203, 0.204, 0.205, 0.206, 0.207, 0.208,
+        0.209, 0.21, 0.211, 0.212, 0.213, 0.214, 0.215, 0.216, 0.217, 0.218,
+        0.219, 0.22
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.042856228604592,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rl-50-phase-90",
+      "kind": "series_rl",
+      "role": "canonical",
+      "description": "series_rl on a 10 V RMS sinusoidal source at 50 Hz and 90 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 50,
+        "sourcePhaseOffsetDegrees": 90,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rl-50-phase-90.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.201, 0.202, 0.203, 0.204, 0.205, 0.206, 0.207, 0.208,
+        0.209, 0.21, 0.211, 0.212, 0.213, 0.214, 0.215, 0.216, 0.217, 0.218,
+        0.219, 0.22
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.001347972703337,
+        "startupSignalUnit": "amp"
+      }
+    },
+    {
+      "id": "rlc-50-phase-90",
+      "kind": "series_rlc",
+      "role": "canonical",
+      "description": "series_rlc on a 10 V RMS sinusoidal source at 50 Hz and 90 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 50,
+        "sourcePhaseOffsetDegrees": 90,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 20,
+        "capacitanceFarads": 0.0001,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rlc-50-phase-90.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.201, 0.202, 0.203, 0.204, 0.205, 0.206, 0.207, 0.208,
+        0.209, 0.21, 0.211, 0.212, 0.213, 0.214, 0.215, 0.216, 0.217, 0.218,
+        0.219, 0.22
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.22391154792444,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rc-60-phase-0",
+      "kind": "series_rc",
+      "role": "canonical",
+      "description": "series_rc on a 10 V RMS sinusoidal source at 60 Hz and 0 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 60,
+        "sourcePhaseOffsetDegrees": 0,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "capacitanceFarads": 0.0001
+      },
+      "netlist": "stage-9-ngspice/rc-60-phase-0.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.20083333333333, 0.20166666666667, 0.2025, 0.20333333333333,
+        0.20416666666667, 0.205, 0.20583333333333, 0.20666666666667, 0.2075,
+        0.20833333333333, 0.20916666666667, 0.21, 0.21083333333333,
+        0.21166666666667, 0.2125, 0.21333333333333, 0.21416666666667, 0.215,
+        0.21583333333333, 0.21666666666667
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.036225382692024,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rl-60-phase-0",
+      "kind": "series_rl",
+      "role": "canonical",
+      "description": "series_rl on a 10 V RMS sinusoidal source at 60 Hz and 0 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 60,
+        "sourcePhaseOffsetDegrees": 0,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rl-60-phase-0.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.20083333333333, 0.20166666666667, 0.2025, 0.20333333333333,
+        0.20416666666667, 0.205, 0.20583333333333, 0.20666666666667, 0.2075,
+        0.20833333333333, 0.20916666666667, 0.21, 0.21083333333333,
+        0.21166666666667, 0.2125, 0.21333333333333, 0.21416666666667, 0.215,
+        0.21583333333333, 0.21666666666667
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.0013221434632127,
+        "startupSignalUnit": "amp"
+      }
+    },
+    {
+      "id": "rlc-60-phase-0",
+      "kind": "series_rlc",
+      "role": "canonical",
+      "description": "series_rlc on a 10 V RMS sinusoidal source at 60 Hz and 0 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 60,
+        "sourcePhaseOffsetDegrees": 0,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 20,
+        "capacitanceFarads": 0.0001,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rlc-60-phase-0.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.20083333333333, 0.20166666666667, 0.2025, 0.20333333333333,
+        0.20416666666667, 0.205, 0.20583333333333, 0.20666666666667, 0.2075,
+        0.20833333333333, 0.20916666666667, 0.21, 0.21083333333333,
+        0.21166666666667, 0.2125, 0.21333333333333, 0.21416666666667, 0.215,
+        0.21583333333333, 0.21666666666667
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.16312354608023,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rc-60-phase-90",
+      "kind": "series_rc",
+      "role": "canonical",
+      "description": "series_rc on a 10 V RMS sinusoidal source at 60 Hz and 90 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 60,
+        "sourcePhaseOffsetDegrees": 90,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "capacitanceFarads": 0.0001
+      },
+      "netlist": "stage-9-ngspice/rc-60-phase-90.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.20083333333333, 0.20166666666667, 0.2025, 0.20333333333333,
+        0.20416666666667, 0.205, 0.20583333333333, 0.20666666666667, 0.2075,
+        0.20833333333333, 0.20916666666667, 0.21, 0.21083333333333,
+        0.21166666666667, 0.2125, 0.21333333333333, 0.21416666666667, 0.215,
+        0.21583333333333, 0.21666666666667
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.036225382692024,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rl-60-phase-90",
+      "kind": "series_rl",
+      "role": "canonical",
+      "description": "series_rl on a 10 V RMS sinusoidal source at 60 Hz and 90 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 60,
+        "sourcePhaseOffsetDegrees": 90,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rl-60-phase-90.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.20083333333333, 0.20166666666667, 0.2025, 0.20333333333333,
+        0.20416666666667, 0.205, 0.20583333333333, 0.20666666666667, 0.2075,
+        0.20833333333333, 0.20916666666667, 0.21, 0.21083333333333,
+        0.21166666666667, 0.2125, 0.21333333333333, 0.21416666666667, 0.215,
+        0.21583333333333, 0.21666666666667
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.0013221434632127,
+        "startupSignalUnit": "amp"
+      }
+    },
+    {
+      "id": "rlc-60-phase-90",
+      "kind": "series_rlc",
+      "role": "canonical",
+      "description": "series_rlc on a 10 V RMS sinusoidal source at 60 Hz and 90 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 60,
+        "sourcePhaseOffsetDegrees": 90,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 20,
+        "capacitanceFarads": 0.0001,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/rlc-60-phase-90.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.20083333333333, 0.20166666666667, 0.2025, 0.20333333333333,
+        0.20416666666667, 0.205, 0.20583333333333, 0.20666666666667, 0.2075,
+        0.20833333333333, 0.20916666666667, 0.21, 0.21083333333333,
+        0.21166666666667, 0.2125, 0.21333333333333, 0.21416666666667, 0.215,
+        0.21583333333333, 0.21666666666667
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.16312354608023,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "rc-400-phase-0",
+      "kind": "series_rc",
+      "role": "canonical",
+      "description": "series_rc on a 10 V RMS sinusoidal source at 400 Hz and 0 degrees; startup begins at the source's operating-point value.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "sourceFrequencyHz": 400,
+        "sourcePhaseOffsetDegrees": 0,
+        "sourceInternalResistanceOhms": 0.1,
+        "resistanceOhms": 100,
+        "capacitanceFarads": 0.0001
+      },
+      "netlist": "stage-9-ngspice/rc-400-phase-0.cir",
+      "observationCount": 62,
+      "observationTimesSeconds": [
+        0.000001, 0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008, 0.009,
+        0.01, 0.011, 0.012, 0.013, 0.014, 0.015, 0.016, 0.017, 0.018, 0.019,
+        0.02, 0.021, 0.022, 0.023, 0.024, 0.025, 0.026, 0.027, 0.028, 0.029,
+        0.03, 0.031, 0.032, 0.033, 0.034, 0.035, 0.036, 0.037, 0.038, 0.039,
+        0.04, 0.2, 0.200125, 0.20025, 0.200375, 0.2005, 0.200625, 0.20075,
+        0.200875, 0.201, 0.201125, 0.20125, 0.201375, 0.2015, 0.201625, 0.20175,
+        0.201875, 0.202, 0.202125, 0.20225, 0.202375, 0.2025
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.01,
+        "steadyStatePhaseDegrees": 0.3,
+        "startupSignalAbsolute": 0.0056169200555455,
+        "startupSignalUnit": "volt"
+      }
+    },
+    {
+      "id": "wattmeter-rl",
+      "kind": "wattmeter_rl_measurement",
+      "role": "canonical",
+      "description": "A wattmeter measures an RL load with its voltage circuit across the load and its current circuit in series.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "frequencyHz": 50,
+        "sourceInternalResistanceOhms": 0.1,
+        "burdenResistanceOhms": 0.1,
+        "inputResistanceOhms": 10000000,
+        "loadResistanceOhms": 100,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/wattmeter-rl.cir",
+      "observationCount": 201,
+      "observationTimesSeconds": [
+        0.28, 0.2801, 0.2802, 0.2803, 0.2804, 0.2805, 0.2806, 0.2807, 0.2808,
+        0.2809, 0.281, 0.2811, 0.2812, 0.2813, 0.2814, 0.2815, 0.2816, 0.2817,
+        0.2818, 0.2819, 0.282, 0.2821, 0.2822, 0.2823, 0.2824, 0.2825, 0.2826,
+        0.2827, 0.2828, 0.2829, 0.283, 0.2831, 0.2832, 0.2833, 0.2834, 0.2835,
+        0.2836, 0.2837, 0.2838, 0.2839, 0.284, 0.2841, 0.2842, 0.2843, 0.2844,
+        0.2845, 0.2846, 0.2847, 0.2848, 0.2849, 0.285, 0.2851, 0.2852, 0.2853,
+        0.2854, 0.2855, 0.2856, 0.2857, 0.2858, 0.2859, 0.286, 0.2861, 0.2862,
+        0.2863, 0.2864, 0.2865, 0.2866, 0.2867, 0.2868, 0.2869, 0.287, 0.2871,
+        0.2872, 0.2873, 0.2874, 0.2875, 0.2876, 0.2877, 0.2878, 0.2879, 0.288,
+        0.2881, 0.2882, 0.2883, 0.2884, 0.2885, 0.2886, 0.2887, 0.2888, 0.2889,
+        0.289, 0.2891, 0.2892, 0.2893, 0.2894, 0.2895, 0.2896, 0.2897, 0.2898,
+        0.2899, 0.29, 0.2901, 0.2902, 0.2903, 0.2904, 0.2905, 0.2906, 0.2907,
+        0.2908, 0.2909, 0.291, 0.2911, 0.2912, 0.2913, 0.2914, 0.2915, 0.2916,
+        0.2917, 0.2918, 0.2919, 0.292, 0.2921, 0.2922, 0.2923, 0.2924, 0.2925,
+        0.2926, 0.2927, 0.2928, 0.2929, 0.293, 0.2931, 0.2932, 0.2933, 0.2934,
+        0.2935, 0.2936, 0.2937, 0.2938, 0.2939, 0.294, 0.2941, 0.2942, 0.2943,
+        0.2944, 0.2945, 0.2946, 0.2947, 0.2948, 0.2949, 0.295, 0.2951, 0.2952,
+        0.2953, 0.2954, 0.2955, 0.2956, 0.2957, 0.2958, 0.2959, 0.296, 0.2961,
+        0.2962, 0.2963, 0.2964, 0.2965, 0.2966, 0.2967, 0.2968, 0.2969, 0.297,
+        0.2971, 0.2972, 0.2973, 0.2974, 0.2975, 0.2976, 0.2977, 0.2978, 0.2979,
+        0.298, 0.2981, 0.2982, 0.2983, 0.2984, 0.2985, 0.2986, 0.2987, 0.2988,
+        0.2989, 0.299, 0.2991, 0.2992, 0.2993, 0.2994, 0.2995, 0.2996, 0.2997,
+        0.2998, 0.2999, 0.3
+      ],
+      "engineTolerance": {
+        "measuredRmsMeanPeakPowerRelative": 0.002,
+        "powerFactorAbsolute": 0.002,
+        "phaseAngleDegrees": 0.3
+      }
+    },
+    {
+      "id": "wattmeter-rl-reversed-current",
+      "kind": "wattmeter_rl_measurement",
+      "role": "wrongVariant",
+      "wrongVariantOf": "wattmeter-rl",
+      "description": "Wrong variant: the wattmeter's current-circuit reference is reversed; active and reactive power signs reverse.",
+      "parameters": {
+        "sourceRmsVolts": 10,
+        "frequencyHz": 50,
+        "sourceInternalResistanceOhms": 0.1,
+        "burdenResistanceOhms": 0.1,
+        "inputResistanceOhms": 10000000,
+        "loadResistanceOhms": 100,
+        "inductanceHenries": 0.1
+      },
+      "netlist": "stage-9-ngspice/wattmeter-rl-reversed-current.cir",
+      "observationCount": 201,
+      "observationTimesSeconds": [
+        0.28, 0.2801, 0.2802, 0.2803, 0.2804, 0.2805, 0.2806, 0.2807, 0.2808,
+        0.2809, 0.281, 0.2811, 0.2812, 0.2813, 0.2814, 0.2815, 0.2816, 0.2817,
+        0.2818, 0.2819, 0.282, 0.2821, 0.2822, 0.2823, 0.2824, 0.2825, 0.2826,
+        0.2827, 0.2828, 0.2829, 0.283, 0.2831, 0.2832, 0.2833, 0.2834, 0.2835,
+        0.2836, 0.2837, 0.2838, 0.2839, 0.284, 0.2841, 0.2842, 0.2843, 0.2844,
+        0.2845, 0.2846, 0.2847, 0.2848, 0.2849, 0.285, 0.2851, 0.2852, 0.2853,
+        0.2854, 0.2855, 0.2856, 0.2857, 0.2858, 0.2859, 0.286, 0.2861, 0.2862,
+        0.2863, 0.2864, 0.2865, 0.2866, 0.2867, 0.2868, 0.2869, 0.287, 0.2871,
+        0.2872, 0.2873, 0.2874, 0.2875, 0.2876, 0.2877, 0.2878, 0.2879, 0.288,
+        0.2881, 0.2882, 0.2883, 0.2884, 0.2885, 0.2886, 0.2887, 0.2888, 0.2889,
+        0.289, 0.2891, 0.2892, 0.2893, 0.2894, 0.2895, 0.2896, 0.2897, 0.2898,
+        0.2899, 0.29, 0.2901, 0.2902, 0.2903, 0.2904, 0.2905, 0.2906, 0.2907,
+        0.2908, 0.2909, 0.291, 0.2911, 0.2912, 0.2913, 0.2914, 0.2915, 0.2916,
+        0.2917, 0.2918, 0.2919, 0.292, 0.2921, 0.2922, 0.2923, 0.2924, 0.2925,
+        0.2926, 0.2927, 0.2928, 0.2929, 0.293, 0.2931, 0.2932, 0.2933, 0.2934,
+        0.2935, 0.2936, 0.2937, 0.2938, 0.2939, 0.294, 0.2941, 0.2942, 0.2943,
+        0.2944, 0.2945, 0.2946, 0.2947, 0.2948, 0.2949, 0.295, 0.2951, 0.2952,
+        0.2953, 0.2954, 0.2955, 0.2956, 0.2957, 0.2958, 0.2959, 0.296, 0.2961,
+        0.2962, 0.2963, 0.2964, 0.2965, 0.2966, 0.2967, 0.2968, 0.2969, 0.297,
+        0.2971, 0.2972, 0.2973, 0.2974, 0.2975, 0.2976, 0.2977, 0.2978, 0.2979,
+        0.298, 0.2981, 0.2982, 0.2983, 0.2984, 0.2985, 0.2986, 0.2987, 0.2988,
+        0.2989, 0.299, 0.2991, 0.2992, 0.2993, 0.2994, 0.2995, 0.2996, 0.2997,
+        0.2998, 0.2999, 0.3
+      ],
+      "engineTolerance": {
+        "measuredRmsMeanPeakPowerRelative": 0.002,
+        "powerFactorAbsolute": 0.002,
+        "phaseAngleDegrees": 0.3
+      },
+      "distinctFrom": "wattmeter-rl"
+    },
+    {
+      "id": "star-balanced-resistive-neutral",
+      "kind": "three_phase_star_star_balanced_resistive",
+      "role": "canonical",
+      "description": "Balanced three-phase star resistors with the source neutral connected.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": true,
+        "sequenceReversed": false,
+        "loadConnection": "star",
+        "loads": [
+          {
+            "id": "phase1",
+            "resistanceOhms": 100
+          },
+          {
+            "id": "phase2",
+            "resistanceOhms": 100
+          },
+          {
+            "id": "phase3",
+            "resistanceOhms": 100
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/star-balanced-resistive-neutral.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "star-balanced-resistive-floating-neutral",
+      "kind": "three_phase_star_star_balanced_resistive",
+      "role": "canonical",
+      "description": "Balanced three-phase star resistors with a floating load neutral.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "star",
+        "loads": [
+          {
+            "id": "phase1",
+            "resistanceOhms": 100
+          },
+          {
+            "id": "phase2",
+            "resistanceOhms": 100
+          },
+          {
+            "id": "phase3",
+            "resistanceOhms": 100
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/star-balanced-resistive-floating-neutral.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "star-balanced-rl-neutral",
+      "kind": "three_phase_star_star_balanced_rl",
+      "role": "canonical",
+      "description": "Balanced three-phase star RL loads with the source neutral connected.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": true,
+        "sequenceReversed": false,
+        "loadConnection": "star",
+        "loads": [
+          {
+            "id": "phase1",
+            "resistanceOhms": 100,
+            "inductanceHenries": 0.1
+          },
+          {
+            "id": "phase2",
+            "resistanceOhms": 100,
+            "inductanceHenries": 0.1
+          },
+          {
+            "id": "phase3",
+            "resistanceOhms": 100,
+            "inductanceHenries": 0.1
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/star-balanced-rl-neutral.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "star-balanced-rl-floating-neutral",
+      "kind": "three_phase_star_star_balanced_rl",
+      "role": "canonical",
+      "description": "Balanced three-phase star RL loads with a floating load neutral.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "star",
+        "loads": [
+          {
+            "id": "phase1",
+            "resistanceOhms": 100,
+            "inductanceHenries": 0.1
+          },
+          {
+            "id": "phase2",
+            "resistanceOhms": 100,
+            "inductanceHenries": 0.1
+          },
+          {
+            "id": "phase3",
+            "resistanceOhms": 100,
+            "inductanceHenries": 0.1
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/star-balanced-rl-floating-neutral.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "star-unbalanced-neutral",
+      "kind": "three_phase_star_star_unbalanced_resistive",
+      "role": "canonical",
+      "description": "Unbalanced three-phase star resistors with the source neutral connected.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": true,
+        "sequenceReversed": false,
+        "loadConnection": "star",
+        "loads": [
+          {
+            "id": "phase1",
+            "resistanceOhms": 100
+          },
+          {
+            "id": "phase2",
+            "resistanceOhms": 220
+          },
+          {
+            "id": "phase3",
+            "resistanceOhms": 470
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/star-unbalanced-neutral.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "star-unbalanced-no-neutral",
+      "kind": "three_phase_star_star_unbalanced_resistive",
+      "role": "wrongVariant",
+      "wrongVariantOf": "star-unbalanced-neutral",
+      "description": "Wrong variant: the unbalanced star load's neutral wire is missing, so its neutral point floats.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "star",
+        "loads": [
+          {
+            "id": "phase1",
+            "resistanceOhms": 100
+          },
+          {
+            "id": "phase2",
+            "resistanceOhms": 220
+          },
+          {
+            "id": "phase3",
+            "resistanceOhms": 470
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/star-unbalanced-no-neutral.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      },
+      "distinctFrom": "star-unbalanced-neutral"
+    },
+    {
+      "id": "star-unbalanced-reversed-sequence",
+      "kind": "three_phase_star_star_unbalanced_resistive",
+      "role": "wrongVariant",
+      "wrongVariantOf": "star-unbalanced-neutral",
+      "description": "Wrong variant: the three-phase source uses the reversed phase sequence.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": true,
+        "sequenceReversed": true,
+        "loadConnection": "star",
+        "loads": [
+          {
+            "id": "phase1",
+            "resistanceOhms": 100
+          },
+          {
+            "id": "phase2",
+            "resistanceOhms": 220
+          },
+          {
+            "id": "phase3",
+            "resistanceOhms": 470
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/star-unbalanced-reversed-sequence.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      },
+      "distinctFrom": "star-unbalanced-neutral"
+    },
+    {
+      "id": "delta-load-on-star-source-balanced",
+      "kind": "three_phase_star_delta_balanced_delta_resistive",
+      "role": "canonical",
+      "description": "balanced_delta_resistive delta load on the star three-phase source.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "delta",
+        "loads": [
+          {
+            "id": "load12",
+            "resistanceOhms": 100,
+            "from": "l1",
+            "to": "l2"
+          },
+          {
+            "id": "load23",
+            "resistanceOhms": 100,
+            "from": "l2",
+            "to": "l3"
+          },
+          {
+            "id": "load31",
+            "resistanceOhms": 100,
+            "from": "l3",
+            "to": "l1"
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/delta-load-on-star-source-balanced.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "delta-load-on-star-source-unbalanced",
+      "kind": "three_phase_star_delta_unbalanced_delta_resistive",
+      "role": "canonical",
+      "description": "unbalanced_delta_resistive delta load on the star three-phase source.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 230,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "delta",
+        "loads": [
+          {
+            "id": "load12",
+            "resistanceOhms": 100,
+            "from": "l1",
+            "to": "l2"
+          },
+          {
+            "id": "load23",
+            "resistanceOhms": 220,
+            "from": "l2",
+            "to": "l3"
+          },
+          {
+            "id": "load31",
+            "resistanceOhms": 470,
+            "from": "l3",
+            "to": "l1"
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/delta-load-on-star-source-unbalanced.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "delta-load-on-delta-source-balanced",
+      "kind": "three_phase_delta_delta_balanced_delta_resistive",
+      "role": "canonical",
+      "description": "balanced_delta_resistive delta load on the delta three-phase source.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 400,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "delta",
+        "loads": [
+          {
+            "id": "load12",
+            "resistanceOhms": 100,
+            "from": "l1",
+            "to": "l2"
+          },
+          {
+            "id": "load23",
+            "resistanceOhms": 100,
+            "from": "l2",
+            "to": "l3"
+          },
+          {
+            "id": "load31",
+            "resistanceOhms": 100,
+            "from": "l3",
+            "to": "l1"
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/delta-load-on-delta-source-balanced.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "delta-load-on-delta-source-unbalanced",
+      "kind": "three_phase_delta_delta_unbalanced_delta_resistive",
+      "role": "canonical",
+      "description": "unbalanced_delta_resistive delta load on the delta three-phase source.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 400,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "delta",
+        "loads": [
+          {
+            "id": "load12",
+            "resistanceOhms": 100,
+            "from": "l1",
+            "to": "l2"
+          },
+          {
+            "id": "load23",
+            "resistanceOhms": 220,
+            "from": "l2",
+            "to": "l3"
+          },
+          {
+            "id": "load31",
+            "resistanceOhms": 470,
+            "from": "l3",
+            "to": "l1"
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/delta-load-on-delta-source-unbalanced.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      }
+    },
+    {
+      "id": "delta-wrong-connection",
+      "kind": "three_phase_delta_delta_wrong_delta_connection",
+      "role": "wrongVariant",
+      "wrongVariantOf": "delta-load-on-delta-source-unbalanced",
+      "description": "Wrong variant: the 220 ohm and 470 ohm delta branches are interchanged.",
+      "parameters": {
+        "frequencyHz": 50,
+        "phaseOffsetDegrees": 0,
+        "sourceRmsVolts": 400,
+        "sourceInternalResistanceOhms": 0.1,
+        "neutralConnected": false,
+        "sequenceReversed": false,
+        "loadConnection": "delta",
+        "loads": [
+          {
+            "id": "load12",
+            "resistanceOhms": 100,
+            "from": "l1",
+            "to": "l2"
+          },
+          {
+            "id": "load23",
+            "resistanceOhms": 470,
+            "from": "l2",
+            "to": "l3"
+          },
+          {
+            "id": "load31",
+            "resistanceOhms": 220,
+            "from": "l3",
+            "to": "l1"
+          }
+        ]
+      },
+      "netlist": "stage-9-ngspice/delta-wrong-connection.cir",
+      "observationCount": 21,
+      "observationTimesSeconds": [
+        0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109,
+        0.11, 0.111, 0.112, 0.113, 0.114, 0.115, 0.116, 0.117, 0.118, 0.119,
+        0.12
+      ],
+      "engineTolerance": {
+        "steadyStateAmplitudeRelative": 0.005,
+        "steadyStatePhaseDegrees": 0.3
+      },
+      "distinctFrom": "delta-load-on-delta-source-unbalanced"
+    }
+  ]
+}
