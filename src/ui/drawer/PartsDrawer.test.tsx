@@ -55,9 +55,9 @@ describe("the parts drawer", () => {
       "Contactor",
       "Diode",
     ]) {
-      expect(markup).toContain(`>${name}</div>`);
+      expect(markup).toContain(`>${name}</span>`);
     }
-    expect(markup.match(/role="option"/g)).toHaveLength(16);
+    expect(markup.match(/role="option"/g)).toHaveLength(22);
     expect(markup).not.toContain("component.diode.name");
   });
 
@@ -141,5 +141,20 @@ describe("the parts drawer", () => {
 
     expect(markup).toContain('role="listbox"');
     expect(markup).not.toContain('role="option"');
+  });
+
+  it("shows a preview for every part, and a placeholder where there is no symbol", () => {
+    const markup = render();
+
+    expect(markup.match(/<svg/g)).toHaveLength(16);
+    expect(markup.match(/part-preview-placeholder/g)).toHaveLength(6);
+    expect(markup).toContain(">TPS<");
+  });
+
+  it("marks parts without a symbol as unavailable, and others as available", () => {
+    const markup = render();
+
+    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(6);
+    expect(markup).toContain("The editor has no symbol for this part yet");
   });
 });

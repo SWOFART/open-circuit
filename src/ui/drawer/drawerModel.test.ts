@@ -2,12 +2,11 @@ import { describe, expect, it } from "vitest";
 import catalogFixture from "../../../tests/golden/stage-1-catalog.json";
 import type { ComponentCatalog } from "../../generated/ComponentCatalog";
 import { allowedCatalog } from "../../store/studentAssignment";
-import { symbols } from "../../symbols";
 import { buildDrawerView, moveHighlight, searchKeyAction } from "./drawerModel";
 import { DEFAULT_DRAWER_PREFERENCES } from "./drawerPreferences";
 
 const catalog = catalogFixture as ComponentCatalog;
-const placeable = (typeId: string) => Boolean(symbols[typeId as "resistor"]);
+const placeable = () => true;
 const ids = (entries: readonly { typeId: string }[] | undefined) =>
   entries?.map((entry) => entry.typeId);
 
@@ -23,8 +22,8 @@ describe("the drawer list", () => {
 
     expect(view.results).toBeNull();
     expect(view.groups.map((group) => group.id)).toEqual(catalog.categories);
-    // Stage 9 parts have no editor symbol yet, so they are not offered.
-    expect(shown).not.toContain("ac_voltage_source");
+    // Every catalog part is listed; parts without an editor symbol show a placeholder.
+    expect(shown).toContain("ac_voltage_source");
     expect(shown).toContain("resistor");
     expect(
       ids(view.groups.find((group) => group.id === "switching")?.entries),
