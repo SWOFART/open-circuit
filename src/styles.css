@@ -848,7 +848,10 @@ input {
 }
 
 .parts-option {
+  display: flex;
   flex: 1;
+  align-items: center;
+  gap: 10px;
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
@@ -911,4 +914,31 @@ input {
     transform: translateX(-12px);
     opacity: 0;
   }
+}
+
+.parts-option[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.part-preview {
+  flex: none;
+  color: #cbd5e1;
+}
+
+.part-preview * {
+  vector-effect: non-scaling-stroke;
+}
+
+.part-preview-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px dashed #475569;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
 }

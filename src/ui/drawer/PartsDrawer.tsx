@@ -17,6 +17,7 @@ import {
   type DrawerPreferences,
 } from "./drawerPreferences";
 import { categoryKey } from "./partSearch";
+import { PartPreview } from "./PartPreview";
 
 export const DRAWER_ID = "parts-drawer";
 const LISTBOX_ID = "parts-drawer-list";
@@ -43,7 +44,10 @@ export interface PartsDrawerProps {
   readonly initialQuery?: string;
 }
 
-const isPlaceable = (typeId: ComponentTypeId): boolean =>
+const everyPart = (): boolean => true;
+
+/** A part the editor has no symbol for yet is listed, but it cannot be placed. */
+const hasSymbol = (typeId: ComponentTypeId): boolean =>
   Boolean(symbols[typeId]);
 
 function optionId(group: string, typeId: string): string {
@@ -86,7 +90,7 @@ export function PartsDrawer({
     readonly y: number;
   } | null>(null);
   const suppressClick = useRef(false);
-  const view = buildDrawerView(catalog, preferences, query, isPlaceable);
+  const view = buildDrawerView(catalog, preferences, query, everyPart);
   const optionIds = optionIdsInOrder(view.groups, view.results);
   const active = highlight >= 0 && highlight < view.items.length;
   const activeId = active ? optionIds[highlight] : undefined;
@@ -121,7 +125,7 @@ export function PartsDrawer({
       case "choose": {
         const target = view.items[action.index];
         event.preventDefault();
-        if (!target || disabled) {
+        if (!target || disabled || !hasSymbol(target.typeId)) {
           return;
         }
         if (action.placeAtCenter) {
@@ -148,7 +152,7 @@ export function PartsDrawer({
     event: React.PointerEvent<HTMLElement>,
     entry: ComponentCatalogEntry,
   ) => {
-    if (disabled || event.button !== 0) {
+    if (disabled || event.button !== 0 || !hasSymbol(entry.typeId)) {
       return;
     }
 
@@ -196,6 +200,7 @@ export function PartsDrawer({
     const id = optionId(group, entry.typeId);
     const name = message(entry.displayNameKey);
     const favorite = preferences.favorites.includes(entry.typeId);
+    const placeable = hasSymbol(entry.typeId);
 
     return (
       <div className="parts-row" role="none" key={id}>
@@ -203,7 +208,10 @@ export function PartsDrawer({
           id={id}
           role="option"
           aria-selected={id === activeId}
-          aria-disabled={disabled || undefined}
+          aria-disabled={disabled || !placeable || undefined}
+          title={
+            placeable ? undefined : "The editor has no symbol for this part yet"
+          }
           className={
             id === activeId
               ? "parts-option parts-option-active"
@@ -211,12 +219,13 @@ export function PartsDrawer({
           }
           onPointerDown={(event) => startDrag(event, entry)}
           onClick={() => {
-            if (!suppressClick.current && !disabled) {
+            if (!suppressClick.current && !disabled && placeable) {
               onChoose(entry.typeId);
             }
           }}
         >
-          {name}
+          <PartPreview symbol={symbols[entry.typeId]} name={name} />
+          <span className="parts-name">{name}</span>
         </div>
         <button
           type="button"
