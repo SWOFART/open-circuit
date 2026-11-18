@@ -221,6 +221,46 @@ describe("ComponentLabels", () => {
     expect(labels.get(AC_SOURCE_ID)).toBe("V2");
   });
 
+  it("shares the G prefix between star and delta sources", () => {
+    const starId = "00000000-0000-4000-8000-000000000006" as StableId;
+    const deltaId = "00000000-0000-4000-8000-000000000007" as StableId;
+    const components: Schematic["components"] = [
+      {
+        id: starId,
+        typeId: "three_phase_source_star",
+        position: { x: 4, y: 0 },
+        rotationDeg: 0,
+        parameters: {
+          phaseVoltageRmsVolts: 230,
+          frequencyHz: 50,
+          phaseOffsetDegrees: 0,
+          internalResistanceOhms: 0.1,
+          reversedSequence: 0,
+        },
+      },
+      {
+        id: deltaId,
+        typeId: "three_phase_source_delta",
+        position: { x: 8, y: 0 },
+        rotationDeg: 0,
+        parameters: {
+          lineVoltageRmsVolts: 400,
+          frequencyHz: 50,
+          phaseOffsetDegrees: 0,
+          internalResistanceOhms: 0.1,
+          reversedSequence: 0,
+        },
+      },
+    ];
+    const labels = new ComponentLabels().labelsFor({
+      ...dividerSchematic,
+      components,
+    });
+
+    expect(labels.get(starId)).toBe("G1");
+    expect(labels.get(deltaId)).toBe("G2");
+  });
+
   it("returns the same instance when nothing new was seen", () => {
     const labels = new ComponentLabels();
     const first = labels.labelsFor(dividerSchematic);

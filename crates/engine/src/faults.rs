@@ -62,8 +62,10 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::PmdcMotor
         | ComponentTypeId::Voltmeter
         | ComponentTypeId::Ammeter => &[FaultKind::Parameter],
-        // Stage 6 operator controls and Stage 9 AC sources have no fault kinds.
+        // Stage 6 operator controls and Stage 9 sources have no fault kinds.
         ComponentTypeId::AcVoltageSource
+        | ComponentTypeId::ThreePhaseSourceStar
+        | ComponentTypeId::ThreePhaseSourceDelta
         | ComponentTypeId::SwitchSpst
         | ComponentTypeId::PushButtonNo
         | ComponentTypeId::PushButtonNc

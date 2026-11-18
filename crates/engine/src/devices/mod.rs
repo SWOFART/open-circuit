@@ -24,7 +24,7 @@ pub(crate) use inductor::{InductorDevice, InductorMode};
 pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};
 pub(crate) use relay::{RelayCoilMode, RelayDevice};
 pub(crate) use resistor::ResistorDevice;
-pub(crate) use source::DcVoltageSourceDevice;
+pub(crate) use source::{DcVoltageSourceDevice, ThreePhaseSourceDevice};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Terminals {

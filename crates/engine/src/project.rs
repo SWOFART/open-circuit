@@ -39,11 +39,14 @@ impl LegacySchematicV1 {
             ]));
         }
         // Project schema v1 predates Stage 9; AC sources require the current v2 format.
-        if self
-            .components
-            .iter()
-            .any(|component| matches!(component, ComponentSpec::AcVoltageSource { .. }))
-        {
+        if self.components.iter().any(|component| {
+            matches!(
+                component,
+                ComponentSpec::AcVoltageSource { .. }
+                    | ComponentSpec::ThreePhaseSourceStar { .. }
+                    | ComponentSpec::ThreePhaseSourceDelta { .. }
+            )
+        }) {
             return Err(ProjectDocumentError::Invalid(vec![
                 DiagnosticCode::UnknownComponentType,
             ]));

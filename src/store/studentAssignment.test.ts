@@ -254,11 +254,14 @@ describe("the editor restrictions of an assignment", () => {
       locked: new Set<string>(),
     });
     expect(allAssignmentTypes?.componentTypes).toHaveLength(
-      catalog.componentTypes.length - 1,
+      catalog.componentTypes.length - 3,
     );
     expect(
       allAssignmentTypes?.componentTypes.some(
-        (entry) => entry.typeId === "ac_voltage_source",
+        (entry) =>
+          entry.typeId === "ac_voltage_source" ||
+          entry.typeId === "three_phase_source_star" ||
+          entry.typeId === "three_phase_source_delta",
       ),
     ).toBe(false);
     expect(allowedCatalog(null, restrictions)).toBeNull();

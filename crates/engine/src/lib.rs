@@ -55,7 +55,8 @@ pub use schematic::{
     DcVoltageSourceParameters, DiodeParameters, FuseParameters, GeometryEnvelope, GridPoint,
     InductorParameters, JunctionSpec, PmdcMotorParameters, PushButtonParameters,
     ReferenceMarkerSpec, RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
-    Schematic, SwitchParameters, VoltmeterParameters, WireSpec,
+    Schematic, SwitchParameters, ThreePhaseSourceDeltaParameters, ThreePhaseSourceStarParameters,
+    VoltmeterParameters, WireSpec,
 };
 
 pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");

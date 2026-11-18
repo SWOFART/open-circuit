@@ -158,6 +158,41 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
         | ComponentTypeId::SwitchSpst
         | ComponentTypeId::PushButtonNo
         | ComponentTypeId::PushButtonNc => vec![voltage, current],
+        ComponentTypeId::ThreePhaseSourceStar => vec![
+            slot(Voltage, Unit::Volt, '/', "l1/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "l1/current", CurrentIntoPin1),
+            slot(Voltage, Unit::Volt, '/', "l2/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "l2/current", CurrentIntoPin1),
+            slot(Voltage, Unit::Volt, '/', "l3/voltage", VoltagePin1MinusPin2),
+            slot(Current, Unit::Amp, '/', "l3/current", CurrentIntoPin1),
+            slot(Current, Unit::Amp, '/', "n/current", CurrentIntoPin1),
+        ],
+        ComponentTypeId::ThreePhaseSourceDelta => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "l12/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "l23/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "l31/voltage",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "l1/current", CurrentIntoPin1),
+            slot(Current, Unit::Amp, '/', "l2/current", CurrentIntoPin1),
+            slot(Current, Unit::Amp, '/', "l3/current", CurrentIntoPin1),
+        ],
     }
 }
 

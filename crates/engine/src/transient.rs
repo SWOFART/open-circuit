@@ -309,8 +309,11 @@ pub(super) fn circuit_states_from_results(
         .components
         .iter()
         .filter_map(|component| {
-            let ComponentSpec::AcVoltageSource { id, .. } = component else {
-                return None;
+            let id = match component {
+                ComponentSpec::AcVoltageSource { id, .. }
+                | ComponentSpec::ThreePhaseSourceStar { id, .. }
+                | ComponentSpec::ThreePhaseSourceDelta { id, .. } => id,
+                _ => return None,
             };
             Some((id.clone(), AccumulatedPhase::default()))
         })
@@ -448,14 +451,21 @@ fn advance_ac_source_phases(
 ) -> Result<HashMap<StableId, AccumulatedPhase>, Vec<Diagnostic>> {
     let mut phases = start_states.ac_source_phases.clone();
     for component in &schematic.components {
-        let ComponentSpec::AcVoltageSource { id, parameters, .. } = component else {
-            continue;
+        let (id, frequency_hz) = match component {
+            ComponentSpec::AcVoltageSource { id, parameters, .. } => (id, parameters.frequency_hz),
+            ComponentSpec::ThreePhaseSourceStar { id, parameters, .. } => {
+                (id, parameters.frequency_hz)
+            }
+            ComponentSpec::ThreePhaseSourceDelta { id, parameters, .. } => {
+                (id, parameters.frequency_hz)
+            }
+            _ => continue,
         };
         let Some(phase) = phases
             .get(id)
             .copied()
             .unwrap_or_default()
-            .advanced_by_cycles(parameters.frequency_hz * SIMULATION_TIMESTEP_SECONDS)
+            .advanced_by_cycles(frequency_hz * SIMULATION_TIMESTEP_SECONDS)
         else {
             return Err(vec![component_diagnostic(
                 DiagnosticCode::InvalidParameter,
@@ -667,6 +677,12 @@ pub(super) fn choose_internal_substeps(
             ComponentSpec::AcVoltageSource { parameters, .. } => {
                 Some(std::f64::consts::TAU * parameters.frequency_hz)
             }
+            ComponentSpec::ThreePhaseSourceStar { parameters, .. } => {
+                Some(std::f64::consts::TAU * parameters.frequency_hz)
+            }
+            ComponentSpec::ThreePhaseSourceDelta { parameters, .. } => {
+                Some(std::f64::consts::TAU * parameters.frequency_hz)
+            }
             _ => None,
         })
         .fold(0.0_f64, f64::max);
@@ -760,6 +776,17 @@ fn estimate_transient_rate_bound(
             ) {
                 sets.union(spec.terminals.pin1, spec.terminals.pin2);
             }
+            if let DeviceModel::ThreePhaseSource {
+                windings,
+                internal_resistance_ohms: 0.0,
+                star: true,
+                ..
+            } = spec.model
+            {
+                for winding in windings {
+                    sets.union(winding.pin1, winding.pin2);
+                }
+            }
         }
 
         let reference_root = sets.find(reference_node);
@@ -824,6 +851,20 @@ fn estimate_transient_rate_bound(
                         1.0 / internal_resistance_ohms,
                     )?;
                 }
+                DeviceModel::ThreePhaseSource {
+                    windings,
+                    internal_resistance_ohms,
+                    ..
+                } if internal_resistance_ohms > 0.0 => {
+                    for winding in windings {
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(winding.pin1)).copied(),
+                            root_to_variable.get(&sets.find(winding.pin2)).copied(),
+                            1.0 / internal_resistance_ohms,
+                        )?;
+                    }
+                }
                 DeviceModel::Capacitor {
                     capacitance_farads, ..
                 } => {
@@ -885,6 +926,7 @@ fn estimate_transient_rate_bound(
                     }
                 }
                 DeviceModel::DcVoltageSource { .. }
+                | DeviceModel::ThreePhaseSource { .. }
                 | DeviceModel::Diode { .. }
                 | DeviceModel::Bjt { .. } => {}
             }

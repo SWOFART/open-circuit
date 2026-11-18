@@ -11,6 +11,8 @@ pub enum ComponentTypeId {
     Resistor,
     DcVoltageSource,
     AcVoltageSource,
+    ThreePhaseSourceStar,
+    ThreePhaseSourceDelta,
     Capacitor,
     Inductor,
     RelaySpdt,
@@ -33,6 +35,10 @@ pub enum ComponentTypeId {
 pub enum PinId {
     Pin1,
     Pin2,
+    L1,
+    L2,
+    L3,
+    N,
     Anode,
     Cathode,
     Collector,
@@ -60,6 +66,10 @@ impl PinId {
         match self {
             Self::Pin1 => "pin1",
             Self::Pin2 => "pin2",
+            Self::L1 => "l1",
+            Self::L2 => "l2",
+            Self::L3 => "l3",
+            Self::N => "n",
             Self::Anode => "anode",
             Self::Cathode => "cathode",
             Self::Collector => "collector",
@@ -89,6 +99,9 @@ pub enum ParameterId {
     VoltageRmsVolts,
     FrequencyHz,
     PhaseOffsetDegrees,
+    PhaseVoltageRmsVolts,
+    LineVoltageRmsVolts,
+    ReversedSequence,
     InternalResistanceOhms,
     CapacitanceFarads,
     InitialVoltageVolts,
@@ -921,6 +934,154 @@ pub fn component_catalog() -> ComponentCatalog {
                     },
                 ],
                 fault_kinds: supported_fault_kinds(ComponentTypeId::AcVoltageSource).to_vec(),
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::ThreePhaseSourceStar,
+                display_name_key: "component.threePhaseSourceStar.name".to_owned(),
+                pins: [PinId::L1, PinId::L2, PinId::L3, PinId::N]
+                    .map(|id| PinDefinition {
+                        id,
+                        role: PinRole::Unpolarized,
+                    })
+                    .to_vec(),
+                parameters: [
+                    (
+                        ParameterId::PhaseVoltageRmsVolts,
+                        Unit::Volt,
+                        230.0,
+                        NumericDomain::StrictlyPositive,
+                        Some(0.001),
+                        Some(100_000.0),
+                        "phaseVoltageRms",
+                    ),
+                    (
+                        ParameterId::FrequencyHz,
+                        Unit::Hertz,
+                        50.0,
+                        NumericDomain::StrictlyPositive,
+                        Some(1.0),
+                        Some(400.0),
+                        "frequency",
+                    ),
+                    (
+                        ParameterId::PhaseOffsetDegrees,
+                        Unit::Degree,
+                        0.0,
+                        NumericDomain::Finite,
+                        Some(-360.0),
+                        Some(360.0),
+                        "phaseOffset",
+                    ),
+                    (
+                        ParameterId::InternalResistanceOhms,
+                        Unit::Ohm,
+                        0.1,
+                        NumericDomain::NonNegative,
+                        None,
+                        None,
+                        "internalResistance",
+                    ),
+                    (
+                        ParameterId::ReversedSequence,
+                        Unit::Dimensionless,
+                        0.0,
+                        NumericDomain::ZeroOrOne,
+                        Some(0.0),
+                        Some(1.0),
+                        "reversedSequence",
+                    ),
+                ]
+                .map(
+                    |(id, unit, default_value, domain, minimum_value, maximum_value, key)| {
+                        ParameterDefinition {
+                            id,
+                            unit,
+                            default_value,
+                            domain,
+                            description_key: format!("component.threePhaseSourceStar.{key}"),
+                            optional: false,
+                            initial_condition: false,
+                            minimum_value,
+                            maximum_value,
+                        }
+                    },
+                )
+                .to_vec(),
+                fault_kinds: vec![],
+            },
+            ComponentCatalogEntry {
+                type_id: ComponentTypeId::ThreePhaseSourceDelta,
+                display_name_key: "component.threePhaseSourceDelta.name".to_owned(),
+                pins: [PinId::L1, PinId::L2, PinId::L3]
+                    .map(|id| PinDefinition {
+                        id,
+                        role: PinRole::Unpolarized,
+                    })
+                    .to_vec(),
+                parameters: [
+                    (
+                        ParameterId::LineVoltageRmsVolts,
+                        Unit::Volt,
+                        400.0,
+                        NumericDomain::StrictlyPositive,
+                        Some(0.001),
+                        Some(100_000.0),
+                        "lineVoltageRms",
+                    ),
+                    (
+                        ParameterId::FrequencyHz,
+                        Unit::Hertz,
+                        50.0,
+                        NumericDomain::StrictlyPositive,
+                        Some(1.0),
+                        Some(400.0),
+                        "frequency",
+                    ),
+                    (
+                        ParameterId::PhaseOffsetDegrees,
+                        Unit::Degree,
+                        0.0,
+                        NumericDomain::Finite,
+                        Some(-360.0),
+                        Some(360.0),
+                        "phaseOffset",
+                    ),
+                    (
+                        ParameterId::InternalResistanceOhms,
+                        Unit::Ohm,
+                        0.1,
+                        NumericDomain::StrictlyPositive,
+                        None,
+                        None,
+                        "internalResistance",
+                    ),
+                    (
+                        ParameterId::ReversedSequence,
+                        Unit::Dimensionless,
+                        0.0,
+                        NumericDomain::ZeroOrOne,
+                        Some(0.0),
+                        Some(1.0),
+                        "reversedSequence",
+                    ),
+                ]
+                .map(
+                    |(id, unit, default_value, domain, minimum_value, maximum_value, key)| {
+                        ParameterDefinition {
+                            id,
+                            unit,
+                            default_value,
+                            domain,
+                            description_key: format!("component.threePhaseSourceDelta.{key}"),
+                            optional: false,
+                            initial_condition: false,
+                            minimum_value,
+                            maximum_value,
+                        }
+                    },
+                )
+                .to_vec(),
+                fault_kinds: vec![],
             },
         ],
     }

@@ -61,6 +61,28 @@ pub struct AcVoltageSourceParameters {
     pub internal_resistance_ohms: f64,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "ThreePhaseSourceStarParameters.ts")]
+pub struct ThreePhaseSourceStarParameters {
+    pub phase_voltage_rms_volts: f64,
+    pub frequency_hz: f64,
+    pub phase_offset_degrees: f64,
+    pub internal_resistance_ohms: f64,
+    pub reversed_sequence: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "ThreePhaseSourceDeltaParameters.ts")]
+pub struct ThreePhaseSourceDeltaParameters {
+    pub line_voltage_rms_volts: f64,
+    pub frequency_hz: f64,
+    pub phase_offset_degrees: f64,
+    pub internal_resistance_ohms: f64,
+    pub reversed_sequence: f64,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "CapacitorParameters.ts")]
@@ -311,6 +333,20 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: AcVoltageSourceParameters,
     },
+    ThreePhaseSourceStar {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: ThreePhaseSourceStarParameters,
+    },
+    ThreePhaseSourceDelta {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: ThreePhaseSourceDeltaParameters,
+    },
     Capacitor {
         id: StableId,
         position: GridPoint,
@@ -399,6 +435,8 @@ impl ComponentSpec {
             | Self::Resistor { id, .. }
             | Self::DcVoltageSource { id, .. }
             | Self::AcVoltageSource { id, .. }
+            | Self::ThreePhaseSourceStar { id, .. }
+            | Self::ThreePhaseSourceDelta { id, .. }
             | Self::Capacitor { id, .. }
             | Self::Inductor { id, .. }
             | Self::RelaySpdt { id, .. }
@@ -421,6 +459,8 @@ impl ComponentSpec {
             | Self::Resistor { position, .. }
             | Self::DcVoltageSource { position, .. }
             | Self::AcVoltageSource { position, .. }
+            | Self::ThreePhaseSourceStar { position, .. }
+            | Self::ThreePhaseSourceDelta { position, .. }
             | Self::Capacitor { position, .. }
             | Self::Inductor { position, .. }
             | Self::RelaySpdt { position, .. }
@@ -443,6 +483,8 @@ impl ComponentSpec {
             | Self::Resistor { rotation_deg, .. }
             | Self::DcVoltageSource { rotation_deg, .. }
             | Self::AcVoltageSource { rotation_deg, .. }
+            | Self::ThreePhaseSourceStar { rotation_deg, .. }
+            | Self::ThreePhaseSourceDelta { rotation_deg, .. }
             | Self::Capacitor { rotation_deg, .. }
             | Self::Inductor { rotation_deg, .. }
             | Self::RelaySpdt { rotation_deg, .. }
@@ -465,6 +507,8 @@ impl ComponentSpec {
             Self::Resistor { .. } => ComponentTypeId::Resistor,
             Self::DcVoltageSource { .. } => ComponentTypeId::DcVoltageSource,
             Self::AcVoltageSource { .. } => ComponentTypeId::AcVoltageSource,
+            Self::ThreePhaseSourceStar { .. } => ComponentTypeId::ThreePhaseSourceStar,
+            Self::ThreePhaseSourceDelta { .. } => ComponentTypeId::ThreePhaseSourceDelta,
             Self::Capacitor { .. } => ComponentTypeId::Capacitor,
             Self::Inductor { .. } => ComponentTypeId::Inductor,
             Self::RelaySpdt { .. } => ComponentTypeId::RelaySpdt,
@@ -520,6 +564,38 @@ impl ComponentSpec {
                     ParameterId::InternalResistanceOhms,
                     parameters.internal_resistance_ohms,
                 ),
+            ],
+            Self::ThreePhaseSourceStar { parameters, .. } => vec![
+                (
+                    ParameterId::PhaseVoltageRmsVolts,
+                    parameters.phase_voltage_rms_volts,
+                ),
+                (ParameterId::FrequencyHz, parameters.frequency_hz),
+                (
+                    ParameterId::PhaseOffsetDegrees,
+                    parameters.phase_offset_degrees,
+                ),
+                (
+                    ParameterId::InternalResistanceOhms,
+                    parameters.internal_resistance_ohms,
+                ),
+                (ParameterId::ReversedSequence, parameters.reversed_sequence),
+            ],
+            Self::ThreePhaseSourceDelta { parameters, .. } => vec![
+                (
+                    ParameterId::LineVoltageRmsVolts,
+                    parameters.line_voltage_rms_volts,
+                ),
+                (ParameterId::FrequencyHz, parameters.frequency_hz),
+                (
+                    ParameterId::PhaseOffsetDegrees,
+                    parameters.phase_offset_degrees,
+                ),
+                (
+                    ParameterId::InternalResistanceOhms,
+                    parameters.internal_resistance_ohms,
+                ),
+                (ParameterId::ReversedSequence, parameters.reversed_sequence),
             ],
             Self::Capacitor { parameters, .. } => {
                 let mut values = vec![(
@@ -737,6 +813,8 @@ impl Schematic {
             | ComponentSpec::Resistor { rotation_deg, .. }
             | ComponentSpec::DcVoltageSource { rotation_deg, .. }
             | ComponentSpec::AcVoltageSource { rotation_deg, .. }
+            | ComponentSpec::ThreePhaseSourceStar { rotation_deg, .. }
+            | ComponentSpec::ThreePhaseSourceDelta { rotation_deg, .. }
             | ComponentSpec::Capacitor { rotation_deg, .. }
             | ComponentSpec::Inductor { rotation_deg, .. }
             | ComponentSpec::RelaySpdt { rotation_deg, .. }

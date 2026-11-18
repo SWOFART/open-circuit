@@ -635,15 +635,20 @@ fn stage_9_component_types_remain_outside_assignments() {
         set(
             document,
             "/restrictions/allowedComponentTypes",
-            json!(["ac_voltage_source"]),
+            json!([
+                "ac_voltage_source",
+                "three_phase_source_star",
+                "three_phase_source_delta"
+            ]),
         );
     });
     assert_eq!(
         errors(&unsupported_palette),
-        vec![at(
-            UnknownReference,
-            "/restrictions/allowedComponentTypes/0"
-        )]
+        vec![
+            at(UnknownReference, "/restrictions/allowedComponentTypes/0"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/1"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/2"),
+        ]
     );
 
     let unsupported_count = edited(divider(), |document| {
@@ -913,13 +918,11 @@ fn limits_on_lists_are_too_large_and_never_a_partial_read() {
             );
         })
     };
-    // Assignments retain the Stage 1–8 type set while the project catalog grows.
-    let type_count = open_circuit_engine::component_catalog()
-        .component_types
-        .len();
-    assert_eq!(errors(&types(type_count - 1)), vec![]);
+    // The assignment contract has 16 Stage 1–8 component types; the catalog also contains Stage 9.
+    let type_count = 16;
+    assert_eq!(errors(&types(type_count)), vec![]);
     assert_eq!(
-        errors(&types(type_count)),
+        errors(&types(type_count + 1)),
         vec![at(TooLarge, "/restrictions/allowedComponentTypes")]
     );
     // `null` is every type.

@@ -10,6 +10,8 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   resistor: "R",
   dc_voltage_source: "V",
   ac_voltage_source: "V",
+  three_phase_source_star: "G",
+  three_phase_source_delta: "G",
   capacitor: "C",
   inductor: "L",
   relay_spdt: "K",
