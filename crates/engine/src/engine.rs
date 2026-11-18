@@ -1,5 +1,7 @@
 //! Stateful Engine API for compiling, updating, and advancing circuit simulations.
 
+#[path = "measurements.rs"]
+mod measurements;
 #[path = "trace.rs"]
 mod trace;
 #[path = "transient.rs"]
@@ -20,7 +22,7 @@ use crate::{
         CapacitorDevice, CapacitorMode, ContactorDevice, DcVoltageSourceDevice, Device,
         DeviceResult, FuseDevice, InductorDevice, InductorMode, PmdcMotorDevice, PmdcMotorMode,
         RelayCoilMode, RelayDevice, ResistorDevice, Terminals, ThreePhaseSourceDevice,
-        component_diagnostic,
+        WattmeterDevice, component_diagnostic,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
@@ -99,6 +101,11 @@ enum DeviceModel {
         winding_voltages: [f64; 3],
         internal_resistance_ohms: f64,
         star: bool,
+    },
+    Wattmeter {
+        current_terminals: Terminals,
+        input_resistance_ohms: f64,
+        burden_resistance_ohms: f64,
     },
     Capacitor {
         capacitance_farads: f64,
@@ -290,12 +297,29 @@ impl Engine {
         let layout = active.layout.clone();
         let simulation_step = active.snapshot.metadata.simulation_step;
         let document_revision = request.document_revision;
-        let previous_step_states = active.step_start_states.clone();
+        let mut previous_step_states = active.step_start_states.clone();
+        let invalidated_measurements = match measurement_ids_invalidated_by_frequency_change(
+            &active.schematic,
+            &candidate_overlay.schematic,
+            &candidate_open,
+            &geometry,
+            &request.component_id,
+        ) {
+            Ok(ids) => ids,
+            Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+        };
+        measurements::reset_epoch(
+            &mut previous_step_states.measurements,
+            invalidated_measurements,
+            previous_step_states.simulation_time_seconds,
+        );
         let (internal_substeps, limited) =
             choose_internal_substeps(&candidate_overlay.schematic, &geometry, &candidate_open);
-        let (device_results, states, mut diagnostics) = if simulation_step == 0 {
+        let (device_results, states, step_start_states, mut diagnostics) = if simulation_step == 0 {
             match initialize_circuit(&candidate_overlay.schematic, &geometry, &candidate_open) {
-                Ok(computed) => computed,
+                Ok((results, states, diagnostics)) => {
+                    (results, states.clone(), states, diagnostics)
+                }
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             }
         } else {
@@ -308,8 +332,8 @@ impl Engine {
                 simulation_step,
                 1,
             ) {
-                Ok((results, states, _step_start_states, diagnostics)) => {
-                    (results, states, diagnostics)
+                Ok((results, states, step_start_states, diagnostics)) => {
+                    (results, states, step_start_states, diagnostics)
                 }
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             }
@@ -377,9 +401,7 @@ impl Engine {
         active.stopped = None;
         active.snapshot = snapshot.clone();
         active.states = states.clone();
-        if simulation_step == 0 {
-            active.step_start_states = states;
-        }
+        active.step_start_states = step_start_states;
         active.internal_substeps = internal_substeps;
         SetParameterResult::Success {
             snapshot,
@@ -839,6 +861,7 @@ fn initialize_circuit(
         0.0,
         &mut diagnostics,
     )?;
+    states.measurements = measurements::seed(schematic, &mut results, 0.0);
     sort_diagnostics(&mut diagnostics);
     Ok((results, states, diagnostics))
 }
@@ -1230,6 +1253,12 @@ fn local_reference_nodes(
             | DeviceModel::DcVoltageSource { .. } => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
             }
+            DeviceModel::Wattmeter {
+                current_terminals, ..
+            } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                connect(current_terminals.pin1, current_terminals.pin2);
+            }
             DeviceModel::ThreePhaseSource { windings, .. } => {
                 for winding in windings {
                     connect(winding.pin1, winding.pin2);
@@ -1385,6 +1414,8 @@ fn build_device_specs(
             (PinId::L1, PinId::N)
         } else if matches!(component, ComponentSpec::ThreePhaseSourceDelta { .. }) {
             (PinId::L1, PinId::L2)
+        } else if matches!(component, ComponentSpec::Wattmeter { .. }) {
+            (PinId::V1, PinId::V2)
         } else if matches!(component, ComponentSpec::RelaySpdt { .. }) {
             (PinId::CoilPositive, PinId::CoilNegative)
         } else if matches!(component, ComponentSpec::Contactor { .. }) {
@@ -1432,6 +1463,27 @@ fn build_device_specs(
             ComponentSpec::Ammeter { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.burden_resistance_ohms,
             },
+            ComponentSpec::AcVoltmeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.input_resistance_ohms,
+            },
+            ComponentSpec::AcAmmeter { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.burden_resistance_ohms,
+            },
+            ComponentSpec::Wattmeter { parameters, .. } => {
+                let (Some(i1), Some(i2)) = (node_for_pin(PinId::I1), node_for_pin(PinId::I2))
+                else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Wattmeter {
+                    current_terminals: Terminals { pin1: i1, pin2: i2 },
+                    input_resistance_ohms: parameters.input_resistance_ohms,
+                    burden_resistance_ohms: parameters.burden_resistance_ohms,
+                }
+            }
             ComponentSpec::DcVoltageSource { parameters, .. } => {
                 if parameters.internal_resistance_ohms == 0.0 && pin1 == pin2 {
                     diagnostics.push(Diagnostic::error(
@@ -1767,6 +1819,17 @@ fn make_device(
             internal_resistance_ohms,
             star,
             three_phase_ideal_branch_variables,
+        )),
+        DeviceModel::Wattmeter {
+            current_terminals,
+            input_resistance_ohms,
+            burden_resistance_ohms,
+        } => Box::new(WattmeterDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            current_terminals,
+            input_resistance_ohms,
+            burden_resistance_ohms,
         )),
         DeviceModel::Capacitor {
             capacitance_farads, ..
@@ -2267,6 +2330,13 @@ fn check_initial_state_constraints(
             ) {
                 adjacency[spec.terminals.pin1].push(spec.terminals.pin2);
                 adjacency[spec.terminals.pin2].push(spec.terminals.pin1);
+                if let DeviceModel::Wattmeter {
+                    current_terminals, ..
+                } = spec.model
+                {
+                    adjacency[current_terminals.pin1].push(current_terminals.pin2);
+                    adjacency[current_terminals.pin2].push(current_terminals.pin1);
+                }
             }
         }
         let mut groups = vec![usize::MAX; node_count];
@@ -2483,6 +2553,82 @@ fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagno
     })
 }
 
+fn measurement_ids_invalidated_by_frequency_change(
+    previous: &Schematic,
+    candidate: &Schematic,
+    open: &HashSet<StableId>,
+    geometry: &GeometryEnvelope,
+    changed_component_id: &StableId,
+) -> Result<Vec<StableId>, Vec<Diagnostic>> {
+    let previous_frequency = previous
+        .components
+        .iter()
+        .find(|component| component.id() == changed_component_id)
+        .and_then(component_frequency_hz);
+    let candidate_component = candidate
+        .components
+        .iter()
+        .find(|component| component.id() == changed_component_id);
+    let candidate_frequency = candidate_component.and_then(component_frequency_hz);
+    if previous_frequency == candidate_frequency {
+        return Ok(Vec::new());
+    }
+    let Some(component) = candidate_component else {
+        return Ok(Vec::new());
+    };
+    if is_measurement_component(component) {
+        return Ok(vec![changed_component_id.clone()]);
+    }
+    let is_ac_source = matches!(
+        component,
+        ComponentSpec::AcVoltageSource { .. }
+            | ComponentSpec::ThreePhaseSourceStar { .. }
+            | ComponentSpec::ThreePhaseSourceDelta { .. }
+    );
+    if !is_ac_source {
+        return Ok(Vec::new());
+    }
+    let netlist = derive_netlist_with_open(candidate, geometry, open)?;
+    let Some(island) = netlist
+        .islands
+        .iter()
+        .find(|island| island.component_ids.contains(changed_component_id))
+    else {
+        return Ok(Vec::new());
+    };
+    let mut ids = candidate
+        .components
+        .iter()
+        .filter(|component| {
+            island.component_ids.contains(component.id()) && is_measurement_component(component)
+        })
+        .map(|component| component.id().clone())
+        .collect::<Vec<_>>();
+    ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    Ok(ids)
+}
+
+fn component_frequency_hz(component: &ComponentSpec) -> Option<f64> {
+    match component {
+        ComponentSpec::AcVoltageSource { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::ThreePhaseSourceStar { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::ThreePhaseSourceDelta { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::AcVoltmeter { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::AcAmmeter { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::Wattmeter { parameters, .. } => Some(parameters.frequency_hz),
+        _ => None,
+    }
+}
+
+fn is_measurement_component(component: &ComponentSpec) -> bool {
+    matches!(
+        component,
+        ComponentSpec::AcVoltmeter { .. }
+            | ComponentSpec::AcAmmeter { .. }
+            | ComponentSpec::Wattmeter { .. }
+    )
+}
+
 fn values_for_layout(
     layout: &ResultLayout,
     results: &[DeviceResult],
@@ -2509,8 +2655,21 @@ fn values_for_layout(
             .unwrap_or_else(|| match slot.quantity {
                 ResultQuantity::Voltage => result.voltage_volts,
                 ResultQuantity::Current => result.current_amps,
-                ResultQuantity::AccumulatedI2t => f64::NAN,
-                ResultQuantity::AngularVelocity => f64::NAN,
+                ResultQuantity::AccumulatedI2t
+                | ResultQuantity::AngularVelocity
+                | ResultQuantity::RmsVoltage
+                | ResultQuantity::MeanVoltage
+                | ResultQuantity::PeakVoltage
+                | ResultQuantity::RmsCurrent
+                | ResultQuantity::MeanCurrent
+                | ResultQuantity::PeakCurrent
+                | ResultQuantity::Frequency
+                | ResultQuantity::RealPower
+                | ResultQuantity::ReactivePower
+                | ResultQuantity::ApparentPower
+                | ResultQuantity::PowerFactor
+                | ResultQuantity::PhaseAngle
+                | ResultQuantity::Valid => f64::NAN,
             });
         if value.is_finite() {
             values[slot.offset as usize] = value;
@@ -2611,6 +2770,22 @@ pub(crate) fn update_parameter(
                 parameters.internal_resistance_ohms = value;
             }
             ParameterId::ReversedSequence => parameters.reversed_sequence = value,
+            _ => return false,
+        },
+        ComponentSpec::AcVoltmeter { parameters, .. } => match parameter_id {
+            ParameterId::InputResistanceOhms => parameters.input_resistance_ohms = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            _ => return false,
+        },
+        ComponentSpec::AcAmmeter { parameters, .. } => match parameter_id {
+            ParameterId::BurdenResistanceOhms => parameters.burden_resistance_ohms = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            _ => return false,
+        },
+        ComponentSpec::Wattmeter { parameters, .. } => match parameter_id {
+            ParameterId::InputResistanceOhms => parameters.input_resistance_ohms = value,
+            ParameterId::BurdenResistanceOhms => parameters.burden_resistance_ohms = value,
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
             _ => return false,
         },
         ComponentSpec::Capacitor { parameters, .. } => match parameter_id {

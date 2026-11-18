@@ -34,6 +34,9 @@ const UNITS: Readonly<Record<Unit, true>> = {
   newton_meter_per_amp: true,
   newton_meter_second_per_radian: true,
   radian_per_second: true,
+  watt: true,
+  volt_ampere: true,
+  volt_ampere_reactive: true,
   dimensionless: true,
 };
 const STABLE_ID =

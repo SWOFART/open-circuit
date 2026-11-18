@@ -638,7 +638,10 @@ fn stage_9_component_types_remain_outside_assignments() {
             json!([
                 "ac_voltage_source",
                 "three_phase_source_star",
-                "three_phase_source_delta"
+                "three_phase_source_delta",
+                "ac_voltmeter",
+                "ac_ammeter",
+                "wattmeter"
             ]),
         );
     });
@@ -648,6 +651,9 @@ fn stage_9_component_types_remain_outside_assignments() {
             at(UnknownReference, "/restrictions/allowedComponentTypes/0"),
             at(UnknownReference, "/restrictions/allowedComponentTypes/1"),
             at(UnknownReference, "/restrictions/allowedComponentTypes/2"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/3"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/4"),
+            at(UnknownReference, "/restrictions/allowedComponentTypes/5"),
         ]
     );
 

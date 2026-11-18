@@ -54,17 +54,18 @@ describe("component palette", () => {
       expect(markup).toContain(`>${label}<`);
     }
     expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 5);
-    // Stage 9 sources are Engine catalog types without editor symbols yet.
-    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(
+    // Stage 9 devices are Engine catalog types without editor symbols yet.
+    for (const typeId of [
       "ac_voltage_source",
-    );
-    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(
       "three_phase_source_star",
-    );
-    expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(
       "three_phase_source_delta",
-    );
-    expect(placeableTypes).toHaveLength(catalog.componentTypes.length - 3);
+      "ac_voltmeter",
+      "ac_ammeter",
+      "wattmeter",
+    ]) {
+      expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(typeId);
+    }
+    expect(placeableTypes).toHaveLength(catalog.componentTypes.length - 6);
     // The names come from the interface's messages, never the raw catalog keys.
     expect(markup).not.toContain("component.diode.name");
     expect(pressed(markup)).toEqual(["Select"]);

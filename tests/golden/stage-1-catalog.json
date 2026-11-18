@@ -594,6 +594,110 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "ac_voltmeter",
+      "displayNameKey": "component.acVoltmeter.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "inputResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 10000000.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltmeter.inputResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acVoltmeter.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "ac_ammeter",
+      "displayNameKey": "component.acAmmeter.name",
+      "pins": [
+        { "id": "pin1", "role": "unpolarized" },
+        { "id": "pin2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "burdenResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acAmmeter.burdenResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.acAmmeter.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "wattmeter",
+      "displayNameKey": "component.wattmeter.name",
+      "pins": [
+        { "id": "v1", "role": "unpolarized" },
+        { "id": "v2", "role": "unpolarized" },
+        { "id": "i1", "role": "unpolarized" },
+        { "id": "i2", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "inputResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 10000000.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.wattmeter.inputResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "burdenResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.wattmeter.burdenResistance",
+          "optional": false,
+          "initialCondition": false
+        },
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.wattmeter.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        }
+      ],
+      "faultKinds": []
     }
   ]
 }

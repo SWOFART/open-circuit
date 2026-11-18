@@ -66,6 +66,9 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         ComponentTypeId::AcVoltageSource
         | ComponentTypeId::ThreePhaseSourceStar
         | ComponentTypeId::ThreePhaseSourceDelta
+        | ComponentTypeId::AcVoltmeter
+        | ComponentTypeId::AcAmmeter
+        | ComponentTypeId::Wattmeter
         | ComponentTypeId::SwitchSpst
         | ComponentTypeId::PushButtonNo
         | ComponentTypeId::PushButtonNc

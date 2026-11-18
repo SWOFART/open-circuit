@@ -234,6 +234,9 @@ describe("the units of the Stage 4 signals", () => {
       newton_meter_per_amp: true,
       newton_meter_second_per_radian: true,
       radian_per_second: true,
+      watt: true,
+      volt_ampere: true,
+      volt_ampere_reactive: true,
       dimensionless: true,
     };
 

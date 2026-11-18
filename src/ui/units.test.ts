@@ -32,6 +32,9 @@ describe("parseSi", () => {
     ["2 N·m/A", "newton_meter_per_amp", 2],
     ["10 mN·m·s/rad", "newton_meter_second_per_radian", 0.01],
     ["33 rad/s", "radian_per_second", 33],
+    ["12 W", "watt", 12],
+    ["0.5 VA", "volt_ampere", 0.5],
+    ["2 var", "volt_ampere_reactive", 2],
     ["1e3", "ohm", 1000],
     ["-5", "volt", -5],
     ["10 MOhm", "ohm", 10000000],
@@ -90,6 +93,9 @@ describe("formatSi", () => {
     [0.01, "kilogram_meter_squared", "0.01 kg·m²"],
     [0.5, "newton_meter", "500 mN·m"],
     [33, "radian_per_second", "33 rad/s"],
+    [12, "watt", "12 W"],
+    [0.5, "volt_ampere", "500 mVA"],
+    [2, "volt_ampere_reactive", "2 var"],
     [1.5e12, "ohm", "1500 GΩ"],
   ] as const)("formats %j %s as %j", (value, unit, expected) => {
     expect(formatSi(value, unit)).toBe(expected);

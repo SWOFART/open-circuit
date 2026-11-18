@@ -9,7 +9,7 @@ use crate::{
     netlist::derive_netlist_with_open,
 };
 
-use super::DeviceModel;
+use super::{DeviceModel, measurements::MeasurementState};
 
 type PublicStepOutcome = Result<
     (
@@ -111,6 +111,7 @@ pub(super) struct CircuitStates {
     pub(super) relays: HashMap<StableId, RelayState>,
     pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
     pub(super) motors: HashMap<StableId, MotorState>,
+    pub(super) measurements: HashMap<StableId, MeasurementState>,
     /// Committed phase pairs are held at the start of each public 1 ms step.
     pub(super) ac_source_phases: HashMap<StableId, AccumulatedPhase>,
     /// Progress within the current public step, used by same-time event re-solves.
@@ -325,6 +326,7 @@ pub(super) fn circuit_states_from_results(
         relays,
         fuses,
         motors,
+        measurements: HashMap::new(),
         ac_source_phases,
         ac_source_step_fraction: 0.0,
         simulation_time_seconds,
@@ -434,6 +436,13 @@ pub(super) fn advance_public_steps(
                 fuse_transitions,
                 step_end_time,
                 &mut diagnostics,
+            )?;
+            candidate.measurements = states.measurements.clone();
+            super::measurements::update(
+                schematic,
+                &mut candidate.measurements,
+                &mut step_results,
+                step_end_time,
             )?;
             states = candidate;
             results = step_results;
@@ -827,6 +836,28 @@ fn estimate_transient_rate_bound(
                         variable1,
                         variable2,
                         1.0 / resistance_ohms,
+                    )?;
+                }
+                DeviceModel::Wattmeter {
+                    current_terminals,
+                    input_resistance_ohms,
+                    burden_resistance_ohms,
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / input_resistance_ohms,
+                    )?;
+                    add_laplacian(
+                        &mut conductance,
+                        root_to_variable
+                            .get(&sets.find(current_terminals.pin1))
+                            .copied(),
+                        root_to_variable
+                            .get(&sets.find(current_terminals.pin2))
+                            .copied(),
+                        1.0 / burden_resistance_ohms,
                     )?;
                 }
                 DeviceModel::Fuse {

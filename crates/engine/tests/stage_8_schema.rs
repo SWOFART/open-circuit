@@ -112,6 +112,22 @@ fn v1_migration_rejects_stage_9_component_types() {
                 "reversedSequence": 0.0
             }),
         ),
+        (
+            "ac_voltmeter",
+            json!({ "inputResistanceOhms": 10000000.0, "frequencyHz": 50.0 }),
+        ),
+        (
+            "ac_ammeter",
+            json!({ "burdenResistanceOhms": 0.1, "frequencyHz": 50.0 }),
+        ),
+        (
+            "wattmeter",
+            json!({
+                "inputResistanceOhms": 10000000.0,
+                "burdenResistanceOhms": 0.1,
+                "frequencyHz": 50.0
+            }),
+        ),
     ];
     for (type_id, parameters) in stage_9_sources {
         let mut current = fixture("stage-1-divider.schematic.json");

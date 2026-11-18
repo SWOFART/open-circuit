@@ -261,6 +261,44 @@ describe("ComponentLabels", () => {
     expect(labels.get(deltaId)).toBe("G2");
   });
 
+  it("uses the contracted prefixes for AC meters", () => {
+    const components: Schematic["components"] = [
+      {
+        id: "00000000-0000-4000-8000-000000000008" as StableId,
+        typeId: "ac_voltmeter",
+        position: { x: 0, y: 0 },
+        rotationDeg: 0,
+        parameters: { inputResistanceOhms: 10_000_000, frequencyHz: 50 },
+      },
+      {
+        id: "00000000-0000-4000-8000-000000000009" as StableId,
+        typeId: "ac_ammeter",
+        position: { x: 4, y: 0 },
+        rotationDeg: 0,
+        parameters: { burdenResistanceOhms: 0.1, frequencyHz: 50 },
+      },
+      {
+        id: "00000000-0000-4000-8000-00000000000a" as StableId,
+        typeId: "wattmeter",
+        position: { x: 8, y: 0 },
+        rotationDeg: 0,
+        parameters: {
+          inputResistanceOhms: 10_000_000,
+          burdenResistanceOhms: 0.1,
+          frequencyHz: 50,
+        },
+      },
+    ];
+    const labels = new ComponentLabels().labelsFor({
+      ...dividerSchematic,
+      components,
+    });
+
+    expect(labels.get(components[0]!.id)).toBe("PV1");
+    expect(labels.get(components[1]!.id)).toBe("PA1");
+    expect(labels.get(components[2]!.id)).toBe("PW1");
+  });
+
   it("returns the same instance when nothing new was seen", () => {
     const labels = new ComponentLabels();
     const first = labels.labelsFor(dividerSchematic);

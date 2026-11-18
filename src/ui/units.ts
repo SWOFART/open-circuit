@@ -19,6 +19,9 @@ export const unitSymbols: Readonly<Record<Unit, string>> = {
   newton_meter_per_amp: "N·m/A",
   newton_meter_second_per_radian: "N·m·s/rad",
   radian_per_second: "rad/s",
+  watt: "W",
+  volt_ampere: "VA",
+  volt_ampere_reactive: "var",
   dimensionless: "",
 };
 
@@ -47,6 +50,13 @@ const unitWords: Readonly<Record<Unit, readonly string[]>> = {
     "newton meter second per radian",
   ],
   radian_per_second: ["rad/s", "radian per second", "radians per second"],
+  watt: ["w", "watt", "watts"],
+  volt_ampere: ["va", "volt ampere", "volt amperes"],
+  volt_ampere_reactive: [
+    "var",
+    "volt ampere reactive",
+    "volt amperes reactive",
+  ],
   dimensionless: [],
 };
 
