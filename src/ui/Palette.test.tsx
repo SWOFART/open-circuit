@@ -1,15 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import catalogFixture from "../../tests/golden/stage-1-catalog.json";
-import type { EditorStatus } from "../editor/interaction";
-import type { ComponentCatalog } from "../generated/ComponentCatalog";
-import { symbols } from "../symbols";
+import type { EditorStatus, EditorTool } from "../editor/interaction";
 import { Palette, toolHint } from "./Palette";
 
-const catalog = catalogFixture as ComponentCatalog;
-const placeableTypes = catalog.componentTypes.filter(
-  (entry) => symbols[entry.typeId],
-);
 const noTool = () => {};
 
 function pressed(markup: string): string[] {
@@ -18,34 +11,25 @@ function pressed(markup: string): string[] {
   );
 }
 
-describe("component palette", () => {
-  it("offers Select, supported catalog types, and the drawing tools", () => {
-    const markup = renderToStaticMarkup(
-      <Palette
-        catalog={catalog}
-        tool={{ kind: "select" }}
-        onSelectTool={noTool}
-      />,
-    );
+function render(tool: EditorTool, drawerOpen = false, disabled = false) {
+  return renderToStaticMarkup(
+    <Palette
+      tool={tool}
+      drawerOpen={drawerOpen}
+      onToggleDrawer={noTool}
+      disabled={disabled}
+      onSelectTool={noTool}
+    />,
+  );
+}
+
+describe("editor tools", () => {
+  it("offers Select, Parts, DC rail and the drawing tools, and no part buttons", () => {
+    const markup = render({ kind: "select" });
 
     for (const label of [
       "Select",
-      "Resistor",
-      "DC voltage source",
-      "Capacitor",
-      "Inductor",
-      "SPDT relay",
-      "Fuse",
-      "DC motor",
-      "Voltmeter",
-      "Ammeter",
-      "Switch",
-      "Push button (normally open)",
-      "Push button (normally closed)",
-      "Contactor",
-      "Diode",
-      "NPN transistor",
-      "PNP transistor",
+      "Parts",
       "DC rail",
       "Wire",
       "Junction",
@@ -53,49 +37,25 @@ describe("component palette", () => {
     ]) {
       expect(markup).toContain(`>${label}<`);
     }
-    expect(markup.match(/<button/g)).toHaveLength(placeableTypes.length + 5);
-    // Stage 9 devices are Engine catalog types without editor symbols yet.
-    for (const typeId of [
-      "ac_voltage_source",
-      "three_phase_source_star",
-      "three_phase_source_delta",
-      "ac_voltmeter",
-      "ac_ammeter",
-      "wattmeter",
-    ]) {
-      expect(placeableTypes.map((entry) => entry.typeId)).not.toContain(typeId);
-    }
-    expect(placeableTypes).toHaveLength(catalog.componentTypes.length - 6);
-    // The names come from the interface's messages, never the raw catalog keys.
-    expect(markup).not.toContain("component.diode.name");
+    expect(markup.match(/<button/g)).toHaveLength(6);
+    expect(markup).not.toContain("Resistor");
     expect(pressed(markup)).toEqual(["Select"]);
   });
 
-  it("marks the active placement tool", () => {
-    const markup = renderToStaticMarkup(
-      <Palette
-        catalog={catalog}
-        tool={{ kind: "place", typeId: "dc_voltage_source", rotationDeg: 90 }}
-        onSelectTool={noTool}
-      />,
+  it("reports whether the drawer is open and what the button controls", () => {
+    expect(render({ kind: "select" }, true)).toContain('aria-expanded="true"');
+    expect(render({ kind: "select" }, false)).toContain(
+      'aria-expanded="false"',
     );
-
-    expect(pressed(markup)).toEqual(["DC voltage source"]);
+    expect(render({ kind: "select" })).toContain(
+      'aria-controls="parts-drawer"',
+    );
   });
 
-  it("disables every editor tool while a project operation is pending", () => {
-    const markup = renderToStaticMarkup(
-      <Palette
-        catalog={catalog}
-        tool={{ kind: "select" }}
-        disabled
-        onSelectTool={noTool}
-      />,
-    );
-
-    expect(markup.match(/disabled=""/g)).toHaveLength(
-      placeableTypes.length + 5,
-    );
+  it("disables every tool while a project operation is pending", () => {
+    expect(
+      render({ kind: "select" }, false, true).match(/disabled=""/g),
+    ).toHaveLength(6);
   });
 
   it.each([
@@ -104,24 +64,7 @@ describe("component palette", () => {
     [{ kind: "reference" }, "Ground"],
     [{ kind: "rail" }, "DC rail"],
   ] as const)("marks the %o tool", (tool, label) => {
-    const markup = renderToStaticMarkup(
-      <Palette catalog={catalog} tool={tool} onSelectTool={noTool} />,
-    );
-
-    expect(pressed(markup)).toEqual([label]);
-  });
-
-  it("offers the drawing tools before the catalog has loaded", () => {
-    const markup = renderToStaticMarkup(
-      <Palette
-        catalog={null}
-        tool={{ kind: "select" }}
-        onSelectTool={noTool}
-      />,
-    );
-
-    expect(markup.match(/<button/g)).toHaveLength(5);
-    expect(markup).not.toContain("Resistor");
+    expect(pressed(render(tool))).toEqual([label]);
   });
 });
 

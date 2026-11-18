@@ -756,3 +756,159 @@ input {
   color: #cbd5e1;
   white-space: pre-wrap;
 }
+
+.editor-stage {
+  position: relative;
+  display: flex;
+  min-height: 0;
+}
+
+.editor-stage > .editor-canvas {
+  flex: 1;
+  min-width: 0;
+}
+
+.parts-drawer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 10px 12px;
+  overflow-y: auto;
+  color: #e5e7eb;
+  background: #0f172a;
+  border-right: 1px solid #273449;
+  font-size: 13px;
+}
+
+.parts-drawer-floating {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  box-shadow: 4px 0 16px rgb(0 0 0 / 40%);
+}
+
+.parts-drawer-docked {
+  flex: none;
+}
+
+.parts-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.parts-header h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.parts-search-label {
+  color: #9ca3af;
+}
+
+.parts-search {
+  padding: 6px 8px;
+  color: #e5e7eb;
+  background: #111827;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.parts-search:focus-visible,
+.parts-resize:focus-visible,
+.parts-favorite:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
+.parts-list {
+  flex: 1;
+}
+
+.parts-heading {
+  margin: 10px 0 4px;
+  color: #9ca3af;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.parts-row {
+  display: flex;
+  align-items: center;
+}
+
+.parts-option {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.parts-option:hover,
+.parts-option-active {
+  background: #1f2937;
+}
+
+.parts-option-active {
+  outline: 1px solid #60a5fa;
+}
+
+.parts-favorite {
+  padding: 2px 6px;
+  color: #fbbf24;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.parts-status {
+  margin: 0;
+  color: #9ca3af;
+}
+
+.parts-resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  cursor: ew-resize;
+}
+
+.parts-resize:hover {
+  background: #334155;
+}
+
+.parts-drag-ghost {
+  position: fixed;
+  z-index: 20;
+  padding: 3px 8px;
+  color: #0b1120;
+  background: #93c5fd;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .parts-drawer-floating {
+    animation: parts-drawer-in 120ms ease-out;
+  }
+}
+
+@keyframes parts-drawer-in {
+  from {
+    transform: translateX(-12px);
+    opacity: 0;
+  }
+}

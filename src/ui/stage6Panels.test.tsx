@@ -14,7 +14,8 @@ import { keyOf, layoutFor, valuesFor } from "../store/stage4TestSupport";
 import { applyEditorCommand } from "./editorCommands";
 import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
-import { Palette } from "./Palette";
+import { DEFAULT_DRAWER_PREFERENCES } from "./drawer/drawerPreferences";
+import { PartsDrawer } from "./drawer/PartsDrawer";
 
 const catalog = catalogFixture as ComponentCatalog;
 const RUN = "00000000-0000-4000-8000-0000000000a0";
@@ -72,13 +73,17 @@ function stateWith(
   };
 }
 
-describe("the palette", () => {
+describe("the parts drawer", () => {
   it("offers the switch, both push buttons, and the contactor from the Engine catalog", () => {
     const markup = renderToStaticMarkup(
-      <Palette
+      <PartsDrawer
         catalog={catalog}
-        tool={{ kind: "select" }}
-        onSelectTool={() => {}}
+        preferences={DEFAULT_DRAWER_PREFERENCES}
+        onPreferencesChange={() => {}}
+        onChoose={() => {}}
+        onPlaceAtCenter={() => {}}
+        onDrop={() => {}}
+        onClose={() => {}}
       />,
     );
 

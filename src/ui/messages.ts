@@ -3,6 +3,41 @@ import type { DraftEvaluation } from "./units";
 
 // User-facing prose lives in the UI. The Engine sends only stable keys.
 const messages: Readonly<Record<string, string>> = {
+  "component.resistor.keywords": "resistance ohm load",
+  "component.dcVoltageSource.keywords":
+    "battery supply power source direct current dc",
+  "component.acVoltageSource.keywords":
+    "alternating current ac mains generator sine",
+  "component.threePhaseSourceStar.keywords":
+    "three phase 3 phase mains supply wye",
+  "component.threePhaseSourceDelta.keywords":
+    "three phase 3 phase mains supply triangle",
+  "component.acVoltmeter.keywords": "meter measure alternating rms volt",
+  "component.acAmmeter.keywords": "meter measure alternating rms current amp",
+  "component.wattmeter.keywords": "power meter measure watt active reactive",
+  "component.capacitor.keywords": "condenser farad",
+  "component.inductor.keywords": "coil choke henry",
+  "component.relaySpdt.keywords": "relay changeover coil contact",
+  "component.fuse.keywords": "protection overcurrent breaker",
+  "component.pmdcMotor.keywords": "motor load drive machine permanent magnet",
+  "component.voltmeter.keywords": "meter measure volt",
+  "component.ammeter.keywords": "meter measure current amp",
+  "component.switchSpst.keywords": "toggle on off lever",
+  "component.pushButtonNo.keywords": "button start momentary normally open",
+  "component.pushButtonNc.keywords": "button stop momentary normally closed",
+  "component.contactor.keywords": "relay starter coil contact",
+  "component.diode.keywords": "rectifier semiconductor",
+  "component.bjtNpn.keywords": "transistor bipolar semiconductor",
+  "component.bjtPnp.keywords": "transistor bipolar semiconductor",
+  "category.sources": "Sources",
+  "category.passive": "Passive",
+  "category.protection": "Protection",
+  "category.switching": "Switching and control",
+  "category.measurement": "Measurement",
+  "category.motors_and_loads": "Motors and loads",
+  "category.semiconductors": "Semiconductors",
+  "category.favorites": "Favorites",
+  "category.recent": "Recent",
   "component.resistor.name": "Resistor",
   "component.resistor.resistance": "Resistance",
   "component.dcVoltageSource.name": "DC voltage source",

@@ -56,6 +56,8 @@ import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
 import { operatorPosition } from "./operatorPosition";
+import { PartsDrawer } from "./drawer/PartsDrawer";
+import { usePartsDrawer } from "./drawer/usePartsDrawer";
 import { Palette, toolHint } from "./Palette";
 import { UnsavedChangesDialog } from "./UnsavedChangesDialog";
 import { RailPanel, type RailFields } from "./RailPanel";
@@ -185,6 +187,14 @@ export function App({
   // Names stay with their components through edits, undo, and redo.
   const labels = document.labels;
   const hint = toolHint(status);
+  const drawer = usePartsDrawer({
+    catalog: state.catalog,
+    editor: editorRef,
+    canvasHost,
+    status,
+    componentIds: () =>
+      documentStore.getState().schematic.components.map(({ id }) => id),
+  });
   // DC rails are not part of assignments (contract section 8): while one is open, the rail
   // tool and panel are off, and the user is told how to get them back.
   const railUnavailable =
@@ -603,8 +613,9 @@ export function App({
         <section className="editor-panel" aria-label="Circuit editor">
           <div className="editor-toolbar">
             <Palette
-              catalog={allowedCatalog(state.catalog, restrictions)}
               tool={status.tool}
+              drawerOpen={drawer.open}
+              onToggleDrawer={drawer.toggle}
               disabled={projectOperationLocked}
               railUnavailable={railUnavailable}
               onSelectTool={(next) => editorRef.current?.setTool(next)}
@@ -681,13 +692,34 @@ export function App({
             </div>
           </div>
           <div
-            ref={canvasHost}
             className={
-              projectOperationLocked
-                ? "editor-canvas editor-canvas-locked"
-                : "editor-canvas"
+              drawer.open && drawer.preferences.docked
+                ? "editor-stage editor-stage-docked"
+                : "editor-stage"
             }
-          />
+          >
+            {drawer.open && (
+              <PartsDrawer
+                catalog={allowedCatalog(state.catalog, restrictions)}
+                preferences={drawer.preferences}
+                onPreferencesChange={drawer.setPreferences}
+                disabled={projectOperationLocked}
+                onChoose={drawer.choose}
+                onPlaceAtCenter={drawer.placeAtCenter}
+                onDrop={drawer.drop}
+                onClose={drawer.close}
+                searchRef={drawer.searchRef}
+              />
+            )}
+            <div
+              ref={canvasHost}
+              className={
+                projectOperationLocked
+                  ? "editor-canvas editor-canvas-locked"
+                  : "editor-canvas"
+              }
+            />
+          </div>
           <p
             className={
               hint.warning ? "tool-hint tool-hint-warning" : "tool-hint"

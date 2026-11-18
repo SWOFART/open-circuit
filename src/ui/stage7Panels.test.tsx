@@ -15,7 +15,8 @@ import { applyEditorCommand } from "./editorCommands";
 import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
-import { Palette } from "./Palette";
+import { DEFAULT_DRAWER_PREFERENCES } from "./drawer/drawerPreferences";
+import { PartsDrawer } from "./drawer/PartsDrawer";
 import { ResultPanel } from "./ResultPanel";
 import { describeRange, evaluateParameterDraft, formatSi } from "./units";
 
@@ -82,13 +83,17 @@ const nonConvergence: Diagnostic = {
   references: [],
 };
 
-describe("the Stage 7 palette and names", () => {
+describe("the Stage 7 parts drawer and names", () => {
   it("offers the diode and both transistors from the Engine catalog, in catalog order", () => {
     const markup = renderToStaticMarkup(
-      <Palette
+      <PartsDrawer
         catalog={catalog}
-        tool={{ kind: "select" }}
-        onSelectTool={() => {}}
+        preferences={DEFAULT_DRAWER_PREFERENCES}
+        onPreferencesChange={() => {}}
+        onChoose={() => {}}
+        onPlaceAtCenter={() => {}}
+        onDrop={() => {}}
+        onClose={() => {}}
       />,
     );
 

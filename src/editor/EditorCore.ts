@@ -3,6 +3,7 @@
 // must be imported before the first `Application` is created.
 import "pixi.js/unsafe-eval";
 import { Application, Container, Graphics, Text } from "pixi.js";
+import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { DeviceState } from "../generated/DeviceState";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
@@ -36,7 +37,7 @@ import {
   type SceneModel,
   type SceneShape,
 } from "./scene";
-import { toScreen, type ViewTransform } from "./view";
+import { screenToGridPoint, toScreen, type ViewTransform } from "./view";
 
 const COLORS = {
   background: "#111827",
@@ -136,6 +137,9 @@ export class EditorCore {
     }
 
     this.initialized = true;
+    // Focusable so the keyboard can return to the canvas (the drawer's Shift+Enter, Escape).
+    this.application.canvas.tabIndex = 0;
+    this.application.canvas.setAttribute("aria-label", "Circuit canvas");
     container.appendChild(this.application.canvas);
     this.application.stage.addChild(this.content, this.overlay);
     this.application.renderer.on("resize", this.handleResize);
@@ -237,6 +241,48 @@ export class EditorCore {
   /** Selects the active tool: Select, placement, or a drawing tool. */
   setTool(tool: EditorTool): void {
     this.interaction.setTool(tool);
+  }
+
+  /**
+   * Places one part with the catalog defaults at the grid point under the client position
+   * (a pointer drop) or, with no position, at the center of the visible canvas. This is the
+   * ordinary placement command; the active tool is not changed. Returns false when nothing
+   * was placed (the canvas is not ready, or the position is outside it).
+   */
+  placeAt(
+    typeId: ComponentTypeId,
+    client?: { readonly x: number; readonly y: number },
+  ): boolean {
+    if (!this.initialized || this.destroyed || !this.schematic) {
+      return false;
+    }
+
+    const { width, height } = this.application.screen;
+    let point = { x: width / 2, y: height / 2 };
+
+    if (client) {
+      const rect = this.application.canvas.getBoundingClientRect();
+      point = { x: client.x - rect.left, y: client.y - rect.top };
+
+      if (point.x < 0 || point.y < 0 || point.x > width || point.y > height) {
+        return false;
+      }
+    }
+
+    this.handleIntent({
+      kind: "place",
+      typeId,
+      position: screenToGridPoint(point, this.interaction.view),
+      rotationDeg: 0,
+    });
+    return true;
+  }
+
+  /** Moves the keyboard focus to the canvas. */
+  focusCanvas(): void {
+    if (this.initialized && !this.destroyed) {
+      this.application.canvas.focus({ preventScroll: true });
+    }
   }
 
   /** Frames the whole circuit, as on startup. */

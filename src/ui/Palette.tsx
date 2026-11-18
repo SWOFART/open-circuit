@@ -1,12 +1,11 @@
-import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { EditorStatus, EditorTool } from "../editor/interaction";
-import { symbols } from "../symbols";
-import { message } from "./messages";
+import { DRAWER_ID } from "./drawer/PartsDrawer";
 
 export interface PaletteProps {
-  /** The Rust catalog; null until it has loaded. */
-  readonly catalog: ComponentCatalog | null;
   readonly tool: EditorTool;
+  /** The parts drawer is open. */
+  readonly drawerOpen: boolean;
+  readonly onToggleDrawer: () => void;
   readonly disabled?: boolean;
   /**
    * Why the DC rail tool is unavailable (for example, an assignment is open); null or absent
@@ -39,12 +38,13 @@ const DRAWING_TOOLS: readonly {
 ];
 
 /**
- * Select mode, one placement tool per catalog component with a UI symbol, and
- * the wire, junction, and reference tools.
+ * The toolbar's tools: Select, the button that opens the parts drawer (which lists the catalog
+ * parts), the DC rail tool, and the wire, junction, and reference tools.
  */
 export function Palette({
-  catalog,
   tool,
+  drawerOpen,
+  onToggleDrawer,
   disabled = false,
   railUnavailable = null,
   onSelectTool,
@@ -60,26 +60,17 @@ export function Palette({
       >
         Select
       </button>
-      {catalog?.componentTypes
-        .filter((entry) => symbols[entry.typeId])
-        .map((entry) => (
-          <button
-            key={entry.typeId}
-            type="button"
-            className="toolbar-button"
-            disabled={disabled}
-            aria-pressed={tool.kind === "place" && tool.typeId === entry.typeId}
-            onClick={() =>
-              onSelectTool({
-                kind: "place",
-                typeId: entry.typeId,
-                rotationDeg: 0,
-              })
-            }
-          >
-            {message(entry.displayNameKey)}
-          </button>
-        ))}
+      <button
+        type="button"
+        className="toolbar-button"
+        disabled={disabled}
+        title="Open the parts drawer (shortcut: /)"
+        aria-expanded={drawerOpen}
+        aria-controls={DRAWER_ID}
+        onClick={onToggleDrawer}
+      >
+        Parts
+      </button>
       <button
         type="button"
         className="toolbar-button"
