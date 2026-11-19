@@ -70,6 +70,14 @@ export function ParameterField({
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             commit();
+          } else if (
+            event.key === "Escape" &&
+            draft !== formatSi(committedValue, definition.unit)
+          ) {
+            // Restores the committed value. A panel that closes on Escape sees only the
+            // Escape of a field that has nothing left to restore.
+            event.stopPropagation();
+            setDraft(formatSi(committedValue, definition.unit));
           }
         }}
       />

@@ -2,10 +2,7 @@ import type { ParameterId } from "../generated/ParameterId";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { SimulationState } from "../store/simulation";
-import { ChoiceParameterField } from "./ChoiceParameterField";
-import { OptionalParameterField } from "./OptionalParameterField";
-import { ParameterField } from "./ParameterField";
-import { parameterNote } from "./parameterHints";
+import { ComponentParameterFields } from "./ComponentParameterFields";
 
 export interface InspectorProps {
   readonly state: SimulationState;
@@ -58,63 +55,19 @@ export function Inspector({
           No components yet. Choose one from the palette.
         </p>
       ) : (
-        schematic.components.flatMap((component) => {
-          const entry = catalog.componentTypes.find(
-            (candidate) => candidate.typeId === component.typeId,
-          );
-          const values = component.parameters as Record<string, number>;
-
-          return (entry?.parameters ?? []).map((definition) => {
-            const value = values[definition.id];
-            const label = labels.get(component.id) ?? component.typeId;
-            const key = `${component.id}:${definition.id}`;
-            const locked = lockedComponents?.has(component.id) ?? false;
-
-            if (definition.domain === "zero_or_one") {
-              return (
-                <ChoiceParameterField
-                  key={key}
-                  label={label}
-                  definition={definition}
-                  committedValue={value}
-                  disabled={!editable || locked}
-                  onCommit={(next) =>
-                    onCommit(component.id, definition.id, next)
-                  }
-                  onClear={() => onClear(component.id, definition.id)}
-                />
-              );
+        schematic.components.map((component) => (
+          <ComponentParameterFields
+            key={component.id}
+            catalog={catalog}
+            component={component}
+            label={labels.get(component.id) ?? component.typeId}
+            editable={
+              editable && !(lockedComponents?.has(component.id) ?? false)
             }
-
-            if (definition.optional) {
-              return (
-                <OptionalParameterField
-                  key={key}
-                  label={label}
-                  definition={definition}
-                  committedValue={value}
-                  disabled={!editable || locked}
-                  onCommit={(next) =>
-                    onCommit(component.id, definition.id, next)
-                  }
-                  onClear={() => onClear(component.id, definition.id)}
-                />
-              );
-            }
-
-            return value === undefined ? null : (
-              <ParameterField
-                key={key}
-                label={label}
-                definition={definition}
-                committedValue={value}
-                disabled={!editable || locked}
-                note={parameterNote(definition)}
-                onCommit={(next) => onCommit(component.id, definition.id, next)}
-              />
-            );
-          });
-        })
+            onCommit={onCommit}
+            onClear={onClear}
+          />
+        ))
       )}
     </section>
   );

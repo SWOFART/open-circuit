@@ -185,6 +185,9 @@ export function commandForIntent(
             position: intent.position,
           }
         : null;
+    case "openEditor":
+      // Opening an editor shows the document; it never changes it.
+      return null;
     case "operate":
       // A position is operator state of the run, not an edit of the document: it has no
       // command, no undo entry, and never marks the document as modified.

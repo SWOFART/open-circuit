@@ -289,8 +289,8 @@ describe("editing shortcuts", () => {
     );
     interaction.setViewport({ width: 800, height: 600 });
     interaction.setScene(buildScene(schematicFixture as Schematic, symbols));
-    bindCanvasInput(canvas, interaction, keyboard);
-    return { canvas, keyboard, interaction, intents };
+    const binding = bindCanvasInput(canvas, interaction, keyboard);
+    return { canvas, keyboard, interaction, intents, binding };
   }
 
   function key(
@@ -428,8 +428,8 @@ describe("editing shortcuts", () => {
   });
 
   it("shows a crosshair while placing and a move cursor while dragging", () => {
-    const { canvas, interaction } = withIntents();
-    const binding = bindCanvasInput(canvas, interaction, new EventTarget());
+    // One binding only: two would deliver every press twice, which is a double press.
+    const { canvas, interaction, binding } = withIntents();
 
     interaction.setTool({ kind: "place", typeId: "resistor", rotationDeg: 0 });
     binding.refreshCursor();
