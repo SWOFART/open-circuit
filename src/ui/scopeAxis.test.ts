@@ -4,6 +4,7 @@ import {
   groupByUnit,
   niceTicks,
   pointsInWindow,
+  pointSegmentsInWindow,
   timeWindow,
   valueRange,
 } from "./scopeAxis";
@@ -131,4 +132,18 @@ describe("groupByUnit", () => {
       { unit: "amp", signals: [b] },
     ]);
   });
+});
+
+it("leaves a gap and excludes invalid measurement buckets from the axis range", () => {
+  const measured = {
+    ...signal("rms", "volt", [0, 0.02, 0.04], [227, 0, 230]),
+    valid: [true, false, true],
+  };
+  const window = { start: 0, end: 0.05 };
+  expect(
+    pointSegmentsInWindow(measured, window).map((segment) =>
+      segment.map((point) => point.time),
+    ),
+  ).toEqual([[0], [0.04]]);
+  expect(valueRange([measured], window).min).toBeGreaterThan(220);
 });

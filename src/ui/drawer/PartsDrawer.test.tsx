@@ -143,18 +143,17 @@ describe("the parts drawer", () => {
     expect(markup).not.toContain('role="option"');
   });
 
-  it("shows a preview for every part, and a placeholder where there is no symbol", () => {
+  it("shows a preview for every current catalog part", () => {
     const markup = render();
 
-    expect(markup.match(/<svg/g)).toHaveLength(16);
-    expect(markup.match(/part-preview-placeholder/g)).toHaveLength(6);
-    expect(markup).toContain(">TPS<");
+    expect(markup.match(/<svg/g)).toHaveLength(catalog.componentTypes.length);
+    expect(markup).not.toContain("part-preview-placeholder");
   });
 
-  it("marks parts without a symbol as unavailable, and others as available", () => {
+  it("makes all catalog parts available", () => {
     const markup = render();
 
-    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(6);
-    expect(markup).toContain("The editor has no symbol for this part yet");
+    expect(markup).not.toContain('aria-disabled="true"');
+    expect(markup).not.toContain("The editor has no symbol for this part yet");
   });
 });

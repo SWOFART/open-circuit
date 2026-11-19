@@ -471,6 +471,62 @@ describe("a run or document change", () => {
     expect(scope.getState().data?.latestTimeSeconds).toBe(0);
   });
 
+  it("reads the AC measurement validity flag in the same trace batch", async () => {
+    const componentId = "00000000-0000-4000-8000-000000000011";
+    const key = componentId + "/rms_voltage";
+    const flag = componentId + "/valid";
+    const active = run(RUN_A, [key, flag]);
+    active.layout.slots = [
+      {
+        key,
+        componentId,
+        quantity: "rmsVoltage",
+        unit: "volt",
+        signConvention: "unsigned",
+        offset: 0,
+      },
+      {
+        key: flag,
+        componentId,
+        quantity: "valid",
+        unit: "dimensionless",
+        signConvention: "flag",
+        offset: 1,
+      },
+    ];
+    const simulation = new FakeSimulation(active);
+    const adapter = manualAdapter();
+    const scope = scopeFor(simulation, adapter);
+
+    scope.toggleSignal(key);
+    await settle();
+    const read = adapter.reads[0]!;
+    expect(read.request.signalKeys).toEqual([key, flag]);
+    const reply = batchFor(read.request, {
+      steps: [0, 20, 40],
+      value: (signalKey, step) =>
+        signalKey === flag ? Number(step >= 20) : step >= 20 ? 230 : 0,
+    });
+    read.resolve({
+      ...reply,
+      signals: [
+        { key, unit: "volt" },
+        { key: flag, unit: "dimensionless" },
+      ],
+      points: reply.points.map((point) =>
+        point.simulationStep === 20n
+          ? { ...point, minimumValues: [0, 0] }
+          : point,
+      ),
+    });
+    await settle();
+    expect(scope.getState().data?.signals[0]?.valid).toEqual([
+      false,
+      false,
+      true,
+    ]);
+  });
+
   it("drops an error that arrives after its run was replaced", async () => {
     const simulation = new FakeSimulation(run(RUN_A, [V1]));
     const adapter = manualAdapter();

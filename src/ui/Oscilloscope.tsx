@@ -1,10 +1,12 @@
 import { useId } from "react";
 import type { StableId } from "../generated/StableId";
 import type { Unit } from "../generated/Unit";
+import { measurementValidityKey } from "../store/measurementValidity";
 import type { SimulationState } from "../store/simulation";
 import {
   MAX_SCOPE_SIGNALS,
   SCOPE_WINDOWS_SECONDS,
+  scopeRequestKeys,
   type ScopeData,
   type ScopeSignalData,
   type ScopeState,
@@ -13,6 +15,7 @@ import {
   groupByUnit,
   niceTicks,
   pointsInWindow,
+  pointSegmentsInWindow,
   timeWindow,
   valueRange,
   type TimeWindow,
@@ -22,6 +25,7 @@ import { formatSi, formatWithSymbol, unitSymbols } from "./units";
 
 export interface OscilloscopeProps {
   readonly simulation: SimulationState;
+  readonly hasHighFrequencySource?: boolean;
   readonly scope: ScopeState;
   readonly labels: ReadonlyMap<StableId, string>;
   readonly onToggleSignal: (key: string) => void;
@@ -144,63 +148,64 @@ function ScopeLane({
           )}
         </g>
       ))}
-      {signals.map((signal) => {
-        const points = pointsInWindow(signal, window);
-        const color = colors.get(signal.key) ?? SIGNAL_COLORS[0];
+      {signals.flatMap((signal) => {
+        return pointSegmentsInWindow(signal, window).map((points) => {
+          const color = colors.get(signal.key) ?? SIGNAL_COLORS[0];
 
-        if (points.length === 1) {
-          const [point] = points;
+          if (points.length === 1) {
+            const [point] = points;
+
+            return (
+              <g key={`${signal.key}:${points[0]!.time}`}>
+                <circle
+                  cx={x(point!.time)}
+                  cy={y((point!.minimum + point!.maximum) / 2)}
+                  r={3}
+                  fill={color}
+                />
+              </g>
+            );
+          }
+
+          const upper = points
+            .map((point) => `${x(point.time)},${y(point.maximum)}`)
+            .join(" ");
+          const lower = points
+            .map((point) => `${x(point.time)},${y(point.minimum)}`)
+            .join(" ");
+          const band = [...points]
+            .reverse()
+            .map((point) => `${x(point.time)},${y(point.minimum)}`)
+            .join(" ");
 
           return (
-            <g key={signal.key}>
-              <circle
-                cx={x(point!.time)}
-                cy={y((point!.minimum + point!.maximum) / 2)}
-                r={3}
-                fill={color}
-              />
-            </g>
-          );
-        }
-
-        const upper = points
-          .map((point) => `${x(point.time)},${y(point.maximum)}`)
-          .join(" ");
-        const lower = points
-          .map((point) => `${x(point.time)},${y(point.minimum)}`)
-          .join(" ");
-        const band = [...points]
-          .reverse()
-          .map((point) => `${x(point.time)},${y(point.minimum)}`)
-          .join(" ");
-
-        return (
-          <g key={signal.key}>
-            {envelope && (
-              <polygon
-                points={`${upper} ${band}`}
-                fill={color}
-                fillOpacity={0.25}
-              />
-            )}
-            <polyline
-              points={upper}
-              fill="none"
-              stroke={color}
-              strokeWidth={1.5}
-              strokeLinejoin="round"
-            />
-            {envelope && (
+            <g key={`${signal.key}:${points[0]!.time}`}>
+              {envelope && (
+                <polygon
+                  points={`${upper} ${band}`}
+                  fill={color}
+                  fillOpacity={0.25}
+                />
+              )}
               <polyline
-                points={lower}
+                points={upper}
                 fill="none"
                 stroke={color}
                 strokeWidth={1.5}
                 strokeLinejoin="round"
               />
-            )}
-          </g>
-        );
+              {envelope && (
+                <polyline
+                  points={lower}
+                  fill="none"
+                  stroke={color}
+                  strokeWidth={1.5}
+                  strokeLinejoin="round"
+                />
+              )}
+            </g>
+          );
+        });
       })}
       <text className="scope-unit" x={4} y={MARGIN_TOP + 8}>
         {`${axisName(unit)} (${unitSymbols[unit]})`}
@@ -238,7 +243,9 @@ function ScopeDisplay({
   if (data.latestTimeSeconds === null || !hasPoints) {
     return (
       <p className="panel-note" role="status">
-        The run has not produced samples for these signals yet.
+        {shown.some((signal) => signal.valid?.includes(false))
+          ? "Waiting for valid measurements in this time window."
+          : "The run has not produced samples for these signals yet."}
       </p>
     );
   }
@@ -301,13 +308,17 @@ export function Oscilloscope({
   simulation,
   scope,
   labels,
+  hasHighFrequencySource = false,
   onToggleSignal,
   onWindowChange,
 }: OscilloscopeProps) {
   const windowId = useId();
   const { run, status } = simulation;
   const slots = status === "ready" && run ? run.layout.slots : [];
-  const atLimit = scope.selectedKeys.length >= MAX_SCOPE_SIGNALS;
+  const requested = new Set(
+    run ? scopeRequestKeys(run.layout, scope.selectedKeys) : [],
+  );
+  const slotKeys = new Set(slots.map((slot) => slot.key));
   // A trace that does not belong to the run on screen is never drawn, whatever the
   // controller holds.
   const data =
@@ -352,13 +363,22 @@ export function Oscilloscope({
             {slots.map((slot) => {
               const selected = scope.selectedKeys.includes(slot.key);
               const index = scope.selectedKeys.indexOf(slot.key);
+              const flag = measurementValidityKey(slot);
+              const needsFlag =
+                flag !== undefined &&
+                slotKeys.has(flag) &&
+                !requested.has(flag);
+              const additionalSlots =
+                Number(!requested.has(slot.key)) + Number(needsFlag);
+              const exceedsLimit =
+                requested.size + additionalSlots > MAX_SCOPE_SIGNALS;
 
               return (
                 <label key={slot.key} className="scope-signal">
                   <input
                     type="checkbox"
                     checked={selected}
-                    disabled={!selected && atLimit}
+                    disabled={!selected && exceedsLimit}
                     onChange={() => onToggleSignal(slot.key)}
                   />
                   {selected && (
@@ -372,9 +392,10 @@ export function Oscilloscope({
                 </label>
               );
             })}
-            {atLimit && (
+            {requested.size >= MAX_SCOPE_SIGNALS && (
               <p className="panel-note">
-                At most {MAX_SCOPE_SIGNALS} signals at a time.
+                At most {MAX_SCOPE_SIGNALS} signals at a time, including
+                measurement validity signals.
               </p>
             )}
           </fieldset>
@@ -406,6 +427,12 @@ export function Oscilloscope({
             <p className="panel-note" role="status">
               The engine has not accepted the latest change yet. This trace is
               from the last circuit it accepted.
+            </p>
+          )}
+          {data && hasHighFrequencySource && !simulation.updating && (
+            <p className="panel-note" role="status">
+              Above 100 Hz the oscilloscope has fewer than ten samples per
+              period.
             </p>
           )}
           {data && status === "ready" && (

@@ -903,6 +903,13 @@ export function App({
         <Oscilloscope
           simulation={state}
           scope={scope}
+          hasHighFrequencySource={document.schematic.components.some(
+            (component) =>
+              (component.typeId === "ac_voltage_source" ||
+                component.typeId === "three_phase_source_star" ||
+                component.typeId === "three_phase_source_delta") &&
+              component.parameters.frequencyHz > 100,
+          )}
           labels={labels}
           onToggleSignal={(key) => scopeController?.toggleSignal(key)}
           onWindowChange={(seconds) =>
