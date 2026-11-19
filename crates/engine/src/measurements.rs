@@ -314,7 +314,9 @@ fn signal_stats(
         let left = pair[0].1;
         let right = pair[1].1;
         integral += duration * (left + right) * 0.5;
-        square_integral += duration * (left * left + left * right + right * right) / 3.0;
+        // Integrate the squared samples. Squaring the interpolated waveform
+        // instead biases the RMS of a sinusoid down at the contracted substep rate.
+        square_integral += duration * (left * left + right * right) * 0.5;
         peak = peak.max(left.abs()).max(right.abs());
     }
     let duration = end - start;
@@ -408,7 +410,13 @@ fn integrate_product(
         let i0 = interpolate(samples, left_time, Signal::Current)?;
         let i1 = interpolate(samples, right_time, Signal::Current)?;
         let duration = right_time - left_time;
-        integral += duration * (2.0 * v0 * i0 + v0 * i1 + v1 * i0 + 2.0 * v1 * i1) / 6.0;
+        integral += if voltage_delay == 0.0 {
+            // Use the same weights as RMS to keep real and apparent power consistent.
+            duration * (v0 * i0 + v1 * i1) * 0.5
+        } else {
+            // The shifted integral supplies the reactive power sign.
+            duration * (2.0 * v0 * i0 + v0 * i1 + v1 * i0 + 2.0 * v1 * i1) / 6.0
+        };
     }
     let average = integral / (end - start);
     average.is_finite().then_some(average)

@@ -103,10 +103,14 @@ bounds apply to the stored ngspice values.
   step that reports a stop notice without publishing a partial frame.
   The frontend suites cover delayed compile replies, stale frames and
   stale traces, catalog ranges, keyboard placement, and trace gaps.
-- Issue [#256](https://github.com/SWOFART/open-circuit/issues/256) tracks
-  a separate resistive 50 Hz voltmeter case that exceeds the RMS tolerance
-  by about 0.0054 percentage points. The six replays above pass the listed
-  bounds. Stage 9 also leaves AC-driven relay and contactor coils undefined
+- Issue [#256](https://github.com/SWOFART/open-circuit/issues/256) recorded
+  a resistive 50 Hz voltmeter reading of 9.949610 V against the analytical
+  9.970089 V. The Engine regression now checks the loaded divider at
+  step 60. Integrating squared samples with the trapezoidal rule removes
+  the downward bias from squaring the piecewise-linear waveform. Real
+  power uses the same weights as RMS so the two readings stay consistent.
+  The replay tables above record the original acceptance run.
+  Stage 9 also leaves AC-driven relay and contactor coils undefined
   until Stage 10 and keeps AC devices outside assignment checks.
 
 ## Local checks and candidate CI
