@@ -1,0 +1,38 @@
+use crate::{PinId, devices::Terminals};
+
+/// A branch declaration shared by geometry resolution and result layout.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PinGroup {
+    pub id: &'static str,
+    pub pins: [PinId; 2],
+}
+
+impl PinGroup {
+    pub(crate) fn resolve(
+        self,
+        node_for_pin: impl Fn(PinId) -> Option<usize>,
+    ) -> Option<Terminals> {
+        if self.pins[0] == self.pins[1] {
+            return None;
+        }
+        Some(Terminals {
+            pin1: node_for_pin(self.pins[0])?,
+            pin2: node_for_pin(self.pins[1])?,
+        })
+    }
+}
+
+pub(crate) const CONTACTOR_COIL: PinGroup = PinGroup {
+    id: "coil",
+    pins: [PinId::A1, PinId::A2],
+};
+pub(crate) const CONTACTOR_AUXILIARIES: [PinGroup; 2] = [
+    PinGroup {
+        id: "no",
+        pins: [PinId::No1, PinId::No2],
+    },
+    PinGroup {
+        id: "nc",
+        pins: [PinId::Nc1, PinId::Nc2],
+    },
+];

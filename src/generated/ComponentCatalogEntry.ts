@@ -4,5 +4,6 @@ import type { ComponentTypeId } from "./ComponentTypeId";
 import type { FaultKind } from "./FaultKind";
 import type { ParameterDefinition } from "./ParameterDefinition";
 import type { PinDefinition } from "./PinDefinition";
+import type { PinGroupDefinition } from "./PinGroupDefinition";
 
-export type ComponentCatalogEntry = { typeId: ComponentTypeId, displayNameKey: string, category: CategoryId, searchKeywordKeys: Array<string>, pins: Array<PinDefinition>, parameters: Array<ParameterDefinition>, faultKinds: Array<FaultKind>, };
+export type ComponentCatalogEntry = { typeId: ComponentTypeId, displayNameKey: string, category: CategoryId, searchKeywordKeys: Array<string>, pins: Array<PinDefinition>, pinGroups?: Array<PinGroupDefinition>, parameters: Array<ParameterDefinition>, faultKinds: Array<FaultKind>, };

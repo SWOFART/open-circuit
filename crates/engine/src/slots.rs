@@ -2,7 +2,10 @@
 //! 7.1, stage-4-components.md section 5). The result layout and the validation of an
 //! assignment's signal keys read the same table, so they cannot drift apart.
 
-use crate::{ComponentTypeId, ResultQuantity, ResultSignConvention, Unit};
+use crate::{
+    ComponentTypeId, ResultQuantity, ResultSignConvention, Unit,
+    pin_groups::{CONTACTOR_AUXILIARIES, CONTACTOR_COIL, PinGroup},
+};
 
 /// One slot of a component type. Its key is `<componentId><separator><suffix>`.
 #[derive(Clone, Copy, Debug)]
@@ -11,13 +14,27 @@ pub(crate) struct SlotDefinition {
     pub unit: Unit,
     pub separator: char,
     pub suffix: &'static str,
+    group: Option<&'static str>,
     pub sign_convention: ResultSignConvention,
 }
 
 impl SlotDefinition {
     /// The layout key of this slot for a component with the given ID.
     pub fn key(&self, component_id: &str) -> String {
-        format!("{component_id}{}{}", self.separator, self.suffix)
+        match self.group {
+            Some(group) => format!("{component_id}/{group}/{}", self.suffix),
+            None => format!("{component_id}{}{}", self.separator, self.suffix),
+        }
+    }
+
+    fn matches_rest(self, rest: &str) -> bool {
+        let Some(rest) = rest.strip_prefix(self.separator) else {
+            return false;
+        };
+        match self.group {
+            Some(group) => rest.split_once('/') == Some((group, self.suffix)),
+            None => rest == self.suffix,
+        }
     }
 }
 
@@ -33,8 +50,32 @@ const fn slot(
         unit,
         separator,
         suffix,
+        group: None,
         sign_convention,
     }
+}
+
+pub(crate) fn group_slots(group: PinGroup) -> [SlotDefinition; 2] {
+    let mut slots = [
+        slot(
+            ResultQuantity::Voltage,
+            Unit::Volt,
+            '/',
+            "voltage",
+            ResultSignConvention::VoltagePin1MinusPin2,
+        ),
+        slot(
+            ResultQuantity::Current,
+            Unit::Amp,
+            '/',
+            "current",
+            ResultSignConvention::CurrentIntoPin1,
+        ),
+    ];
+    for slot in &mut slots {
+        slot.group = Some(group.id);
+    }
+    slots
 }
 
 /// The slots of a type, in layout order. A relay has six ports; a fuse also reports its
@@ -116,20 +157,10 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 CurrentIntoPin1,
             ),
         ],
-        ComponentTypeId::Contactor => vec![
-            slot(
-                Voltage,
-                Unit::Volt,
-                '/',
-                "coil/voltage",
-                VoltagePin1MinusPin2,
-            ),
-            slot(Current, Unit::Amp, '/', "coil/current", CurrentIntoPin1),
-            slot(Voltage, Unit::Volt, '/', "no/voltage", VoltagePin1MinusPin2),
-            slot(Current, Unit::Amp, '/', "no/current", CurrentIntoPin1),
-            slot(Voltage, Unit::Volt, '/', "nc/voltage", VoltagePin1MinusPin2),
-            slot(Current, Unit::Amp, '/', "nc/current", CurrentIntoPin1),
-        ],
+        ComponentTypeId::Contactor => std::iter::once(CONTACTOR_COIL)
+            .chain(CONTACTOR_AUXILIARIES)
+            .flat_map(group_slots)
+            .collect(),
         ComponentTypeId::Fuse => vec![
             voltage,
             current,
@@ -262,5 +293,5 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
 pub(crate) fn slot_for_key_rest(type_id: ComponentTypeId, rest: &str) -> Option<SlotDefinition> {
     slot_definitions(type_id)
         .into_iter()
-        .find(|definition| rest.strip_prefix(definition.separator) == Some(definition.suffix))
+        .find(|definition| definition.matches_rest(rest))
 }

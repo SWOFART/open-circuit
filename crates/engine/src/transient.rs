@@ -937,8 +937,7 @@ fn estimate_transient_rate_bound(
                 DeviceModel::Contactor {
                     coil_resistance_ohms,
                     closed_contact_resistance_ohms,
-                    normally_open,
-                    normally_closed,
+                    poles,
                     ..
                 } => {
                     add_laplacian(
@@ -947,7 +946,8 @@ fn estimate_transient_rate_bound(
                         variable2,
                         1.0 / coil_resistance_ohms,
                     )?;
-                    for contact in [normally_open, normally_closed] {
+                    for pole in poles {
+                        let contact = pole.terminals;
                         add_laplacian(
                             &mut conductance,
                             root_to_variable.get(&sets.find(contact.pin1)).copied(),

@@ -1,8 +1,9 @@
 use crate::{DeviceState, Diagnostic, DiagnosticCode, RelayContactState, StableId};
 
 use super::relay::{RelayCoilMode, coil_companion};
-use super::{Device, DeviceResult, Terminals, component_diagnostic};
+use super::{Device, DeviceResult, LinkedContacts, LinkedPole, Terminals, component_diagnostic};
 use crate::mna::{MnaSystem, NodeVariables};
+use crate::{pin_groups::CONTACTOR_COIL, slots::group_slots};
 
 /// A relay coil with two galvanically isolated auxiliary contacts: a normally open one that
 /// conducts when the contactor is picked and a normally closed one that conducts when it is
@@ -10,8 +11,7 @@ use crate::mna::{MnaSystem, NodeVariables};
 pub(crate) struct ContactorDevice {
     component_id: StableId,
     coil: Terminals,
-    normally_open: Terminals,
-    normally_closed: Terminals,
+    poles: [LinkedPole; 2],
     coil_resistance_ohms: f64,
     coil_inductance_henries: f64,
     closed_contact_resistance_ohms: f64,
@@ -25,8 +25,7 @@ impl ContactorDevice {
     pub(crate) fn new(
         component_id: StableId,
         coil: Terminals,
-        normally_open: Terminals,
-        normally_closed: Terminals,
+        poles: [LinkedPole; 2],
         coil_resistance_ohms: f64,
         coil_inductance_henries: f64,
         closed_contact_resistance_ohms: f64,
@@ -37,8 +36,7 @@ impl ContactorDevice {
         Self {
             component_id,
             coil,
-            normally_open,
-            normally_closed,
+            poles,
             coil_resistance_ohms,
             coil_inductance_henries,
             closed_contact_resistance_ohms,
@@ -57,27 +55,10 @@ impl ContactorDevice {
         )
     }
 
-    fn stamp_conducting_contact(
-        &self,
-        system: &mut MnaSystem,
-        variables: &NodeVariables,
-    ) -> Result<(), Diagnostic> {
-        let conducting = match self.contact_state {
-            RelayContactState::Released => self.normally_closed,
-            RelayContactState::Picked => self.normally_open,
-        };
-        if system.stamp_conductance(
-            variables,
-            conducting.pin1,
-            conducting.pin2,
-            1.0 / self.closed_contact_resistance_ohms,
-        ) {
-            Ok(())
-        } else {
-            Err(component_diagnostic(
-                DiagnosticCode::InvalidParameter,
-                &self.component_id,
-            ))
+    fn contacts(&self) -> LinkedContacts<'_> {
+        LinkedContacts {
+            poles: &self.poles,
+            active: self.contact_state == RelayContactState::Picked,
         }
     }
 }
@@ -119,7 +100,12 @@ impl Device for ContactorDevice {
                 }
             }
         }
-        self.stamp_conducting_contact(system, variables)
+        self.contacts().stamp(
+            &self.component_id,
+            self.closed_contact_resistance_ohms,
+            system,
+            variables,
+        )
     }
 
     fn result(
@@ -138,47 +124,29 @@ impl Device for ContactorDevice {
                 conductance * coil_voltage + history_current
             }
         };
-        let no_voltage = across(self.normally_open);
-        let nc_voltage = across(self.normally_closed);
-        let no_current = if self.contact_state == RelayContactState::Picked {
-            no_voltage / self.closed_contact_resistance_ohms
-        } else {
-            0.0
-        };
-        let nc_current = if self.contact_state == RelayContactState::Released {
-            nc_voltage / self.closed_contact_resistance_ohms
-        } else {
-            0.0
-        };
-        if [
-            coil_voltage,
-            coil_current,
-            no_voltage,
-            no_current,
-            nc_voltage,
-            nc_current,
-        ]
-        .iter()
-        .any(|value| !value.is_finite())
-        {
+        if !coil_voltage.is_finite() || !coil_current.is_finite() {
             return Err(component_diagnostic(
                 DiagnosticCode::NonFiniteState,
                 &self.component_id,
             ));
         }
         let id = self.component_id.as_str();
+        let [voltage_slot, current_slot] = group_slots(CONTACTOR_COIL);
+        let mut extra_values = vec![
+            (voltage_slot.key(id), coil_voltage),
+            (current_slot.key(id), coil_current),
+        ];
+        self.contacts().append_results(
+            &self.component_id,
+            self.closed_contact_resistance_ohms,
+            node_voltages,
+            &mut extra_values,
+        )?;
         Ok(DeviceResult {
             component_id: self.component_id.clone(),
             voltage_volts: coil_voltage,
             current_amps: coil_current,
-            extra_values: vec![
-                (format!("{id}/coil/voltage"), coil_voltage),
-                (format!("{id}/coil/current"), coil_current),
-                (format!("{id}/no/voltage"), no_voltage),
-                (format!("{id}/no/current"), no_current),
-                (format!("{id}/nc/voltage"), nc_voltage),
-                (format!("{id}/nc/current"), nc_current),
-            ],
+            extra_values,
             state: Some(DeviceState::Contactor {
                 component_id: self.component_id.clone(),
                 state: self.contact_state,

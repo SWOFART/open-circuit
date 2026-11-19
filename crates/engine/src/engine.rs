@@ -20,14 +20,15 @@ use crate::{
     TraceRequest,
     devices::{
         CapacitorDevice, CapacitorMode, ContactorDevice, DcVoltageSourceDevice, Device,
-        DeviceResult, FuseDevice, InductorDevice, InductorMode, PmdcMotorDevice, PmdcMotorMode,
-        RelayCoilMode, RelayDevice, ResistorDevice, Terminals, ThreePhaseSourceDevice,
-        WattmeterDevice, component_diagnostic,
+        DeviceResult, FuseDevice, InductorDevice, InductorMode, LinkedContacts, LinkedPole,
+        PmdcMotorDevice, PmdcMotorMode, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
+        ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
     operator::OperatorState,
+    pin_groups::CONTACTOR_AUXILIARIES,
     slots::slot_definitions,
 };
 use trace::TraceHistory;
@@ -130,8 +131,7 @@ enum DeviceModel {
         coil_resistance_ohms: f64,
         coil_inductance_henries: f64,
         closed_contact_resistance_ohms: f64,
-        normally_open: Terminals,
-        normally_closed: Terminals,
+        poles: [LinkedPole; 2],
     },
     PmdcMotor {
         armature_resistance_ohms: f64,
@@ -1322,11 +1322,7 @@ fn local_reference_nodes(
                 };
                 connect(common_node, active);
             }
-            DeviceModel::Contactor {
-                normally_open,
-                normally_closed,
-                ..
-            } => {
+            DeviceModel::Contactor { poles, .. } => {
                 let coil_has_conductance = match mode {
                     SolveMode::OperatingPoint | SolveMode::Transient { .. } => true,
                     SolveMode::InitialState(states) => {
@@ -1343,11 +1339,13 @@ fn local_reference_nodes(
                         .get(&spec.component_id)
                         .map_or(RelayContactState::Released, |state| state.state),
                 };
-                let conducting = match contact_state {
-                    RelayContactState::Released => normally_closed,
-                    RelayContactState::Picked => normally_open,
+                let contacts = LinkedContacts {
+                    poles: &poles,
+                    active: contact_state == RelayContactState::Picked,
                 };
-                connect(conducting.pin1, conducting.pin2);
+                for terminals in contacts.conducting() {
+                    connect(terminals.pin1, terminals.pin2);
+                }
             }
             DeviceModel::Capacitor { .. } | DeviceModel::Inductor { .. } => {}
         }
@@ -1691,12 +1689,10 @@ fn build_device_specs(
                 }
             }
             ComponentSpec::Contactor { parameters, .. } => {
-                let (Some(no_1), Some(no_2), Some(nc_1), Some(nc_2)) = (
-                    node_for_pin(PinId::No1),
-                    node_for_pin(PinId::No2),
-                    node_for_pin(PinId::Nc1),
-                    node_for_pin(PinId::Nc2),
-                ) else {
+                let [no, nc] = CONTACTOR_AUXILIARIES;
+                let (Some(normally_open), Some(normally_closed)) =
+                    (no.resolve(node_for_pin), nc.resolve(node_for_pin))
+                else {
                     diagnostics.push(component_diagnostic(
                         DiagnosticCode::InvalidGeometry,
                         component.id(),
@@ -1707,14 +1703,18 @@ fn build_device_specs(
                     coil_resistance_ohms: parameters.coil_resistance_ohms,
                     coil_inductance_henries: parameters.coil_inductance_henries,
                     closed_contact_resistance_ohms: parameters.closed_contact_resistance_ohms,
-                    normally_open: Terminals {
-                        pin1: no_1,
-                        pin2: no_2,
-                    },
-                    normally_closed: Terminals {
-                        pin1: nc_1,
-                        pin2: nc_2,
-                    },
+                    poles: [
+                        LinkedPole {
+                            group: no,
+                            terminals: normally_open,
+                            closed_when_active: true,
+                        },
+                        LinkedPole {
+                            group: nc,
+                            terminals: normally_closed,
+                            closed_when_active: false,
+                        },
+                    ],
                 }
             }
             ComponentSpec::SwitchSpst { parameters, .. } => DeviceModel::Resistor {
@@ -1971,8 +1971,7 @@ fn make_device(
             coil_resistance_ohms,
             coil_inductance_henries,
             closed_contact_resistance_ohms,
-            normally_open,
-            normally_closed,
+            poles,
         } => {
             let (contact_state, last_transition_time_seconds) = match mode {
                 SolveMode::OperatingPoint => (RelayContactState::Released, None),
@@ -2009,8 +2008,7 @@ fn make_device(
             Box::new(ContactorDevice::new(
                 spec.component_id.clone(),
                 spec.terminals,
-                normally_open,
-                normally_closed,
+                poles,
                 coil_resistance_ohms,
                 coil_inductance_henries,
                 closed_contact_resistance_ohms,

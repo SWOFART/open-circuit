@@ -813,3 +813,44 @@ fn the_snapshot_orders_every_kind_of_state_by_component_id() {
         DeviceState::Contactor { .. }
     ));
 }
+
+#[test]
+fn refused_live_edit_keeps_both_contacts_and_their_replay() {
+    let mut control = Run::new(start_stop(true, "linked-poles"));
+    let mut candidate = Run::new(start_stop(true, "linked-poles"));
+    for run in [&mut control, &mut candidate] {
+        run.advance_to(5);
+        run.operate(START, OperatorPosition::Pressed);
+        run.advance_to(10);
+        assert_eq!(run.contactor().0, RelayContactState::Picked);
+    }
+    let refused = candidate.engine.set_parameter(SetParameterRequest {
+        run_id: candidate.run_id.clone(),
+        expected_document_revision: candidate.snapshot.metadata.document_revision.clone(),
+        document_revision: "refused".to_owned(),
+        component_id: id(QA),
+        parameter_id: ParameterId::DropoutCurrentAmps,
+        value: -1.0,
+    });
+    assert!(
+        matches!(refused, SetParameterResult::Failure { diagnostics }
+        if diagnostics[0].code == DiagnosticCode::InvalidParameter)
+    );
+    for step in 11..=20 {
+        candidate.advance_to(step);
+        control.advance_to(step);
+        assert_eq!(
+            candidate.snapshot.metadata.document_revision,
+            control.snapshot.metadata.document_revision
+        );
+        assert_eq!(candidate.snapshot.states, control.snapshot.states);
+        assert!(
+            candidate
+                .snapshot
+                .values
+                .iter()
+                .map(|value| value.to_bits())
+                .eq(control.snapshot.values.iter().map(|value| value.to_bits()))
+        );
+    }
+}

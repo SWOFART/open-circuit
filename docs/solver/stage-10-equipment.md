@@ -4,6 +4,13 @@ The [equipment contract](../contracts/stage-10-three-phase-equipment.md)
 defines the models and observable results. These notes describe the proposed
 numerical treatment for review under #172.
 
+The grouped-pole framework resolves ordered terminal pairs and uses
+one latch for topology, conductance stamps and result slots. The Stage 6
+contactor exercises the same path with its two auxiliary poles. Its
+published catalog entry retains the legacy shape. Group metadata is
+optional in the generated catalog DTO and is populated by Stage 10
+device entries as they are added.
+
 For each coupled winding block write v = Ri + dλ/dt with λ = Li.
 In MNA, the winding currents add KCL terms at their ordered pins. For
 trapezoidal integration the winding residual is

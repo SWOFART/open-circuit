@@ -228,6 +228,15 @@ pub struct ParameterDefinition {
     pub maximum_value: Option<f64>,
 }
 
+/// An ordered branch in a component's pin list.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "PinGroupDefinition.ts")]
+pub struct PinGroupDefinition {
+    pub id: String,
+    pub pins: [PinId; 2],
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "ComponentCatalogEntry.ts")]
@@ -239,6 +248,9 @@ pub struct ComponentCatalogEntry {
     // Message keys of alternative names and related words for search.
     pub search_keyword_keys: Vec<String>,
     pub pins: Vec<PinDefinition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pin_groups: Option<Vec<PinGroupDefinition>>,
     pub parameters: Vec<ParameterDefinition>,
     // The fault kinds this type supports (docs/contracts/stage-5-assignments.md section 5.2).
     pub fault_kinds: Vec<crate::FaultKind>,
@@ -339,6 +351,7 @@ fn transistor_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEnt
             },
         )
         .to_vec(),
+        pin_groups: None,
         fault_kinds: vec![],
     }
 }
@@ -377,6 +390,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Resistor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -418,6 +432,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::DcVoltageSource).to_vec(),
             },
             ComponentCatalogEntry {
@@ -450,6 +465,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Capacitor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -482,6 +498,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Inductor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -568,6 +585,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::RelaySpdt).to_vec(),
             },
             ComponentCatalogEntry {
@@ -600,6 +618,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Fuse).to_vec(),
             },
             ComponentCatalogEntry {
@@ -707,6 +726,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PmdcMotor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -726,6 +746,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Voltmeter).to_vec(),
             },
             ComponentCatalogEntry {
@@ -745,6 +766,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Ammeter).to_vec(),
             },
             ComponentCatalogEntry {
@@ -777,6 +799,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::SwitchSpst).to_vec(),
             },
             ComponentCatalogEntry {
@@ -796,6 +819,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNo).to_vec(),
             },
             ComponentCatalogEntry {
@@ -815,6 +839,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
             },
             ComponentCatalogEntry {
@@ -905,6 +930,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Contactor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -946,6 +972,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(2.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             transistor_entry(ComponentTypeId::BjtNpn, "bjtNpn"),
@@ -1011,6 +1038,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::AcVoltageSource).to_vec(),
             },
             ComponentCatalogEntry {
@@ -1087,6 +1115,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     },
                 )
                 .to_vec(),
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1163,6 +1192,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     },
                 )
                 .to_vec(),
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1200,6 +1230,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(400.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1237,6 +1268,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(400.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1285,6 +1317,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(400.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
         ],
