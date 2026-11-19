@@ -801,3 +801,50 @@ fn wattmeter_matches_rl_reference_and_reverses_load_convention_signs() {
         );
     }
 }
+
+#[test]
+fn resistive_fifty_hertz_measurements_match_the_loaded_divider() {
+    let mut request = measurement_request();
+    // Connect the load directly to the return and remove the series inductor.
+    request
+        .schematic
+        .components
+        .retain(|part| part.id().as_str() != INDUCTOR_ID);
+    request
+        .geometry
+        .components
+        .retain(|part| part.component_id.as_str() != INDUCTOR_ID);
+    let load = request
+        .geometry
+        .components
+        .iter_mut()
+        .find(|part| part.component_id.as_str() == LOAD_ID)
+        .unwrap();
+    load.pins[1].position.x = 0;
+
+    let (mut engine, run_id, layout, _) = compile(request);
+    let snapshot = engine
+        .advance(AdvanceRequest {
+            run_id,
+            step_count: 60,
+        })
+        .unwrap();
+    let parallel_load = 1.0 / (1.0 / 100.0 + 2.0 / 10_000_000.0);
+    let expected_current = 10.0 / (0.3 + parallel_load);
+    let expected_voltage = expected_current * parallel_load;
+    for (key, expected) in [
+        (format!("{VOLTMETER_ID}/rms_voltage"), expected_voltage),
+        (format!("{AMMETER_ID}/rms_current"), expected_current),
+        (
+            format!("{WATTMETER_ID}/real_power"),
+            expected_voltage * expected_current,
+        ),
+        (
+            format!("{WATTMETER_ID}/apparent_power"),
+            expected_voltage * expected_current,
+        ),
+        (format!("{WATTMETER_ID}/power_factor"), 1.0),
+    ] {
+        close_relative(value(&layout, &snapshot, &key), expected, 0.002);
+    }
+}
