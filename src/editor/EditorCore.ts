@@ -112,6 +112,8 @@ export class EditorCore {
   private contentStale = true;
   private overlayStale = true;
   private input: CanvasInputBinding | null = null;
+  // A selection asked for before the scene contained the object; applied by the next scene.
+  private pendingSelection: SelectionTarget | null = null;
 
   constructor(
     private readonly host: EditorHost,
@@ -176,6 +178,11 @@ export class EditorCore {
       flaggedRails: this.flaggedRails,
     });
     this.interaction.setScene(this.scene, this.geometry);
+    if (this.pendingSelection) {
+      const pending = this.pendingSelection;
+      this.pendingSelection = null;
+      this.interaction.select(pending);
+    }
     this.syncOperable();
     this.contentStale = true;
     this.overlayStale = true;
@@ -297,6 +304,15 @@ export class EditorCore {
   /** Selects an object of the drawing, for a panel that lists them; null clears. */
   select(target: SelectionTarget | null): void {
     this.interaction.select(target);
+
+    // An object added by the command of this same turn is not in the scene until the next
+    // `setSchematic`, which then completes the selection.
+    this.pendingSelection =
+      target !== null &&
+      (this.interaction.selection?.kind !== target.kind ||
+        this.interaction.selection?.id !== target.id)
+        ? target
+        : null;
   }
 
   fitToCircuit(): void {
