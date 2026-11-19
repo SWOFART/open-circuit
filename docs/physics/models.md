@@ -495,3 +495,16 @@ the generic component model separate.
 - Fluke, [78 Automotive Meter manual](https://assets.fluke.com/manuals/78______umeng0100.pdf) and [87 Multimeter manual](https://assets.fluke.com/manuals/87______umeng0800.pdf): model-specific voltage input impedance and current burden-voltage examples.
 - IEEE Std 1459-2010, *Definitions for the Measurement of Electric Power Quantities Under Sinusoidal, Non-sinusoidal, Balanced, or Unbalanced Conditions*: real, reactive and apparent power and the distortion power that this project does not separate.
 - Nagel, L. W., SPICE2 memorandum ERL-M520 (1975), and the ngspice manual's transient analysis section: source evaluation at the time point and trapezoidal integration, the treatment the Stage 9 references assume.
+
+## Stage 10 equipment proposal
+
+The [Stage 10 contract](../contracts/stage-10-three-phase-equipment.md)
+records the proposed models and limits pending owner acceptance. The
+contactor uses a filtered squared-current pickup detector. The breaker
+checks instantaneous pole current, and the overload combines a filtered
+detector with inverse-time trip accumulation and cooldown. The induction
+motor uses linear cage flux linkage and rotor inertia. The transformer
+uses three linear coupled winding banks with leakage and copper loss.
+The star and delta loads are independently parameterized R–L branches.
+See the [solver notes](../solver/stage-10-equipment.md) for discretization
+and the rate bound.
