@@ -419,6 +419,58 @@ describe("a run or document change", () => {
     expect(scope.getState().data?.runId).toBe(RUN_B);
   });
 
+  it("discards a delayed AC measurement reply after replacing its run", async () => {
+    const componentId = "00000000-0000-4000-8000-000000000011";
+    const key = componentId + "/rms_voltage";
+    function measurementRun(
+      runId: string,
+      documentRevision: string,
+    ): ActiveRun {
+      return {
+        runId,
+        documentRevision,
+        layout: {
+          layoutVersion: 1,
+          valueCount: 1,
+          slots: [
+            {
+              key,
+              componentId,
+              offset: 0,
+              quantity: "rmsVoltage",
+              unit: "volt",
+              signConvention: "unsigned",
+            },
+          ],
+        },
+      };
+    }
+    const simulation = new FakeSimulation(measurementRun(RUN_A, "rev-1"));
+    const adapter = manualAdapter();
+    const scope = scopeFor(simulation, adapter);
+
+    scope.toggleSignal(key);
+    await settle();
+    const old = adapter.reads[0]!;
+    simulation.set({ run: measurementRun(RUN_B, "rev-2") });
+    old.resolve(batchFor(old.request, { steps: [60], value: () => 230 }));
+    await settle();
+
+    expect(scope.getState().data).toBeNull();
+    expect(scope.getState().error).toBeNull();
+    const fresh = adapter.reads.at(-1)!;
+    expect(fresh.request.runId).toBe(RUN_B);
+    expect(fresh.request.signalKeys).toEqual([key]);
+    const reply = batchFor(fresh.request, { steps: [0], value: () => 0 });
+    fresh.resolve({
+      ...reply,
+      metadata: { ...reply.metadata, documentRevision: "rev-2" },
+    });
+    await settle();
+    expect(scope.getState().data?.runId).toBe(RUN_B);
+    expect(scope.getState().data?.latestTimeSeconds).toBe(0);
+  });
+
   it("drops an error that arrives after its run was replaced", async () => {
     const simulation = new FakeSimulation(run(RUN_A, [V1]));
     const adapter = manualAdapter();
