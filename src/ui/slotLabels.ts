@@ -16,6 +16,15 @@ const DISPLAY_WORDS: Readonly<Record<string, string>> = {
   normally_closed: "normally closed",
   base_emitter: "base-emitter",
   collector_emitter: "collector-emitter",
+  rms_voltage: "RMS voltage",
+  rms_current: "RMS current",
+  l1: "L1",
+  l2: "L2",
+  l3: "L3",
+  l12: "L1–L2",
+  l23: "L2–L3",
+  l31: "L3–L1",
+  n: "N",
 };
 
 /** What the slot measures, such as `voltage`, `coil current`, or `angular velocity`. */
@@ -44,6 +53,8 @@ const AXIS_NAMES: Readonly<Partial<Record<Unit, string>>> = {
   amp: "Current",
   radian_per_second: "Angular velocity",
   ampere_squared_second: "Accumulated I²t",
+  hertz: "Frequency",
+  degree: "Phase angle",
   watt: "Real power",
   volt_ampere: "Apparent power",
   volt_ampere_reactive: "Reactive power",

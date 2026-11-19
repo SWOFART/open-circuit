@@ -90,7 +90,11 @@ export function valueRange(
     for (let index = 0; index < signal.times.length; index += 1) {
       const time = signal.times[index]!;
 
-      if (time < window.start || time > window.end) {
+      if (
+        time < window.start ||
+        time > window.end ||
+        signal.valid?.[index] === false
+      ) {
         continue;
       }
 
@@ -126,21 +130,37 @@ export function pointsInWindow(
   signal: ScopeSignalData,
   window: TimeWindow,
 ): DrawnPoint[] {
-  const points: DrawnPoint[] = [];
+  return pointSegmentsInWindow(signal, window).flat();
+}
 
+/** The contiguous runs of plottable points. An invalid bucket leaves a visible gap. */
+export function pointSegmentsInWindow(
+  signal: ScopeSignalData,
+  window: TimeWindow,
+): DrawnPoint[][] {
+  const segments: DrawnPoint[][] = [];
+  let segment: DrawnPoint[] | undefined;
   for (let index = 0; index < signal.times.length; index += 1) {
     const time = signal.times[index]!;
-
-    if (time >= window.start && time <= window.end) {
-      points.push({
-        time,
-        minimum: signal.minimums[index]!,
-        maximum: signal.maximums[index]!,
-      });
+    if (
+      time < window.start ||
+      time > window.end ||
+      signal.valid?.[index] === false
+    ) {
+      segment = undefined;
+      continue;
     }
+    if (segment === undefined) {
+      segment = [];
+      segments.push(segment);
+    }
+    segment.push({
+      time,
+      minimum: signal.minimums[index]!,
+      maximum: signal.maximums[index]!,
+    });
   }
-
-  return points;
+  return segments;
 }
 
 /**

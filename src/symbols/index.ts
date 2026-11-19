@@ -1,4 +1,12 @@
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
+import {
+  acAmmeterSymbol,
+  acVoltmeterSymbol,
+  acVoltageSourceSymbol,
+  threePhaseDeltaSymbol,
+  threePhaseStarSymbol,
+  wattmeterSymbol,
+} from "./ac";
 import { ammeterSymbol } from "./ammeter";
 import { capacitorSymbol } from "./capacitor";
 import { bjtNpnSymbol, bjtPnpSymbol } from "./bjt";
@@ -33,6 +41,12 @@ export type SymbolRegistry = Readonly<
 export const symbols: SymbolRegistry = {
   resistor: resistorSymbol,
   dc_voltage_source: dcVoltageSourceSymbol,
+  ac_voltage_source: acVoltageSourceSymbol,
+  three_phase_source_star: threePhaseStarSymbol,
+  three_phase_source_delta: threePhaseDeltaSymbol,
+  ac_voltmeter: acVoltmeterSymbol,
+  ac_ammeter: acAmmeterSymbol,
+  wattmeter: wattmeterSymbol,
   capacitor: capacitorSymbol,
   inductor: inductorSymbol,
   relay_spdt: relaySpdtSymbol,

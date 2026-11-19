@@ -13,13 +13,22 @@ labels; `N` and `PE` create no earth/reference behavior. Assignment rail inputs
 are rejected. See [the project-format notes](docs/format/stage-8-projects.md) and
 [the connectivity verification](docs/solver/stage-8-connectivity.md).
 
+### Drawing AC and three-phase circuits
+
+The Parts drawer offers a sinusoidal source, star and delta three-phase
+sources, AC voltmeters and ammeters, and a wattmeter. Edit RMS voltage,
+frequency, phase offset and phase sequence in the inspector. Each meter uses
+its own measurement frequency. Readouts appear when the Engine marks the
+measurement valid. Select instantaneous or measured AC signals in the
+oscilloscope and choose a time window that shows several periods. Invalid
+measurements leave gaps in the trace.
+
 ### Drawing a control circuit between DC rails
 
 The **DC rail** tool and the **DC rails** panel draw a cabinet-style direct-current circuit.
 A rail is a named vertical conductor. It is not a source and carries no voltage of its own:
 put an existing DC voltage source between two rails and mark the return with the Ground tool.
-Names such as `L1`, `L2`, `L3`, `N` or `PE` are plain labels; they add no phase, neutral or
-earth behavior, and there is no AC, three-phase or protective-earth simulation. Rails are not
+Names such as `L1`, `L2`, `L3`, `N` or `PE` identify the rails on the drawing. Rails are not
 available while an assignment is open, and Open refuses a project that contains rails then
 (before the project path changes); leave assignment mode to open it.
 

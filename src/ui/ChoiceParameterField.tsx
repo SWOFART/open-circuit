@@ -31,15 +31,22 @@ export function ChoiceParameterField({
   const id = useId();
   const name = `${label} ${message(definition.descriptionKey).toLowerCase()}`;
 
+  const isPhaseSequence = definition.id === "reversedSequence";
+  const off = isPhaseSequence ? "standard" : "open";
+  const on = isPhaseSequence ? "reversed" : "closed";
+  const hint = isPhaseSequence
+    ? "Reversing the sequence swaps L2 and L3."
+    : message(`${definition.descriptionKey}Hint`);
+
   return (
     <div className="parameter-field">
       <label htmlFor={id}>{name}</label>
       <select
         id={id}
-        value={committedValue === 1 ? "closed" : "open"}
+        value={committedValue === 1 ? on : off}
         disabled={disabled}
         onChange={(event) => {
-          if (event.target.value === "closed") {
+          if (event.target.value === on) {
             onCommit(1);
           } else if (definition.optional) {
             onClear();
@@ -48,12 +55,10 @@ export function ChoiceParameterField({
           }
         }}
       >
-        <option value="open">Open</option>
-        <option value="closed">Closed</option>
+        <option value={off}>{isPhaseSequence ? "Standard" : "Open"}</option>
+        <option value={on}>{isPhaseSequence ? "Reversed" : "Closed"}</option>
       </select>
-      <p className="parameter-hint">
-        {message(`${definition.descriptionKey}Hint`)}
-      </p>
+      <p className="parameter-hint">{hint}</p>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Diagnostic } from "../generated/Diagnostic";
 import type { DiagnosticReference } from "../generated/DiagnosticReference";
 import type { StableId } from "../generated/StableId";
+import { measurementValidityKey } from "../store/measurementValidity";
 import { readSlot, type SimulationState } from "../store/simulation";
 import { describeDiagnostic } from "./messages";
 import { slotLabel } from "./slotLabels";
@@ -116,6 +117,11 @@ export function ResultPanel({
   railNames = NO_RAIL_NAMES,
 }: ResultPanelProps) {
   const { run, snapshot } = state;
+  const validityOffsets = new Map(
+    run?.layout.slots
+      .filter((slot) => slot.quantity === "valid")
+      .map((slot) => [slot.key, slot.offset]),
+  );
 
   return (
     <section
@@ -169,12 +175,23 @@ export function ResultPanel({
         >
           {run.layout.slots.map((slot) => {
             const value = snapshot.values[slot.offset];
+            const flag = measurementValidityKey(slot);
+            const validityOffset =
+              flag === undefined ? undefined : validityOffsets.get(flag);
+            const valid =
+              flag === undefined ||
+              (validityOffset !== undefined &&
+                snapshot.values[validityOffset] === 1);
 
             return (
               <div key={slot.key} className="reading">
                 <dt>{slotLabel(slot, labels)}</dt>
                 <dd>
-                  {value === undefined ? "—" : formatSi(value, slot.unit)}
+                  {!valid
+                    ? "Not yet valid"
+                    : value === undefined
+                      ? "—"
+                      : formatSi(value, slot.unit)}
                 </dd>
               </div>
             );

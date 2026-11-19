@@ -241,6 +241,20 @@ describe("the plot", () => {
     expect(html.match(/<polyline/g)).toHaveLength(2);
   });
 
+  it("reports sparse public sampling for a high-frequency source", () => {
+    const html = renderToStaticMarkup(
+      <Oscilloscope
+        simulation={readySimulation()}
+        scope={tracing()}
+        labels={labels}
+        hasHighFrequencySource
+        onToggleSignal={() => {}}
+        onWindowChange={() => {}}
+      />,
+    );
+    expect(html).toContain("fewer than ten samples per period");
+  });
+
   it("labels the time axis in seconds with an SI prefix and the value axes with units", () => {
     const html = render(readySimulation(), tracing());
 

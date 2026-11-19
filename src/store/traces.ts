@@ -1,12 +1,36 @@
+import type { ResultLayout } from "../generated/ResultLayout";
 import type { StableId } from "../generated/StableId";
 import type { TraceBatch } from "../generated/TraceBatch";
 import type { TraceRequest } from "../generated/TraceRequest";
 import type { Unit } from "../generated/Unit";
 import type { EngineAdapter } from "./engineAdapter";
+import { measurementValidityKey } from "./measurementValidity";
 import type { ActiveRun, SimulationState } from "./simulation";
 
 /** The most signals one request may name (docs/contracts/stage-3-dynamics.md section 7.4). */
 export const MAX_SCOPE_SIGNALS = 8;
+function validityFor(
+  layout: ResultLayout,
+  keys: readonly string[],
+): Map<string, string> {
+  const flags = new Map<string, string>();
+  for (const key of keys) {
+    const slot = layout.slots.find((candidate) => candidate.key === key);
+    const flag = slot && measurementValidityKey(slot);
+    if (flag && layout.slots.some((candidate) => candidate.key === flag)) {
+      flags.set(key, flag);
+    }
+  }
+  return flags;
+}
+
+export function scopeRequestKeys(
+  layout: ResultLayout,
+  keys: readonly string[],
+): string[] {
+  return [...new Set([...keys, ...validityFor(layout, keys).values()])];
+}
+
 /** The application's cap on points per signal in one response (stage-1.md section 8.3). */
 export const MAX_SCOPE_POINTS = 2048;
 /** The public step, used only before the first response names the sample interval. */
@@ -29,6 +53,8 @@ export interface ScopeSignalData {
   readonly minimums: readonly number[];
   /** Per point: the largest value of the samples it stands for. */
   readonly maximums: readonly number[];
+  /** Each bucket is usable only if all its underlying measurements were valid. */
+  readonly valid?: readonly boolean[];
 }
 
 /** One response, kept only for the run and layout it was produced for. */
@@ -112,6 +138,7 @@ function sameRun(
 export function scopeDataFromBatch(
   request: TraceRequest,
   batch: TraceBatch,
+  validity: ReadonlyMap<string, string> = new Map(),
 ): ScopeData | null {
   const { metadata, signals, points } = batch;
 
@@ -143,13 +170,27 @@ export function scopeDataFromBatch(
       first === undefined || second === undefined
         ? 1
         : Math.max(1, second - first),
-    signals: signals.map((signal, index) => ({
-      key: signal.key,
-      unit: signal.unit,
-      times,
-      minimums: points.map((point) => point.minimumValues[index] ?? Number.NaN),
-      maximums: points.map((point) => point.maximumValues[index] ?? Number.NaN),
-    })),
+    signals: signals.map((signal, index) => {
+      const flag = validity.get(signal.key);
+      const flagIndex = signals.findIndex(
+        (candidate) => candidate.key === flag,
+      );
+      return {
+        key: signal.key,
+        unit: signal.unit,
+        times,
+        minimums: points.map(
+          (point) => point.minimumValues[index] ?? Number.NaN,
+        ),
+        maximums: points.map(
+          (point) => point.maximumValues[index] ?? Number.NaN,
+        ),
+        valid:
+          flag === undefined
+            ? undefined
+            : points.map((point) => point.minimumValues[flagIndex] === 1),
+      };
+    }),
   };
 }
 
@@ -221,7 +262,7 @@ export class OscilloscopeController {
     if (visible.includes(key)) {
       this.preferredKeys = visible.filter((candidate) => candidate !== key);
     } else if (
-      visible.length < MAX_SCOPE_SIGNALS &&
+      this.canSelect([...visible, key]) &&
       this.layoutKeys().has(key)
     ) {
       this.preferredKeys = [...visible, key];
@@ -244,6 +285,14 @@ export class OscilloscopeController {
     this.readSoon();
   }
 
+  private canSelect(keys: readonly string[]): boolean {
+    const run = this.simulation.getState().run;
+    return (
+      run !== null &&
+      scopeRequestKeys(run.layout, keys).length <= MAX_SCOPE_SIGNALS
+    );
+  }
+
   private layoutKeys(): ReadonlySet<string> {
     const run = this.simulation.getState().run;
 
@@ -257,9 +306,12 @@ export class OscilloscopeController {
    */
   private applySelection(): void {
     const layout = this.layoutKeys();
-    const selectedKeys = this.preferredKeys
-      .filter((key) => layout.has(key))
-      .slice(0, MAX_SCOPE_SIGNALS);
+    const selectedKeys: string[] = [];
+    for (const key of this.preferredKeys) {
+      if (layout.has(key) && this.canSelect([...selectedKeys, key])) {
+        selectedKeys.push(key);
+      }
+    }
     const unchanged =
       selectedKeys.length === this.state.selectedKeys.length &&
       selectedKeys.every(
@@ -370,7 +422,7 @@ export class OscilloscopeController {
     return {
       runId: run.runId,
       layoutVersion: run.layout.layoutVersion,
-      signalKeys: [...keys],
+      signalKeys: scopeRequestKeys(run.layout, keys),
       query: {
         kind: "history",
         startStep: Math.max(
@@ -415,7 +467,7 @@ export class OscilloscopeController {
 
       const batch = await this.adapter.readTraces(request);
 
-      data = scopeDataFromBatch(request, batch);
+      data = scopeDataFromBatch(request, batch, validityFor(run.layout, keys));
       latest = batch.metadata.latestSampleStep;
       failure = data
         ? null
@@ -439,8 +491,8 @@ export class OscilloscopeController {
           request.runId,
           request.layoutVersion,
         ) ||
-        request.signalKeys.length !== selected.length ||
-        request.signalKeys.some((key, index) => key !== selected[index]));
+        keys.length !== selected.length ||
+        keys.some((key, index) => key !== selected[index]));
 
     if (stale) {
       // The answer belongs to a run or selection that is gone. It is dropped without an

@@ -4,8 +4,10 @@ import type { DeviceState } from "../generated/DeviceState";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
+import { measurementValidityKey } from "../store/measurementValidity";
 import type { ActiveRun, SimulationState } from "../store/simulation";
 import { message } from "./messages";
+import { slotDescription } from "./slotLabels";
 import { OperatorControl } from "./OperatorControl";
 import { formatSi, formatWithSymbol } from "./units";
 
@@ -24,6 +26,9 @@ const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "pmdc_motor",
   "voltmeter",
   "ammeter",
+  "ac_voltmeter",
+  "ac_ammeter",
+  "wattmeter",
   "switch_spst",
   "push_button_no",
   "push_button_nc",
@@ -328,6 +333,35 @@ function describe(
           { name: "Burden voltage", value: show(`${id}:voltage`, "volt") },
         ],
       };
+    case "ac_voltmeter":
+    case "ac_ammeter":
+    case "wattmeter": {
+      const title = {
+        ac_voltmeter: "component.acVoltmeter.name",
+        ac_ammeter: "component.acAmmeter.name",
+        wattmeter: "component.wattmeter.name",
+      }[component.typeId];
+      const slots = run.layout.slots.filter(
+        (slot) => slot.componentId === id && slot.quantity !== "valid",
+      );
+      return {
+        id,
+        title: `${name} ${message(title)}`,
+        rows: slots.map((slot) => {
+          const flag = measurementValidityKey(slot);
+          const available =
+            flag === undefined || reading(run, snapshot, flag) === 1;
+          const value = snapshot.values[slot.offset];
+          return {
+            name: slotDescription(slot),
+            value:
+              available && value !== undefined
+                ? formatSi(value, slot.unit)
+                : "Not yet valid",
+          };
+        }),
+      };
+    }
     default:
       throw new Error(`${component.typeId} is not a device of this panel.`);
   }

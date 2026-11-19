@@ -134,14 +134,7 @@ describe("the placeholder for a part without a symbol", () => {
       .filter((entry) => !symbols[entry.typeId])
       .map((entry) => entry.typeId);
 
-    expect(withoutSymbol.sort()).toEqual([
-      "ac_ammeter",
-      "ac_voltage_source",
-      "ac_voltmeter",
-      "three_phase_source_delta",
-      "three_phase_source_star",
-      "wattmeter",
-    ]);
+    expect(withoutSymbol).toEqual([]);
   });
 });
 
