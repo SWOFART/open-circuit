@@ -6,8 +6,8 @@ use crate::{
     ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
     RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
     devices::{
-        BreakerState, DeviceResult, IntegrationMethod, coil_contact_state, component_diagnostic,
-        detector_step,
+        BreakerState, DeviceResult, IntegrationMethod, OverloadState, coil_contact_state,
+        component_diagnostic, detector_step,
     },
     netlist::derive_netlist_with_open,
 };
@@ -114,6 +114,7 @@ pub(super) struct CircuitStates {
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
     pub(super) breakers: HashMap<StableId, BreakerState>,
+    pub(super) overloads: HashMap<StableId, OverloadState>,
     pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
     pub(super) motors: HashMap<StableId, MotorState>,
     pub(super) measurements: HashMap<StableId, MeasurementState>,
@@ -154,6 +155,7 @@ impl CircuitStates {
             conducting: state.conducting(),
             last_transition_time_seconds: state.last_transition_time_seconds,
         }));
+        states.extend(self.overloads.iter().map(|(id, state)| state.snapshot(id)));
         states.extend(
             self.fuses
                 .iter()
@@ -188,11 +190,25 @@ pub(super) fn circuit_states_from_results(
     schematic: &Schematic,
     results: &[DeviceResult],
     simulation_time_seconds: f64,
+    previous: &CircuitStates,
 ) -> CircuitStates {
     let by_component = results
         .iter()
         .map(|result| (result.component_id.as_str(), result))
         .collect::<HashMap<_, _>>();
+    let overloads = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::ThermalOverloadThreePole { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let mut state = previous.overloads.get(id).copied().unwrap_or_default();
+            state.peak_phase_amps = result.current_amps;
+            Some((id.clone(), state))
+        })
+        .collect();
     let capacitors = schematic
         .components
         .iter()
@@ -375,6 +391,7 @@ pub(super) fn circuit_states_from_results(
         inductors,
         relays,
         breakers,
+        overloads,
         fuses,
         motors,
         measurements: HashMap::new(),
@@ -461,7 +478,7 @@ pub(super) fn advance_public_steps(
             )?;
             diagnostics.extend(step_diagnostics);
             let mut candidate =
-                circuit_states_from_results(schematic, &step_results, step_end_time);
+                circuit_states_from_results(schematic, &step_results, step_end_time, &states);
             // The requested recovery method was consumed by this interval. A new
             // relay transition below can schedule another backward-Euler interval.
             candidate.solver_memory = memory;
@@ -503,13 +520,46 @@ pub(super) fn advance_public_steps(
                     .expect("contactor detector slot");
                 *value = detector;
             }
-            let fuse_transitions = accumulate_fuse_i2t(
+            let mut trips = accumulate_fuse_i2t(
                 schematic,
                 &interval_start_states,
                 &mut candidate,
                 internal_step_seconds,
                 step_end_time,
             )?;
+            for component in &schematic.components {
+                let ComponentSpec::ThermalOverloadThreePole { id, parameters, .. } = component
+                else {
+                    continue;
+                };
+                let (Some(start), Some(end)) = (
+                    interval_start_states.overloads.get(id),
+                    candidate.overloads.get_mut(id),
+                ) else {
+                    continue;
+                };
+                let Some(next) = end.advance(
+                    start.peak_phase_amps,
+                    end.peak_phase_amps,
+                    internal_step_seconds,
+                    step_end_time,
+                    parameters,
+                ) else {
+                    return Err(vec![component_diagnostic(
+                        DiagnosticCode::NonFiniteState,
+                        id,
+                    )]);
+                };
+                if next.tripped && !end.tripped {
+                    trips.push(id.clone());
+                }
+                *end = next;
+                let result = step_results
+                    .iter_mut()
+                    .find(|result| result.component_id == *id)
+                    .expect("thermal overload result");
+                result.extra_values.last_mut().expect("thermal dose slot").1 = next.dose;
+            }
             settle_discrete_events(
                 CircuitInput {
                     schematic,
@@ -518,7 +568,7 @@ pub(super) fn advance_public_steps(
                 },
                 &mut candidate,
                 &mut step_results,
-                fuse_transitions,
+                trips,
                 step_end_time,
                 &mut diagnostics,
             )?;
@@ -629,7 +679,7 @@ pub(super) fn settle_discrete_events(
     circuit: CircuitInput<'_>,
     states: &mut CircuitStates,
     results: &mut Vec<DeviceResult>,
-    mut fuse_transitions: Vec<StableId>,
+    mut pending_trips: Vec<StableId>,
     event_time_seconds: f64,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(), Vec<Diagnostic>> {
@@ -640,7 +690,7 @@ pub(super) fn settle_discrete_events(
     } = circuit;
     const MAX_SAME_TIME_TRANSITIONS: usize = 16;
     let mut seen = HashSet::new();
-    seen.insert(discrete_state_vector(states, &fuse_transitions));
+    seen.insert(discrete_state_vector(states, &pending_trips));
     let mut same_time_resolves = 0;
     loop {
         let mut relay_changes = Vec::new();
@@ -699,7 +749,7 @@ pub(super) fn settle_discrete_events(
                 relay_changes.push((id.clone(), next_state));
             }
         }
-        if relay_changes.is_empty() && breaker_changes.is_empty() && fuse_transitions.is_empty() {
+        if relay_changes.is_empty() && breaker_changes.is_empty() && pending_trips.is_empty() {
             return Ok(());
         }
         relay_changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
@@ -708,7 +758,7 @@ pub(super) fn settle_discrete_events(
             .map(|(component_id, _)| component_id.clone())
             .collect::<Vec<_>>();
         changed_ids.extend(breaker_changes.iter().map(|(id, _)| id.clone()));
-        changed_ids.append(&mut fuse_transitions);
+        changed_ids.append(&mut pending_trips);
         changed_ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
         changed_ids.dedup();
         if same_time_resolves >= MAX_SAME_TIME_TRANSITIONS {
@@ -732,7 +782,7 @@ pub(super) fn settle_discrete_events(
         }
         breaker_changes.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str()));
         states.breakers.extend(breaker_changes);
-        fuse_transitions = Vec::new();
+        pending_trips = Vec::new();
         states.backward_euler_next_step = true;
         let state_vector = discrete_state_vector(states, &[]);
         if !seen.insert(state_vector) {
@@ -751,7 +801,7 @@ pub(super) fn settle_discrete_events(
         *results = resolved;
         diagnostics.extend(event_diagnostics);
         let mut resolved_states =
-            circuit_states_from_results(schematic, results, event_time_seconds);
+            circuit_states_from_results(schematic, results, event_time_seconds, states);
         // The event state is the state vector used to solve this reconfiguration; the
         // device results carry that same vector and its exact transition times.
         resolved_states.solver_memory = memory;
@@ -764,10 +814,7 @@ pub(super) fn settle_discrete_events(
     }
 }
 
-fn discrete_state_vector(
-    states: &CircuitStates,
-    pending_fuse_transitions: &[StableId],
-) -> Vec<(String, u8)> {
+fn discrete_state_vector(states: &CircuitStates, pending_trips: &[StableId]) -> Vec<(String, u8)> {
     let mut vector = states
         .relays
         .iter()
@@ -779,7 +826,7 @@ fn discrete_state_vector(
         })
         .collect::<Vec<_>>();
     vector.extend(states.fuses.iter().map(|(id, fuse)| {
-        let pending = pending_fuse_transitions.iter().any(|pending| pending == id);
+        let pending = pending_trips.iter().any(|pending| pending == id);
         (
             id.as_str().to_owned(),
             u8::from(!pending && fuse.state == FuseState::Tripped),
@@ -791,6 +838,10 @@ fn discrete_state_vector(
             .iter()
             .map(|(id, state)| (id.as_str().to_owned(), u8::from(state.tripped))),
     );
+    vector.extend(states.overloads.iter().map(|(id, state)| {
+        let pending = pending_trips.contains(id);
+        (id.as_str().to_owned(), u8::from(!pending && state.tripped))
+    }));
     vector.sort_by(|left, right| left.0.cmp(&right.0));
     vector
 }
@@ -1083,6 +1134,26 @@ fn estimate_transient_rate_bound(
                     resistance, poles, ..
                 } => {
                     for pole in poles {
+                        let terminals = pole.terminals;
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / resistance,
+                        )?;
+                    }
+                }
+                DeviceModel::Overload {
+                    poles,
+                    auxiliaries,
+                    sense_resistance,
+                    contact_resistance,
+                } => {
+                    for (pole, resistance) in poles
+                        .iter()
+                        .map(|pole| (pole, sense_resistance))
+                        .chain(auxiliaries.iter().map(|pole| (pole, contact_resistance)))
+                    {
                         let terminals = pole.terminals;
                         add_laplacian(
                             &mut conductance,

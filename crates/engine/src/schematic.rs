@@ -196,6 +196,19 @@ pub struct BreakerThreePoleParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "ThermalOverloadThreePoleParameters.ts")]
+pub struct ThermalOverloadThreePoleParameters {
+    pub closed_contact_resistance_ohms: f64,
+    pub sense_resistance_ohms: f64,
+    pub rated_current_amps: f64,
+    pub thermal_sense_seconds: f64,
+    pub trip_scale_seconds: f64,
+    pub cool_seconds: f64,
+    pub reset_dose: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "FuseParameters.ts")]
 pub struct FuseParameters {
     pub intact_resistance_ohms: f64,
@@ -511,6 +524,13 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: BreakerThreePoleParameters,
     },
+    ThermalOverloadThreePole {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: ThermalOverloadThreePoleParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -539,7 +559,8 @@ impl ComponentSpec {
             | Self::PushButtonNc { id, .. }
             | Self::Contactor { id, .. }
             | Self::ContactorThreePole { id, .. }
-            | Self::BreakerThreePole { id, .. } => id,
+            | Self::BreakerThreePole { id, .. }
+            | Self::ThermalOverloadThreePole { id, .. } => id,
         }
     }
 
@@ -568,7 +589,8 @@ impl ComponentSpec {
             | Self::PushButtonNc { position, .. }
             | Self::Contactor { position, .. }
             | Self::ContactorThreePole { position, .. }
-            | Self::BreakerThreePole { position, .. } => *position,
+            | Self::BreakerThreePole { position, .. }
+            | Self::ThermalOverloadThreePole { position, .. } => *position,
         }
     }
 
@@ -597,7 +619,8 @@ impl ComponentSpec {
             | Self::PushButtonNc { rotation_deg, .. }
             | Self::Contactor { rotation_deg, .. }
             | Self::ContactorThreePole { rotation_deg, .. }
-            | Self::BreakerThreePole { rotation_deg, .. } => *rotation_deg,
+            | Self::BreakerThreePole { rotation_deg, .. }
+            | Self::ThermalOverloadThreePole { rotation_deg, .. } => *rotation_deg,
         }
     }
 
@@ -627,6 +650,7 @@ impl ComponentSpec {
             Self::Contactor { .. } => ComponentTypeId::Contactor,
             Self::ContactorThreePole { .. } => ComponentTypeId::ContactorThreePole,
             Self::BreakerThreePole { .. } => ComponentTypeId::BreakerThreePole,
+            Self::ThermalOverloadThreePole { .. } => ComponentTypeId::ThermalOverloadThreePole,
         }
     }
 
@@ -654,6 +678,24 @@ impl ComponentSpec {
                     parameters.closed_contact_resistance_ohms,
                 ),
                 (ParameterId::CoilSenseSeconds, parameters.coil_sense_seconds),
+            ],
+            Self::ThermalOverloadThreePole { parameters, .. } => vec![
+                (
+                    ParameterId::ClosedContactResistanceOhms,
+                    parameters.closed_contact_resistance_ohms,
+                ),
+                (
+                    ParameterId::SenseResistanceOhms,
+                    parameters.sense_resistance_ohms,
+                ),
+                (ParameterId::RatedCurrentAmps, parameters.rated_current_amps),
+                (
+                    ParameterId::ThermalSenseSeconds,
+                    parameters.thermal_sense_seconds,
+                ),
+                (ParameterId::TripScaleSeconds, parameters.trip_scale_seconds),
+                (ParameterId::CoolSeconds, parameters.cool_seconds),
+                (ParameterId::ResetDose, parameters.reset_dose),
             ],
             Self::BreakerThreePole { parameters, .. } => vec![
                 (
@@ -1002,7 +1044,8 @@ impl Schematic {
             | ComponentSpec::PushButtonNc { rotation_deg, .. }
             | ComponentSpec::Contactor { rotation_deg, .. }
             | ComponentSpec::ContactorThreePole { rotation_deg, .. }
-            | ComponentSpec::BreakerThreePole { rotation_deg, .. } = component
+            | ComponentSpec::BreakerThreePole { rotation_deg, .. }
+            | ComponentSpec::ThermalOverloadThreePole { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(

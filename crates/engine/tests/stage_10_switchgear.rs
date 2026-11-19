@@ -480,3 +480,215 @@ fn an_explicit_capacitor_voltage_does_not_reinitialize_the_coil_current() {
             .any(|diagnostic| diagnostic.code == DiagnosticCode::InconsistentState)
     );
 }
+
+fn overload_request(source_type: &str, phases: [Value; 3]) -> CompileRequest {
+    request(&[
+        (
+            "thermal_overload_three_pole",
+            json!({"closedContactResistanceOhms":0.01, "senseResistanceOhms":1,
+            "ratedCurrentAmps":10, "thermalSenseSeconds":0.02, "tripScaleSeconds":0.1,
+            "coolSeconds":0.1, "resetDose":0.25}),
+            &[
+                ("l1", 1),
+                ("t1", 0),
+                ("l2", 2),
+                ("t2", 0),
+                ("l3", 3),
+                ("t3", 0),
+                ("no_1", 4),
+                ("no_2", 5),
+                ("nc_1", 4),
+                ("nc_2", 6),
+            ],
+        ),
+        (source_type, phases[0].clone(), &[("pin1", 1), ("pin2", 0)]),
+        (source_type, phases[1].clone(), &[("pin1", 2), ("pin2", 0)]),
+        (source_type, phases[2].clone(), &[("pin1", 3), ("pin2", 0)]),
+        (
+            "dc_voltage_source",
+            json!({"voltageVolts":12, "internalResistanceOhms":0}),
+            &[("pin1", 4), ("pin2", 0)],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":10}),
+            &[("pin1", 5), ("pin2", 0)],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":10}),
+            &[("pin1", 6), ("pin2", 0)],
+        ),
+    ])
+}
+
+fn assert_overload_auxiliaries(run: &Run, tripped: bool) {
+    assert_eq!(run.value(0, "no/current") > 0.0, tripped);
+    assert_eq!(run.value(0, "nc/current") > 0.0, !tripped);
+}
+
+#[test]
+fn overload_reset_dose_accepts_both_clamped_boundaries() {
+    let fixture = overload_request(
+        "dc_voltage_source",
+        std::array::from_fn(|_| json!({"voltageVolts":0, "internalResistanceOhms":0})),
+    );
+    for (dose, valid) in [(0.0, true), (0.99, true), (-0.01, false), (1.0, false)] {
+        let mut candidate = fixture.clone();
+        let open_circuit_engine::ComponentSpec::ThermalOverloadThreePole { parameters, .. } =
+            &mut candidate.schematic.components[0]
+        else {
+            unreachable!();
+        };
+        parameters.reset_dose = dose;
+        match Engine::default().compile(candidate) {
+            CompileResult::Success { .. } if valid => {}
+            CompileResult::Failure { diagnostics } if !valid => {
+                assert!(
+                    diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic.code == DiagnosticCode::InvalidParameter)
+                );
+            }
+            result => panic!("reset dose {dose}: {result:?}"),
+        }
+    }
+}
+
+#[test]
+fn dc_overload_trips_at_the_detector_dose_reference_and_resets_after_cooling() {
+    for multiple in [1.0_f64, 1.5, 2.0, 3.0] {
+        let fixture = overload_request(
+            "dc_voltage_source",
+            [2.0, -10.0 * multiple, 3.0]
+                .map(|voltage| json!({"voltageVolts":voltage, "internalResistanceOhms":0})),
+        );
+        let mut run = Run::compile(fixture.clone());
+        let q_final = multiple.powi(2);
+        let threshold = -0.02 * (1.0 - 1.0 / q_final).ln();
+        // Integral of q(t)-1 from the instant the detector exceeds rated current.
+        let dose = |t: f64| {
+            ((q_final - 1.0) * (t - threshold)
+                + q_final * 0.02 * ((-t / 0.02).exp() - (-threshold / 0.02).exp()))
+                / 0.1
+        };
+        let mut trip = None;
+        for step in 1..=200 {
+            run.advance(1);
+            if run.value(0, "thermal_dose") == 1.0 {
+                trip = Some(f64::from(step) * 0.001);
+                break;
+            }
+            assert_overload_auxiliaries(&run, false);
+        }
+        if multiple == 1.0 {
+            assert!(trip.is_none());
+            assert_eq!(run.value(0, "thermal_dose"), 0.0);
+            continue;
+        }
+        let trip = trip.unwrap();
+        let (mut below, mut above) = (threshold, 0.2);
+        for _ in 0..40 {
+            let middle = (below + above) / 2.0;
+            if dose(middle) < 1.0 {
+                below = middle;
+            } else {
+                above = middle;
+            }
+        }
+        assert!(
+            (trip - above).abs() <= 0.002_f64.max(0.01 * above),
+            "{multiple}×: {trip}s vs {above}s"
+        );
+        assert_overload_auxiliaries(&run, true);
+        assert!((run.value(0, "pole2/current") + 10.0 * multiple).abs() <= 1e-10);
+        if multiple != 2.0 {
+            continue;
+        }
+        let before = run.snapshot.clone();
+        assert!(matches!(
+            run.operate(0, OperatorPosition::Pressed),
+            SetOperatorStateResult::Failure { .. }
+        ));
+        assert_eq!(run.snapshot, before);
+        let refused = run.engine.set_parameter(SetParameterRequest {
+            run_id: before.metadata.run_id.clone(),
+            expected_document_revision: before.metadata.document_revision.clone(),
+            document_revision: "refused".to_owned(),
+            component_id: StableId::parse(id(0)).unwrap(),
+            parameter_id: ParameterId::RatedCurrentAmps,
+            value: 50.0,
+        });
+        assert!(matches!(refused, SetParameterResult::Failure { .. }));
+        let mut control = Run::compile(fixture);
+        control.advance(before.metadata.simulation_step.try_into().unwrap());
+        run.set(2, ParameterId::VoltageVolts, 0.0);
+        control.set(2, ParameterId::VoltageVolts, 0.0);
+        run.advance(250);
+        control.advance(250);
+        assert_eq!(run.snapshot.values, control.snapshot.values);
+        assert_eq!(run.snapshot.states, control.snapshot.states);
+        let cooled = run.value(0, "thermal_dose");
+        assert!(cooled > 0.0 && cooled <= 0.25);
+        run.advance(1);
+        let after_cooling = run.value(0, "thermal_dose");
+        assert!((after_cooling - cooled * (-0.001_f64 / 0.1).exp()).abs() < 1e-12);
+        let previous_step = run.snapshot.metadata.simulation_step;
+        assert!(matches!(
+            run.operate(0, OperatorPosition::Pressed),
+            SetOperatorStateResult::Success { .. }
+        ));
+        assert_eq!(run.snapshot.metadata.simulation_step, previous_step);
+        assert_eq!(run.value(0, "thermal_dose"), after_cooling);
+        assert_overload_auxiliaries(&run, false);
+        run.set(4, ParameterId::VoltageVolts, 11.0);
+        assert_eq!(run.snapshot.metadata.simulation_step, previous_step);
+        assert_eq!(run.value(0, "thermal_dose"), after_cooling);
+        assert_overload_auxiliaries(&run, false);
+    }
+}
+
+#[test]
+fn balanced_ac_overload_uses_the_maximum_phase_before_filtering() {
+    let phases = [0.0_f64, 120.0, 240.0];
+    let mut run = Run::compile(overload_request("ac_voltage_source", phases.map(|phase| {
+        json!({"voltageRmsVolts":15,"frequencyHz":50,"phaseOffsetDegrees":phase,"internalResistanceOhms":0})
+    })));
+    let dt = 1e-5_f64;
+    let decay = (-dt / 0.02).exp();
+    let mut detector = 0.0;
+    let mut dose = 0.0;
+    let mut expected = None;
+    for tick in 0..20_000 {
+        let time = (f64::from(tick) + 0.5) * dt;
+        let q = phases
+            .into_iter()
+            .map(|phase| {
+                (std::f64::consts::TAU * 50.0 * time + phase.to_radians())
+                    .sin()
+                    .powi(2)
+                    * 4.5
+            })
+            .fold(0.0_f64, f64::max);
+        detector = decay * detector + (1.0 - decay) * q;
+        dose += dt * (detector - 1.0).max(0.0) / 0.1;
+        if dose >= 1.0 {
+            expected = Some(time);
+            break;
+        }
+    }
+    for step in 1..=200 {
+        run.advance(1);
+        if run.value(0, "thermal_dose") == 1.0 {
+            let expected = expected.unwrap();
+            let actual = f64::from(step) * 0.001;
+            assert!(
+                (actual - expected).abs() <= 0.002_f64.max(0.01 * expected),
+                "{actual}s vs {expected}s"
+            );
+            assert_overload_auxiliaries(&run, true);
+            return;
+        }
+    }
+    panic!("balanced AC did not trip");
+}

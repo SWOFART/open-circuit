@@ -39,9 +39,8 @@ export function defaultParameters(
 
 /**
  * The lightweight Engine update for a committed parameter edit, or undefined
- * when the edit must recompile the circuit. An initial condition only sets the
- * state at time zero, so setting or clearing one always starts a new run; the
- * catalog's `initialCondition` flag decides, not the parameter's name.
+ * when the edit must recompile the circuit. Initial conditions and thermal
+ * overload model parameters always start a new run.
  */
 export function liveParameterUpdate(
   catalog: ComponentCatalog,
@@ -57,7 +56,9 @@ export function liveParameterUpdate(
     .find((entry) => entry.typeId === component?.typeId)
     ?.parameters.find((item) => item.id === parameterId);
 
-  return definition && !definition.initialCondition
+  return definition &&
+    !definition.initialCondition &&
+    component?.typeId !== "thermal_overload_three_pole"
     ? { componentId, parameterId, value }
     : undefined;
 }

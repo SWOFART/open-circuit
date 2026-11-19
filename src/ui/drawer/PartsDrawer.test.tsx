@@ -149,15 +149,15 @@ describe("the parts drawer", () => {
     const markup = render();
 
     expect(markup.match(/<svg/g)).toHaveLength(
-      catalog.componentTypes.length - 2,
+      catalog.componentTypes.length - 3,
     );
-    expect(markup.match(/part-preview-placeholder/g)).toHaveLength(2);
+    expect(markup.match(/part-preview-placeholder/g)).toHaveLength(3);
   });
 
-  it("keeps the two Stage 10 parts without editor symbols unavailable", () => {
+  it("keeps Stage 10 parts without editor symbols unavailable", () => {
     const markup = render();
 
-    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(2);
+    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(3);
     expect(markup).toContain("The editor has no symbol for this part yet");
   });
 });

@@ -57,7 +57,7 @@ describe("the drawer list", () => {
     // A part in Favorites also appears under its category.
     expect(
       ids(view.groups.find((group) => group.id === "protection")?.entries),
-    ).toEqual(["fuse", "breaker_three_pole"]);
+    ).toEqual(["fuse", "breaker_three_pole", "thermal_overload_three_pole"]);
     expect(
       buildDrawerView(catalog, DEFAULT_DRAWER_PREFERENCES, "", placeable)
         .groups[0]?.id,
@@ -73,7 +73,10 @@ describe("the drawer list", () => {
     );
 
     expect(view.groups).toEqual([]);
-    expect(ids(view.results ?? undefined)).toEqual(["pmdc_motor"]);
+    expect(ids(view.results ?? undefined)).toEqual([
+      "pmdc_motor",
+      "thermal_overload_three_pole",
+    ]);
     expect(view.items).toEqual(view.results);
   });
 

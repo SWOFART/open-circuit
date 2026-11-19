@@ -21,9 +21,9 @@ use crate::{
     devices::{
         BreakerDevice, BreakerState, CapacitorDevice, CapacitorMode, ContactorDevice,
         ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice, InductorDevice,
-        InductorMode, LinkedContacts, LinkedPole, PmdcMotorDevice, PmdcMotorMode, RelayCoilMode,
-        RelayDevice, ResistorDevice, Terminals, ThreePhaseSourceDevice, WattmeterDevice,
-        component_diagnostic,
+        InductorMode, LinkedContacts, LinkedPole, OverloadDevice, OverloadState, PmdcMotorDevice,
+        PmdcMotorMode, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
+        ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
@@ -73,15 +73,46 @@ struct CompiledRun {
 type InitializationOutcome =
     Result<(Vec<DeviceResult>, CircuitStates, Vec<Diagnostic>), Vec<Diagnostic>>;
 
+#[derive(Clone, Copy)]
+enum SwitchgearAction {
+    Breaker(BreakerState),
+    OverloadLatch {
+        tripped: bool,
+        last_transition_time_seconds: Option<f64>,
+    },
+}
+
 impl CompiledRun {
-    fn breaker_replay_settings(&self) -> HashMap<StableId, BreakerState> {
-        let mut settings = self.breaker_overrides.clone();
+    fn switchgear_replay_settings(&self) -> HashMap<StableId, SwitchgearAction> {
+        let mut settings: HashMap<_, _> = self
+            .breaker_overrides
+            .iter()
+            .map(|(id, state)| (id.clone(), SwitchgearAction::Breaker(*state)))
+            .collect();
         settings.extend(
             self.states
                 .breakers
                 .iter()
                 .filter(|(_, state)| state.tripped)
-                .map(|(id, state)| (id.clone(), *state)),
+                .map(|(id, state)| (id.clone(), SwitchgearAction::Breaker(*state))),
+        );
+        let time = self.snapshot.metadata.simulation_time_seconds;
+        settings.extend(
+            self.states
+                .overloads
+                .iter()
+                .filter(|(_, state)| {
+                    state.tripped || state.last_transition_time_seconds == Some(time)
+                })
+                .map(|(id, state)| {
+                    (
+                        id.clone(),
+                        SwitchgearAction::OverloadLatch {
+                            tripped: state.tripped,
+                            last_transition_time_seconds: state.last_transition_time_seconds,
+                        },
+                    )
+                }),
         );
         settings
     }
@@ -154,6 +185,12 @@ enum DeviceModel {
         resistance: f64,
         poles: [LinkedPole; 3],
         initially_closed: bool,
+    },
+    Overload {
+        poles: [LinkedPole; 3],
+        auxiliaries: [LinkedPole; 2],
+        sense_resistance: f64,
+        contact_resistance: f64,
     },
     PmdcMotor {
         armature_resistance_ohms: f64,
@@ -362,14 +399,14 @@ impl Engine {
                     Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
                 }
             };
-        let breaker_settings = active.breaker_replay_settings();
-        if !breaker_settings.is_empty() {
-            match resolve_breaker_actions(
+        let switchgear_settings = active.switchgear_replay_settings();
+        if !switchgear_settings.is_empty() {
+            match resolve_switchgear_actions(
                 &candidate_overlay.schematic,
                 &geometry,
                 &candidate_open,
                 states,
-                &breaker_settings,
+                &switchgear_settings,
             ) {
                 Ok((results, resolved, warnings)) => {
                     device_results = results;
@@ -478,8 +515,10 @@ impl Engine {
                 )],
             };
         }
-        if active.states.breakers.contains_key(&request.component_id) {
-            return self.set_breaker_operator(request);
+        if active.states.breakers.contains_key(&request.component_id)
+            || active.states.overloads.contains_key(&request.component_id)
+        {
+            return self.set_switchgear_operator(request);
         }
         let invalid = || SetOperatorStateResult::Failure {
             diagnostics: vec![component_diagnostic(
@@ -546,14 +585,14 @@ impl Engine {
                 Ok(computed) => computed,
                 Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
             };
-            let breaker_settings = active.breaker_replay_settings();
-            if !breaker_settings.is_empty() {
-                match resolve_breaker_actions(
+            let switchgear_settings = active.switchgear_replay_settings();
+            if !switchgear_settings.is_empty() {
+                match resolve_switchgear_actions(
                     &active.overlay.schematic,
                     &geometry,
                     &open,
                     states,
-                    &breaker_settings,
+                    &switchgear_settings,
                 ) {
                     Ok((results, resolved, warnings)) => {
                         device_results = results;
@@ -620,7 +659,10 @@ impl Engine {
         }
     }
 
-    fn set_breaker_operator(&mut self, request: SetOperatorStateRequest) -> SetOperatorStateResult {
+    fn set_switchgear_operator(
+        &mut self,
+        request: SetOperatorStateRequest,
+    ) -> SetOperatorStateResult {
         let active = self.compiled.as_mut().expect("checked active run");
         let invalid = || SetOperatorStateResult::Failure {
             diagnostics: vec![component_diagnostic(
@@ -632,18 +674,47 @@ impl Engine {
             return invalid();
         };
         let time = active.snapshot.metadata.simulation_time_seconds;
-        let Some(state) =
-            active.states.breakers[&request.component_id].actuated(request.position, time)
-        else {
+        let id = &request.component_id;
+        let action = if let Some(state) = active.states.breakers.get(id) {
+            state
+                .actuated(request.position, time)
+                .map(SwitchgearAction::Breaker)
+        } else {
+            active
+                .overlay
+                .schematic
+                .components
+                .iter()
+                .find_map(|component| {
+                    let ComponentSpec::ThermalOverloadThreePole {
+                        id: component_id,
+                        parameters,
+                        ..
+                    } = component
+                    else {
+                        return None;
+                    };
+                    if id != component_id || request.position != crate::OperatorPosition::Pressed {
+                        return None;
+                    }
+                    active.states.overloads[id]
+                        .reset(time, parameters)
+                        .map(|state| SwitchgearAction::OverloadLatch {
+                            tripped: state.tripped,
+                            last_transition_time_seconds: state.last_transition_time_seconds,
+                        })
+                })
+        };
+        let Some(action) = action else {
             return invalid();
         };
-        let action = HashMap::from([(request.component_id.clone(), state)]);
-        let (results, states, diagnostics) = match resolve_breaker_actions(
+        let actions = HashMap::from([(id.clone(), action)]);
+        let (results, states, diagnostics) = match resolve_switchgear_actions(
             &active.overlay.schematic,
             &active.geometry,
             &active.open,
             active.states.clone(),
-            &action,
+            &actions,
         ) {
             Ok(outcome) => outcome,
             Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
@@ -670,7 +741,9 @@ impl Engine {
         }
         active.snapshot = snapshot.clone();
         active.states = states;
-        active.breaker_overrides.extend(action);
+        if let SwitchgearAction::Breaker(state) = action {
+            active.breaker_overrides.insert(request.component_id, state);
+        }
         active.stopped = None;
         SetOperatorStateResult::Success {
             snapshot,
@@ -857,27 +930,36 @@ fn snapshot_states(states: &CircuitStates, operator: &OperatorState) -> Vec<Devi
     all
 }
 
-fn resolve_breaker_actions(
+fn resolve_switchgear_actions(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
     open: &HashSet<StableId>,
     mut states: CircuitStates,
-    overrides: &HashMap<StableId, BreakerState>,
+    overrides: &HashMap<StableId, SwitchgearAction>,
 ) -> InitializationOutcome {
     let time = states.simulation_time_seconds;
-    let changed = overrides.iter().any(|(id, next)| {
-        states
-            .breakers
-            .get(id)
-            .is_some_and(|previous| previous.conducting() != next.conducting())
-    });
-    states
-        .breakers
-        .extend(overrides.iter().map(|(id, state)| (id.clone(), *state)));
-    states.backward_euler_next_step |= changed;
+    for (id, action) in overrides {
+        match *action {
+            SwitchgearAction::Breaker(next) => {
+                if let Some(previous) = states.breakers.insert(id.clone(), next) {
+                    states.backward_euler_next_step |= previous.conducting() != next.conducting();
+                }
+            }
+            SwitchgearAction::OverloadLatch {
+                tripped,
+                last_transition_time_seconds,
+            } => {
+                if let Some(state) = states.overloads.get_mut(id) {
+                    states.backward_euler_next_step |= state.tripped != tripped;
+                    state.tripped = tripped;
+                    state.last_transition_time_seconds = last_transition_time_seconds;
+                }
+            }
+        }
+    }
     let (mut results, mut diagnostics, memory) =
         compute_circuit(schematic, geometry, open, SolveMode::InitialState(&states))?;
-    let mut resolved = circuit_states_from_results(schematic, &results, time);
+    let mut resolved = circuit_states_from_results(schematic, &results, time, &states);
     resolved.solver_memory = memory;
     resolved.ac_source_phases = states.ac_source_phases;
     resolved.ac_source_step_fraction = states.ac_source_step_fraction;
@@ -964,7 +1046,7 @@ fn initialize_circuit(
         let (operating_point, operating_diagnostics, memory) =
             compute_circuit(schematic, geometry, open, SolveMode::OperatingPoint)?;
         diagnostics.extend(operating_diagnostics);
-        states = circuit_states_from_results(schematic, &operating_point, 0.0);
+        states = circuit_states_from_results(schematic, &operating_point, 0.0, &states);
         states.solver_memory = memory;
     }
 
@@ -1015,7 +1097,7 @@ fn initialize_circuit(
         compute_circuit(schematic, geometry, open, SolveMode::OperatingPoint)?
     };
     diagnostics.extend(initial_diagnostics);
-    states = circuit_states_from_results(schematic, &results, 0.0);
+    states = circuit_states_from_results(schematic, &results, 0.0, &states);
     states.solver_memory = memory;
     settle_discrete_events(
         CircuitInput {
@@ -1529,6 +1611,18 @@ fn local_reference_nodes(
                     connect(terminals.pin1, terminals.pin2);
                 }
             }
+            DeviceModel::Overload {
+                poles, auxiliaries, ..
+            } => {
+                let tripped = overload_state(mode, &spec.component_id).tripped;
+                for pole in poles.iter().chain(
+                    auxiliaries
+                        .iter()
+                        .filter(|pole| pole.closed_when_active == tripped),
+                ) {
+                    connect(pole.terminals.pin1, pole.terminals.pin2);
+                }
+            }
             DeviceModel::Capacitor { .. } | DeviceModel::Inductor { .. } => {}
         }
     }
@@ -1603,7 +1697,10 @@ fn build_device_specs(
             ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. }
         ) {
             (PinId::A1, PinId::A2)
-        } else if matches!(component, ComponentSpec::BreakerThreePole { .. }) {
+        } else if matches!(
+            component,
+            ComponentSpec::BreakerThreePole { .. } | ComponentSpec::ThermalOverloadThreePole { .. }
+        ) {
             (PinId::L1, PinId::T1)
         } else {
             (PinId::Pin1, PinId::Pin2)
@@ -1889,6 +1986,24 @@ fn build_device_specs(
                     initially_closed: parameters.initial_closed == Some(1.0),
                 }
             }
+            ComponentSpec::ThermalOverloadThreePole { parameters, .. } => {
+                let (Some(poles), Some(auxiliaries)) = (
+                    resolve_power_poles(node_for_pin),
+                    resolve_auxiliaries(node_for_pin),
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Overload {
+                    poles,
+                    auxiliaries,
+                    sense_resistance: parameters.sense_resistance_ohms,
+                    contact_resistance: parameters.closed_contact_resistance_ohms,
+                }
+            }
             ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. } => {
                 let (coil_resistance, coil_inductance, closed_resistance) = match component {
                     ComponentSpec::Contactor { parameters, .. } => (
@@ -1903,28 +2018,13 @@ fn build_device_specs(
                     ),
                     _ => unreachable!(),
                 };
-                let [no, nc] = CONTACTOR_AUXILIARIES;
-                let (Some(normally_open), Some(normally_closed)) =
-                    (no.resolve(node_for_pin), nc.resolve(node_for_pin))
-                else {
+                let Some(auxiliary_poles) = resolve_auxiliaries(node_for_pin) else {
                     diagnostics.push(component_diagnostic(
                         DiagnosticCode::InvalidGeometry,
                         component.id(),
                     ));
                     continue;
                 };
-                let auxiliary_poles = [
-                    LinkedPole {
-                        group: no,
-                        terminals: normally_open,
-                        closed_when_active: true,
-                    },
-                    LinkedPole {
-                        group: nc,
-                        terminals: normally_closed,
-                        closed_when_active: false,
-                    },
-                ];
                 let poles = if matches!(component, ComponentSpec::ContactorThreePole { .. }) {
                     let Some([p1, p2, p3]) = resolve_power_poles(node_for_pin) else {
                         diagnostics.push(component_diagnostic(
@@ -1998,6 +2098,31 @@ fn resolve_power_poles(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<
         })
     });
     Some([p1?, p2?, p3?])
+}
+
+fn resolve_auxiliaries(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<[LinkedPole; 2]> {
+    let [no, nc] = CONTACTOR_AUXILIARIES;
+    Some([
+        LinkedPole {
+            group: no,
+            terminals: no.resolve(&node_for_pin)?,
+            closed_when_active: true,
+        },
+        LinkedPole {
+            group: nc,
+            terminals: nc.resolve(&node_for_pin)?,
+            closed_when_active: false,
+        },
+    ])
+}
+
+fn overload_state(mode: SolveMode<'_>, id: &StableId) -> OverloadState {
+    match mode {
+        SolveMode::OperatingPoint => OverloadState::default(),
+        SolveMode::InitialState(states) | SolveMode::Transient { states, .. } => {
+            states.overloads.get(id).copied().unwrap_or_default()
+        }
+    }
 }
 
 fn breaker_state(mode: SolveMode<'_>, id: &StableId, initially_closed: bool) -> BreakerState {
@@ -2295,6 +2420,19 @@ fn make_device(
             poles,
             resistance,
             state: breaker_state(mode, &spec.component_id, initially_closed),
+        }),
+        DeviceModel::Overload {
+            poles,
+            auxiliaries,
+            sense_resistance,
+            contact_resistance,
+        } => Box::new(OverloadDevice {
+            id: spec.component_id.clone(),
+            poles,
+            auxiliaries,
+            sense_resistance,
+            contact_resistance,
+            state: overload_state(mode, &spec.component_id),
         }),
         DeviceModel::Fuse {
             intact_resistance_ohms,
@@ -2947,6 +3085,7 @@ fn values_for_layout(
                 | ResultQuantity::PowerFactor
                 | ResultQuantity::PhaseAngle
                 | ResultQuantity::MeanSquareCurrent
+                | ResultQuantity::ThermalDose
                 | ResultQuantity::Valid => f64::NAN,
             });
         if value.is_finite() {
@@ -2988,6 +3127,7 @@ pub(crate) fn update_parameter(
             ParameterId::InstantaneousTripAmps => parameters.instantaneous_trip_amps = value,
             _ => return false,
         },
+        ComponentSpec::ThermalOverloadThreePole { .. } => return false,
         ComponentSpec::BjtNpn { parameters, .. } | ComponentSpec::BjtPnp { parameters, .. } => {
             match parameter_id {
                 ParameterId::SaturationCurrentAmps => parameters.saturation_current_amps = value,

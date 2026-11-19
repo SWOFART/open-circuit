@@ -21,6 +21,7 @@ pub enum ResultQuantity {
     PeakCurrent,
     Frequency,
     MeanSquareCurrent,
+    ThermalDose,
     RealPower,
     ReactivePower,
     ApparentPower,

@@ -29,7 +29,9 @@ pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};
 pub(crate) use relay::{RelayCoilMode, RelayDevice};
 pub(crate) use resistor::ResistorDevice;
 pub(crate) use source::{DcVoltageSourceDevice, ThreePhaseSourceDevice};
-pub(crate) use switchgear::{BreakerDevice, BreakerState, coil_contact_state, detector_step};
+pub(crate) use switchgear::{
+    BreakerDevice, BreakerState, OverloadDevice, OverloadState, coil_contact_state, detector_step,
+};
 pub(crate) use wattmeter::WattmeterDevice;
 
 #[derive(Clone, Copy, Debug)]

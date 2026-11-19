@@ -188,6 +188,18 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 Flag,
             )))
             .collect(),
+        ComponentTypeId::ThermalOverloadThreePole => POWER_POLES
+            .into_iter()
+            .chain(CONTACTOR_AUXILIARIES)
+            .flat_map(group_slots)
+            .chain(std::iter::once(slot(
+                ResultQuantity::ThermalDose,
+                Unit::Dimensionless,
+                '/',
+                "thermal_dose",
+                Unsigned,
+            )))
+            .collect(),
         ComponentTypeId::Fuse => vec![
             voltage,
             current,

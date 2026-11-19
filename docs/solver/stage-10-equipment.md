@@ -18,6 +18,14 @@ operation settles at the newest public time and replaces that trace
 sample. Recomputing the newest interval after another edit reapplies
 the latest breaker settings at the endpoint.
 
+The thermal overload keeps all three sensing paths conductive and switches
+both auxiliary contacts from a single latch. It updates the detector from
+the maximum phase current at each interval endpoint and advances the dose
+once per internal step. Trip settling and reset leave detector and dose
+unchanged. The published fuse-style record reports the latch and last
+transition time. An eligible reset settles the auxiliary contacts at the
+current time and replaces the newest trace sample.
+
 For each coupled winding block write v = Ri + dλ/dt with λ = Li.
 In MNA, the winding currents add KCL terms at their ordered pins. For
 trapezoidal integration the winding residual is

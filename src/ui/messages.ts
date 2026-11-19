@@ -82,6 +82,21 @@ const messages: Readonly<Record<string, string>> = {
     "Closed contact resistance",
   "component.breakerThreePole.instantaneousTrip": "Instantaneous trip current",
   "component.breakerThreePole.initialClosed": "Initial position",
+  "component.thermalOverloadThreePole.name":
+    "Three-pole thermal overload relay",
+  "component.thermalOverloadThreePole.keywords":
+    "three phase protection motor starter thermal trip",
+  "component.thermalOverloadThreePole.closedContactResistance":
+    "Closed auxiliary contact resistance",
+  "component.thermalOverloadThreePole.senseResistance":
+    "Phase sensing resistance",
+  "component.thermalOverloadThreePole.ratedCurrent": "Rated phase current",
+  "component.thermalOverloadThreePole.thermalSense":
+    "Thermal detector time constant",
+  "component.thermalOverloadThreePole.tripScale": "Trip delay scale",
+  "component.thermalOverloadThreePole.cool": "Cooling time constant",
+  "component.thermalOverloadThreePole.resetDose":
+    "Maximum thermal dose for reset",
   "component.breakerThreePole.initialClosedHint":
     "The breaker starts open by default.",
   "component.wattmeter.name": "Wattmeter",

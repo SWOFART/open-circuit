@@ -32,6 +32,7 @@ pub enum ComponentTypeId {
     BjtPnp,
     ContactorThreePole,
     BreakerThreePole,
+    ThermalOverloadThreePole,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -133,6 +134,12 @@ pub enum ParameterId {
     ClosedContactResistanceOhms,
     CoilSenseSeconds,
     InstantaneousTripAmps,
+    SenseResistanceOhms,
+    RatedCurrentAmps,
+    ThermalSenseSeconds,
+    TripScaleSeconds,
+    CoolSeconds,
+    ResetDose,
     IntactResistanceOhms,
     TripI2tAmpereSquaredSeconds,
     ArmatureResistanceOhms,
@@ -1348,14 +1355,17 @@ pub fn component_catalog() -> ComponentCatalog {
     catalog
 }
 
-fn stage10_switch_catalog() -> [ComponentCatalogEntry; 2] {
+fn stage10_switch_catalog() -> [ComponentCatalogEntry; 3] {
     use crate::pin_groups::{CONTACTOR_AUXILIARIES, CONTACTOR_COIL, POWER_POLES, PinGroup};
     use ParameterId::*;
 
     let entry = |type_id, name: &str, groups: Vec<PinGroup>, parameters| ComponentCatalogEntry {
         type_id,
         display_name_key: format!("component.{name}.name"),
-        category: if type_id == ComponentTypeId::BreakerThreePole {
+        category: if matches!(
+            type_id,
+            ComponentTypeId::BreakerThreePole | ComponentTypeId::ThermalOverloadThreePole
+        ) {
             CategoryId::Protection
         } else {
             CategoryId::Switching
@@ -1488,6 +1498,74 @@ fn stage10_switch_catalog() -> [ComponentCatalogEntry; 2] {
                     initial_condition: true,
                     minimum_value: None,
                     maximum_value: None,
+                },
+            ],
+        ),
+        entry(
+            ComponentTypeId::ThermalOverloadThreePole,
+            "thermalOverloadThreePole",
+            POWER_POLES
+                .into_iter()
+                .chain(CONTACTOR_AUXILIARIES)
+                .collect(),
+            vec![
+                closed_resistance("thermalOverloadThreePole"),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "senseResistance",
+                    SenseResistanceOhms,
+                    Unit::Ohm,
+                    0.0001,
+                    10.0,
+                    0.005,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "ratedCurrent",
+                    RatedCurrentAmps,
+                    Unit::Amp,
+                    0.1,
+                    10_000.0,
+                    10.0,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "thermalSense",
+                    ThermalSenseSeconds,
+                    Unit::Second,
+                    0.005,
+                    2.0,
+                    0.02,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "tripScale",
+                    TripScaleSeconds,
+                    Unit::Second,
+                    0.01,
+                    10_000.0,
+                    10.0,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "cool",
+                    CoolSeconds,
+                    Unit::Second,
+                    0.01,
+                    10_000.0,
+                    30.0,
+                ),
+                ParameterDefinition {
+                    domain: NumericDomain::NonNegative,
+                    ..parameter(
+                        "thermalOverloadThreePole",
+                        "resetDose",
+                        ResetDose,
+                        Unit::Dimensionless,
+                        0.0,
+                        0.99,
+                        0.25,
+                    )
                 },
             ],
         ),

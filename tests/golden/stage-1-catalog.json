@@ -1132,6 +1132,156 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "thermal_overload_three_pole",
+      "displayNameKey": "component.thermalOverloadThreePole.name",
+      "category": "protection",
+      "searchKeywordKeys": ["component.thermalOverloadThreePole.keywords"],
+      "pins": [
+        {
+          "id": "l1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "t1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "l2",
+          "role": "unpolarized"
+        },
+        {
+          "id": "t2",
+          "role": "unpolarized"
+        },
+        {
+          "id": "l3",
+          "role": "unpolarized"
+        },
+        {
+          "id": "t3",
+          "role": "unpolarized"
+        },
+        {
+          "id": "no_1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "no_2",
+          "role": "unpolarized"
+        },
+        {
+          "id": "nc_1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "nc_2",
+          "role": "unpolarized"
+        }
+      ],
+      "pinGroups": [
+        {
+          "id": "pole1",
+          "pins": ["l1", "t1"]
+        },
+        {
+          "id": "pole2",
+          "pins": ["l2", "t2"]
+        },
+        {
+          "id": "pole3",
+          "pins": ["l3", "t3"]
+        },
+        {
+          "id": "no",
+          "pins": ["no_1", "no_2"]
+        },
+        {
+          "id": "nc",
+          "pins": ["nc_1", "nc_2"]
+        }
+      ],
+      "parameters": [
+        {
+          "id": "closedContactResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.thermalOverloadThreePole.closedContactResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "senseResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.005,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.thermalOverloadThreePole.senseResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "ratedCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 10.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.thermalOverloadThreePole.ratedCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.1,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "thermalSenseSeconds",
+          "unit": "second",
+          "defaultValue": 0.02,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.thermalOverloadThreePole.thermalSense",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.005,
+          "maximumValue": 2.0
+        },
+        {
+          "id": "tripScaleSeconds",
+          "unit": "second",
+          "defaultValue": 10.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.thermalOverloadThreePole.tripScale",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "coolSeconds",
+          "unit": "second",
+          "defaultValue": 30.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.thermalOverloadThreePole.cool",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "resetDose",
+          "unit": "dimensionless",
+          "defaultValue": 0.25,
+          "domain": "non_negative",
+          "descriptionKey": "component.thermalOverloadThreePole.resetDose",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 0.99
+        }
+      ],
+      "faultKinds": []
     }
   ],
   "categories": [

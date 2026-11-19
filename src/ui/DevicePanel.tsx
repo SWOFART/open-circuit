@@ -23,6 +23,7 @@ export interface DevicePanelProps {
 const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "relay_spdt",
   "fuse",
+  "thermal_overload_three_pole",
   "pmdc_motor",
   "voltmeter",
   "ammeter",
@@ -86,6 +87,7 @@ interface Device {
   /** A state the Engine reports, shown as a badge. */
   readonly badge?: { readonly text: string; readonly tone: string };
   readonly rows: readonly Row[];
+  readonly resettable?: boolean;
   /** A switch or push button the user can operate, with the position the Engine reported. */
   readonly control?: {
     readonly kind: "switch" | "pushButton";
@@ -130,6 +132,28 @@ function describe(
         rows: [
           ...(since === null ? [] : [{ name: "Last change", value: since }]),
           { name: "Coil current", value: show(`${id}/coil/current`, "amp") },
+        ],
+      };
+    }
+    case "thermal_overload_three_pole": {
+      const state = stateOf(snapshot, id, "fuse");
+      const since = transition(state);
+      const tripped = state?.kind === "fuse" && state.state === "tripped";
+      const dose = reading(run, snapshot, `${id}/thermal_dose`);
+      return {
+        id,
+        title: `${name} ${message("component.thermalOverloadThreePole.name")}`,
+        badge: {
+          text: tripped ? "Tripped" : "Intact",
+          tone: tripped ? "fault" : "on",
+        },
+        resettable: tripped,
+        rows: [
+          ...(since === null ? [] : [{ name: "Last change", value: since }]),
+          {
+            name: "Thermal dose",
+            value: dose === undefined ? "—" : formatSi(dose, "dimensionless"),
+          },
         ],
       };
     }
@@ -427,6 +451,14 @@ export function DevicePanel({
                     onOperate?.(componentId, action)
                   }
                 />
+              )}
+              {device.resettable && onOperate && (
+                <button
+                  type="button"
+                  onClick={() => onOperate(device.id, "reset")}
+                >
+                  Reset overload
+                </button>
               )}
               <dl className="readings">
                 {device.rows.map((row) => (

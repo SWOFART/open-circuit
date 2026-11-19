@@ -28,6 +28,7 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   contactor: "Q",
   contactor_three_pole: "Q",
   breaker_three_pole: "QF",
+  thermal_overload_three_pole: "FR",
 };
 
 /**

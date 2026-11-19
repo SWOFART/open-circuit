@@ -14,6 +14,147 @@ pub(crate) fn detector_step(
     next.is_finite().then_some(next.max(0.0))
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct OverloadState {
+    pub(crate) peak_phase_amps: f64,
+    pub(crate) detector: f64,
+    pub(crate) dose: f64,
+    pub(crate) tripped: bool,
+    pub(crate) last_transition_time_seconds: Option<f64>,
+}
+
+pub(crate) struct OverloadDevice {
+    pub(crate) id: crate::StableId,
+    pub(crate) poles: [super::LinkedPole; 3],
+    pub(crate) auxiliaries: [super::LinkedPole; 2],
+    pub(crate) sense_resistance: f64,
+    pub(crate) contact_resistance: f64,
+    pub(crate) state: OverloadState,
+}
+
+impl super::Device for OverloadDevice {
+    fn stamp(
+        &self,
+        system: &mut crate::mna::MnaSystem,
+        variables: &crate::mna::NodeVariables,
+    ) -> Result<(), crate::Diagnostic> {
+        super::LinkedContacts {
+            poles: &self.poles,
+            active: true,
+        }
+        .stamp(&self.id, self.sense_resistance, system, variables)?;
+        super::LinkedContacts {
+            poles: &self.auxiliaries,
+            active: self.state.tripped,
+        }
+        .stamp(&self.id, self.contact_resistance, system, variables)
+    }
+
+    fn result(
+        &self,
+        node_voltages: &[f64],
+        _solution_values: &[f64],
+    ) -> Result<super::DeviceResult, crate::Diagnostic> {
+        let mut extra_values = Vec::with_capacity(11);
+        super::LinkedContacts {
+            poles: &self.poles,
+            active: true,
+        }
+        .append_results(
+            &self.id,
+            self.sense_resistance,
+            node_voltages,
+            &mut extra_values,
+        )?;
+        let peak_phase_amps = [1, 3, 5]
+            .into_iter()
+            .map(|index| extra_values[index].1.abs())
+            .fold(0.0_f64, f64::max);
+        super::LinkedContacts {
+            poles: &self.auxiliaries,
+            active: self.state.tripped,
+        }
+        .append_results(
+            &self.id,
+            self.contact_resistance,
+            node_voltages,
+            &mut extra_values,
+        )?;
+        extra_values.push((
+            format!("{}/thermal_dose", self.id.as_str()),
+            self.state.dose,
+        ));
+        Ok(super::DeviceResult {
+            component_id: self.id.clone(),
+            voltage_volts: 0.0,
+            current_amps: peak_phase_amps,
+            extra_values,
+            state: Some(self.state.snapshot(&self.id)),
+        })
+    }
+}
+
+impl OverloadState {
+    pub(crate) fn snapshot(self, id: &crate::StableId) -> crate::DeviceState {
+        crate::DeviceState::Fuse {
+            component_id: id.clone(),
+            state: if self.tripped {
+                crate::FuseState::Tripped
+            } else {
+                crate::FuseState::Intact
+            },
+            last_transition_time_seconds: self.last_transition_time_seconds,
+        }
+    }
+
+    pub(crate) fn advance(
+        mut self,
+        start_amps: f64,
+        end_amps: f64,
+        step_seconds: f64,
+        end_time_seconds: f64,
+        parameters: &crate::schematic::ThermalOverloadThreePoleParameters,
+    ) -> Option<Self> {
+        self.detector = detector_step(
+            self.detector,
+            start_amps,
+            end_amps,
+            step_seconds,
+            parameters.thermal_sense_seconds,
+        )?;
+        let ratio = self.detector / parameters.rated_current_amps.powi(2);
+        if !ratio.is_finite() {
+            return None;
+        }
+        self.dose = if ratio > 1.0 {
+            (self.dose + step_seconds * (ratio - 1.0) / parameters.trip_scale_seconds).min(1.0)
+        } else {
+            self.dose * (-step_seconds / parameters.cool_seconds).exp()
+        };
+        if self.dose == 1.0 && !self.tripped {
+            self.tripped = true;
+            self.last_transition_time_seconds = Some(end_time_seconds);
+        }
+        Some(self)
+    }
+
+    pub(crate) fn reset(
+        mut self,
+        time_seconds: f64,
+        parameters: &crate::schematic::ThermalOverloadThreePoleParameters,
+    ) -> Option<Self> {
+        if !self.tripped
+            || self.dose > parameters.reset_dose
+            || self.detector > parameters.rated_current_amps.powi(2)
+        {
+            return None;
+        }
+        self.tripped = false;
+        self.last_transition_time_seconds = Some(time_seconds);
+        Some(self)
+    }
+}
+
 pub(crate) fn coil_contact_state(
     state: RelayContactState,
     squared_current: f64,
@@ -135,6 +276,52 @@ impl super::Device for BreakerDevice {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn thermal_dose_latches_cools_and_requires_an_eligible_reset() {
+        let parameters = crate::schematic::ThermalOverloadThreePoleParameters {
+            closed_contact_resistance_ohms: 0.01,
+            sense_resistance_ohms: 0.005,
+            rated_current_amps: 10.0,
+            thermal_sense_seconds: 0.02,
+            trip_scale_seconds: 0.1,
+            cool_seconds: 0.1,
+            reset_dose: 0.25,
+        };
+        let mut state = OverloadState::default();
+        for step in 1..=100 {
+            state = state
+                .advance(10.0, -10.0, 0.001, f64::from(step) * 0.001, &parameters)
+                .unwrap();
+        }
+        assert_eq!(
+            state,
+            OverloadState {
+                detector: state.detector,
+                ..OverloadState::default()
+            }
+        );
+        assert!(state.reset(0.1, &parameters).is_none());
+
+        for step in 101..=200 {
+            state = state
+                .advance(20.0, 20.0, 0.001, f64::from(step) * 0.001, &parameters)
+                .unwrap();
+        }
+        assert!(state.tripped);
+        assert_eq!(state.dose, 1.0);
+        assert!(state.reset(0.2, &parameters).is_none());
+        for step in 201..=500 {
+            state = state
+                .advance(0.0, 0.0, 0.001, f64::from(step) * 0.001, &parameters)
+                .unwrap();
+        }
+        assert!(state.tripped);
+        let reset = state.reset(0.5, &parameters).unwrap();
+        assert!(!reset.tripped);
+        assert_eq!(reset.dose, state.dose);
+        assert_eq!(reset.last_transition_time_seconds, Some(0.5));
+    }
 
     #[test]
     fn the_coil_detector_reaches_the_held_squared_current() {

@@ -137,6 +137,7 @@ describe("the placeholder for a part without a symbol", () => {
     expect(withoutSymbol).toEqual([
       "contactor_three_pole",
       "breaker_three_pole",
+      "thermal_overload_three_pole",
     ]);
   });
 });

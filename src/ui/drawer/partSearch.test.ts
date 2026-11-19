@@ -49,7 +49,11 @@ describe("part search", () => {
   it("finds parts by keyword, by type ID and by category", () => {
     expect(find("choke")).toEqual(["inductor"]);
     expect(find("bjt")).toEqual(["bjt_npn", "bjt_pnp"]);
-    expect(find("protection")).toEqual(["fuse", "breaker_three_pole"]);
+    expect(find("protection")).toEqual([
+      "fuse",
+      "thermal_overload_three_pole",
+      "breaker_three_pole",
+    ]);
   });
 
   it("ranks an exact name first", () => {
@@ -65,7 +69,11 @@ describe("part search", () => {
 
   it("ranks a name word before a keyword before any other substring", () => {
     // "relay": a word of "SPDT relay" (3) ranks before the contactor, where it is a keyword (4).
-    expect(find("relay")).toEqual(["relay_spdt", "contactor"]);
+    expect(find("relay")).toEqual([
+      "relay_spdt",
+      "thermal_overload_three_pole",
+      "contactor",
+    ]);
     // "coil" is a keyword (4) of three parts, which keep the catalog order.
     expect(find("coil")).toEqual(["inductor", "relay_spdt", "contactor"]);
     // "ode" is only a substring (5) of "diode".
