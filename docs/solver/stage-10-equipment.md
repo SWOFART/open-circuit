@@ -11,6 +11,13 @@ published catalog entry retains the legacy shape. Group metadata is
 optional in the generated catalog DTO and is populated by Stage 10
 device entries as they are added.
 
+The three-pole contactor carries its detector with the coil state
+through advancing and same-time solves. The breaker keeps its operator
+position and trip latch in the committed run. An accepted breaker
+operation settles at the newest public time and replaces that trace
+sample. Recomputing the newest interval after another edit reapplies
+the latest breaker settings at the endpoint.
+
 For each coupled winding block write v = Ri + dλ/dt with λ = Li.
 In MNA, the winding currents add KCL terms at their ordered pins. For
 trapezoidal integration the winding residual is

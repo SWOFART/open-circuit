@@ -5,7 +5,10 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
     RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
-    devices::{DeviceResult, IntegrationMethod, component_diagnostic},
+    devices::{
+        BreakerState, DeviceResult, IntegrationMethod, coil_contact_state, component_diagnostic,
+        detector_step,
+    },
     netlist::derive_netlist_with_open,
 };
 
@@ -82,6 +85,7 @@ pub(super) struct InductorState {
 pub(super) struct RelayState {
     /// The state belongs to a contactor, which is reported as its own kind of device state.
     pub(super) contactor: bool,
+    pub(super) detector: Option<f64>,
     pub(super) current_amps: f64,
     pub(super) voltage_volts: f64,
     pub(super) state: RelayContactState,
@@ -109,6 +113,7 @@ pub(super) struct CircuitStates {
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
+    pub(super) breakers: HashMap<StableId, BreakerState>,
     pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
     pub(super) motors: HashMap<StableId, MotorState>,
     pub(super) measurements: HashMap<StableId, MeasurementState>,
@@ -143,6 +148,12 @@ impl CircuitStates {
                 }
             })
             .collect::<Vec<_>>();
+        states.extend(self.breakers.iter().map(|(id, state)| DeviceState::Switch {
+            component_id: id.clone(),
+            position: state.position,
+            conducting: state.conducting(),
+            last_transition_time_seconds: state.last_transition_time_seconds,
+        }));
         states.extend(
             self.fuses
                 .iter()
@@ -220,8 +231,9 @@ pub(super) fn circuit_states_from_results(
         .components
         .iter()
         .filter_map(|component| {
-            let (ComponentSpec::RelaySpdt { id, .. } | ComponentSpec::Contactor { id, .. }) =
-                component
+            let (ComponentSpec::RelaySpdt { id, .. }
+            | ComponentSpec::Contactor { id, .. }
+            | ComponentSpec::ContactorThreePole { id, .. }) = component
             else {
                 return None;
             };
@@ -242,10 +254,48 @@ pub(super) fn circuit_states_from_results(
             Some((
                 id.clone(),
                 RelayState {
-                    contactor: matches!(component, ComponentSpec::Contactor { .. }),
+                    contactor: matches!(
+                        component,
+                        ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. }
+                    ),
+                    detector: result
+                        .extra_values
+                        .iter()
+                        .find(|(key, _)| key.ends_with("/coil/current_squared"))
+                        .map(|(_, value)| *value),
                     current_amps: result.current_amps,
                     voltage_volts: result.voltage_volts,
                     state: *state,
+                    last_transition_time_seconds: *last_transition_time_seconds,
+                },
+            ))
+        })
+        .collect();
+    let breakers = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::BreakerThreePole { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let DeviceState::Switch {
+                position,
+                last_transition_time_seconds,
+                ..
+            } = result.state.as_ref()?
+            else {
+                return None;
+            };
+            let tripped = result
+                .extra_values
+                .iter()
+                .any(|(key, value)| key.ends_with("/tripped") && *value == 1.0);
+            Some((
+                id.clone(),
+                BreakerState {
+                    position: *position,
+                    tripped,
                     last_transition_time_seconds: *last_transition_time_seconds,
                 },
             ))
@@ -324,6 +374,7 @@ pub(super) fn circuit_states_from_results(
         capacitors,
         inductors,
         relays,
+        breakers,
         fuses,
         motors,
         measurements: HashMap::new(),
@@ -418,6 +469,40 @@ pub(super) fn advance_public_steps(
             candidate.ac_source_phases = states.ac_source_phases.clone();
             candidate.ac_source_step_fraction =
                 f64::from(internal_step_index + 1) / f64::from(internal_substeps);
+            for component in &schematic.components {
+                let ComponentSpec::ContactorThreePole { id, parameters, .. } = component else {
+                    continue;
+                };
+                let Some(end) = candidate.relays.get_mut(id) else {
+                    continue;
+                };
+                let Some(start) = interval_start_states.relays.get(id) else {
+                    continue;
+                };
+                let Some(detector) = detector_step(
+                    start.detector.unwrap_or(0.0),
+                    start.current_amps,
+                    end.current_amps,
+                    internal_step_seconds,
+                    parameters.coil_sense_seconds,
+                ) else {
+                    return Err(vec![component_diagnostic(
+                        DiagnosticCode::NonFiniteState,
+                        id,
+                    )]);
+                };
+                end.detector = Some(detector);
+                let result = step_results
+                    .iter_mut()
+                    .find(|result| result.component_id == *id)
+                    .expect("contactor result");
+                let (_, value) = result
+                    .extra_values
+                    .iter_mut()
+                    .find(|(key, _)| key.ends_with("/coil/current_squared"))
+                    .expect("contactor detector slot");
+                *value = detector;
+            }
             let fuse_transitions = accumulate_fuse_i2t(
                 schematic,
                 &interval_start_states,
@@ -559,33 +644,62 @@ pub(super) fn settle_discrete_events(
     let mut same_time_resolves = 0;
     loop {
         let mut relay_changes = Vec::new();
+        let mut breaker_changes = Vec::new();
         for component in &schematic.components {
-            let (ComponentSpec::RelaySpdt { id, parameters, .. }
-            | ComponentSpec::Contactor { id, parameters, .. }) = component
-            else {
+            let id = component.id();
+            if let ComponentSpec::BreakerThreePole { parameters, .. } = component {
+                let Some(state) = states.breakers.get(id).copied() else {
+                    continue;
+                };
+                if !state.conducting() {
+                    continue;
+                }
+                let result = results
+                    .iter()
+                    .find(|result| result.component_id == *id)
+                    .expect("breaker result");
+                let currents = [1, 3, 5].map(|index| result.extra_values[index].1);
+                let next = state.trip_if_needed(
+                    currents,
+                    parameters.instantaneous_trip_amps,
+                    event_time_seconds,
+                );
+                if next != state {
+                    breaker_changes.push((id.clone(), next));
+                }
                 continue;
-            };
+            }
             let Some(relay) = states.relays.get(id) else {
                 continue;
             };
-            let next_state = match relay.state {
-                RelayContactState::Released
-                    if relay.current_amps.abs() >= parameters.pickup_current_amps =>
-                {
-                    Some(RelayContactState::Picked)
-                }
-                RelayContactState::Picked
-                    if relay.current_amps.abs() <= parameters.dropout_current_amps =>
-                {
-                    Some(RelayContactState::Released)
-                }
-                _ => None,
+            let next_state = match component {
+                ComponentSpec::RelaySpdt { parameters, .. }
+                | ComponentSpec::Contactor { parameters, .. } => match relay.state {
+                    RelayContactState::Released
+                        if relay.current_amps.abs() >= parameters.pickup_current_amps =>
+                    {
+                        RelayContactState::Picked
+                    }
+                    RelayContactState::Picked
+                        if relay.current_amps.abs() <= parameters.dropout_current_amps =>
+                    {
+                        RelayContactState::Released
+                    }
+                    _ => relay.state,
+                },
+                ComponentSpec::ContactorThreePole { parameters, .. } => coil_contact_state(
+                    relay.state,
+                    relay.detector.unwrap_or(0.0),
+                    parameters.pickup_current_amps,
+                    parameters.dropout_current_amps,
+                ),
+                _ => continue,
             };
-            if let Some(next_state) = next_state {
+            if next_state != relay.state {
                 relay_changes.push((id.clone(), next_state));
             }
         }
-        if relay_changes.is_empty() && fuse_transitions.is_empty() {
+        if relay_changes.is_empty() && breaker_changes.is_empty() && fuse_transitions.is_empty() {
             return Ok(());
         }
         relay_changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
@@ -593,6 +707,7 @@ pub(super) fn settle_discrete_events(
             .iter()
             .map(|(component_id, _)| component_id.clone())
             .collect::<Vec<_>>();
+        changed_ids.extend(breaker_changes.iter().map(|(id, _)| id.clone()));
         changed_ids.append(&mut fuse_transitions);
         changed_ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
         changed_ids.dedup();
@@ -615,6 +730,8 @@ pub(super) fn settle_discrete_events(
             relay.state = next_state;
             relay.last_transition_time_seconds = Some(event_time_seconds);
         }
+        breaker_changes.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str()));
+        states.breakers.extend(breaker_changes);
         fuse_transitions = Vec::new();
         states.backward_euler_next_step = true;
         let state_vector = discrete_state_vector(states, &[]);
@@ -668,6 +785,12 @@ fn discrete_state_vector(
             u8::from(!pending && fuse.state == FuseState::Tripped),
         )
     }));
+    vector.extend(
+        states
+            .breakers
+            .iter()
+            .map(|(id, state)| (id.as_str().to_owned(), u8::from(state.tripped))),
+    );
     vector.sort_by(|left, right| left.0.cmp(&right.0));
     vector
 }
@@ -946,13 +1069,26 @@ fn estimate_transient_rate_bound(
                         variable2,
                         1.0 / coil_resistance_ohms,
                     )?;
-                    for pole in poles {
+                    for pole in poles.as_slice() {
                         let contact = pole.terminals;
                         add_laplacian(
                             &mut conductance,
                             root_to_variable.get(&sets.find(contact.pin1)).copied(),
                             root_to_variable.get(&sets.find(contact.pin2)).copied(),
                             1.0 / closed_contact_resistance_ohms,
+                        )?;
+                    }
+                }
+                DeviceModel::Breaker {
+                    resistance, poles, ..
+                } => {
+                    for pole in poles {
+                        let terminals = pole.terminals;
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / resistance,
                         )?;
                     }
                 }

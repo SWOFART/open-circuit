@@ -30,6 +30,8 @@ pub enum ComponentTypeId {
     Diode,
     BjtNpn,
     BjtPnp,
+    ContactorThreePole,
+    BreakerThreePole,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -41,6 +43,9 @@ pub enum PinId {
     L1,
     L2,
     L3,
+    T1,
+    T2,
+    T3,
     N,
     V1,
     V2,
@@ -76,6 +81,9 @@ impl PinId {
             Self::L1 => "l1",
             Self::L2 => "l2",
             Self::L3 => "l3",
+            Self::T1 => "t1",
+            Self::T2 => "t2",
+            Self::T3 => "t3",
             Self::N => "n",
             Self::V1 => "v1",
             Self::V2 => "v2",
@@ -123,6 +131,8 @@ pub enum ParameterId {
     PickupCurrentAmps,
     DropoutCurrentAmps,
     ClosedContactResistanceOhms,
+    CoilSenseSeconds,
+    InstantaneousTripAmps,
     IntactResistanceOhms,
     TripI2tAmpereSquaredSeconds,
     ArmatureResistanceOhms,
@@ -155,6 +165,8 @@ pub enum Unit {
     Farad,
     Henry,
     AmpereSquaredSecond,
+    AmpereSquared,
+    Second,
     KilogramMeterSquared,
     NewtonMeter,
     NewtonMeterPerAmp,
@@ -1323,6 +1335,7 @@ pub fn component_catalog() -> ComponentCatalog {
         ],
         categories: Vec::new(),
     };
+    catalog.component_types.extend(stage10_switch_catalog());
     catalog.categories = CategoryId::ALL
         .into_iter()
         .filter(|category| {
@@ -1333,4 +1346,150 @@ pub fn component_catalog() -> ComponentCatalog {
         })
         .collect();
     catalog
+}
+
+fn stage10_switch_catalog() -> [ComponentCatalogEntry; 2] {
+    use crate::pin_groups::{CONTACTOR_AUXILIARIES, CONTACTOR_COIL, POWER_POLES, PinGroup};
+    use ParameterId::*;
+
+    let entry = |type_id, name: &str, groups: Vec<PinGroup>, parameters| ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: if type_id == ComponentTypeId::BreakerThreePole {
+            CategoryId::Protection
+        } else {
+            CategoryId::Switching
+        },
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        pins: groups
+            .iter()
+            .flat_map(|group| group.pins)
+            .map(|id| PinDefinition {
+                id,
+                role: PinRole::Unpolarized,
+            })
+            .collect(),
+        pin_groups: Some(
+            groups
+                .iter()
+                .map(|group| PinGroupDefinition {
+                    id: group.id.to_owned(),
+                    pins: group.pins,
+                })
+                .collect(),
+        ),
+        parameters,
+        fault_kinds: vec![],
+    };
+    let parameter =
+        |name: &str, key: &str, id, unit, min, max, default_value| ParameterDefinition {
+            id,
+            unit,
+            default_value,
+            domain: NumericDomain::StrictlyPositive,
+            description_key: format!("component.{name}.{key}"),
+            optional: false,
+            initial_condition: false,
+            minimum_value: Some(min),
+            maximum_value: Some(max),
+        };
+    let contactor = "contactorThreePole";
+    let breaker = "breakerThreePole";
+    let closed_resistance = |name| {
+        parameter(
+            name,
+            "closedContactResistance",
+            ClosedContactResistanceOhms,
+            Unit::Ohm,
+            0.0001,
+            10.0,
+            0.01,
+        )
+    };
+    [
+        entry(
+            ComponentTypeId::ContactorThreePole,
+            contactor,
+            std::iter::once(CONTACTOR_COIL)
+                .chain(POWER_POLES)
+                .chain(CONTACTOR_AUXILIARIES)
+                .collect(),
+            vec![
+                parameter(
+                    contactor,
+                    "coilResistance",
+                    CoilResistanceOhms,
+                    Unit::Ohm,
+                    0.1,
+                    100_000.0,
+                    230.0,
+                ),
+                parameter(
+                    contactor,
+                    "coilInductance",
+                    CoilInductanceHenries,
+                    Unit::Henry,
+                    0.00001,
+                    100.0,
+                    0.2,
+                ),
+                parameter(
+                    contactor,
+                    "pickupCurrent",
+                    PickupCurrentAmps,
+                    Unit::Amp,
+                    0.001,
+                    100.0,
+                    0.7,
+                ),
+                parameter(
+                    contactor,
+                    "dropoutCurrent",
+                    DropoutCurrentAmps,
+                    Unit::Amp,
+                    0.0001,
+                    100.0,
+                    0.4,
+                ),
+                parameter(
+                    contactor,
+                    "coilSense",
+                    CoilSenseSeconds,
+                    Unit::Second,
+                    0.005,
+                    2.0,
+                    0.02,
+                ),
+                closed_resistance(contactor),
+            ],
+        ),
+        entry(
+            ComponentTypeId::BreakerThreePole,
+            breaker,
+            POWER_POLES.to_vec(),
+            vec![
+                closed_resistance(breaker),
+                parameter(
+                    breaker,
+                    "instantaneousTrip",
+                    InstantaneousTripAmps,
+                    Unit::Amp,
+                    0.1,
+                    100_000.0,
+                    100.0,
+                ),
+                ParameterDefinition {
+                    id: InitialClosed,
+                    unit: Unit::Dimensionless,
+                    default_value: 0.0,
+                    domain: NumericDomain::ZeroOrOne,
+                    description_key: "component.breakerThreePole.initialClosed".to_owned(),
+                    optional: true,
+                    initial_condition: true,
+                    minimum_value: None,
+                    maximum_value: None,
+                },
+            ],
+        ),
+    ]
 }

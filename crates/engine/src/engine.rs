@@ -19,16 +19,17 @@ use crate::{
     SetOperatorStateResult, SetParameterRequest, SetParameterResult, StableId, TraceBatch,
     TraceRequest,
     devices::{
-        CapacitorDevice, CapacitorMode, ContactorDevice, DcVoltageSourceDevice, Device,
-        DeviceResult, FuseDevice, InductorDevice, InductorMode, LinkedContacts, LinkedPole,
-        PmdcMotorDevice, PmdcMotorMode, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
-        ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic,
+        BreakerDevice, BreakerState, CapacitorDevice, CapacitorMode, ContactorDevice,
+        ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice, InductorDevice,
+        InductorMode, LinkedContacts, LinkedPole, PmdcMotorDevice, PmdcMotorMode, RelayCoilMode,
+        RelayDevice, ResistorDevice, Terminals, ThreePhaseSourceDevice, WattmeterDevice,
+        component_diagnostic,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
     operator::OperatorState,
-    pin_groups::CONTACTOR_AUXILIARIES,
+    pin_groups::{CONTACTOR_AUXILIARIES, POWER_POLES},
     slots::slot_definitions,
 };
 use trace::TraceHistory;
@@ -62,6 +63,8 @@ struct CompiledRun {
     snapshot: ResultSnapshot,
     states: CircuitStates,
     step_start_states: CircuitStates,
+    /// The latest explicit breaker setting per device at the newest public step.
+    breaker_overrides: HashMap<StableId, BreakerState>,
     internal_substeps: u32,
     trace_history: TraceHistory,
     stopped: Option<Vec<Diagnostic>>,
@@ -69,6 +72,20 @@ struct CompiledRun {
 
 type InitializationOutcome =
     Result<(Vec<DeviceResult>, CircuitStates, Vec<Diagnostic>), Vec<Diagnostic>>;
+
+impl CompiledRun {
+    fn breaker_replay_settings(&self) -> HashMap<StableId, BreakerState> {
+        let mut settings = self.breaker_overrides.clone();
+        settings.extend(
+            self.states
+                .breakers
+                .iter()
+                .filter(|(_, state)| state.tripped)
+                .map(|(id, state)| (id.clone(), *state)),
+        );
+        settings
+    }
+}
 
 #[derive(Clone)]
 struct DeviceSpec {
@@ -131,7 +148,12 @@ enum DeviceModel {
         coil_resistance_ohms: f64,
         coil_inductance_henries: f64,
         closed_contact_resistance_ohms: f64,
-        poles: [LinkedPole; 2],
+        poles: ContactorPoles,
+    },
+    Breaker {
+        resistance: f64,
+        poles: [LinkedPole; 3],
+        initially_closed: bool,
     },
     PmdcMotor {
         armature_resistance_ohms: f64,
@@ -222,6 +244,7 @@ impl Engine {
             layout: layout.clone(),
             snapshot: snapshot.clone(),
             step_start_states: states.clone(),
+            breaker_overrides: HashMap::new(),
             states,
             internal_substeps,
             trace_history,
@@ -315,29 +338,47 @@ impl Engine {
         );
         let (internal_substeps, limited) =
             choose_internal_substeps(&candidate_overlay.schematic, &geometry, &candidate_open);
-        let (device_results, states, step_start_states, mut diagnostics) = if simulation_step == 0 {
-            match initialize_circuit(&candidate_overlay.schematic, &geometry, &candidate_open) {
-                Ok((results, states, diagnostics)) => {
-                    (results, states.clone(), states, diagnostics)
+        let (mut device_results, mut states, step_start_states, mut diagnostics) =
+            if simulation_step == 0 {
+                match initialize_circuit(&candidate_overlay.schematic, &geometry, &candidate_open) {
+                    Ok((results, states, diagnostics)) => {
+                        (results, states.clone(), states, diagnostics)
+                    }
+                    Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
                 }
-                Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
-            }
-        } else {
-            match advance_public_steps(
+            } else {
+                match advance_public_steps(
+                    &candidate_overlay.schematic,
+                    &geometry,
+                    &candidate_open,
+                    previous_step_states,
+                    internal_substeps,
+                    simulation_step,
+                    1,
+                ) {
+                    Ok((results, states, step_start_states, diagnostics)) => {
+                        (results, states, step_start_states, diagnostics)
+                    }
+                    Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+                }
+            };
+        let breaker_settings = active.breaker_replay_settings();
+        if !breaker_settings.is_empty() {
+            match resolve_breaker_actions(
                 &candidate_overlay.schematic,
                 &geometry,
                 &candidate_open,
-                previous_step_states,
-                internal_substeps,
-                simulation_step,
-                1,
+                states,
+                &breaker_settings,
             ) {
-                Ok((results, states, step_start_states, diagnostics)) => {
-                    (results, states, step_start_states, diagnostics)
+                Ok((results, resolved, warnings)) => {
+                    device_results = results;
+                    states = resolved;
+                    diagnostics.extend(warnings);
                 }
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             }
-        };
+        }
         if limited {
             diagnostics.push(Diagnostic::warning(
                 DiagnosticCode::StepAccuracyLimited,
@@ -437,6 +478,9 @@ impl Engine {
                 )],
             };
         }
+        if active.states.breakers.contains_key(&request.component_id) {
+            return self.set_breaker_operator(request);
+        }
         let invalid = || SetOperatorStateResult::Failure {
             diagnostics: vec![component_diagnostic(
                 DiagnosticCode::InvalidParameter,
@@ -498,10 +542,27 @@ impl Engine {
                     (results, states, diagnostics)
                 })
             };
-            let (device_results, states, diagnostics) = match computed {
+            let (mut device_results, mut states, mut diagnostics) = match computed {
                 Ok(computed) => computed,
                 Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
             };
+            let breaker_settings = active.breaker_replay_settings();
+            if !breaker_settings.is_empty() {
+                match resolve_breaker_actions(
+                    &active.overlay.schematic,
+                    &geometry,
+                    &open,
+                    states,
+                    &breaker_settings,
+                ) {
+                    Ok((results, resolved, warnings)) => {
+                        device_results = results;
+                        states = resolved;
+                        diagnostics.extend(warnings);
+                    }
+                    Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
+                }
+            }
             let values = match values_for_layout(&layout, &device_results) {
                 Ok(values) => values,
                 Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
@@ -555,6 +616,65 @@ impl Engine {
         SetOperatorStateResult::Success {
             snapshot,
             internal_substeps,
+            diagnostics,
+        }
+    }
+
+    fn set_breaker_operator(&mut self, request: SetOperatorStateRequest) -> SetOperatorStateResult {
+        let active = self.compiled.as_mut().expect("checked active run");
+        let invalid = || SetOperatorStateResult::Failure {
+            diagnostics: vec![component_diagnostic(
+                DiagnosticCode::InvalidParameter,
+                &request.component_id,
+            )],
+        };
+        let Some(sequence) = active.snapshot.metadata.frame_sequence.checked_add(1) else {
+            return invalid();
+        };
+        let time = active.snapshot.metadata.simulation_time_seconds;
+        let Some(state) =
+            active.states.breakers[&request.component_id].actuated(request.position, time)
+        else {
+            return invalid();
+        };
+        let action = HashMap::from([(request.component_id.clone(), state)]);
+        let (results, states, diagnostics) = match resolve_breaker_actions(
+            &active.overlay.schematic,
+            &active.geometry,
+            &active.open,
+            active.states.clone(),
+            &action,
+        ) {
+            Ok(outcome) => outcome,
+            Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
+        };
+        let values = match values_for_layout(&active.layout, &results) {
+            Ok(values) => values,
+            Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
+        };
+        let mut snapshot = active.snapshot.clone();
+        snapshot.metadata.frame_sequence = sequence;
+        snapshot.metadata.document_revision = request.document_revision;
+        snapshot.values = values;
+        snapshot.states = snapshot_states(&states, &active.operator);
+        if active
+            .trace_history
+            .replace_latest(
+                snapshot.metadata.simulation_step,
+                &snapshot.metadata.document_revision,
+                &snapshot.values,
+            )
+            .is_err()
+        {
+            return invalid();
+        }
+        active.snapshot = snapshot.clone();
+        active.states = states;
+        active.breaker_overrides.extend(action);
+        active.stopped = None;
+        SetOperatorStateResult::Success {
+            snapshot,
+            internal_substeps: active.internal_substeps,
             diagnostics,
         }
     }
@@ -683,6 +803,7 @@ impl Engine {
             )]
         })?;
         active.step_start_states = step_start_states;
+        active.breaker_overrides.clear();
         active.states = states;
         active.snapshot.values = final_values.expect("advance requires at least one step");
         active.snapshot.states = snapshot_states(&active.states, &active.operator);
@@ -736,6 +857,49 @@ fn snapshot_states(states: &CircuitStates, operator: &OperatorState) -> Vec<Devi
     all
 }
 
+fn resolve_breaker_actions(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
+    mut states: CircuitStates,
+    overrides: &HashMap<StableId, BreakerState>,
+) -> InitializationOutcome {
+    let time = states.simulation_time_seconds;
+    let changed = overrides.iter().any(|(id, next)| {
+        states
+            .breakers
+            .get(id)
+            .is_some_and(|previous| previous.conducting() != next.conducting())
+    });
+    states
+        .breakers
+        .extend(overrides.iter().map(|(id, state)| (id.clone(), *state)));
+    states.backward_euler_next_step |= changed;
+    let (mut results, mut diagnostics, memory) =
+        compute_circuit(schematic, geometry, open, SolveMode::InitialState(&states))?;
+    let mut resolved = circuit_states_from_results(schematic, &results, time);
+    resolved.solver_memory = memory;
+    resolved.ac_source_phases = states.ac_source_phases;
+    resolved.ac_source_step_fraction = states.ac_source_step_fraction;
+    resolved.backward_euler_next_step = states.backward_euler_next_step;
+    settle_discrete_events(
+        CircuitInput {
+            schematic,
+            geometry,
+            open,
+        },
+        &mut resolved,
+        &mut results,
+        Vec::new(),
+        time,
+        &mut diagnostics,
+    )?;
+    resolved.measurements = states.measurements;
+    measurements::update(schematic, &mut resolved.measurements, &mut results, time)?;
+    sort_diagnostics(&mut diagnostics);
+    Ok((results, resolved, diagnostics))
+}
+
 fn initialize_circuit(
     schematic: &Schematic,
     geometry: &GeometryEnvelope,
@@ -787,7 +951,11 @@ fn initialize_circuit(
         || inductors.iter().any(|(_, initial)| initial.is_none())
         || motors
             .iter()
-            .any(|(_, _, _, initial_current)| initial_current.is_none());
+            .any(|(_, _, _, initial_current)| initial_current.is_none())
+        || schematic
+            .components
+            .iter()
+            .any(|component| matches!(component, ComponentSpec::ContactorThreePole { .. }));
     let needs_operating_point = has_explicit_initial_state && has_uninitialized_state;
     let mut diagnostics = Vec::new();
     let mut states = CircuitStates::default();
@@ -1340,8 +1508,22 @@ fn local_reference_nodes(
                         .map_or(RelayContactState::Released, |state| state.state),
                 };
                 let contacts = LinkedContacts {
-                    poles: &poles,
+                    poles: poles.as_slice(),
                     active: contact_state == RelayContactState::Picked,
+                };
+                for terminals in contacts.conducting() {
+                    connect(terminals.pin1, terminals.pin2);
+                }
+            }
+            DeviceModel::Breaker {
+                poles,
+                initially_closed,
+                ..
+            } => {
+                let state = breaker_state(mode, &spec.component_id, initially_closed);
+                let contacts = LinkedContacts {
+                    poles: &poles,
+                    active: state.conducting(),
                 };
                 for terminals in contacts.conducting() {
                     connect(terminals.pin1, terminals.pin2);
@@ -1416,8 +1598,13 @@ fn build_device_specs(
             (PinId::V1, PinId::V2)
         } else if matches!(component, ComponentSpec::RelaySpdt { .. }) {
             (PinId::CoilPositive, PinId::CoilNegative)
-        } else if matches!(component, ComponentSpec::Contactor { .. }) {
+        } else if matches!(
+            component,
+            ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. }
+        ) {
             (PinId::A1, PinId::A2)
+        } else if matches!(component, ComponentSpec::BreakerThreePole { .. }) {
+            (PinId::L1, PinId::T1)
         } else {
             (PinId::Pin1, PinId::Pin2)
         };
@@ -1688,7 +1875,34 @@ fn build_device_specs(
                     normally_closed_node,
                 }
             }
-            ComponentSpec::Contactor { parameters, .. } => {
+            ComponentSpec::BreakerThreePole { parameters, .. } => {
+                let Some(poles) = resolve_power_poles(node_for_pin) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Breaker {
+                    resistance: parameters.closed_contact_resistance_ohms,
+                    poles,
+                    initially_closed: parameters.initial_closed == Some(1.0),
+                }
+            }
+            ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. } => {
+                let (coil_resistance, coil_inductance, closed_resistance) = match component {
+                    ComponentSpec::Contactor { parameters, .. } => (
+                        parameters.coil_resistance_ohms,
+                        parameters.coil_inductance_henries,
+                        parameters.closed_contact_resistance_ohms,
+                    ),
+                    ComponentSpec::ContactorThreePole { parameters, .. } => (
+                        parameters.coil_resistance_ohms,
+                        parameters.coil_inductance_henries,
+                        parameters.closed_contact_resistance_ohms,
+                    ),
+                    _ => unreachable!(),
+                };
                 let [no, nc] = CONTACTOR_AUXILIARIES;
                 let (Some(normally_open), Some(normally_closed)) =
                     (no.resolve(node_for_pin), nc.resolve(node_for_pin))
@@ -1699,22 +1913,41 @@ fn build_device_specs(
                     ));
                     continue;
                 };
+                let auxiliary_poles = [
+                    LinkedPole {
+                        group: no,
+                        terminals: normally_open,
+                        closed_when_active: true,
+                    },
+                    LinkedPole {
+                        group: nc,
+                        terminals: normally_closed,
+                        closed_when_active: false,
+                    },
+                ];
+                let poles = if matches!(component, ComponentSpec::ContactorThreePole { .. }) {
+                    let Some([p1, p2, p3]) = resolve_power_poles(node_for_pin) else {
+                        diagnostics.push(component_diagnostic(
+                            DiagnosticCode::InvalidGeometry,
+                            component.id(),
+                        ));
+                        continue;
+                    };
+                    ContactorPoles::PowerAndAuxiliaries([
+                        p1,
+                        p2,
+                        p3,
+                        auxiliary_poles[0],
+                        auxiliary_poles[1],
+                    ])
+                } else {
+                    ContactorPoles::Auxiliaries(auxiliary_poles)
+                };
                 DeviceModel::Contactor {
-                    coil_resistance_ohms: parameters.coil_resistance_ohms,
-                    coil_inductance_henries: parameters.coil_inductance_henries,
-                    closed_contact_resistance_ohms: parameters.closed_contact_resistance_ohms,
-                    poles: [
-                        LinkedPole {
-                            group: no,
-                            terminals: normally_open,
-                            closed_when_active: true,
-                        },
-                        LinkedPole {
-                            group: nc,
-                            terminals: normally_closed,
-                            closed_when_active: false,
-                        },
-                    ],
+                    coil_resistance_ohms: coil_resistance,
+                    coil_inductance_henries: coil_inductance,
+                    closed_contact_resistance_ohms: closed_resistance,
+                    poles,
                 }
             }
             ComponentSpec::SwitchSpst { parameters, .. } => DeviceModel::Resistor {
@@ -1754,6 +1987,35 @@ fn build_device_specs(
     } else {
         Ok(specs)
     }
+}
+
+fn resolve_power_poles(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<[LinkedPole; 3]> {
+    let [p1, p2, p3] = POWER_POLES.map(|group| {
+        group.resolve(&node_for_pin).map(|terminals| LinkedPole {
+            group,
+            terminals,
+            closed_when_active: true,
+        })
+    });
+    Some([p1?, p2?, p3?])
+}
+
+fn breaker_state(mode: SolveMode<'_>, id: &StableId, initially_closed: bool) -> BreakerState {
+    let previous = match mode {
+        SolveMode::OperatingPoint => None,
+        SolveMode::Transient { states, .. } | SolveMode::InitialState(states) => {
+            states.breakers.get(id).copied()
+        }
+    };
+    previous.unwrap_or(BreakerState {
+        position: if initially_closed {
+            crate::SwitchPosition::Closed
+        } else {
+            crate::SwitchPosition::Open
+        },
+        tripped: false,
+        last_transition_time_seconds: None,
+    })
 }
 
 fn make_device(
@@ -2015,8 +2277,25 @@ fn make_device(
                 contact_state,
                 last_transition_time_seconds,
                 coil_mode,
+                match mode {
+                    SolveMode::OperatingPoint => None,
+                    SolveMode::Transient { states, .. } | SolveMode::InitialState(states) => states
+                        .relays
+                        .get(&spec.component_id)
+                        .and_then(|state| state.detector),
+                },
             ))
         }
+        DeviceModel::Breaker {
+            resistance,
+            poles,
+            initially_closed,
+        } => Box::new(BreakerDevice {
+            id: spec.component_id.clone(),
+            poles,
+            resistance,
+            state: breaker_state(mode, &spec.component_id, initially_closed),
+        }),
         DeviceModel::Fuse {
             intact_resistance_ohms,
             ..
@@ -2667,6 +2946,7 @@ fn values_for_layout(
                 | ResultQuantity::ApparentPower
                 | ResultQuantity::PowerFactor
                 | ResultQuantity::PhaseAngle
+                | ResultQuantity::MeanSquareCurrent
                 | ResultQuantity::Valid => f64::NAN,
             });
         if value.is_finite() {
@@ -2699,6 +2979,15 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
+        ComponentSpec::ContactorThreePole { parameters, .. } => match parameter_id {
+            ParameterId::PickupCurrentAmps => parameters.pickup_current_amps = value,
+            ParameterId::DropoutCurrentAmps => parameters.dropout_current_amps = value,
+            _ => return false,
+        },
+        ComponentSpec::BreakerThreePole { parameters, .. } => match parameter_id {
+            ParameterId::InstantaneousTripAmps => parameters.instantaneous_trip_amps = value,
+            _ => return false,
+        },
         ComponentSpec::BjtNpn { parameters, .. } | ComponentSpec::BjtPnp { parameters, .. } => {
             match parameter_id {
                 ParameterId::SaturationCurrentAmps => parameters.saturation_current_amps = value,

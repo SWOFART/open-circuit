@@ -66,6 +66,24 @@ const messages: Readonly<Record<string, string>> = {
   "component.acAmmeter.name": "AC ammeter",
   "component.acAmmeter.burdenResistance": "Burden resistance",
   "component.acAmmeter.frequency": "Measurement frequency",
+  "component.contactorThreePole.name": "Three-pole contactor",
+  "component.contactorThreePole.keywords":
+    "three phase power contact switching starter",
+  "component.contactorThreePole.coilResistance": "Coil resistance",
+  "component.contactorThreePole.coilInductance": "Coil inductance",
+  "component.contactorThreePole.pickupCurrent": "Pickup RMS current",
+  "component.contactorThreePole.dropoutCurrent": "Dropout RMS current",
+  "component.contactorThreePole.coilSense": "Coil detector time constant",
+  "component.contactorThreePole.closedContactResistance":
+    "Closed contact resistance",
+  "component.breakerThreePole.name": "Three-pole breaker",
+  "component.breakerThreePole.keywords": "three phase switch overcurrent trip",
+  "component.breakerThreePole.closedContactResistance":
+    "Closed contact resistance",
+  "component.breakerThreePole.instantaneousTrip": "Instantaneous trip current",
+  "component.breakerThreePole.initialClosed": "Initial position",
+  "component.breakerThreePole.initialClosedHint":
+    "The breaker starts open by default.",
   "component.wattmeter.name": "Wattmeter",
   "component.wattmeter.inputResistance": "Input resistance",
   "component.wattmeter.burdenResistance": "Burden resistance",

@@ -26,6 +26,8 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   push_button_no: "S",
   push_button_nc: "S",
   contactor: "Q",
+  contactor_three_pole: "Q",
+  breaker_three_pole: "QF",
 };
 
 /**

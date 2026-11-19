@@ -49,7 +49,7 @@ describe("part search", () => {
   it("finds parts by keyword, by type ID and by category", () => {
     expect(find("choke")).toEqual(["inductor"]);
     expect(find("bjt")).toEqual(["bjt_npn", "bjt_pnp"]);
-    expect(find("protection")).toEqual(["fuse"]);
+    expect(find("protection")).toEqual(["fuse", "breaker_three_pole"]);
   });
 
   it("ranks an exact name first", () => {

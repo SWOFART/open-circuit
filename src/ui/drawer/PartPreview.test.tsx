@@ -134,7 +134,10 @@ describe("the placeholder for a part without a symbol", () => {
       .filter((entry) => !symbols[entry.typeId])
       .map((entry) => entry.typeId);
 
-    expect(withoutSymbol).toEqual([]);
+    expect(withoutSymbol).toEqual([
+      "contactor_three_pole",
+      "breaker_three_pole",
+    ]);
   });
 });
 

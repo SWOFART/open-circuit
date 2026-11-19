@@ -20,6 +20,7 @@ pub enum ResultQuantity {
     MeanCurrent,
     PeakCurrent,
     Frequency,
+    MeanSquareCurrent,
     RealPower,
     ReactivePower,
     ApparentPower,

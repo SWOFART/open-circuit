@@ -36,3 +36,18 @@ pub(crate) const CONTACTOR_AUXILIARIES: [PinGroup; 2] = [
         pins: [PinId::Nc1, PinId::Nc2],
     },
 ];
+
+pub(crate) const POWER_POLES: [PinGroup; 3] = [
+    PinGroup {
+        id: "pole1",
+        pins: [PinId::L1, PinId::T1],
+    },
+    PinGroup {
+        id: "pole2",
+        pins: [PinId::L2, PinId::T2],
+    },
+    PinGroup {
+        id: "pole3",
+        pins: [PinId::L3, PinId::T3],
+    },
+];

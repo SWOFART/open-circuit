@@ -164,6 +164,8 @@ const STATE_KIND_OF_TYPE: Readonly<
   push_button_no: "pushButton",
   push_button_nc: "pushButton",
   contactor: "contactor",
+  contactor_three_pole: "contactor",
+  breaker_three_pole: "switch",
 };
 
 /** A state value that the contract defines for its kind. */

@@ -88,6 +88,8 @@ fn parts_are_assigned_to_the_categories_of_the_stage_11_contract() {
         (PushButtonNc, CategoryId::Switching),
         (RelaySpdt, CategoryId::Switching),
         (Contactor, CategoryId::Switching),
+        (ContactorThreePole, CategoryId::Switching),
+        (BreakerThreePole, CategoryId::Protection),
         (Voltmeter, CategoryId::Measurement),
         (Ammeter, CategoryId::Measurement),
         (AcVoltmeter, CategoryId::Measurement),

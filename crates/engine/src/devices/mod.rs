@@ -13,6 +13,7 @@ mod motor;
 mod relay;
 mod resistor;
 mod source;
+mod switchgear;
 mod wattmeter;
 
 use crate::{DeviceState, Diagnostic, StableId};
@@ -20,7 +21,7 @@ use crate::{DeviceState, Diagnostic, StableId};
 use super::mna::{MnaSystem, NodeVariables};
 
 pub(crate) use capacitor::{CapacitorDevice, CapacitorMode};
-pub(crate) use contactor::ContactorDevice;
+pub(crate) use contactor::{ContactorDevice, ContactorPoles};
 pub(crate) use fuse::FuseDevice;
 pub(crate) use inductor::{InductorDevice, InductorMode};
 pub(crate) use linked_contacts::{LinkedContacts, LinkedPole};
@@ -28,6 +29,7 @@ pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};
 pub(crate) use relay::{RelayCoilMode, RelayDevice};
 pub(crate) use resistor::ResistorDevice;
 pub(crate) use source::{DcVoltageSourceDevice, ThreePhaseSourceDevice};
+pub(crate) use switchgear::{BreakerDevice, BreakerState, coil_contact_state, detector_step};
 pub(crate) use wattmeter::WattmeterDevice;
 
 #[derive(Clone, Copy, Debug)]

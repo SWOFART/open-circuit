@@ -14,6 +14,8 @@ export const unitSymbols: Readonly<Record<Unit, string>> = {
   farad: "F",
   henry: "H",
   ampere_squared_second: "A²·s",
+  ampere_squared: "A²",
+  second: "s",
   kilogram_meter_squared: "kg·m²",
   newton_meter: "N·m",
   newton_meter_per_amp: "N·m/A",
@@ -57,6 +59,8 @@ const unitWords: Readonly<Record<Unit, readonly string[]>> = {
     "volt ampere reactive",
     "volt amperes reactive",
   ],
+  ampere_squared: ["a²", "a^2"],
+  second: ["s", "second", "seconds"],
   dimensionless: [],
 };
 
@@ -112,7 +116,11 @@ export function formatSi(value: number, unit: Unit): string {
       : "—";
   }
 
-  if (unit === "ampere_squared_second" || unit === "kilogram_meter_squared") {
+  if (
+    unit === "ampere_squared" ||
+    unit === "ampere_squared_second" ||
+    unit === "kilogram_meter_squared"
+  ) {
     return formatWithoutPrefix(value, unitSymbols[unit]);
   }
 
@@ -199,6 +207,7 @@ export function parseSi(text: string, unit: Unit): ParseResult {
   if (suffix === "" || isUnitWord(suffix, unit)) {
     prefixExponent = 0;
   } else if (
+    unit !== "ampere_squared" &&
     unit !== "ampere_squared_second" &&
     unit !== "kilogram_meter_squared" &&
     unit !== "degree"

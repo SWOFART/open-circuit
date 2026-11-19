@@ -229,6 +229,8 @@ describe("the units of the Stage 4 signals", () => {
       farad: true,
       henry: true,
       ampere_squared_second: true,
+      ampere_squared: true,
+      second: true,
       kilogram_meter_squared: true,
       newton_meter: true,
       newton_meter_per_amp: true,

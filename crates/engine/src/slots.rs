@@ -4,7 +4,7 @@
 
 use crate::{
     ComponentTypeId, ResultQuantity, ResultSignConvention, Unit,
-    pin_groups::{CONTACTOR_AUXILIARIES, CONTACTOR_COIL, PinGroup},
+    pin_groups::{CONTACTOR_AUXILIARIES, CONTACTOR_COIL, POWER_POLES, PinGroup},
 };
 
 /// One slot of a component type. Its key is `<componentId><separator><suffix>`.
@@ -160,6 +160,33 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
         ComponentTypeId::Contactor => std::iter::once(CONTACTOR_COIL)
             .chain(CONTACTOR_AUXILIARIES)
             .flat_map(group_slots)
+            .collect(),
+        ComponentTypeId::ContactorThreePole => group_slots(CONTACTOR_COIL)
+            .into_iter()
+            .chain(std::iter::once(slot(
+                ResultQuantity::MeanSquareCurrent,
+                Unit::AmpereSquared,
+                '/',
+                "coil/current_squared",
+                Unsigned,
+            )))
+            .chain(
+                POWER_POLES
+                    .into_iter()
+                    .chain(CONTACTOR_AUXILIARIES)
+                    .flat_map(group_slots),
+            )
+            .collect(),
+        ComponentTypeId::BreakerThreePole => POWER_POLES
+            .into_iter()
+            .flat_map(group_slots)
+            .chain(std::iter::once(slot(
+                Valid,
+                Unit::Dimensionless,
+                '/',
+                "tripped",
+                Flag,
+            )))
             .collect(),
         ComponentTypeId::Fuse => vec![
             voltage,

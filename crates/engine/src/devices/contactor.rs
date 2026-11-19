@@ -5,19 +5,35 @@ use super::{Device, DeviceResult, LinkedContacts, LinkedPole, Terminals, compone
 use crate::mna::{MnaSystem, NodeVariables};
 use crate::{pin_groups::CONTACTOR_COIL, slots::group_slots};
 
+#[derive(Clone, Copy)]
+pub(crate) enum ContactorPoles {
+    Auxiliaries([LinkedPole; 2]),
+    PowerAndAuxiliaries([LinkedPole; 5]),
+}
+
+impl ContactorPoles {
+    pub(crate) fn as_slice(&self) -> &[LinkedPole] {
+        match self {
+            Self::Auxiliaries(poles) => poles,
+            Self::PowerAndAuxiliaries(poles) => poles,
+        }
+    }
+}
+
 /// A relay coil with two galvanically isolated auxiliary contacts: a normally open one that
 /// conducts when the contactor is picked and a normally closed one that conducts when it is
 /// released (docs/contracts/stage-6-control-circuits.md section 3.2).
 pub(crate) struct ContactorDevice {
     component_id: StableId,
     coil: Terminals,
-    poles: [LinkedPole; 2],
+    poles: ContactorPoles,
     coil_resistance_ohms: f64,
     coil_inductance_henries: f64,
     closed_contact_resistance_ohms: f64,
     contact_state: RelayContactState,
     last_transition_time_seconds: Option<f64>,
     mode: RelayCoilMode,
+    detector: Option<f64>,
 }
 
 impl ContactorDevice {
@@ -25,13 +41,14 @@ impl ContactorDevice {
     pub(crate) fn new(
         component_id: StableId,
         coil: Terminals,
-        poles: [LinkedPole; 2],
+        poles: ContactorPoles,
         coil_resistance_ohms: f64,
         coil_inductance_henries: f64,
         closed_contact_resistance_ohms: f64,
         contact_state: RelayContactState,
         last_transition_time_seconds: Option<f64>,
         mode: RelayCoilMode,
+        detector: Option<f64>,
     ) -> Self {
         Self {
             component_id,
@@ -43,6 +60,7 @@ impl ContactorDevice {
             contact_state,
             last_transition_time_seconds,
             mode,
+            detector,
         }
     }
 
@@ -57,7 +75,7 @@ impl ContactorDevice {
 
     fn contacts(&self) -> LinkedContacts<'_> {
         LinkedContacts {
-            poles: &self.poles,
+            poles: self.poles.as_slice(),
             active: self.contact_state == RelayContactState::Picked,
         }
     }
@@ -136,6 +154,16 @@ impl Device for ContactorDevice {
             (voltage_slot.key(id), coil_voltage),
             (current_slot.key(id), coil_current),
         ];
+        if matches!(self.poles, ContactorPoles::PowerAndAuxiliaries(_)) {
+            let squared = self.detector.unwrap_or(coil_current * coil_current);
+            if !squared.is_finite() {
+                return Err(component_diagnostic(
+                    DiagnosticCode::NonFiniteState,
+                    &self.component_id,
+                ));
+            }
+            extra_values.push((format!("{id}/coil/current_squared"), squared));
+        }
         self.contacts().append_results(
             &self.component_id,
             self.closed_contact_resistance_ohms,

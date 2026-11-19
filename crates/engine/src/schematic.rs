@@ -169,6 +169,33 @@ pub struct RelayParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "ContactorThreePoleParameters.ts")]
+pub struct ContactorThreePoleParameters {
+    pub coil_resistance_ohms: f64,
+    pub coil_inductance_henries: f64,
+    pub pickup_current_amps: f64,
+    pub dropout_current_amps: f64,
+    pub closed_contact_resistance_ohms: f64,
+    pub coil_sense_seconds: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "BreakerThreePoleParameters.ts")]
+pub struct BreakerThreePoleParameters {
+    pub closed_contact_resistance_ohms: f64,
+    pub instantaneous_trip_amps: f64,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null_f64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub initial_closed: Option<f64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "FuseParameters.ts")]
 pub struct FuseParameters {
     pub intact_resistance_ohms: f64,
@@ -470,6 +497,20 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: RelayParameters,
     },
+    ContactorThreePole {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: ContactorThreePoleParameters,
+    },
+    BreakerThreePole {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: BreakerThreePoleParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -496,7 +537,9 @@ impl ComponentSpec {
             | Self::SwitchSpst { id, .. }
             | Self::PushButtonNo { id, .. }
             | Self::PushButtonNc { id, .. }
-            | Self::Contactor { id, .. } => id,
+            | Self::Contactor { id, .. }
+            | Self::ContactorThreePole { id, .. }
+            | Self::BreakerThreePole { id, .. } => id,
         }
     }
 
@@ -523,7 +566,9 @@ impl ComponentSpec {
             | Self::SwitchSpst { position, .. }
             | Self::PushButtonNo { position, .. }
             | Self::PushButtonNc { position, .. }
-            | Self::Contactor { position, .. } => *position,
+            | Self::Contactor { position, .. }
+            | Self::ContactorThreePole { position, .. }
+            | Self::BreakerThreePole { position, .. } => *position,
         }
     }
 
@@ -550,7 +595,9 @@ impl ComponentSpec {
             | Self::SwitchSpst { rotation_deg, .. }
             | Self::PushButtonNo { rotation_deg, .. }
             | Self::PushButtonNc { rotation_deg, .. }
-            | Self::Contactor { rotation_deg, .. } => *rotation_deg,
+            | Self::Contactor { rotation_deg, .. }
+            | Self::ContactorThreePole { rotation_deg, .. }
+            | Self::BreakerThreePole { rotation_deg, .. } => *rotation_deg,
         }
     }
 
@@ -578,11 +625,53 @@ impl ComponentSpec {
             Self::PushButtonNo { .. } => ComponentTypeId::PushButtonNo,
             Self::PushButtonNc { .. } => ComponentTypeId::PushButtonNc,
             Self::Contactor { .. } => ComponentTypeId::Contactor,
+            Self::ContactorThreePole { .. } => ComponentTypeId::ContactorThreePole,
+            Self::BreakerThreePole { .. } => ComponentTypeId::BreakerThreePole,
         }
     }
 
     fn parameter_values(&self) -> Vec<(ParameterId, f64)> {
         match self {
+            Self::ContactorThreePole { parameters, .. } => vec![
+                (
+                    ParameterId::CoilResistanceOhms,
+                    parameters.coil_resistance_ohms,
+                ),
+                (
+                    ParameterId::CoilInductanceHenries,
+                    parameters.coil_inductance_henries,
+                ),
+                (
+                    ParameterId::PickupCurrentAmps,
+                    parameters.pickup_current_amps,
+                ),
+                (
+                    ParameterId::DropoutCurrentAmps,
+                    parameters.dropout_current_amps,
+                ),
+                (
+                    ParameterId::ClosedContactResistanceOhms,
+                    parameters.closed_contact_resistance_ohms,
+                ),
+                (ParameterId::CoilSenseSeconds, parameters.coil_sense_seconds),
+            ],
+            Self::BreakerThreePole { parameters, .. } => vec![
+                (
+                    ParameterId::ClosedContactResistanceOhms,
+                    parameters.closed_contact_resistance_ohms,
+                ),
+                (
+                    ParameterId::InstantaneousTripAmps,
+                    parameters.instantaneous_trip_amps,
+                ),
+            ]
+            .into_iter()
+            .chain(
+                parameters
+                    .initial_closed
+                    .map(|value| (ParameterId::InitialClosed, value)),
+            )
+            .collect(),
             Self::BjtNpn { parameters, .. } | Self::BjtPnp { parameters, .. } => vec![
                 (
                     ParameterId::SaturationCurrentAmps,
@@ -911,7 +1000,9 @@ impl Schematic {
             | ComponentSpec::SwitchSpst { rotation_deg, .. }
             | ComponentSpec::PushButtonNo { rotation_deg, .. }
             | ComponentSpec::PushButtonNc { rotation_deg, .. }
-            | ComponentSpec::Contactor { rotation_deg, .. } = component
+            | ComponentSpec::Contactor { rotation_deg, .. }
+            | ComponentSpec::ContactorThreePole { rotation_deg, .. }
+            | ComponentSpec::BreakerThreePole { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(
@@ -960,10 +1051,19 @@ impl Schematic {
                 }
             }
 
-            if let ComponentSpec::RelaySpdt { parameters, .. }
-            | ComponentSpec::Contactor { parameters, .. } = component
-                && parameters.dropout_current_amps >= parameters.pickup_current_amps
-            {
+            let thresholds = match component {
+                ComponentSpec::RelaySpdt { parameters, .. }
+                | ComponentSpec::Contactor { parameters, .. } => Some((
+                    parameters.dropout_current_amps,
+                    parameters.pickup_current_amps,
+                )),
+                ComponentSpec::ContactorThreePole { parameters, .. } => Some((
+                    parameters.dropout_current_amps,
+                    parameters.pickup_current_amps,
+                )),
+                _ => None,
+            };
+            if thresholds.is_some_and(|(dropout, pickup)| dropout >= pickup) {
                 diagnostics.push(Diagnostic::error(
                     DiagnosticCode::InvalidParameter,
                     vec![DiagnosticReference::Component {

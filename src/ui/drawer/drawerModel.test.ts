@@ -33,6 +33,7 @@ describe("the drawer list", () => {
       "push_button_no",
       "push_button_nc",
       "contactor",
+      "contactor_three_pole",
     ]);
   });
 
@@ -56,7 +57,7 @@ describe("the drawer list", () => {
     // A part in Favorites also appears under its category.
     expect(
       ids(view.groups.find((group) => group.id === "protection")?.entries),
-    ).toEqual(["fuse"]);
+    ).toEqual(["fuse", "breaker_three_pole"]);
     expect(
       buildDrawerView(catalog, DEFAULT_DRAWER_PREFERENCES, "", placeable)
         .groups[0]?.id,

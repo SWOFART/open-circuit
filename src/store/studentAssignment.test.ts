@@ -254,7 +254,7 @@ describe("the editor restrictions of an assignment", () => {
       locked: new Set<string>(),
     });
     expect(allAssignmentTypes?.componentTypes).toHaveLength(
-      catalog.componentTypes.length - 6,
+      catalog.componentTypes.length - 8,
     );
     expect(
       allAssignmentTypes?.componentTypes.some(
@@ -264,7 +264,9 @@ describe("the editor restrictions of an assignment", () => {
           entry.typeId === "three_phase_source_delta" ||
           entry.typeId === "ac_voltmeter" ||
           entry.typeId === "ac_ammeter" ||
-          entry.typeId === "wattmeter",
+          entry.typeId === "wattmeter" ||
+          entry.typeId === "contactor_three_pole" ||
+          entry.typeId === "breaker_three_pole",
       ),
     ).toBe(false);
     expect(allowedCatalog(null, restrictions)).toBeNull();
