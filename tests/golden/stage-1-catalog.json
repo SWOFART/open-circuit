@@ -1430,6 +1430,367 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "transformer_three_phase",
+      "displayNameKey": "component.transformerThreePhase.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": ["component.transformerThreePhase.keywords"],
+      "pins": [
+        {
+          "id": "p1a",
+          "role": "unpolarized"
+        },
+        {
+          "id": "p1b",
+          "role": "unpolarized"
+        },
+        {
+          "id": "p2a",
+          "role": "unpolarized"
+        },
+        {
+          "id": "p2b",
+          "role": "unpolarized"
+        },
+        {
+          "id": "p3a",
+          "role": "unpolarized"
+        },
+        {
+          "id": "p3b",
+          "role": "unpolarized"
+        },
+        {
+          "id": "s1a",
+          "role": "unpolarized"
+        },
+        {
+          "id": "s1b",
+          "role": "unpolarized"
+        },
+        {
+          "id": "s2a",
+          "role": "unpolarized"
+        },
+        {
+          "id": "s2b",
+          "role": "unpolarized"
+        },
+        {
+          "id": "s3a",
+          "role": "unpolarized"
+        },
+        {
+          "id": "s3b",
+          "role": "unpolarized"
+        }
+      ],
+      "pinGroups": [
+        {
+          "id": "primary1",
+          "pins": ["p1a", "p1b"]
+        },
+        {
+          "id": "primary2",
+          "pins": ["p2a", "p2b"]
+        },
+        {
+          "id": "primary3",
+          "pins": ["p3a", "p3b"]
+        },
+        {
+          "id": "secondary1",
+          "pins": ["s1a", "s1b"]
+        },
+        {
+          "id": "secondary2",
+          "pins": ["s2a", "s2b"]
+        },
+        {
+          "id": "secondary3",
+          "pins": ["s3a", "s3b"]
+        }
+      ],
+      "parameters": [
+        {
+          "id": "turnsRatio",
+          "unit": "dimensionless",
+          "defaultValue": 2.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.transformerThreePhase.turnsRatio",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 100.0
+        },
+        {
+          "id": "primaryResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 1.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.transformerThreePhase.primaryResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "secondaryResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 1.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.transformerThreePhase.secondaryResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "primaryLeakageHenries",
+          "unit": "henry",
+          "defaultValue": 0.001,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.transformerThreePhase.primaryLeakage",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.00001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "secondaryLeakageHenries",
+          "unit": "henry",
+          "defaultValue": 0.001,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.transformerThreePhase.secondaryLeakage",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.00001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "magnetizingHenries",
+          "unit": "henry",
+          "defaultValue": 1.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.transformerThreePhase.magnetizing",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.00001,
+          "maximumValue": 10.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "three_phase_load_star",
+      "displayNameKey": "component.threePhaseLoadStar.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": ["component.threePhaseLoadStar.keywords"],
+      "pins": [
+        {
+          "id": "l1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "l2",
+          "role": "unpolarized"
+        },
+        {
+          "id": "l3",
+          "role": "unpolarized"
+        },
+        {
+          "id": "n",
+          "role": "unpolarized"
+        }
+      ],
+      "pinGroups": [
+        {
+          "id": "l1",
+          "pins": ["l1", "n"]
+        },
+        {
+          "id": "l2",
+          "pins": ["l2", "n"]
+        },
+        {
+          "id": "l3",
+          "pins": ["l3", "n"]
+        }
+      ],
+      "parameters": [
+        {
+          "id": "phase1ResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseLoadStar.phase1Resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "phase2ResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseLoadStar.phase2Resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "phase3ResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseLoadStar.phase3Resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "phase1InductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.0,
+          "domain": "non_negative",
+          "descriptionKey": "component.threePhaseLoadStar.phase1Inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "phase2InductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.0,
+          "domain": "non_negative",
+          "descriptionKey": "component.threePhaseLoadStar.phase2Inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "phase3InductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.0,
+          "domain": "non_negative",
+          "descriptionKey": "component.threePhaseLoadStar.phase3Inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 10.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "three_phase_load_delta",
+      "displayNameKey": "component.threePhaseLoadDelta.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": ["component.threePhaseLoadDelta.keywords"],
+      "pins": [
+        {
+          "id": "l1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "l2",
+          "role": "unpolarized"
+        },
+        {
+          "id": "l3",
+          "role": "unpolarized"
+        }
+      ],
+      "pinGroups": [
+        {
+          "id": "l12",
+          "pins": ["l1", "l2"]
+        },
+        {
+          "id": "l23",
+          "pins": ["l2", "l3"]
+        },
+        {
+          "id": "l31",
+          "pins": ["l3", "l1"]
+        }
+      ],
+      "parameters": [
+        {
+          "id": "phase1ResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseLoadDelta.phase1Resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "phase2ResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseLoadDelta.phase2Resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "phase3ResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 100.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.threePhaseLoadDelta.phase3Resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "phase1InductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.0,
+          "domain": "non_negative",
+          "descriptionKey": "component.threePhaseLoadDelta.phase1Inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "phase2InductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.0,
+          "domain": "non_negative",
+          "descriptionKey": "component.threePhaseLoadDelta.phase2Inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "phase3InductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.0,
+          "domain": "non_negative",
+          "descriptionKey": "component.threePhaseLoadDelta.phase3Inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 10.0
+        }
+      ],
+      "faultKinds": []
     }
   ],
   "categories": [

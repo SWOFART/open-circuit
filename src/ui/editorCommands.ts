@@ -60,6 +60,9 @@ export function liveParameterUpdate(
   return definition &&
     !definition.initialCondition &&
     component?.typeId !== "thermal_overload_three_pole" &&
+    component?.typeId !== "transformer_three_phase" &&
+    component?.typeId !== "three_phase_load_star" &&
+    component?.typeId !== "three_phase_load_delta" &&
     (component?.typeId !== "induction_motor_three_phase" ||
       parameterId === "loadTorqueNewtonMeters")
     ? { componentId, parameterId, value }

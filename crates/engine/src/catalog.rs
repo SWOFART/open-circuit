@@ -34,6 +34,9 @@ pub enum ComponentTypeId {
     BreakerThreePole,
     ThermalOverloadThreePole,
     InductionMotorThreePhase,
+    TransformerThreePhase,
+    ThreePhaseLoadStar,
+    ThreePhaseLoadDelta,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -77,6 +80,18 @@ pub enum PinId {
     U2,
     W1,
     W2,
+    P1a,
+    P1b,
+    P2a,
+    P2b,
+    P3a,
+    P3b,
+    S1a,
+    S1b,
+    S2a,
+    S2b,
+    S3a,
+    S3b,
 }
 
 impl PinId {
@@ -115,6 +130,18 @@ impl PinId {
             Self::U2 => "u2",
             Self::W1 => "w1",
             Self::W2 => "w2",
+            Self::P1a => "p1a",
+            Self::P1b => "p1b",
+            Self::P2a => "p2a",
+            Self::P2b => "p2b",
+            Self::P3a => "p3a",
+            Self::P3b => "p3b",
+            Self::S1a => "s1a",
+            Self::S1b => "s1b",
+            Self::S2a => "s2a",
+            Self::S2b => "s2b",
+            Self::S3a => "s3a",
+            Self::S3b => "s3b",
         }
     }
 }
@@ -155,6 +182,17 @@ pub enum ParameterId {
     RotorLeakageHenries,
     MagnetizingHenries,
     PolePairs,
+    TurnsRatio,
+    PrimaryResistanceOhms,
+    SecondaryResistanceOhms,
+    PrimaryLeakageHenries,
+    SecondaryLeakageHenries,
+    Phase1ResistanceOhms,
+    Phase2ResistanceOhms,
+    Phase3ResistanceOhms,
+    Phase1InductanceHenries,
+    Phase2InductanceHenries,
+    Phase3InductanceHenries,
     IntactResistanceOhms,
     TripI2tAmpereSquaredSeconds,
     ArmatureResistanceOhms,
@@ -1372,9 +1410,10 @@ pub fn component_catalog() -> ComponentCatalog {
     catalog
 }
 
-fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 4] {
+fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 7] {
     use crate::pin_groups::{
-        CONTACTOR_AUXILIARIES, CONTACTOR_COIL, INDUCTION_WINDINGS, POWER_POLES, PinGroup,
+        CONTACTOR_AUXILIARIES, CONTACTOR_COIL, DELTA_LOAD_WINDINGS, INDUCTION_WINDINGS,
+        POWER_POLES, PinGroup, STAR_LOAD_WINDINGS, TRANSFORMER_WINDINGS,
     };
     use ParameterId::*;
 
@@ -1385,18 +1424,24 @@ fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 4] {
             ComponentTypeId::BreakerThreePole | ComponentTypeId::ThermalOverloadThreePole => {
                 CategoryId::Protection
             }
-            ComponentTypeId::InductionMotorThreePhase => CategoryId::MotorsAndLoads,
+            ComponentTypeId::InductionMotorThreePhase
+            | ComponentTypeId::TransformerThreePhase
+            | ComponentTypeId::ThreePhaseLoadStar
+            | ComponentTypeId::ThreePhaseLoadDelta => CategoryId::MotorsAndLoads,
             _ => CategoryId::Switching,
         },
         search_keyword_keys: vec![format!("component.{name}.keywords")],
-        pins: groups
-            .iter()
-            .flat_map(|group| group.pins)
-            .map(|id| PinDefinition {
-                id,
-                role: PinRole::Unpolarized,
-            })
-            .collect(),
+        pins: match type_id {
+            ComponentTypeId::ThreePhaseLoadStar => vec![PinId::L1, PinId::L2, PinId::L3, PinId::N],
+            ComponentTypeId::ThreePhaseLoadDelta => vec![PinId::L1, PinId::L2, PinId::L3],
+            _ => groups.iter().flat_map(|group| group.pins).collect(),
+        }
+        .into_iter()
+        .map(|id| PinDefinition {
+            id,
+            role: PinRole::Unpolarized,
+        })
+        .collect(),
         pin_groups: Some(
             groups
                 .iter()
@@ -1422,6 +1467,73 @@ fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 4] {
             maximum_value: Some(max),
         };
     let motor = "inductionMotorThreePhase";
+    let transformer = "transformerThreePhase";
+    let load_entry = |type_id, name, windings: [PinGroup; 3]| {
+        let parameters = [
+            (
+                "phase1Resistance",
+                Phase1ResistanceOhms,
+                Unit::Ohm,
+                0.001,
+                1_000_000.0,
+                100.0,
+                NumericDomain::StrictlyPositive,
+            ),
+            (
+                "phase2Resistance",
+                Phase2ResistanceOhms,
+                Unit::Ohm,
+                0.001,
+                1_000_000.0,
+                100.0,
+                NumericDomain::StrictlyPositive,
+            ),
+            (
+                "phase3Resistance",
+                Phase3ResistanceOhms,
+                Unit::Ohm,
+                0.001,
+                1_000_000.0,
+                100.0,
+                NumericDomain::StrictlyPositive,
+            ),
+            (
+                "phase1Inductance",
+                Phase1InductanceHenries,
+                Unit::Henry,
+                0.0,
+                10.0,
+                0.0,
+                NumericDomain::NonNegative,
+            ),
+            (
+                "phase2Inductance",
+                Phase2InductanceHenries,
+                Unit::Henry,
+                0.0,
+                10.0,
+                0.0,
+                NumericDomain::NonNegative,
+            ),
+            (
+                "phase3Inductance",
+                Phase3InductanceHenries,
+                Unit::Henry,
+                0.0,
+                10.0,
+                0.0,
+                NumericDomain::NonNegative,
+            ),
+        ]
+        .map(
+            |(key, id, unit, min, max, default, domain)| ParameterDefinition {
+                domain,
+                ..parameter(name, key, id, unit, min, max, default)
+            },
+        )
+        .to_vec();
+        entry(type_id, name, windings.to_vec(), parameters)
+    };
     let contactor = "contactorThreePole";
     let breaker = "breakerThreePole";
     let closed_resistance = |name| {
@@ -1682,6 +1794,75 @@ fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 4] {
                 },
             )
             .to_vec(),
+        ),
+        entry(
+            ComponentTypeId::TransformerThreePhase,
+            transformer,
+            TRANSFORMER_WINDINGS.to_vec(),
+            [
+                (
+                    "turnsRatio",
+                    TurnsRatio,
+                    Unit::Dimensionless,
+                    0.01,
+                    100.0,
+                    2.0,
+                ),
+                (
+                    "primaryResistance",
+                    PrimaryResistanceOhms,
+                    Unit::Ohm,
+                    0.001,
+                    10_000.0,
+                    1.0,
+                ),
+                (
+                    "secondaryResistance",
+                    SecondaryResistanceOhms,
+                    Unit::Ohm,
+                    0.001,
+                    10_000.0,
+                    1.0,
+                ),
+                (
+                    "primaryLeakage",
+                    PrimaryLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.001,
+                ),
+                (
+                    "secondaryLeakage",
+                    SecondaryLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.001,
+                ),
+                (
+                    "magnetizing",
+                    MagnetizingHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    1.0,
+                ),
+            ]
+            .map(|(key, id, unit, min, max, default)| {
+                parameter(transformer, key, id, unit, min, max, default)
+            })
+            .to_vec(),
+        ),
+        load_entry(
+            ComponentTypeId::ThreePhaseLoadStar,
+            "threePhaseLoadStar",
+            STAR_LOAD_WINDINGS,
+        ),
+        load_entry(
+            ComponentTypeId::ThreePhaseLoadDelta,
+            "threePhaseLoadDelta",
+            DELTA_LOAD_WINDINGS,
         ),
     ]
 }

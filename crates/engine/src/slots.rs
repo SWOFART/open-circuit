@@ -231,6 +231,23 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 ),
             ])
             .collect(),
+        ComponentTypeId::TransformerThreePhase => crate::pin_groups::TRANSFORMER_WINDINGS
+            .into_iter()
+            .flat_map(group_slots)
+            .collect(),
+        ComponentTypeId::ThreePhaseLoadStar => crate::pin_groups::STAR_LOAD_WINDINGS
+            .into_iter()
+            .flat_map(group_slots)
+            .chain([slot(Current, Unit::Amp, '/', "n/current", CurrentIntoPin1)])
+            .collect(),
+        ComponentTypeId::ThreePhaseLoadDelta => crate::pin_groups::DELTA_LOAD_WINDINGS
+            .into_iter()
+            .flat_map(group_slots)
+            .chain(
+                ["l1/current", "l2/current", "l3/current"]
+                    .map(|name| slot(Current, Unit::Amp, '/', name, CurrentIntoPin1)),
+            )
+            .collect(),
         ComponentTypeId::PmdcMotor => vec![
             voltage,
             current,

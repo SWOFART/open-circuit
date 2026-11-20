@@ -16,6 +16,7 @@ mod resistor;
 mod source;
 mod switchgear;
 mod wattmeter;
+mod windings;
 
 use crate::{DeviceState, Diagnostic, StableId};
 
@@ -37,6 +38,7 @@ pub(crate) use switchgear::{
     BreakerDevice, BreakerState, OverloadDevice, OverloadState, coil_contact_state, detector_step,
 };
 pub(crate) use wattmeter::WattmeterDevice;
+pub(crate) use windings::{Winding, WindingDevice, WindingHistory, WindingMode, WindingNetwork};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Terminals {

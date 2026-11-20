@@ -35,6 +35,15 @@ block per bank. A magnetically coupled bank keeps both winding equations
 in the solve even when the primary and secondary have separate electrical
 references. Reference fixing depends on galvanic connectivity.
 
+The transformer and R–L loads seed their winding currents during the
+operating-point solve. A zero-inductance load branch remains algebraic.
+Transient solves use a coupled inductance block for each transformer
+bank and scalar companion equations for the dynamic load branches.
+Same-time updates hold the stored currents fixed. If opening a path
+would leave those currents without a return, the candidate is refused.
+The rate estimator includes the coupled blocks and their driving
+resistance after eliminating the algebraic network.
+
 For the motor use the same endpoint residual on each derivative in §4 of
 the contract. In the stator KCL rows transform the three computed current
 coordinates back to the six terminals. At the right endpoint the

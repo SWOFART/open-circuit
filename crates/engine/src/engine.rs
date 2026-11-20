@@ -30,7 +30,10 @@ use crate::{
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
     operator::OperatorState,
-    pin_groups::{CONTACTOR_AUXILIARIES, INDUCTION_WINDINGS, POWER_POLES},
+    pin_groups::{
+        CONTACTOR_AUXILIARIES, DELTA_LOAD_WINDINGS, INDUCTION_WINDINGS, POWER_POLES, PinGroup,
+        STAR_LOAD_WINDINGS, TRANSFORMER_WINDINGS,
+    },
     slots::slot_definitions,
 };
 use trace::TraceHistory;
@@ -197,6 +200,7 @@ enum DeviceModel {
         windings: [Terminals; 3],
         parameters: MotorParameters,
     },
+    Windings(crate::devices::WindingNetwork),
     PmdcMotor {
         armature_resistance_ohms: f64,
         armature_inductance_henries: f64,
@@ -1039,10 +1043,15 @@ fn initialize_circuit(
         || motors
             .iter()
             .any(|(_, _, _, initial_current)| initial_current.is_none())
-        || schematic
-            .components
-            .iter()
-            .any(|component| matches!(component, ComponentSpec::ContactorThreePole { .. }));
+        || schematic.components.iter().any(|component| {
+            matches!(
+                component,
+                ComponentSpec::ContactorThreePole { .. }
+                    | ComponentSpec::TransformerThreePhase { .. }
+                    | ComponentSpec::ThreePhaseLoadStar { .. }
+                    | ComponentSpec::ThreePhaseLoadDelta { .. }
+            )
+        });
     let needs_operating_point = has_explicit_initial_state && has_uninitialized_state;
     let mut diagnostics = Vec::new();
     let mut states = CircuitStates::default();
@@ -1095,7 +1104,9 @@ fn initialize_circuit(
         }
     }
 
+    let winding_history = std::mem::take(&mut states.solver_memory.windings);
     states.solver_memory = crate::newton::SolverMemory::default();
+    states.solver_memory.windings = winding_history;
     let (mut results, initial_diagnostics, memory) = if has_explicit_initial_state {
         compute_circuit(schematic, geometry, open, SolveMode::InitialState(&states))?
     } else {
@@ -1218,6 +1229,7 @@ fn compute_circuit(
         let mut three_phase_ideal_branch_variables = HashMap::new();
         let mut motor_speed_variables = HashMap::new();
         let mut induction_variables = HashMap::new();
+        let mut winding_variables = HashMap::new();
         let mut next_variable = variables.voltage_variable_count();
         for spec in &island_specs {
             let ideal_source = matches!(
@@ -1272,11 +1284,34 @@ fn compute_circuit(
                 );
                 next_variable += 6;
             }
+            if let DeviceModel::Windings(network) = spec.model
+                && matches!(mode, SolveMode::Transient { .. })
+            {
+                let mut indices = [0; 6];
+                for (index, winding) in network.windings().iter().enumerate() {
+                    if winding.inductance > 0.0 {
+                        indices[index] = next_variable;
+                        next_variable += 1;
+                    }
+                }
+                winding_variables.insert(spec.component_id.clone(), indices);
+            }
         }
 
         let devices = island_specs
             .iter()
             .map(|spec| -> Box<dyn Device> {
+                if let DeviceModel::Windings(network) = spec.model {
+                    return Box::new(crate::devices::WindingDevice {
+                        id: spec.component_id.clone(),
+                        network,
+                        mode: winding_mode(
+                            mode,
+                            &spec.component_id,
+                            winding_variables.get(&spec.component_id).copied(),
+                        ),
+                    });
+                }
                 if let DeviceModel::InductionMotor {
                     windings,
                     parameters,
@@ -1361,6 +1396,19 @@ fn compute_circuit(
             tolerances[indices[5]].update = crate::newton::NEWTON_SPEED_ABSTOL;
             tolerances[indices[5]].residual = crate::newton::NEWTON_SPEED_ABSTOL;
         }
+        for spec in &island_specs {
+            if let DeviceModel::Windings(network) = spec.model
+                && let Some(indices) = winding_variables.get(&spec.component_id)
+                && let Some(history) =
+                    previous_memory.and_then(|memory| memory.windings.get(&spec.component_id))
+            {
+                for (i, winding) in network.windings().iter().enumerate() {
+                    if winding.inductance > 0.0 {
+                        initial[indices[i]] = history.currents[i];
+                    }
+                }
+            }
+        }
         for node in &island.node_indices {
             if let Some(i) = variables.voltage_variable(*node) {
                 initial[i] = previous_memory
@@ -1418,6 +1466,21 @@ fn compute_circuit(
             memory.nodes.insert(node, node_voltages[node]);
         }
         for spec in &island_specs {
+            if let DeviceModel::Windings(network) = spec.model {
+                let device = crate::devices::WindingDevice {
+                    id: spec.component_id.clone(),
+                    network,
+                    mode: winding_mode(
+                        mode,
+                        &spec.component_id,
+                        winding_variables.get(&spec.component_id).copied(),
+                    ),
+                };
+                memory.windings.insert(
+                    spec.component_id.clone(),
+                    device.history(&node_voltages, &solution),
+                );
+            }
             if let DeviceModel::InductionMotor { windings, .. } = spec.model {
                 let state = induction_variables
                     .get(&spec.component_id)
@@ -1701,6 +1764,14 @@ fn local_adjacency(
                     }
                 }
             }
+            DeviceModel::Windings(network) => {
+                let fixed = matches!(mode, SolveMode::InitialState(states) if states.solver_memory.windings.contains_key(&spec.component_id));
+                for winding in network.windings() {
+                    if !fixed || winding.inductance == 0.0 {
+                        connect(winding.terminals.pin1, winding.terminals.pin2);
+                    }
+                }
+            }
             DeviceModel::Capacitor { .. } | DeviceModel::Inductor { .. } => {}
         }
     }
@@ -1793,6 +1864,12 @@ fn build_device_specs(
             (PinId::L1, PinId::T1)
         } else if matches!(component, ComponentSpec::InductionMotorThreePhase { .. }) {
             (PinId::U1, PinId::U2)
+        } else if matches!(component, ComponentSpec::TransformerThreePhase { .. }) {
+            (PinId::P1a, PinId::P1b)
+        } else if matches!(component, ComponentSpec::ThreePhaseLoadStar { .. }) {
+            (PinId::L1, PinId::N)
+        } else if matches!(component, ComponentSpec::ThreePhaseLoadDelta { .. }) {
+            (PinId::L1, PinId::L2)
         } else {
             (PinId::Pin1, PinId::Pin2)
         };
@@ -2190,6 +2267,68 @@ fn build_device_specs(
                     },
                 }
             }
+            ComponentSpec::TransformerThreePhase { parameters, .. } => {
+                let ratio = parameters.turns_ratio;
+                let lm = parameters.magnetizing_henries;
+                let Some(windings) = resolve_windings(
+                    TRANSFORMER_WINDINGS,
+                    node_for_pin,
+                    std::array::from_fn(|i| {
+                        if i < 3 {
+                            parameters.primary_resistance_ohms
+                        } else {
+                            parameters.secondary_resistance_ohms
+                        }
+                    }),
+                    std::array::from_fn(|i| {
+                        if i < 3 {
+                            parameters.primary_leakage_henries + lm
+                        } else {
+                            parameters.secondary_leakage_henries + lm / ratio.powi(2)
+                        }
+                    }),
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Windings(crate::devices::WindingNetwork::Transformer {
+                    windings,
+                    mutual_inductance: lm / ratio,
+                })
+            }
+            ComponentSpec::ThreePhaseLoadStar { parameters, .. }
+            | ComponentSpec::ThreePhaseLoadDelta { parameters, .. } => {
+                let delta = matches!(component, ComponentSpec::ThreePhaseLoadDelta { .. });
+                let groups = if delta {
+                    DELTA_LOAD_WINDINGS
+                } else {
+                    STAR_LOAD_WINDINGS
+                };
+                let Some(windings) = resolve_windings(
+                    groups,
+                    node_for_pin,
+                    [
+                        parameters.phase1_resistance_ohms,
+                        parameters.phase2_resistance_ohms,
+                        parameters.phase3_resistance_ohms,
+                    ],
+                    [
+                        parameters.phase1_inductance_henries,
+                        parameters.phase2_inductance_henries,
+                        parameters.phase3_inductance_henries,
+                    ],
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Windings(crate::devices::WindingNetwork::Load { windings, delta })
+            }
         };
         specs.push(DeviceSpec {
             component_id: component.id().clone(),
@@ -2213,6 +2352,60 @@ fn resolve_power_poles(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<
         })
     });
     Some([p1?, p2?, p3?])
+}
+
+fn resolve_windings<const N: usize>(
+    groups: [PinGroup; N],
+    node_for_pin: impl Fn(PinId) -> Option<usize>,
+    resistances: [f64; N],
+    inductances: [f64; N],
+) -> Option<[crate::devices::Winding; N]> {
+    let windings = groups
+        .into_iter()
+        .zip(resistances)
+        .zip(inductances)
+        .map(|((group, resistance), inductance)| {
+            Some(crate::devices::Winding {
+                terminals: group.resolve(&node_for_pin)?,
+                resistance,
+                inductance,
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+    windings.try_into().ok()
+}
+
+fn winding_mode(
+    mode: SolveMode<'_>,
+    id: &StableId,
+    variables: Option<[usize; 6]>,
+) -> crate::devices::WindingMode {
+    use crate::devices::WindingMode;
+    match mode {
+        SolveMode::OperatingPoint => WindingMode::OperatingPoint,
+        SolveMode::InitialState(states) => states
+            .solver_memory
+            .windings
+            .get(id)
+            .copied()
+            .map_or(WindingMode::OperatingPoint, WindingMode::Initial),
+        SolveMode::Transient {
+            states,
+            step_seconds,
+            integration_method,
+            ..
+        } => WindingMode::Transient {
+            history: states
+                .solver_memory
+                .windings
+                .get(id)
+                .copied()
+                .unwrap_or_default(),
+            step_seconds,
+            integration: integration_method,
+            variables: variables.expect("transient winding variables"),
+        },
+    }
 }
 
 fn resolve_auxiliaries(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<[LinkedPole; 2]> {
@@ -2549,7 +2742,7 @@ fn make_device(
             contact_resistance,
             state: overload_state(mode, &spec.component_id),
         }),
-        DeviceModel::InductionMotor { .. } => {
+        DeviceModel::InductionMotor { .. } | DeviceModel::Windings(_) => {
             unreachable!("induction motors allocate coupled variables in the island")
         }
         DeviceModel::Fuse {
@@ -2876,12 +3069,23 @@ fn check_initial_state_constraints(
                 ))
             })
             .collect::<Vec<_>>();
-        let mut adjacency = if fixed_motors.is_empty() {
+        let fixed_windings = island_specs
+            .iter()
+            .filter_map(|spec| {
+                let DeviceModel::Windings(network) = spec.model else {
+                    return None;
+                };
+                let history = states.solver_memory.windings.get(&spec.component_id)?;
+                Some((spec.component_id.clone(), network, *history))
+            })
+            .collect::<Vec<_>>();
+        let has_grouped_fixed_currents = !fixed_motors.is_empty() || !fixed_windings.is_empty();
+        let mut adjacency = if !has_grouped_fixed_currents {
             vec![Vec::<usize>::new(); node_count]
         } else {
             local_adjacency(&island_specs, SolveMode::InitialState(states), node_count)
         };
-        for spec in island_specs.iter().filter(|_| fixed_motors.is_empty()) {
+        for spec in island_specs.iter().filter(|_| !has_grouped_fixed_currents) {
             if !matches!(
                 spec.model,
                 DeviceModel::Inductor { .. } | DeviceModel::PmdcMotor { .. }
@@ -2931,6 +3135,13 @@ fn check_initial_state_constraints(
                 inject(*winding, *current);
             }
         }
+        for (_, network, history) in &fixed_windings {
+            for (winding, current) in network.windings().iter().zip(history.currents) {
+                if winding.inductance > 0.0 {
+                    inject(winding.terminals, current);
+                }
+            }
+        }
         for spec in &island_specs {
             let current_amps = match spec.model {
                 DeviceModel::Inductor { .. } => states
@@ -2942,7 +3153,7 @@ fn check_initial_state_constraints(
                     .get(&spec.component_id)
                     .map(|state| state.armature_current_amps),
                 DeviceModel::RelaySpdt { .. } | DeviceModel::Contactor { .. }
-                    if !fixed_motors.is_empty() =>
+                    if has_grouped_fixed_currents =>
                 {
                     states
                         .relays
@@ -2966,6 +3177,21 @@ fn check_initial_state_constraints(
                             && ((groups[winding.pin1] == group) != (groups[winding.pin2] == group))
                     }) {
                         conflicting_explicit_states.insert((*id).clone());
+                    }
+                }
+                for (id, network, history) in &fixed_windings {
+                    if network
+                        .windings()
+                        .iter()
+                        .zip(history.currents)
+                        .any(|(winding, current)| {
+                            winding.inductance > 0.0
+                                && current.abs() > tolerance
+                                && ((groups[winding.terminals.pin1] == group)
+                                    != (groups[winding.terminals.pin2] == group))
+                        })
+                    {
+                        conflicting_explicit_states.insert(id.clone());
                     }
                 }
                 // Only explicit inductor states crossing the unbalanced cut
@@ -3295,7 +3521,10 @@ pub(crate) fn update_parameter(
             ParameterId::InstantaneousTripAmps => parameters.instantaneous_trip_amps = value,
             _ => return false,
         },
-        ComponentSpec::ThermalOverloadThreePole { .. } => return false,
+        ComponentSpec::ThermalOverloadThreePole { .. }
+        | ComponentSpec::TransformerThreePhase { .. }
+        | ComponentSpec::ThreePhaseLoadStar { .. }
+        | ComponentSpec::ThreePhaseLoadDelta { .. } => return false,
         ComponentSpec::InductionMotorThreePhase { parameters, .. } => match parameter_id {
             ParameterId::LoadTorqueNewtonMeters => parameters.load_torque_newton_meters = value,
             _ => return false,

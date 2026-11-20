@@ -66,3 +66,58 @@ pub(crate) const INDUCTION_WINDINGS: [PinGroup; 3] = [
         pins: [PinId::W1, PinId::W2],
     },
 ];
+
+pub(crate) const TRANSFORMER_WINDINGS: [PinGroup; 6] = [
+    PinGroup {
+        id: "primary1",
+        pins: [PinId::P1a, PinId::P1b],
+    },
+    PinGroup {
+        id: "primary2",
+        pins: [PinId::P2a, PinId::P2b],
+    },
+    PinGroup {
+        id: "primary3",
+        pins: [PinId::P3a, PinId::P3b],
+    },
+    PinGroup {
+        id: "secondary1",
+        pins: [PinId::S1a, PinId::S1b],
+    },
+    PinGroup {
+        id: "secondary2",
+        pins: [PinId::S2a, PinId::S2b],
+    },
+    PinGroup {
+        id: "secondary3",
+        pins: [PinId::S3a, PinId::S3b],
+    },
+];
+pub(crate) const STAR_LOAD_WINDINGS: [PinGroup; 3] = [
+    PinGroup {
+        id: "l1",
+        pins: [PinId::L1, PinId::N],
+    },
+    PinGroup {
+        id: "l2",
+        pins: [PinId::L2, PinId::N],
+    },
+    PinGroup {
+        id: "l3",
+        pins: [PinId::L3, PinId::N],
+    },
+];
+pub(crate) const DELTA_LOAD_WINDINGS: [PinGroup; 3] = [
+    PinGroup {
+        id: "l12",
+        pins: [PinId::L1, PinId::L2],
+    },
+    PinGroup {
+        id: "l23",
+        pins: [PinId::L2, PinId::L3],
+    },
+    PinGroup {
+        id: "l31",
+        pins: [PinId::L3, PinId::L1],
+    },
+];

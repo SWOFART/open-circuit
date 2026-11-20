@@ -77,6 +77,9 @@ describe("the drawer list", () => {
       "pmdc_motor",
       "induction_motor_three_phase",
       "thermal_overload_three_pole",
+      "transformer_three_phase",
+      "three_phase_load_star",
+      "three_phase_load_delta",
     ]);
     expect(view.items).toEqual(view.results);
   });

@@ -1031,3 +1031,428 @@ impl MotorReference {
         }
     }
 }
+
+#[derive(Clone, Copy)]
+struct Phasor(f64, f64);
+
+impl Phasor {
+    fn plus(self, other: Self) -> Self {
+        Self(self.0 + other.0, self.1 + other.1)
+    }
+    fn minus(self, other: Self) -> Self {
+        Self(self.0 - other.0, self.1 - other.1)
+    }
+    fn times(self, other: Self) -> Self {
+        Self(
+            self.0 * other.0 - self.1 * other.1,
+            self.0 * other.1 + self.1 * other.0,
+        )
+    }
+    fn over(self, other: Self) -> Self {
+        let norm = other.0.powi(2) + other.1.powi(2);
+        self.times(Self(other.0 / norm, -other.1 / norm))
+    }
+}
+
+fn ac_source(frequency: f64) -> Value {
+    json!({"phaseVoltageRmsVolts":48,"frequencyHz":frequency,"phaseOffsetDegrees":0,
+        "internalResistanceOhms":0,"reversedSequence":0})
+}
+
+fn phase_phasors() -> [Phasor; 3] {
+    [0.0, -1.0, 1.0].map(|thirds| {
+        let theta = thirds * std::f64::consts::TAU / 3.0;
+        Phasor(48.0 * theta.cos(), 48.0 * theta.sin())
+    })
+}
+
+fn load_values(inductive: bool) -> Value {
+    let scale = f64::from(inductive);
+    json!({
+        "phase1ResistanceOhms":10, "phase2ResistanceOhms":16, "phase3ResistanceOhms":24,
+        "phase1InductanceHenries":0.005 * scale, "phase2InductanceHenries":0.009 * scale,
+        "phase3InductanceHenries":0.015 * scale
+    })
+}
+
+fn transformer_values() -> Value {
+    json!({"turnsRatio":2,"primaryResistanceOhms":2,"secondaryResistanceOhms":1,
+        "primaryLeakageHenries":0.004,"secondaryLeakageHenries":0.006,"magnetizingHenries":0.05})
+}
+
+fn compare_phasors(run: &mut Run, frequency: f64, slots: &[(usize, &str, Phasor)]) {
+    // Fit sine and cosine coefficients over 100 ms, an integer number of
+    // periods at both reference frequencies.
+    let mut fits = vec![[0.0; 2]; slots.len()];
+    for _ in 0..100 {
+        run.advance(1);
+        let angle =
+            std::f64::consts::TAU * frequency * run.snapshot.metadata.simulation_time_seconds;
+        for ((part, path, _), [re, im]) in slots.iter().zip(&mut fits) {
+            let value = run.value(*part, path) / 2.0_f64.sqrt();
+            *re += value * angle.sin() / 50.0;
+            *im += value * angle.cos() / 50.0;
+        }
+    }
+    for ((_, path, expected), [re, im]) in slots.iter().zip(fits) {
+        let expected_rms = expected.0.hypot(expected.1);
+        assert!(
+            (re.hypot(im) - expected_rms).abs() <= (0.005 * expected_rms).max(1e-8),
+            "{frequency} Hz {path}: actual ({re}, {im}), expected ({}, {})",
+            expected.0,
+            expected.1
+        );
+        if expected_rms > 1e-8 {
+            let dot = re * expected.0 + im * expected.1;
+            let cross = im * expected.0 - re * expected.1;
+            assert!(
+                cross.atan2(dot).abs().to_degrees() <= 0.3,
+                "{frequency} Hz {path}: phase"
+            );
+        }
+    }
+}
+
+#[test]
+fn unbalanced_star_and_delta_loads_match_phasors_and_terminal_kcl() {
+    for frequency in [50.0, 60.0] {
+        let omega = std::f64::consts::TAU * frequency;
+        let phases = phase_phasors();
+        for (delta, floating, inductive) in [
+            (false, false, true),
+            (false, true, true),
+            (true, false, false),
+            (true, false, true),
+        ] {
+            let mut pins = vec![("l1", 1), ("l2", 2), ("l3", 3)];
+            if !delta {
+                pins.push(("n", if floating { 4 } else { 0 }));
+            }
+            let mut run = Run::compile(request(&[
+                (
+                    "three_phase_source_star",
+                    ac_source(frequency),
+                    &[("l1", 1), ("l2", 2), ("l3", 3), ("n", 0)],
+                ),
+                (
+                    if delta {
+                        "three_phase_load_delta"
+                    } else {
+                        "three_phase_load_star"
+                    },
+                    load_values(inductive),
+                    &pins,
+                ),
+            ]));
+            let z = [10.0, 16.0, 24.0]
+                .into_iter()
+                .zip([0.005, 0.009, 0.015])
+                .map(|(r, l)| Phasor(r, omega * l * f64::from(inductive)))
+                .collect::<Vec<_>>();
+            let sum = |values: [Phasor; 3]| values.into_iter().fold(Phasor(0.0, 0.0), Phasor::plus);
+            let neutral = if floating {
+                sum(std::array::from_fn(|i| phases[i].over(z[i])))
+                    .over(sum(std::array::from_fn(|i| Phasor(1.0, 0.0).over(z[i]))))
+            } else {
+                Phasor(0.0, 0.0)
+            };
+            let voltages: [Phasor; 3] = std::array::from_fn(|i| {
+                phases[i].minus(if delta { phases[(i + 1) % 3] } else { neutral })
+            });
+            let currents: [Phasor; 3] = std::array::from_fn(|i| voltages[i].over(z[i]));
+            let mut slots = Vec::new();
+            let paths = if delta {
+                [
+                    ("l12/voltage", "l12/current"),
+                    ("l23/voltage", "l23/current"),
+                    ("l31/voltage", "l31/current"),
+                ]
+            } else {
+                [
+                    ("l1/voltage", "l1/current"),
+                    ("l2/voltage", "l2/current"),
+                    ("l3/voltage", "l3/current"),
+                ]
+            };
+            for (i, (voltage, current)) in paths.into_iter().enumerate() {
+                slots.push((1, voltage, voltages[i]));
+                slots.push((1, current, currents[i]));
+            }
+            if delta {
+                for (i, path) in ["l1/current", "l2/current", "l3/current"]
+                    .into_iter()
+                    .enumerate()
+                {
+                    slots.push((1, path, currents[i].minus(currents[(i + 2) % 3])));
+                }
+            } else {
+                slots.push((1, "n/current", Phasor(0.0, 0.0).minus(sum(currents))));
+            }
+            run.advance(80);
+            compare_phasors(&mut run, frequency, &slots);
+        }
+    }
+}
+
+#[test]
+fn transformer_no_load_and_unbalanced_secondary_match_the_coupled_phasors() {
+    for frequency in [50.0, 60.0] {
+        for (loaded, linked_reference) in [(false, false), (true, false), (true, true)] {
+            let mut parts: Vec<Part<'_>> = vec![
+                (
+                    "three_phase_source_star",
+                    ac_source(frequency),
+                    &[("l1", 1), ("l2", 2), ("l3", 3), ("n", 0)],
+                ),
+                (
+                    "transformer_three_phase",
+                    transformer_values(),
+                    &[
+                        ("p1a", 1),
+                        ("p1b", 0),
+                        ("p2a", 2),
+                        ("p2b", 0),
+                        ("p3a", 3),
+                        ("p3b", 0),
+                        ("s1a", 4),
+                        ("s1b", 7),
+                        ("s2a", 5),
+                        ("s2b", 7),
+                        ("s3a", 6),
+                        ("s3b", 7),
+                    ],
+                ),
+            ];
+            let tied_secondary = [("l1", 4), ("l2", 5), ("l3", 6), ("n", 0)];
+            let floating_secondary = [("l1", 4), ("l2", 5), ("l3", 6), ("n", 7)];
+            if loaded {
+                parts.push((
+                    "three_phase_load_star",
+                    load_values(true),
+                    if linked_reference {
+                        &tied_secondary
+                    } else {
+                        &floating_secondary
+                    },
+                ));
+            }
+            let mut fixture = request(&parts);
+            if linked_reference {
+                for pin in &mut fixture.geometry.components[1].pins {
+                    if pin.position.x == 7 {
+                        pin.position.x = 0;
+                    }
+                }
+            }
+            let mut run = Run::compile(fixture);
+            let omega = std::f64::consts::TAU * frequency;
+            let zp = Phasor(2.0, omega * 0.054);
+            let zs = Phasor(1.0, omega * 0.0185);
+            let zm = Phasor(0.0, omega * 0.025);
+            let mut slots = Vec::new();
+            let phases = phase_phasors();
+            for (i, (primary, secondary, output)) in [
+                (
+                    "primary1/current",
+                    "secondary1/current",
+                    "secondary1/voltage",
+                ),
+                (
+                    "primary2/current",
+                    "secondary2/current",
+                    "secondary2/voltage",
+                ),
+                (
+                    "primary3/current",
+                    "secondary3/current",
+                    "secondary3/voltage",
+                ),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let load = Phasor([10.0, 16.0, 24.0][i], omega * [0.005, 0.009, 0.015][i]);
+                let (ip, is, vs) = if loaded {
+                    let total = zs.plus(load);
+                    let ip = phases[i].over(zp.minus(zm.times(zm).over(total)));
+                    let is = Phasor(0.0, 0.0).minus(zm.times(ip).over(total));
+                    (ip, is, Phasor(0.0, 0.0).minus(is.times(load)))
+                } else {
+                    let ip = phases[i].over(zp);
+                    (ip, Phasor(0.0, 0.0), zm.times(ip))
+                };
+                slots.extend([(1, primary, ip), (1, secondary, is), (1, output, vs)]);
+            }
+            run.advance(400);
+            compare_phasors(&mut run, frequency, &slots);
+        }
+    }
+}
+
+#[test]
+fn three_phase_load_preserves_the_dc_seeded_current_under_an_explicit_capacitor_voltage() {
+    let parts = [
+        (
+            "three_phase_load_star",
+            load_values(true),
+            &[("l1", 1), ("l2", 0), ("l3", 0), ("n", 0)][..],
+        ),
+        (
+            "dc_voltage_source",
+            json!({"voltageVolts":24,"internalResistanceOhms":2}),
+            &[("pin1", 1), ("pin2", 0)][..],
+        ),
+        (
+            "capacitor",
+            json!({"capacitanceFarads":0.001,"initialVoltageVolts":0}),
+            &[("pin1", 1), ("pin2", 0)][..],
+        ),
+    ];
+    let fixture = request(&parts);
+    let run = Run::compile(fixture.clone());
+    assert_eq!(run.value(0, "l1/voltage"), 0.0);
+    assert!((run.value(0, "l1/current") - 2.0).abs() < 1e-12);
+    assert!((run.value(0, "n/current") + 2.0).abs() < 1e-12);
+
+    let mut invalid = fixture;
+    let open_circuit_engine::ComponentSpec::ThreePhaseLoadStar { parameters, .. } =
+        &mut invalid.schematic.components[0]
+    else {
+        unreachable!()
+    };
+    parameters.phase1_inductance_henries = -0.1;
+    let CompileResult::Failure { diagnostics } = Engine::default().compile(invalid) else {
+        panic!("negative winding inductance cannot compile");
+    };
+    let id = StableId::parse(id(0)).unwrap();
+    assert!(diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == DiagnosticCode::InvalidParameter
+            && diagnostic.references.iter().any(|reference| matches!(reference,
+                open_circuit_engine::DiagnosticReference::Component { component_id } if *component_id == id
+            ))
+    }));
+}
+
+const SINGLE_BANK_TERMINALS: &[(&str, i32)] = &[
+    ("p1a", 1),
+    ("p1b", 0),
+    ("p2a", 0),
+    ("p2b", 0),
+    ("p3a", 0),
+    ("p3b", 0),
+    ("s1a", 4),
+    ("s1b", 5),
+    ("s2a", 5),
+    ("s2b", 5),
+    ("s3a", 5),
+    ("s3b", 5),
+];
+
+#[test]
+fn transformer_preserves_its_dc_seed_during_constrained_initialization() {
+    let run = Run::compile(request(&[
+        (
+            "transformer_three_phase",
+            transformer_values(),
+            SINGLE_BANK_TERMINALS,
+        ),
+        (
+            "dc_voltage_source",
+            json!({"voltageVolts":24,"internalResistanceOhms":2}),
+            &[("pin1", 1), ("pin2", 0)],
+        ),
+        (
+            "capacitor",
+            json!({"capacitanceFarads":0.001,"initialVoltageVolts":0}),
+            &[("pin1", 1), ("pin2", 0)],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":10}),
+            &[("pin1", 4), ("pin2", 5)],
+        ),
+    ]));
+    assert_eq!(run.value(0, "primary1/voltage"), 0.0);
+    assert!((run.value(0, "primary1/current") - 6.0).abs() < 1e-12);
+    assert_eq!(run.value(0, "secondary1/current"), 0.0);
+}
+
+#[test]
+fn transformer_opening_preserves_both_currents_and_recovers_with_the_coupled_matrix() {
+    let fixture = request(&[
+        (
+            "transformer_three_phase",
+            transformer_values(),
+            SINGLE_BANK_TERMINALS,
+        ),
+        (
+            "dc_voltage_source",
+            json!({"voltageVolts":24,"internalResistanceOhms":0}),
+            &[("pin1", 2), ("pin2", 0)],
+        ),
+        (
+            "breaker_three_pole",
+            json!({"closedContactResistanceOhms":0.01,"instantaneousTripAmps":1000,"initialClosed":1}),
+            &[
+                ("l1", 2),
+                ("t1", 1),
+                ("l2", 0),
+                ("t2", 0),
+                ("l3", 0),
+                ("t3", 0),
+            ],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":5}),
+            &[("pin1", 1), ("pin2", 0)],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":10}),
+            &[("pin1", 4), ("pin2", 5)],
+        ),
+    ]);
+    let mut run = Run::compile(fixture);
+    run.advance(1);
+    let time = run.snapshot.metadata.simulation_time_seconds;
+    let mut expected = [
+        run.value(0, "primary1/current"),
+        run.value(0, "secondary1/current"),
+    ];
+    assert!(expected[0] > 10.0);
+    let SetOperatorStateResult::Success {
+        internal_substeps, ..
+    } = run.operate(2, OperatorPosition::Open)
+    else {
+        panic!("shunt supplies a path for the primary current");
+    };
+    assert_eq!(run.snapshot.metadata.simulation_time_seconds, time);
+    assert_eq!(
+        [
+            run.value(0, "primary1/current"),
+            run.value(0, "secondary1/current")
+        ],
+        expected
+    );
+    assert!((run.value(0, "primary1/voltage") + 5.0 * expected[0]).abs() < 1e-10);
+
+    // The source is disconnected. With both loads shunting the windings,
+    // solve (L+hR)i₁ = (L-(Δt-h)R)i₀ directly for each internal step.
+    let dt = 0.001 / f64::from(internal_substeps);
+    let (lp, ls, mutual) = (0.054, 0.0185, 0.025);
+    for substep in 0..internal_substeps {
+        let h = if substep == 0 { dt } else { dt / 2.0 };
+        let (p, s) = (lp + h * 7.0, ls + h * 11.0);
+        let det = p * s - mutual * mutual;
+        let rhs_p = (lp - (dt - h) * 7.0) * expected[0] + mutual * expected[1];
+        let rhs_s = mutual * expected[0] + (ls - (dt - h) * 11.0) * expected[1];
+        expected = [
+            (s * rhs_p - mutual * rhs_s) / det,
+            (p * rhs_s - mutual * rhs_p) / det,
+        ];
+    }
+    run.advance(1);
+    assert!((run.value(0, "primary1/current") - expected[0]).abs() < 1e-10);
+    assert!((run.value(0, "secondary1/current") - expected[1]).abs() < 1e-10);
+}

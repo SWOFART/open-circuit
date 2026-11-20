@@ -972,11 +972,27 @@ fn estimate_transient_rate_bound(
             }
         }
 
-        let reference_root = sets.find(reference_node);
+        let includes_windings = island_specs
+            .iter()
+            .any(|spec| matches!(spec.model, DeviceModel::Windings(_)));
+        let mut reference_roots = HashSet::from([sets.find(reference_node)]);
+        if includes_windings {
+            reference_roots.extend(
+                super::local_reference_nodes(
+                    &island_specs,
+                    island,
+                    SolveMode::OperatingPoint,
+                    netlist.nodes.len(),
+                    reference_node,
+                )
+                .into_iter()
+                .map(|node| sets.find(node)),
+            );
+        }
         let mut root_to_variable = HashMap::new();
         for node in island.node_indices.iter().copied() {
             let root = sets.find(node);
-            if root != reference_root {
+            if !reference_roots.contains(&root) {
                 let next = root_to_variable.len();
                 root_to_variable.entry(root).or_insert(next);
             }
@@ -1004,7 +1020,43 @@ fn estimate_transient_rate_bound(
             })
             .copied()
             .collect::<Vec<_>>();
-        let mut incidence = vec![vec![0.0; inductor_specs.len()]; dimension];
+        let winding_branches = island_specs
+            .iter()
+            .filter_map(|spec| match spec.model {
+                DeviceModel::Windings(network) => Some((spec.component_id.clone(), network)),
+                _ => None,
+            })
+            .flat_map(|(id, network)| {
+                (0..network.windings().len()).filter_map(move |i| {
+                    let winding = network.windings()[i];
+                    (winding.inductance > 0.0).then(|| (id.clone(), network, i, winding))
+                })
+            })
+            .collect::<Vec<_>>();
+        if !winding_branches.is_empty()
+            && schematic.components.iter().any(|component| {
+                island.component_ids.contains(component.id())
+                    && matches!(
+                        component,
+                        ComponentSpec::SwitchSpst { .. }
+                            | ComponentSpec::PushButtonNo { .. }
+                            | ComponentSpec::PushButtonNc { .. }
+                            | ComponentSpec::Fuse { .. }
+                            | ComponentSpec::RelaySpdt { .. }
+                            | ComponentSpec::Contactor { .. }
+                            | ComponentSpec::ContactorThreePole { .. }
+                            | ComponentSpec::BreakerThreePole { .. }
+                            | ComponentSpec::ThermalOverloadThreePole { .. }
+                            | ComponentSpec::Diode { .. }
+                            | ComponentSpec::BjtNpn { .. }
+                            | ComponentSpec::BjtPnp { .. }
+                    )
+            })
+        {
+            return None;
+        }
+        let mut incidence =
+            vec![vec![0.0; inductor_specs.len() + winding_branches.len()]; dimension];
 
         for spec in &island_specs {
             let (pin1, pin2) = (
@@ -1176,6 +1228,24 @@ fn estimate_transient_rate_bound(
                 DeviceModel::InductionMotor { parameters, .. } => {
                     maximum_rate = maximum_rate.max(parameters.fixed_voltage_rate_bound());
                 }
+                DeviceModel::Windings(network) => {
+                    for winding in network.windings() {
+                        if winding.inductance == 0.0 {
+                            let left = root_to_variable
+                                .get(&sets.find(winding.terminals.pin1))
+                                .copied();
+                            let right = root_to_variable
+                                .get(&sets.find(winding.terminals.pin2))
+                                .copied();
+                            add_laplacian(
+                                &mut conductance,
+                                left,
+                                right,
+                                winding.resistance.recip(),
+                            )?;
+                        }
+                    }
+                }
                 DeviceModel::DcVoltageSource { .. }
                 | DeviceModel::ThreePhaseSource { .. }
                 | DeviceModel::Diode { .. }
@@ -1248,6 +1318,15 @@ fn estimate_transient_rate_bound(
                 .copied();
             add_incidence(&mut incidence, pin1, pin2, branch)?;
         }
+        for (i, (_, _, _, winding)) in winding_branches.iter().enumerate() {
+            let left = root_to_variable
+                .get(&sets.find(winding.terminals.pin1))
+                .copied();
+            let right = root_to_variable
+                .get(&sets.find(winding.terminals.pin2))
+                .copied();
+            add_incidence(&mut incidence, left, right, inductor_specs.len() + i)?;
+        }
 
         let dynamic = (0..dimension)
             .filter(|index| capacitance[*index][*index] > 0.0)
@@ -1255,7 +1334,7 @@ fn estimate_transient_rate_bound(
         let algebraic = (0..dimension)
             .filter(|index| capacitance[*index][*index] == 0.0)
             .collect::<Vec<_>>();
-        let l_values = inductor_specs
+        let mut l_values = inductor_specs
             .iter()
             .map(|spec| match spec.model {
                 DeviceModel::Inductor {
@@ -1268,6 +1347,11 @@ fn estimate_transient_rate_bound(
                 _ => None,
             })
             .collect::<Option<Vec<_>>>()?;
+        l_values.extend(
+            winding_branches
+                .iter()
+                .map(|(_, _, _, winding)| winding.inductance),
+        );
         let motor_branches = inductor_specs
             .iter()
             .enumerate()
@@ -1322,6 +1406,27 @@ fn estimate_transient_rate_bound(
         for (branch, armature_resistance_ohms, ..) in &motor_branches {
             reduced_inductor_resistance[*branch][*branch] += *armature_resistance_ohms;
         }
+        for (i, (_, _, _, winding)) in winding_branches.iter().enumerate() {
+            let branch = inductor_specs.len() + i;
+            reduced_inductor_resistance[branch][branch] += winding.resistance;
+        }
+        let inverse_inductance = if winding_branches.is_empty() {
+            None
+        } else {
+            let mut matrix = vec![vec![0.0; l_values.len()]; l_values.len()];
+            for (i, value) in l_values.iter().copied().enumerate() {
+                matrix[i][i] = value;
+            }
+            for (i, (id, network, row, _)) in winding_branches.iter().enumerate() {
+                for (j, (other, _, column, _)) in winding_branches.iter().enumerate() {
+                    if id == other && row != column {
+                        matrix[inductor_specs.len() + i][inductor_specs.len() + j] =
+                            network.inductance(*row, *column);
+                    }
+                }
+            }
+            Some(invert_matrix(matrix)?)
+        };
 
         let motor_state_start = dynamic.len() + l_values.len();
         let mut state_matrix = vec![
@@ -1341,18 +1446,31 @@ fn estimate_transient_rate_bound(
                     state_matrix[row][dynamic.len() + column] = -voltage_b[row][column];
                 }
             }
-            let branch_voltage_b = transpose(&reduced_b);
+            let mut branch_voltage_b = transpose(&reduced_b);
+            if let Some(inverse) = &inverse_inductance {
+                branch_voltage_b = multiply_matrices(inverse, &branch_voltage_b)?;
+            }
             for row in 0..l_values.len() {
                 for column in 0..dynamic.len() {
-                    state_matrix[dynamic.len() + row][column] =
-                        branch_voltage_b[row][column] / l_values[row];
+                    state_matrix[dynamic.len() + row][column] = if inverse_inductance.is_some() {
+                        branch_voltage_b[row][column]
+                    } else {
+                        branch_voltage_b[row][column] / l_values[row]
+                    };
                 }
             }
+        }
+        if let Some(inverse) = &inverse_inductance {
+            reduced_inductor_resistance = multiply_matrices(inverse, &reduced_inductor_resistance)?;
         }
         for row in 0..l_values.len() {
             for column in 0..l_values.len() {
                 state_matrix[dynamic.len() + row][dynamic.len() + column] =
-                    -reduced_inductor_resistance[row][column] / l_values[row];
+                    if inverse_inductance.is_some() {
+                        -reduced_inductor_resistance[row][column]
+                    } else {
+                        -reduced_inductor_resistance[row][column] / l_values[row]
+                    };
             }
         }
 

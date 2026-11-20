@@ -30,6 +30,9 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   breaker_three_pole: "QF",
   thermal_overload_three_pole: "FR",
   induction_motor_three_phase: "M",
+  transformer_three_phase: "T",
+  three_phase_load_star: "Z",
+  three_phase_load_delta: "Z",
 };
 
 /**

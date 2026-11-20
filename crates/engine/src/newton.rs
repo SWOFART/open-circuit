@@ -23,6 +23,7 @@ pub(crate) struct SolverMemory {
     pub nodes: std::collections::HashMap<usize, f64>,
     pub junctions: std::collections::HashMap<StableId, Vec<f64>>,
     pub induction_motors: std::collections::HashMap<StableId, crate::devices::MotorHistory>,
+    pub windings: std::collections::HashMap<StableId, crate::devices::WindingHistory>,
 }
 
 /// A junction voltage is positive minus negative, including the PNP polarity.
