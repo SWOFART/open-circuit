@@ -7,221 +7,48 @@
 
 mod common;
 
-use std::collections::BTreeMap;
+use common::stage10::{
+    bits, bridged, direct, meet_the_oracles, offset_of, starter, starters, value,
+};
 use std::time::Instant;
 
 use common::{Capture, Run};
 use open_circuit_app_lib::project::{read_project_file, write_project_file};
 use open_circuit_engine::{
-    AdvanceRequest, CompileRequest, CompileResult, DeviceState, DiagnosticCode, Engine, FuseState,
-    OperatorPosition, ParameterId, ResultLayout, ResultQuantity, ResultSnapshot,
-    SetOperatorStateRequest, SetOperatorStateResult, SetParameterResult, StableId, TraceQuery,
-    TraceRequest,
+    CompileRequest, CompileResult, DeviceState, DiagnosticCode, FuseState, OperatorPosition,
+    ParameterId, ResultQuantity, ResultSnapshot, SetOperatorStateRequest, SetOperatorStateResult,
+    SetParameterResult, StableId, TraceQuery, TraceRequest,
 };
-use serde::Deserialize;
 use serde_json::{Value, json};
 
-const STARTERS: &str = include_str!("../../../tests/golden/stage-10/starters.json");
-const ANALYTICAL: &str = include_str!("../../../tests/golden/stage-10/analytical.json");
-const NGSPICE: &str = include_str!("../../../tests/golden/stage-10/ngspice.json");
-const LAST_STEP: u32 = 243;
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Operation {
-    step: u32,
-    component_id: StableId,
-    position: OperatorPosition,
-}
-
-#[derive(Deserialize)]
-struct Starter {
-    request: CompileRequest,
-    motor: StableId,
-    states: BTreeMap<String, StableId>,
-    operations: Vec<Operation>,
-}
-
-fn starters() -> BTreeMap<String, Starter> {
-    let mut all: BTreeMap<String, Starter> = serde_json::from_str(STARTERS).unwrap();
-    for starter in all.values_mut() {
-        // The application's first document revision, as every session test names it.
-        starter.request.document_revision = "rev-1".to_owned();
-    }
-    all
-}
-
-fn starter(name: &str) -> Starter {
-    starters().remove(name).unwrap()
-}
-
-fn rows(text: &str, name: &str) -> Vec<[f64; 9]> {
-    let all: BTreeMap<String, Value> = serde_json::from_str(text).unwrap();
-    serde_json::from_value(all[name].clone()).unwrap()
-}
-
-fn offset_of(layout: &ResultLayout, component: &StableId, key: &str) -> usize {
-    let key = format!("{}/{key}", component.as_str());
-    layout
-        .slots
-        .iter()
-        .find(|slot| slot.key == key)
-        .unwrap_or_else(|| panic!("no slot `{key}`"))
-        .offset as usize
-}
-
-fn value(layout: &ResultLayout, snapshot: &ResultSnapshot, id: &str, key: &str) -> f64 {
-    let id = StableId::parse(id).unwrap();
-    snapshot.values[offset_of(layout, &id, key)]
-}
-
-/// A starter run through the application core, the operator events applied at their steps as the
-/// application sends them. One snapshot per public step, the one the application would show.
-fn bridged(starter: &Starter) -> (ResultLayout, Vec<ResultSnapshot>, Run) {
-    let mut run = Run::start_every_step(starter.request.clone());
-    let layout = run.layout.clone();
-    let mut snapshot = run.initial_snapshot.clone();
-    let mut snapshots = Vec::new();
-
-    for step in 0..=LAST_STEP {
-        if step > 0 {
-            assert_eq!(run.advance(1), u64::from(step));
-            snapshot = run.delivered.last().unwrap().0.clone();
-            assert_eq!(snapshot.metadata.simulation_step, u64::from(step));
-        }
-        for operation in starter.operations.iter().filter(|op| op.step == step) {
-            let (_, result) =
-                run.set_operator_state(operation.component_id.as_str(), operation.position);
-            let SetOperatorStateResult::Success {
-                snapshot: after, ..
-            } = result
-            else {
-                panic!("operator event at step {step} refused: {result:?}");
-            };
-            snapshot = after;
-        }
-        snapshots.push(snapshot.clone());
-    }
-
-    (layout, snapshots, run)
-}
-
-/// The same events sent straight to an Engine with no application in between.
-fn direct(starter: &Starter) -> Vec<ResultSnapshot> {
-    let mut engine = Engine::default();
-    let CompileResult::Success {
-        run_id,
-        mut initial_snapshot,
-        ..
-    } = engine.compile(starter.request.clone())
-    else {
-        panic!("the starter compiles");
-    };
-    let mut snapshots = Vec::new();
-    let mut counter = 1;
-
-    for step in 0..=LAST_STEP {
-        if step > 0 {
-            initial_snapshot = engine
-                .advance(AdvanceRequest {
-                    run_id: run_id.clone(),
-                    step_count: 1,
-                })
-                .unwrap();
-        }
-        for operation in starter.operations.iter().filter(|op| op.step == step) {
-            counter += 1;
-            let result = engine.set_operator_state(SetOperatorStateRequest {
-                run_id: run_id.clone(),
-                expected_document_revision: initial_snapshot.metadata.document_revision.clone(),
-                document_revision: format!("rev-{counter}"),
-                component_id: operation.component_id.clone(),
-                position: operation.position,
-            });
-            let SetOperatorStateResult::Success { snapshot, .. } = result else {
-                panic!("operator event refused: {result:?}");
-            };
-            initial_snapshot = snapshot;
-        }
-        snapshots.push(initial_snapshot.clone());
-    }
-
-    snapshots
-}
-
-fn bits(snapshots: &[ResultSnapshot]) -> Vec<Vec<u64>> {
-    snapshots
-        .iter()
-        .map(|snapshot| {
-            snapshot
-                .values
-                .iter()
-                .map(|value| value.to_bits())
-                .collect()
-        })
-        .collect()
-}
-
 fn check_starter_through_the_bridge(name: &str) {
-    {
-        let fixture = starter(name);
-        let (layout, through_bridge, run) = bridged(&fixture);
-        let straight = direct(&fixture);
+    let fixture = starter(name);
+    let (layout, through_bridge, run) = bridged(&fixture);
+    let straight = direct(&fixture);
 
-        // The bridge carries values and discrete states exactly, step for step.
-        assert_eq!(bits(&through_bridge), bits(&straight), "{name}: values");
-        for (step, (a, b)) in through_bridge.iter().zip(&straight).enumerate() {
-            assert_eq!(a.states, b.states, "{name}: discrete states at step {step}");
-        }
-
-        // Frame, layout and sequence checks hold for every delivered frame.
-        let mut previous_sequence = 0;
-        for (snapshot, _) in &run.delivered {
-            assert_eq!(
-                snapshot.metadata.layout_version, layout.layout_version,
-                "{name}"
-            );
-            assert_eq!(snapshot.metadata.run_id, run.run_id, "{name}");
-            assert!(
-                snapshot.metadata.frame_sequence > previous_sequence,
-                "{name}"
-            );
-            previous_sequence = snapshot.metadata.frame_sequence;
-        }
-
-        // And the independent answers: the same rows and tolerances the Engine is held to.
-        let keys = [
-            "u/current",
-            "v/current",
-            "w/current",
-            "angular_velocity",
-            "electromagnetic_torque",
-        ];
-        let offsets = keys.map(|key| offset_of(&layout, &fixture.motor, key));
-        for (oracle, text) in [("analytical", ANALYTICAL), ("ngspice", NGSPICE)] {
-            let mut checked = 0;
-            for row in rows(text, name) {
-                let step = (row[0] * 1000.0).round() as usize;
-                let snapshot = &through_bridge[step];
-                for i in 0..5 {
-                    let actual = snapshot.values[offsets[i]];
-                    let (absolute, relative): (f64, f64) = match i {
-                        3 => (0.5, 0.02),
-                        4 => (0.05, 0.03),
-                        _ => (0.12, 0.02),
-                    };
-                    let expected = row[i + 1];
-                    assert!(
-                        (actual - expected).abs() <= absolute.max(relative * expected.abs()),
-                        "{name} {oracle} step {step} {}: {actual} against {expected}",
-                        keys[i]
-                    );
-                }
-                checked += 1;
-            }
-            assert!(checked > 20, "{name}: {oracle} rows were compared");
-        }
+    // The bridge carries values and discrete states exactly, step for step.
+    assert_eq!(bits(&through_bridge), bits(&straight), "{name}: values");
+    for (step, (a, b)) in through_bridge.iter().zip(&straight).enumerate() {
+        assert_eq!(a.states, b.states, "{name}: discrete states at step {step}");
     }
+
+    // Frame, layout and sequence checks hold for every delivered frame.
+    let mut previous_sequence = 0;
+    for (snapshot, _) in &run.delivered {
+        assert_eq!(
+            snapshot.metadata.layout_version, layout.layout_version,
+            "{name}"
+        );
+        assert_eq!(snapshot.metadata.run_id, run.run_id, "{name}");
+        assert!(
+            snapshot.metadata.frame_sequence > previous_sequence,
+            "{name}"
+        );
+        previous_sequence = snapshot.metadata.frame_sequence;
+    }
+
+    // And the independent answers: the same rows and tolerances the Engine is held to.
+    meet_the_oracles(name, &fixture.motor, &layout, &through_bridge);
 }
 
 #[test]
