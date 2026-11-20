@@ -49,3 +49,16 @@ Every catalog entry carries `designatorPrefix`, the letters of contract section 
 `tests/golden/stage-12-legacy-v2-*.ocircuit` are v2 files kept as they are, for the migration
 tests. Every other live fixture was moved to v3 with empty documentation by
 `scripts/documentation-defaults.mjs`.
+
+## Bridge and persistence (issue #190)
+
+- `open_project` takes `assignmentOpen` (it replaces `forbidRails`). With an assignment open, a
+  project with DC rails or documentation beyond designators is refused after reading and before
+  the project path changes; a project whose documentation is only designators opens with the
+  documentation emptied, and the file is not rewritten. The message that designators are not
+  kept comes with the designator interface (#191).
+- Save writes the documentation as drawn and nothing derived; a save the Engine refuses leaves
+  the file and the path as they were.
+- `SimulationController.syncDocument` sends nothing when only `documentation` changed
+  (`hasSameElectricalPart`: version and the component, wire, junction, marker and rail lists by
+  identity): the run, traces and operator positions stay. Any other change recompiles as before.

@@ -80,7 +80,7 @@ fn get_component_catalog() -> ComponentCatalog {
 async fn open_project(
     app: tauri::AppHandle,
     session: State<'_, ProjectSession>,
-    forbid_rails: Option<bool>,
+    assignment_open: Option<bool>,
 ) -> Result<Option<Schematic>, String> {
     let selected = app
         .dialog()
@@ -96,11 +96,12 @@ async fn open_project(
         .map_err(|error| format!("Could not use the selected project file: {error}"))?;
     let project_path = path.clone();
     let project_session = session.inner().clone();
-    // While an assignment is open, a project with DC rails is refused before the project path
-    // changes.
-    let allow_rails = !forbid_rails.unwrap_or(false);
+    // While an assignment is open, a project with DC rails or documentation is refused before
+    // the project path changes (designators alone are dropped).
+    let assignment_open = assignment_open.unwrap_or(false);
     let schematic =
-        run_project_blocking(move || project_session.load_with(&project_path, allow_rails)).await?;
+        run_project_blocking(move || project_session.load_with(&project_path, assignment_open))
+            .await?;
     Ok(Some(schematic))
 }
 

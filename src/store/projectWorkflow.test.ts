@@ -13,7 +13,9 @@ const R1 = "00000000-0000-4000-8000-000000000002";
 function createFiles() {
   return {
     open: vi
-      .fn<(options?: { forbidRails?: boolean }) => Promise<Schematic | null>>()
+      .fn<
+        (options?: { assignmentOpen?: boolean }) => Promise<Schematic | null>
+      >()
       .mockResolvedValue(null),
     save: vi.fn<(_: Schematic) => Promise<boolean>>().mockResolvedValue(true),
     saveAs: vi.fn<(_: Schematic) => Promise<boolean>>().mockResolvedValue(true),
@@ -50,8 +52,8 @@ describe("ProjectWorkflow", () => {
     await workflow.perform("open");
 
     expect(files.open.mock.calls).toEqual([
-      [{ forbidRails: false }],
-      [{ forbidRails: true }],
+      [{ assignmentOpen: false }],
+      [{ assignmentOpen: true }],
     ]);
   });
 

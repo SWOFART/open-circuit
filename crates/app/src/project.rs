@@ -52,17 +52,28 @@ impl ProjectSession {
     /// Replaces the active path only after the selected file has been fully read
     /// and validated. A failed open leaves the current project location intact.
     pub fn load(&self, path: &Path) -> Result<Schematic, String> {
-        self.load_with(path, true)
+        self.load_with(path, false)
     }
 
-    /// Like `load`, but with `allow_rails` false a file that contains DC rails is refused after it
-    /// has been read and before the active path changes: assignments do not support rails
-    /// (docs/contracts/stage-8-supply-rails.md section 8), and a refused document must not move
-    /// the project location.
-    pub fn load_with(&self, path: &Path, allow_rails: bool) -> Result<Schematic, String> {
-        let schematic = read_project_file(path)?;
-        if !allow_rails && !schematic.rails.is_empty() {
-            return Err(RAILS_IN_ASSIGNMENT.to_owned());
+    /// Like `load`, but with `assignment_open` true a file that contains DC rails or documentation
+    /// beyond designators is refused after it has been read and before the active path changes:
+    /// assignments support neither (docs/contracts/stage-8-supply-rails.md section 8 and
+    /// stage-12-cabinet-documentation.md section 2.4), and a refused document must not move the
+    /// project location.
+    pub fn load_with(&self, path: &Path, assignment_open: bool) -> Result<Schematic, String> {
+        let mut schematic = read_project_file(path)?;
+        if assignment_open {
+            if !schematic.rails.is_empty() {
+                return Err(RAILS_IN_ASSIGNMENT.to_owned());
+            }
+            // Documentation holding only designators opens with them dropped; anything more is
+            // refused (docs/contracts/stage-12-cabinet-documentation.md section 2.4).
+            if !schematic.documentation.is_empty() {
+                if !schematic.documentation.holds_only_designators() {
+                    return Err(DOCUMENTATION_IN_ASSIGNMENT.to_owned());
+                }
+                schematic.documentation = Default::default();
+            }
         }
         let mut active_path = self
             .path
@@ -83,6 +94,9 @@ impl ProjectSession {
         Ok(saved_path)
     }
 }
+
+/// Why a project with documentation is not opened while an assignment is open.
+pub const DOCUMENTATION_IN_ASSIGNMENT: &str = "This project contains wire numbers, terminals, notes, sheets or a title block, which assignments do not support. Leave assignment mode to open it.";
 
 /// Why a project with DC rails is not opened while an assignment is open.
 pub const RAILS_IN_ASSIGNMENT: &str = "This project contains DC rails, which assignments do not support. Leave assignment mode to open it.";
@@ -178,7 +192,10 @@ mod tests {
 
     use open_circuit_engine::Schematic;
 
-    use super::{ProjectSession, RAILS_IN_ASSIGNMENT, read_project_file, write_project_file};
+    use super::{
+        DOCUMENTATION_IN_ASSIGNMENT, ProjectSession, RAILS_IN_ASSIGNMENT, read_project_file,
+        write_project_file,
+    };
 
     const DIVIDER: &str = include_str!("../../../tests/golden/stage-1-divider.schematic.json");
 
@@ -326,19 +343,161 @@ mod tests {
 
         // Refused after reading, before the path moves, and the file is untouched.
         assert_eq!(
-            session.load_with(&railed, false).unwrap_err(),
+            session.load_with(&railed, true).unwrap_err(),
             RAILS_IN_ASSIGNMENT
         );
         assert_eq!(session.current_path().unwrap(), Some(existing.clone()));
         assert_eq!(fs::read(&railed).unwrap(), before);
 
         // A rail-free project still opens for an assignment, and a rail project opens as before.
-        assert!(session.load_with(&existing, false).is_ok());
+        assert!(session.load_with(&existing, true).is_ok());
         let opened = session
             .load(&railed)
             .expect("a rail project opens normally");
         assert_eq!(opened.rails.len(), 1);
         assert_eq!(session.current_path().unwrap(), Some(railed));
+    }
+
+    const R1: &str = "00000000-0000-4000-8000-000000000002";
+    const WIRE: &str = "00000000-0000-4000-8000-000000000004";
+
+    fn documented(documentation: serde_json::Value) -> Schematic {
+        let mut value = serde_json::to_value(divider()).unwrap();
+        for (key, entry) in documentation.as_object().unwrap() {
+            value["documentation"][key] = entry.clone();
+        }
+        serde_json::from_value(value).expect("the documented schematic should deserialize")
+    }
+
+    fn designators() -> serde_json::Value {
+        serde_json::json!({"designators": [{"componentId": R1, "designator": "R1"}]})
+    }
+
+    #[test]
+    fn documentation_round_trips_through_the_project_file_and_nothing_derived_is_stored() {
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let path = project_path(&directory, "documented");
+        let schematic = documented(serde_json::json!({
+            "designators": [{"componentId": R1, "designator": "R1"}],
+            "wireNumbers": [{"wireId": WIRE, "number": "12"}],
+            "terminals": [{"id": "00000000-0000-4000-8000-000000001200", "strip": "X1",
+                "label": "1", "position": {"x": 3, "y": 4}}],
+            "notes": [{"id": "00000000-0000-4000-8000-000000001201",
+                "position": {"x": 0, "y": 0}, "text": "Main supply"}],
+            "titleBlock": {"title": "Divider", "drawingNumber": "D-1", "revision": "A",
+                "author": "Student", "company": "", "date": "2026-11-20"},
+            "sheets": [{"id": "00000000-0000-4000-8000-000000001202", "name": "Power",
+                "size": "a4", "origin": {"x": 0, "y": 0}}],
+        }));
+
+        write_project_file(&path, &schematic).expect("a documented project should save");
+        assert_eq!(read_project_file(&path).unwrap(), schematic);
+
+        let saved: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let mut keys: Vec<_> = saved.as_object().unwrap().keys().cloned().collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "components",
+                "documentation",
+                "junctions",
+                "rails",
+                "referenceMarkers",
+                "schemaVersion",
+                "wires",
+            ]
+        );
+        let mut documentation_keys: Vec<_> = saved["documentation"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+        documentation_keys.sort();
+        assert_eq!(
+            documentation_keys,
+            [
+                "designators",
+                "notes",
+                "sheets",
+                "terminals",
+                "titleBlock",
+                "wireNumbers"
+            ]
+        );
+    }
+
+    #[test]
+    fn an_invalid_documentation_save_leaves_the_file_and_the_path_unchanged() {
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let path = project_path(&directory, "kept");
+        let other = project_path(&directory, "other");
+        write_project_file(&path, &documented(designators())).unwrap();
+        let before = fs::read(&path).unwrap();
+
+        let mut invalid = documented(designators());
+        invalid.documentation.designators[0].designator = "I1".to_owned();
+        let session = ProjectSession::default();
+        session.load(&path).expect("the project should load");
+
+        assert!(session.save_to(&path, &invalid).is_err());
+        assert!(session.save_to(&other, &invalid).is_err());
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert!(!other.exists());
+        assert_eq!(session.current_path().unwrap(), Some(path));
+    }
+
+    #[test]
+    fn an_assignment_drops_designators_and_refuses_other_documentation_before_the_path_moves() {
+        let directory = tempfile::tempdir().expect("temporary directory should be created");
+        let existing = project_path(&directory, "existing");
+        let named = project_path(&directory, "named");
+        write_project_file(&existing, &divider()).unwrap();
+        write_project_file(&named, &documented(designators())).unwrap();
+
+        let session = ProjectSession::default();
+        session.load(&existing).unwrap();
+
+        // Designators alone open, dropped; the file itself is not rewritten.
+        let before = fs::read(&named).unwrap();
+        let opened = session
+            .load_with(&named, true)
+            .expect("designators are dropped");
+        assert!(opened.documentation.is_empty());
+        assert_eq!(opened.components, divider().components);
+        assert_eq!(fs::read(&named).unwrap(), before);
+        assert_eq!(session.current_path().unwrap(), Some(named.clone()));
+
+        // Every other kind of documentation is refused, and the path stays where it was.
+        session.set_path(existing.clone()).unwrap();
+        let others = [
+            serde_json::json!({"wireNumbers": [{"wireId": WIRE, "number": "1"}]}),
+            serde_json::json!({"terminals": [{"id": "00000000-0000-4000-8000-000000001200",
+                "strip": "X1", "label": "1", "position": {"x": 0, "y": 0}}]}),
+            serde_json::json!({"notes": [{"id": "00000000-0000-4000-8000-000000001201",
+                "position": {"x": 0, "y": 0}, "text": "x"}]}),
+            serde_json::json!({"sheets": [{"id": "00000000-0000-4000-8000-000000001202",
+                "name": "A", "size": "a4", "origin": {"x": 0, "y": 0}}]}),
+            serde_json::json!({"titleBlock": {"title": "T", "drawingNumber": "",
+                "revision": "", "author": "", "company": "", "date": ""}}),
+            // Designators together with anything else are still refused whole.
+            serde_json::json!({"designators": [{"componentId": R1, "designator": "R1"}],
+                "wireNumbers": [{"wireId": WIRE, "number": "1"}]}),
+        ];
+        for documentation in others {
+            let path = project_path(&directory, "documented");
+            write_project_file(&path, &documented(documentation.clone())).unwrap();
+            assert_eq!(
+                session.load_with(&path, true).unwrap_err(),
+                DOCUMENTATION_IN_ASSIGNMENT,
+                "{documentation}"
+            );
+            assert_eq!(session.current_path().unwrap(), Some(existing.clone()));
+            // Outside assignment mode the same file opens with its documentation intact.
+            assert!(!session.load(&path).unwrap().documentation.is_empty());
+            session.set_path(existing.clone()).unwrap();
+        }
     }
 
     #[test]

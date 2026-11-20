@@ -5,10 +5,11 @@ import type { Schematic } from "../generated/Schematic";
 /** What a native Open is asked to refuse. */
 export interface OpenOptions {
   /**
-   * An assignment is open: a project with DC rails is refused by the native side before the
-   * project path changes, because assignments do not support rails.
+   * An assignment is open: a project with DC rails or with documentation beyond designators is
+   * refused by the native side before the project path changes, and designators alone are
+   * dropped, because assignments support neither.
    */
-  readonly forbidRails?: boolean;
+  readonly assignmentOpen?: boolean;
 }
 
 export interface ProjectFilePort {
@@ -39,7 +40,7 @@ async function invokeProject<T>(
 export const tauriProjectFiles: ProjectFilePort = {
   open: (options) =>
     invokeProject<Schematic | null>("open_project", {
-      forbidRails: options?.forbidRails ?? false,
+      assignmentOpen: options?.assignmentOpen ?? false,
     }),
   save: (schematic) => invokeProject<boolean>("save_project", { schematic }),
   saveAs: (schematic) =>
