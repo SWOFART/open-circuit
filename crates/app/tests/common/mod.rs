@@ -148,7 +148,12 @@ impl Run {
     }
 
     pub fn start_with(request: CompileRequest, config: SimulationConfig) -> Self {
-        let mut core = SimulationCore::new(config);
+        // The clock of a `Run` is fake, so the real-time yield of a catch-up batch is switched
+        // off: what a run reaches must not depend on how fast the machine computes a step.
+        let mut core = SimulationCore::new(SimulationConfig {
+            catch_up_budget: Duration::from_secs(3600),
+            ..config
+        });
         let compile_result = core.compile(request);
         let CompileResult::Success {
             run_id,

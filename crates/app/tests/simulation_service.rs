@@ -39,7 +39,7 @@ fn fast_config() -> SimulationConfig {
         frame_interval: Duration::from_millis(5),
         max_in_flight: 2,
         ack_timeout: Duration::from_secs(30),
-        max_steps_per_tick: 1_000,
+        ..SimulationConfig::default()
     }
 }
 

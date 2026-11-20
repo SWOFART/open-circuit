@@ -105,6 +105,16 @@ fn compiled_core(config: SimulationConfig) -> (SimulationCore, StableId) {
 
 /// Drives `core` with `tick_every` between ticks for `total`, acknowledging every frame
 /// immediately when `ack` is set. Returns the final fake time.
+/// The configuration of every test here: they drive the core with a fake clock, so the real-time
+/// yield of a catch-up batch (`catch_up_budget`) is switched off. Otherwise a slow or loaded
+/// machine would compute fewer steps per tick and the step counts would depend on its speed.
+fn fake_clock() -> SimulationConfig {
+    SimulationConfig {
+        catch_up_budget: Duration::from_secs(3600),
+        ..SimulationConfig::default()
+    }
+}
+
 fn drive(
     core: &mut SimulationCore,
     sink: &RecordingSink,
@@ -138,7 +148,7 @@ fn the_physics_step_matches_the_contract_timestep() {
 
 #[test]
 fn start_refuses_a_run_that_is_not_active() {
-    let (mut core, _) = compiled_core(SimulationConfig::default());
+    let (mut core, _) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     let stale = StableId::parse("00000000-0000-4000-8000-0000000000ff").expect("valid ID");
 
@@ -156,7 +166,7 @@ fn start_refuses_a_run_that_is_not_active() {
 
 #[test]
 fn start_refuses_when_nothing_was_compiled() {
-    let mut core = SimulationCore::new(SimulationConfig::default());
+    let mut core = SimulationCore::new(fake_clock());
     let run_id = StableId::parse("00000000-0000-4000-8000-0000000000a0").expect("valid ID");
 
     assert!(
@@ -171,7 +181,7 @@ fn start_refuses_when_nothing_was_compiled() {
 
 #[test]
 fn delivers_at_most_sixty_frames_per_second_while_physics_runs_at_the_fixed_step() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     let start = Instant::now();
     core.start(run_id, Box::new(SinkHandle(sink.clone())), start)
@@ -210,7 +220,7 @@ fn delivers_at_most_sixty_frames_per_second_while_physics_runs_at_the_fixed_step
 #[test]
 fn a_fast_ui_does_not_speed_physics_up_or_slow_it_down() {
     let physics_after = |tick_every: Duration| {
-        let (mut core, run_id) = compiled_core(SimulationConfig::default());
+        let (mut core, run_id) = compiled_core(fake_clock());
         let sink = RecordingSink::default();
         let start = Instant::now();
         core.start(run_id, Box::new(SinkHandle(sink.clone())), start)
@@ -246,7 +256,7 @@ fn a_fast_ui_does_not_speed_physics_up_or_slow_it_down() {
 fn a_consumer_that_never_acknowledges_gets_a_bounded_number_of_frames() {
     let config = SimulationConfig {
         ack_timeout: Duration::from_secs(60),
-        ..SimulationConfig::default()
+        ..fake_clock()
     };
     let max_in_flight = config.max_in_flight;
     let (mut core, run_id) = compiled_core(config);
@@ -275,7 +285,7 @@ fn a_consumer_that_never_acknowledges_gets_a_bounded_number_of_frames() {
 fn after_a_stall_only_the_latest_snapshot_is_delivered_skipping_the_rest() {
     let config = SimulationConfig {
         ack_timeout: Duration::from_secs(60),
-        ..SimulationConfig::default()
+        ..fake_clock()
     };
     let (mut core, run_id) = compiled_core(config);
     let sink = RecordingSink::default();
@@ -319,7 +329,7 @@ fn after_a_stall_only_the_latest_snapshot_is_delivered_skipping_the_rest() {
 fn a_lost_acknowledgement_does_not_stall_delivery_forever() {
     let config = SimulationConfig {
         ack_timeout: Duration::from_millis(500),
-        ..SimulationConfig::default()
+        ..fake_clock()
     };
     let (mut core, run_id) = compiled_core(config);
     let sink = RecordingSink::default();
@@ -359,7 +369,7 @@ fn a_lost_acknowledgement_does_not_stall_delivery_forever() {
 fn acknowledging_a_later_frame_releases_every_earlier_one() {
     let (mut core, run_id) = compiled_core(SimulationConfig {
         ack_timeout: Duration::from_secs(60),
-        ..SimulationConfig::default()
+        ..fake_clock()
     });
     let sink = RecordingSink::default();
     let start = Instant::now();
@@ -393,7 +403,7 @@ fn acknowledging_a_later_frame_releases_every_earlier_one() {
 
 #[test]
 fn a_parameter_update_reaches_the_next_frame_with_the_new_revision_and_values() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     let start = Instant::now();
     core.start(run_id.clone(), Box::new(SinkHandle(sink.clone())), start)
@@ -463,7 +473,7 @@ fn a_parameter_update_reaches_the_next_frame_with_the_new_revision_and_values() 
 
 #[test]
 fn a_rejected_update_leaves_the_stream_and_its_values_unchanged() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     let start = Instant::now();
     core.start(run_id.clone(), Box::new(SinkHandle(sink.clone())), start)
@@ -497,7 +507,7 @@ fn a_rejected_update_leaves_the_stream_and_its_values_unchanged() {
 
 #[test]
 fn stopping_releases_the_sink() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     core.start(run_id, Box::new(SinkHandle(sink.clone())), Instant::now())
         .expect("start");
@@ -515,7 +525,7 @@ fn stopping_releases_the_sink() {
 
 #[test]
 fn a_stop_for_another_run_does_not_end_the_stream() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     core.start(
         run_id.clone(),
@@ -539,7 +549,7 @@ fn a_stop_for_another_run_does_not_end_the_stream() {
 
 #[test]
 fn stopping_with_no_stream_is_harmless() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
 
     core.stop(Some(&run_id));
     core.stop(None);
@@ -549,7 +559,7 @@ fn stopping_with_no_stream_is_harmless() {
 
 #[test]
 fn a_failed_compile_keeps_the_old_run_and_stream_but_a_new_run_ends_it() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     core.start(run_id, Box::new(SinkHandle(sink.clone())), Instant::now())
         .expect("start");
@@ -580,7 +590,7 @@ fn a_failed_compile_keeps_the_old_run_and_stream_but_a_new_run_ends_it() {
 
 #[test]
 fn a_closed_receiver_ends_the_stream_instead_of_retrying() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     let start = Instant::now();
     core.start(run_id, Box::new(SinkHandle(sink.clone())), start)
@@ -596,7 +606,7 @@ fn a_closed_receiver_ends_the_stream_instead_of_retrying() {
 
 #[test]
 fn a_long_stall_is_not_simulated_in_one_burst() {
-    let config = SimulationConfig::default();
+    let config = fake_clock();
     let cap = u64::from(config.max_steps_per_tick);
     let (mut core, run_id) = compiled_core(config);
     let sink = RecordingSink::default();
@@ -616,14 +626,14 @@ fn a_revision_too_long_for_a_frame_is_refused_instead_of_silently_ending_the_str
     let too_long = "r".repeat(open_circuit_app_lib::frame::MAX_REVISION_BYTES + 1);
 
     // At compile: the failure is reported and no run is created.
-    let mut fresh = SimulationCore::new(SimulationConfig::default());
+    let mut fresh = SimulationCore::new(fake_clock());
     let CompileResult::Failure { diagnostics } = fresh.compile(request(&too_long)) else {
         panic!("an over-long revision must not compile");
     };
     assert_eq!(diagnostics[0].code, DiagnosticCode::InvalidParameter);
 
     // At update: the failure is reported and the run, stream, and values are unchanged.
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let sink = RecordingSink::default();
     let start = Instant::now();
     core.start(run_id.clone(), Box::new(SinkHandle(sink.clone())), start)
@@ -657,7 +667,7 @@ fn a_revision_too_long_for_a_frame_is_refused_instead_of_silently_ending_the_str
 
     // The longest allowed revision still works end to end.
     let longest = "r".repeat(open_circuit_app_lib::frame::MAX_REVISION_BYTES);
-    let mut other = SimulationCore::new(SimulationConfig::default());
+    let mut other = SimulationCore::new(fake_clock());
     assert!(matches!(
         other.compile(request(&longest)),
         CompileResult::Success { .. }
@@ -666,7 +676,7 @@ fn a_revision_too_long_for_a_frame_is_refused_instead_of_silently_ending_the_str
 
 #[test]
 fn trace_bridge_is_bounded_acknowledged_and_rejects_a_stale_run() {
-    let (mut core, run_id) = compiled_core(SimulationConfig::default());
+    let (mut core, run_id) = compiled_core(fake_clock());
     let frame_sink = RecordingSink::default();
     let start = Instant::now();
     core.start(run_id.clone(), Box::new(SinkHandle(frame_sink)), start)
@@ -753,7 +763,7 @@ fn trace_acknowledgement_timeout_starts_after_the_response_is_sent() {
     let ack_timeout = Duration::from_millis(100);
     let (mut core, run_id) = compiled_core(SimulationConfig {
         ack_timeout,
-        ..SimulationConfig::default()
+        ..fake_clock()
     });
     let start = Instant::now();
     let request = TraceRequest {
@@ -790,4 +800,41 @@ fn trace_acknowledgement_timeout_starts_after_the_response_is_sent() {
         start + Duration::from_millis(1_000),
     )
     .expect("a sent response is released after its acknowledgement timeout");
+}
+
+#[test]
+fn a_catch_up_batch_yields_after_its_budget_between_complete_steps_and_drops_the_debt() {
+    // With no budget the batch stops after one complete step, however late the tick is, and the
+    // wall-clock debt is dropped instead of being simulated at the next tick.
+    let (mut core, run_id) = compiled_core(SimulationConfig {
+        catch_up_budget: Duration::ZERO,
+        frame_interval: Duration::from_millis(1),
+        ..SimulationConfig::default()
+    });
+    let sink = RecordingSink::default();
+    let start = Instant::now();
+    core.start(run_id, Box::new(SinkHandle(sink.clone())), start)
+        .expect("start");
+
+    core.tick(start + Duration::from_millis(10));
+    let first = sink
+        .decoded()
+        .last()
+        .expect("a frame")
+        .metadata
+        .simulation_step;
+    assert_eq!(first, 1, "one complete step, not the ten that were due");
+
+    core.acknowledge(sink.decoded().last().unwrap().metadata.frame_sequence);
+    core.tick(start + Duration::from_millis(11));
+    let second = sink
+        .decoded()
+        .last()
+        .expect("a frame")
+        .metadata
+        .simulation_step;
+    assert_eq!(
+        second, 2,
+        "the debt was dropped: one more step is due, not ten"
+    );
 }
