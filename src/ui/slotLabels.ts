@@ -52,6 +52,8 @@ const AXIS_NAMES: Readonly<Partial<Record<Unit, string>>> = {
   volt: "Voltage",
   amp: "Current",
   radian_per_second: "Angular velocity",
+  newton_meter: "Torque",
+  ampere_squared: "Mean-square current",
   ampere_squared_second: "Accumulated I²t",
   hertz: "Frequency",
   degree: "Phase angle",

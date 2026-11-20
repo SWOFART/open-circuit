@@ -129,20 +129,12 @@ describe("the placeholder for a part without a symbol", () => {
     ).toContain(">B<");
   });
 
-  it("covers exactly the catalog parts that have no editor symbol", () => {
+  it("finds no catalog part without an editor symbol, so the placeholder is not used today", () => {
     const withoutSymbol = catalog.componentTypes
       .filter((entry) => !symbols[entry.typeId])
       .map((entry) => entry.typeId);
 
-    expect(withoutSymbol).toEqual([
-      "contactor_three_pole",
-      "breaker_three_pole",
-      "thermal_overload_three_pole",
-      "induction_motor_three_phase",
-      "transformer_three_phase",
-      "three_phase_load_star",
-      "three_phase_load_delta",
-    ]);
+    expect(withoutSymbol).toEqual([]);
   });
 });
 
