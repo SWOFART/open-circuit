@@ -1,4 +1,5 @@
 // The Stage 10 oracles have no dependency on the application or the Engine.
+import { withDocumentation } from "./documentation-defaults.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -28,7 +29,8 @@ const sqrt2 = Math.sqrt(2);
 const zero = [0, 0];
 
 const digest = (value) => createHash("sha256").update(value).digest("hex");
-const json = (value) => `${JSON.stringify(value, null, 2)}\n`;
+const json = (value) =>
+  `${JSON.stringify(withDocumentation(value), null, 2)}\n`;
 const add = ([a, b], [c, d]) => [a + c, b + d];
 const sub = ([a, b], [c, d]) => [a - c, b - d];
 const mul = ([a, b], [c, d]) => [a * c - b * d, a * d + b * c];
@@ -1137,7 +1139,7 @@ if (write) {
   );
   assert.deepEqual(
     JSON.parse(readFileSync(join(directory, "starters.json"), "utf8")),
-    drawings,
+    withDocumentation(drawings),
   );
   for (const { id } of fixtures) {
     assert.equal(stored[id].length, analytical[id].length, id);

@@ -15,6 +15,7 @@ import {
   type ComponentPlacement,
   type WireEdit,
 } from "./transform";
+import { emptyDocumentation } from "./documentation";
 
 /**
  * A document operation requested by the canvas. The host applies it to the
@@ -331,11 +332,12 @@ export function placementPreviewSchematic(
   } as unknown as ComponentSpec;
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     components: [component],
     wires: [],
     junctions: [],
     referenceMarkers: [],
     rails: [],
+    documentation: emptyDocumentation(),
   };
 }

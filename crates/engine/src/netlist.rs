@@ -639,7 +639,7 @@ mod tests {
     fn crossing_fixture(with_junction: bool) -> (Schematic, GeometryEnvelope) {
         let mut schematic: Schematic = from_str(
             r#"{
-              "schemaVersion":2,"rails":[],
+              "schemaVersion":3,"documentation":{"designators":[],"wireNumbers":[],"terminals":[],"notes":[],"titleBlock":{"title":"","drawingNumber":"","revision":"","author":"","company":"","date":""},"sheets":[]},"rails":[],
               "components":[
                 {"id":"00000000-0000-4000-8000-000000000001","typeId":"resistor","position":{"x":-2,"y":0},"rotationDeg":0,"parameters":{"resistanceOhms":1000}},
                 {"id":"00000000-0000-4000-8000-000000000002","typeId":"resistor","position":{"x":2,"y":0},"rotationDeg":0,"parameters":{"resistanceOhms":1000}},
@@ -869,7 +869,7 @@ mod tests {
         );
 
         let wire_only: Schematic = from_str(
-            r#"{"schemaVersion":2,"rails":[],"components":[],"wires":[{"id":"00000000-0000-4000-8000-000000000008","points":[{"x":0,"y":0},{"x":2,"y":0}]}],"junctions":[],"referenceMarkers":[]}"#,
+            r#"{"schemaVersion":3,"documentation":{"designators":[],"wireNumbers":[],"terminals":[],"notes":[],"titleBlock":{"title":"","drawingNumber":"","revision":"","author":"","company":"","date":""},"sheets":[]},"rails":[],"components":[],"wires":[{"id":"00000000-0000-4000-8000-000000000008","points":[{"x":0,"y":0},{"x":2,"y":0}]}],"junctions":[],"referenceMarkers":[]}"#,
         )
         .unwrap();
         let empty_geometry: GeometryEnvelope = from_str(r#"{"components":[]}"#).unwrap();

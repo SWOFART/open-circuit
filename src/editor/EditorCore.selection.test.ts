@@ -3,6 +3,7 @@ import type { ComponentSpec } from "../generated/ComponentSpec";
 import type { Schematic } from "../generated/Schematic";
 import { EditorCore } from "./EditorCore";
 import type { EditorStatus } from "./interaction";
+import { emptyDocumentation } from "./documentation";
 
 const FIRST = "00000000-0000-4000-8000-0000000000c1";
 const ADDED = "00000000-0000-4000-8000-0000000000c2";
@@ -19,12 +20,13 @@ function resistor(id: string, x: number): ComponentSpec {
 
 function drawing(...components: ComponentSpec[]): Schematic {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     components,
     wires: [],
     junctions: [],
     referenceMarkers: [],
     rails: [],
+    documentation: emptyDocumentation(),
   };
 }
 

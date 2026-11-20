@@ -250,6 +250,28 @@ const messages: Readonly<Record<string, string>> = {
     "The document exceeds the DC rail count or connection-work limit.",
   "diagnostic.unsupportedAssignmentRails":
     "DC rails are not supported in assignments yet.",
+  "diagnostic.unsupportedAssignmentDocumentation":
+    "Assignments hold no documentation (designators, wire numbers, terminals, notes, sheets).",
+  "diagnostic.invalidDesignator":
+    "A designator must be one to three capital letters followed by a number, such as K1 or Q12.",
+  "diagnostic.duplicateDesignator": "Two components share the same designator.",
+  "diagnostic.invalidWireNumber":
+    "A wire number must be 1–16 ASCII letters, digits or + . _ - characters.",
+  "diagnostic.invalidTerminal":
+    "A terminal needs a strip name such as X1 and a label of 1–8 ASCII letters, digits or + . _ - characters.",
+  "diagnostic.duplicateTerminal":
+    "Two terminals share the same strip and label.",
+  "diagnostic.invalidNote":
+    "A note must be 1–500 characters on at most 10 lines, without control characters.",
+  "diagnostic.invalidTitleBlock":
+    "A title-block field is too long or contains control characters.",
+  "diagnostic.invalidSheet":
+    "A sheet name must be 1–32 characters without control characters.",
+  "diagnostic.overlappingSheets": "Two drawing sheets overlap.",
+  "diagnostic.unknownDocumentationTarget":
+    "Documentation refers to a component or wire that does not exist.",
+  "diagnostic.documentationLimitExceeded":
+    "The document exceeds a documentation limit (designators, wire numbers, terminals, notes or sheets).",
   "diagnostic.invalidParameter": "A component parameter is out of range.",
   "diagnostic.duplicateId": "Two circuit objects share the same ID.",
   "diagnostic.unknownComponentType":

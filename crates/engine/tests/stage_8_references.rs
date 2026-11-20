@@ -127,7 +127,7 @@ fn paired_drawings_preserve_component_pin_and_signal_identity() {
     for pair in pairs {
         let rails = &pair["railSchematic"];
         let wires = &pair["wireSchematic"];
-        assert_eq!(rails["schemaVersion"], 2);
+        assert_eq!(rails["schemaVersion"], 3);
         assert_eq!(wires["schemaVersion"], 1);
         for key in ["components", "junctions", "referenceMarkers"] {
             assert_eq!(rails[key], wires[key], "{}: {key}", pair["id"]);

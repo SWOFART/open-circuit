@@ -13,6 +13,7 @@ import {
 import { operatingTargetAt, operatingTargets } from "./operate";
 import { buildScene } from "./scene";
 import { toScreen } from "./view";
+import { emptyDocumentation } from "./documentation";
 
 const SWITCH = "00000000-0000-4000-8000-0000000000e1";
 const BUTTON = "00000000-0000-4000-8000-0000000000e2";
@@ -46,7 +47,7 @@ function component(
 }
 
 const schematic: Schematic = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   components: [
     component("switch_spst", SWITCH, 0),
     component("push_button_no", BUTTON, 10),
@@ -57,6 +58,7 @@ const schematic: Schematic = {
   junctions: [],
   referenceMarkers: [],
   rails: [],
+  documentation: emptyDocumentation(),
 };
 
 function setUp(operable = true) {

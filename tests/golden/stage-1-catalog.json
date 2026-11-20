@@ -5,6 +5,7 @@
       "displayNameKey": "component.resistor.name",
       "category": "passive",
       "searchKeywordKeys": ["component.resistor.keywords"],
+      "designatorPrefix": "R",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -27,6 +28,7 @@
       "displayNameKey": "component.dcVoltageSource.name",
       "category": "sources",
       "searchKeywordKeys": ["component.dcVoltageSource.keywords"],
+      "designatorPrefix": "G",
       "pins": [
         { "id": "pin1", "role": "positive" },
         { "id": "pin2", "role": "negative" }
@@ -58,6 +60,7 @@
       "displayNameKey": "component.capacitor.name",
       "category": "passive",
       "searchKeywordKeys": ["component.capacitor.keywords"],
+      "designatorPrefix": "C",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -89,6 +92,7 @@
       "displayNameKey": "component.inductor.name",
       "category": "passive",
       "searchKeywordKeys": ["component.inductor.keywords"],
+      "designatorPrefix": "R",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -120,6 +124,7 @@
       "displayNameKey": "component.relaySpdt.name",
       "category": "switching",
       "searchKeywordKeys": ["component.relaySpdt.keywords"],
+      "designatorPrefix": "K",
       "pins": [
         { "id": "coil_positive", "role": "positive" },
         { "id": "coil_negative", "role": "negative" },
@@ -181,6 +186,7 @@
       "displayNameKey": "component.fuse.name",
       "category": "protection",
       "searchKeywordKeys": ["component.fuse.keywords"],
+      "designatorPrefix": "F",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -212,6 +218,7 @@
       "displayNameKey": "component.pmdcMotor.name",
       "category": "motors_and_loads",
       "searchKeywordKeys": ["component.pmdcMotor.keywords"],
+      "designatorPrefix": "M",
       "pins": [
         { "id": "pin1", "role": "positive" },
         { "id": "pin2", "role": "negative" }
@@ -297,6 +304,7 @@
       "displayNameKey": "component.voltmeter.name",
       "category": "measurement",
       "searchKeywordKeys": ["component.voltmeter.keywords"],
+      "designatorPrefix": "P",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -319,6 +327,7 @@
       "displayNameKey": "component.ammeter.name",
       "category": "measurement",
       "searchKeywordKeys": ["component.ammeter.keywords"],
+      "designatorPrefix": "P",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -341,6 +350,7 @@
       "displayNameKey": "component.switchSpst.name",
       "category": "switching",
       "searchKeywordKeys": ["component.switchSpst.keywords"],
+      "designatorPrefix": "S",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -372,6 +382,7 @@
       "displayNameKey": "component.pushButtonNo.name",
       "category": "switching",
       "searchKeywordKeys": ["component.pushButtonNo.keywords"],
+      "designatorPrefix": "S",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -394,6 +405,7 @@
       "displayNameKey": "component.pushButtonNc.name",
       "category": "switching",
       "searchKeywordKeys": ["component.pushButtonNc.keywords"],
+      "designatorPrefix": "S",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -416,6 +428,7 @@
       "displayNameKey": "component.contactor.name",
       "category": "switching",
       "searchKeywordKeys": ["component.contactor.keywords"],
+      "designatorPrefix": "Q",
       "pins": [
         { "id": "a1", "role": "positive" },
         { "id": "a2", "role": "negative" },
@@ -478,6 +491,7 @@
       "displayNameKey": "component.diode.name",
       "category": "semiconductors",
       "searchKeywordKeys": ["component.diode.keywords"],
+      "designatorPrefix": "R",
       "pins": [
         { "id": "anode", "role": "positive" },
         { "id": "cathode", "role": "negative" }
@@ -513,6 +527,7 @@
       "displayNameKey": "component.bjtNpn.name",
       "category": "semiconductors",
       "searchKeywordKeys": ["component.bjtNpn.keywords"],
+      "designatorPrefix": "Q",
       "pins": [
         { "id": "collector", "role": "unpolarized" },
         { "id": "base", "role": "unpolarized" },
@@ -560,6 +575,7 @@
       "displayNameKey": "component.bjtPnp.name",
       "category": "semiconductors",
       "searchKeywordKeys": ["component.bjtPnp.keywords"],
+      "designatorPrefix": "Q",
       "pins": [
         { "id": "collector", "role": "unpolarized" },
         { "id": "base", "role": "unpolarized" },
@@ -607,6 +623,7 @@
       "displayNameKey": "component.acVoltageSource.name",
       "category": "sources",
       "searchKeywordKeys": ["component.acVoltageSource.keywords"],
+      "designatorPrefix": "G",
       "pins": [
         { "id": "pin1", "role": "positive" },
         { "id": "pin2", "role": "negative" }
@@ -662,6 +679,7 @@
       "displayNameKey": "component.threePhaseSourceStar.name",
       "category": "sources",
       "searchKeywordKeys": ["component.threePhaseSourceStar.keywords"],
+      "designatorPrefix": "G",
       "pins": [
         { "id": "l1", "role": "unpolarized" },
         { "id": "l2", "role": "unpolarized" },
@@ -730,6 +748,7 @@
       "displayNameKey": "component.threePhaseSourceDelta.name",
       "category": "sources",
       "searchKeywordKeys": ["component.threePhaseSourceDelta.keywords"],
+      "designatorPrefix": "G",
       "pins": [
         { "id": "l1", "role": "unpolarized" },
         { "id": "l2", "role": "unpolarized" },
@@ -797,6 +816,7 @@
       "displayNameKey": "component.acVoltmeter.name",
       "category": "measurement",
       "searchKeywordKeys": ["component.acVoltmeter.keywords"],
+      "designatorPrefix": "P",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -830,6 +850,7 @@
       "displayNameKey": "component.acAmmeter.name",
       "category": "measurement",
       "searchKeywordKeys": ["component.acAmmeter.keywords"],
+      "designatorPrefix": "P",
       "pins": [
         { "id": "pin1", "role": "unpolarized" },
         { "id": "pin2", "role": "unpolarized" }
@@ -863,6 +884,7 @@
       "displayNameKey": "component.wattmeter.name",
       "category": "measurement",
       "searchKeywordKeys": ["component.wattmeter.keywords"],
+      "designatorPrefix": "P",
       "pins": [
         { "id": "v1", "role": "unpolarized" },
         { "id": "v2", "role": "unpolarized" },
@@ -907,81 +929,28 @@
       "displayNameKey": "component.contactorThreePole.name",
       "category": "switching",
       "searchKeywordKeys": ["component.contactorThreePole.keywords"],
+      "designatorPrefix": "Q",
       "pins": [
-        {
-          "id": "a1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "a2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l3",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t3",
-          "role": "unpolarized"
-        },
-        {
-          "id": "no_1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "no_2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "nc_1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "nc_2",
-          "role": "unpolarized"
-        }
+        { "id": "a1", "role": "unpolarized" },
+        { "id": "a2", "role": "unpolarized" },
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "t1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "t2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" },
+        { "id": "t3", "role": "unpolarized" },
+        { "id": "no_1", "role": "unpolarized" },
+        { "id": "no_2", "role": "unpolarized" },
+        { "id": "nc_1", "role": "unpolarized" },
+        { "id": "nc_2", "role": "unpolarized" }
       ],
       "pinGroups": [
-        {
-          "id": "coil",
-          "pins": ["a1", "a2"]
-        },
-        {
-          "id": "pole1",
-          "pins": ["l1", "t1"]
-        },
-        {
-          "id": "pole2",
-          "pins": ["l2", "t2"]
-        },
-        {
-          "id": "pole3",
-          "pins": ["l3", "t3"]
-        },
-        {
-          "id": "no",
-          "pins": ["no_1", "no_2"]
-        },
-        {
-          "id": "nc",
-          "pins": ["nc_1", "nc_2"]
-        }
+        { "id": "coil", "pins": ["a1", "a2"] },
+        { "id": "pole1", "pins": ["l1", "t1"] },
+        { "id": "pole2", "pins": ["l2", "t2"] },
+        { "id": "pole3", "pins": ["l3", "t3"] },
+        { "id": "no", "pins": ["no_1", "no_2"] },
+        { "id": "nc", "pins": ["nc_1", "nc_2"] }
       ],
       "parameters": [
         {
@@ -1058,45 +1027,19 @@
       "displayNameKey": "component.breakerThreePole.name",
       "category": "protection",
       "searchKeywordKeys": ["component.breakerThreePole.keywords"],
+      "designatorPrefix": "Q",
       "pins": [
-        {
-          "id": "l1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l3",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t3",
-          "role": "unpolarized"
-        }
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "t1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "t2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" },
+        { "id": "t3", "role": "unpolarized" }
       ],
       "pinGroups": [
-        {
-          "id": "pole1",
-          "pins": ["l1", "t1"]
-        },
-        {
-          "id": "pole2",
-          "pins": ["l2", "t2"]
-        },
-        {
-          "id": "pole3",
-          "pins": ["l3", "t3"]
-        }
+        { "id": "pole1", "pins": ["l1", "t1"] },
+        { "id": "pole2", "pins": ["l2", "t2"] },
+        { "id": "pole3", "pins": ["l3", "t3"] }
       ],
       "parameters": [
         {
@@ -1138,69 +1081,25 @@
       "displayNameKey": "component.thermalOverloadThreePole.name",
       "category": "protection",
       "searchKeywordKeys": ["component.thermalOverloadThreePole.keywords"],
+      "designatorPrefix": "F",
       "pins": [
-        {
-          "id": "l1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l3",
-          "role": "unpolarized"
-        },
-        {
-          "id": "t3",
-          "role": "unpolarized"
-        },
-        {
-          "id": "no_1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "no_2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "nc_1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "nc_2",
-          "role": "unpolarized"
-        }
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "t1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "t2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" },
+        { "id": "t3", "role": "unpolarized" },
+        { "id": "no_1", "role": "unpolarized" },
+        { "id": "no_2", "role": "unpolarized" },
+        { "id": "nc_1", "role": "unpolarized" },
+        { "id": "nc_2", "role": "unpolarized" }
       ],
       "pinGroups": [
-        {
-          "id": "pole1",
-          "pins": ["l1", "t1"]
-        },
-        {
-          "id": "pole2",
-          "pins": ["l2", "t2"]
-        },
-        {
-          "id": "pole3",
-          "pins": ["l3", "t3"]
-        },
-        {
-          "id": "no",
-          "pins": ["no_1", "no_2"]
-        },
-        {
-          "id": "nc",
-          "pins": ["nc_1", "nc_2"]
-        }
+        { "id": "pole1", "pins": ["l1", "t1"] },
+        { "id": "pole2", "pins": ["l2", "t2"] },
+        { "id": "pole3", "pins": ["l3", "t3"] },
+        { "id": "no", "pins": ["no_1", "no_2"] },
+        { "id": "nc", "pins": ["nc_1", "nc_2"] }
       ],
       "parameters": [
         {
@@ -1288,45 +1187,19 @@
       "displayNameKey": "component.inductionMotorThreePhase.name",
       "category": "motors_and_loads",
       "searchKeywordKeys": ["component.inductionMotorThreePhase.keywords"],
+      "designatorPrefix": "M",
       "pins": [
-        {
-          "id": "u1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "u2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "v1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "v2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "w1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "w2",
-          "role": "unpolarized"
-        }
+        { "id": "u1", "role": "unpolarized" },
+        { "id": "u2", "role": "unpolarized" },
+        { "id": "v1", "role": "unpolarized" },
+        { "id": "v2", "role": "unpolarized" },
+        { "id": "w1", "role": "unpolarized" },
+        { "id": "w2", "role": "unpolarized" }
       ],
       "pinGroups": [
-        {
-          "id": "u",
-          "pins": ["u1", "u2"]
-        },
-        {
-          "id": "v",
-          "pins": ["v1", "v2"]
-        },
-        {
-          "id": "w",
-          "pins": ["w1", "w2"]
-        }
+        { "id": "u", "pins": ["u1", "u2"] },
+        { "id": "v", "pins": ["v1", "v2"] },
+        { "id": "w", "pins": ["w1", "w2"] }
       ],
       "parameters": [
         {
@@ -1436,81 +1309,28 @@
       "displayNameKey": "component.transformerThreePhase.name",
       "category": "motors_and_loads",
       "searchKeywordKeys": ["component.transformerThreePhase.keywords"],
+      "designatorPrefix": "T",
       "pins": [
-        {
-          "id": "p1a",
-          "role": "unpolarized"
-        },
-        {
-          "id": "p1b",
-          "role": "unpolarized"
-        },
-        {
-          "id": "p2a",
-          "role": "unpolarized"
-        },
-        {
-          "id": "p2b",
-          "role": "unpolarized"
-        },
-        {
-          "id": "p3a",
-          "role": "unpolarized"
-        },
-        {
-          "id": "p3b",
-          "role": "unpolarized"
-        },
-        {
-          "id": "s1a",
-          "role": "unpolarized"
-        },
-        {
-          "id": "s1b",
-          "role": "unpolarized"
-        },
-        {
-          "id": "s2a",
-          "role": "unpolarized"
-        },
-        {
-          "id": "s2b",
-          "role": "unpolarized"
-        },
-        {
-          "id": "s3a",
-          "role": "unpolarized"
-        },
-        {
-          "id": "s3b",
-          "role": "unpolarized"
-        }
+        { "id": "p1a", "role": "unpolarized" },
+        { "id": "p1b", "role": "unpolarized" },
+        { "id": "p2a", "role": "unpolarized" },
+        { "id": "p2b", "role": "unpolarized" },
+        { "id": "p3a", "role": "unpolarized" },
+        { "id": "p3b", "role": "unpolarized" },
+        { "id": "s1a", "role": "unpolarized" },
+        { "id": "s1b", "role": "unpolarized" },
+        { "id": "s2a", "role": "unpolarized" },
+        { "id": "s2b", "role": "unpolarized" },
+        { "id": "s3a", "role": "unpolarized" },
+        { "id": "s3b", "role": "unpolarized" }
       ],
       "pinGroups": [
-        {
-          "id": "primary1",
-          "pins": ["p1a", "p1b"]
-        },
-        {
-          "id": "primary2",
-          "pins": ["p2a", "p2b"]
-        },
-        {
-          "id": "primary3",
-          "pins": ["p3a", "p3b"]
-        },
-        {
-          "id": "secondary1",
-          "pins": ["s1a", "s1b"]
-        },
-        {
-          "id": "secondary2",
-          "pins": ["s2a", "s2b"]
-        },
-        {
-          "id": "secondary3",
-          "pins": ["s3a", "s3b"]
-        }
+        { "id": "primary1", "pins": ["p1a", "p1b"] },
+        { "id": "primary2", "pins": ["p2a", "p2b"] },
+        { "id": "primary3", "pins": ["p3a", "p3b"] },
+        { "id": "secondary1", "pins": ["s1a", "s1b"] },
+        { "id": "secondary2", "pins": ["s2a", "s2b"] },
+        { "id": "secondary3", "pins": ["s3a", "s3b"] }
       ],
       "parameters": [
         {
@@ -1587,37 +1407,17 @@
       "displayNameKey": "component.threePhaseLoadStar.name",
       "category": "motors_and_loads",
       "searchKeywordKeys": ["component.threePhaseLoadStar.keywords"],
+      "designatorPrefix": "R",
       "pins": [
-        {
-          "id": "l1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l3",
-          "role": "unpolarized"
-        },
-        {
-          "id": "n",
-          "role": "unpolarized"
-        }
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" },
+        { "id": "n", "role": "unpolarized" }
       ],
       "pinGroups": [
-        {
-          "id": "l1",
-          "pins": ["l1", "n"]
-        },
-        {
-          "id": "l2",
-          "pins": ["l2", "n"]
-        },
-        {
-          "id": "l3",
-          "pins": ["l3", "n"]
-        }
+        { "id": "l1", "pins": ["l1", "n"] },
+        { "id": "l2", "pins": ["l2", "n"] },
+        { "id": "l3", "pins": ["l3", "n"] }
       ],
       "parameters": [
         {
@@ -1694,33 +1494,16 @@
       "displayNameKey": "component.threePhaseLoadDelta.name",
       "category": "motors_and_loads",
       "searchKeywordKeys": ["component.threePhaseLoadDelta.keywords"],
+      "designatorPrefix": "R",
       "pins": [
-        {
-          "id": "l1",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l2",
-          "role": "unpolarized"
-        },
-        {
-          "id": "l3",
-          "role": "unpolarized"
-        }
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" }
       ],
       "pinGroups": [
-        {
-          "id": "l12",
-          "pins": ["l1", "l2"]
-        },
-        {
-          "id": "l23",
-          "pins": ["l2", "l3"]
-        },
-        {
-          "id": "l31",
-          "pins": ["l3", "l1"]
-        }
+        { "id": "l12", "pins": ["l1", "l2"] },
+        { "id": "l23", "pins": ["l2", "l3"] },
+        { "id": "l31", "pins": ["l3", "l1"] }
       ],
       "parameters": [
         {

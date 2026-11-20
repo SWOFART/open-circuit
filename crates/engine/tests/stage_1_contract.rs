@@ -45,6 +45,7 @@ fn canonical_fixture_round_trips_and_contains_no_computed_state() {
             .collect::<Vec<_>>(),
         [
             "components",
+            "documentation",
             "junctions",
             "rails",
             "referenceMarkers",

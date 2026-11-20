@@ -1,10 +1,15 @@
 // Deliberate, offline fixture generation. No Engine imports, subprocesses or solver output.
+import {
+  withDocumentation,
+  withoutDocumentation,
+} from "./documentation-defaults.mjs";
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const golden = new URL("../tests/golden/", import.meta.url);
-const read = (name) => JSON.parse(readFileSync(new URL(name, golden), "utf8"));
+const read = (name) =>
+  withoutDocumentation(JSON.parse(readFileSync(new URL(name, golden), "utf8")));
 const id = (n) => `00000000-0000-4000-8000-${n.toString(16).padStart(12, "0")}`;
 const point = (x, y) => ({ x, y });
 const rail = (n, name, x, top, bottom) => ({
@@ -671,7 +676,7 @@ assert(
   "Use --check (default) or explicit --write",
 );
 for (const [name, data] of Object.entries(outputs)) {
-  const serialized = JSON.stringify(data, null, 2) + "\n";
+  const serialized = JSON.stringify(withDocumentation(data), null, 2) + "\n";
   const url = new URL(name, golden);
   if (args.includes("--write")) writeFileSync(url, serialized);
   else

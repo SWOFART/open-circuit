@@ -3,7 +3,7 @@
     {
       "id": "divider",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -127,7 +127,22 @@
               "y": 0
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -551,7 +566,7 @@
     {
       "id": "start-stop",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "typeId": "dc_voltage_source",
@@ -750,7 +765,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -1268,7 +1298,7 @@
     {
       "id": "start-stop-no-seal-in",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "typeId": "dc_voltage_source",
@@ -1421,7 +1451,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -1802,7 +1847,7 @@
     {
       "id": "rc-hold",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "typeId": "dc_voltage_source",
@@ -1952,7 +1997,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -2425,7 +2485,7 @@
     {
       "id": "two-islands",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2530,7 +2590,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -2839,7 +2914,7 @@
     {
       "id": "two-islands-N-PE",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2944,7 +3019,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,

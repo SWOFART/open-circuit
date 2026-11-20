@@ -14,6 +14,18 @@ pub enum DiagnosticCode {
     DuplicateRailName,
     RailLimitExceeded,
     UnsupportedAssignmentRails,
+    UnsupportedAssignmentDocumentation,
+    InvalidDesignator,
+    DuplicateDesignator,
+    InvalidWireNumber,
+    InvalidTerminal,
+    DuplicateTerminal,
+    InvalidNote,
+    InvalidTitleBlock,
+    InvalidSheet,
+    OverlappingSheets,
+    UnknownDocumentationTarget,
+    DocumentationLimitExceeded,
     InvalidParameter,
     DuplicateId,
     UnknownComponentType,
@@ -44,6 +56,20 @@ impl DiagnosticCode {
             Self::DuplicateRailName => "diagnostic.duplicateRailName",
             Self::RailLimitExceeded => "diagnostic.railLimitExceeded",
             Self::UnsupportedAssignmentRails => "diagnostic.unsupportedAssignmentRails",
+            Self::UnsupportedAssignmentDocumentation => {
+                "diagnostic.unsupportedAssignmentDocumentation"
+            }
+            Self::InvalidDesignator => "diagnostic.invalidDesignator",
+            Self::DuplicateDesignator => "diagnostic.duplicateDesignator",
+            Self::InvalidWireNumber => "diagnostic.invalidWireNumber",
+            Self::InvalidTerminal => "diagnostic.invalidTerminal",
+            Self::DuplicateTerminal => "diagnostic.duplicateTerminal",
+            Self::InvalidNote => "diagnostic.invalidNote",
+            Self::InvalidTitleBlock => "diagnostic.invalidTitleBlock",
+            Self::InvalidSheet => "diagnostic.invalidSheet",
+            Self::OverlappingSheets => "diagnostic.overlappingSheets",
+            Self::UnknownDocumentationTarget => "diagnostic.unknownDocumentationTarget",
+            Self::DocumentationLimitExceeded => "diagnostic.documentationLimitExceeded",
             Self::InvalidParameter => "diagnostic.invalidParameter",
             Self::DuplicateId => "diagnostic.duplicateId",
             Self::UnknownComponentType => "diagnostic.unknownComponentType",
@@ -107,6 +133,15 @@ pub enum DiagnosticReference {
     Rail {
         rail_id: StableId,
     },
+    Terminal {
+        terminal_id: StableId,
+    },
+    Note {
+        note_id: StableId,
+    },
+    Sheet {
+        sheet_id: StableId,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -154,6 +189,9 @@ impl DiagnosticReference {
             } => (reference_marker_id.as_str(), 4, ""),
             Self::Node { node_id } => (node_id.as_str(), 5, ""),
             Self::Rail { rail_id } => (rail_id.as_str(), 6, ""),
+            Self::Terminal { terminal_id } => (terminal_id.as_str(), 7, ""),
+            Self::Note { note_id } => (note_id.as_str(), 8, ""),
+            Self::Sheet { sheet_id } => (sheet_id.as_str(), 9, ""),
         }
     }
     pub fn pin(component_id: StableId, pin_id: PinId) -> Self {

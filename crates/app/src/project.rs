@@ -191,20 +191,20 @@ mod tests {
     }
 
     #[test]
-    fn opening_v1_does_not_rewrite_it_and_explicit_save_writes_normalized_v2() {
+    fn opening_v1_does_not_rewrite_it_and_explicit_save_writes_normalized_v3() {
         let directory = tempfile::tempdir().unwrap();
         let path = project_path(&directory, "legacy");
         let bytes = include_bytes!("../../../tests/golden/stage-8-legacy-divider.ocircuit");
         fs::write(&path, bytes).unwrap();
         let session = ProjectSession::default();
         let schematic = session.load(&path).unwrap();
-        assert_eq!(schematic.schema_version, 2);
+        assert_eq!(schematic.schema_version, 3);
         assert!(schematic.rails.is_empty());
         assert_eq!(schematic, divider());
         assert_eq!(fs::read(&path).unwrap(), bytes);
         session.save_to(&path, &schematic).unwrap();
         let saved: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-        assert_eq!(saved["schemaVersion"], 2);
+        assert_eq!(saved["schemaVersion"], 3);
         assert_eq!(saved["rails"], serde_json::json!([]));
         assert_eq!(read_project_file(&path).unwrap(), schematic);
     }

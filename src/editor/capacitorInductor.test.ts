@@ -7,6 +7,7 @@ import { resolvePinPositions, type Rotation } from "./geometry";
 import { hitTest } from "./hitTest";
 import { buildScene } from "./scene";
 import { followingWireEdits } from "./transform";
+import { emptyDocumentation } from "./documentation";
 
 const CAPACITOR = "00000000-0000-4000-8000-0000000000c1";
 const INDUCTOR = "00000000-0000-4000-8000-0000000000c2";
@@ -14,7 +15,7 @@ const WIRE = "00000000-0000-4000-8000-0000000000c3";
 
 function schematic(): Schematic {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     components: [
       {
         typeId: "capacitor",
@@ -43,6 +44,7 @@ function schematic(): Schematic {
     junctions: [],
     referenceMarkers: [],
     rails: [],
+    documentation: emptyDocumentation(),
   };
 }
 

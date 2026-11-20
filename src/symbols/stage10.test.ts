@@ -12,6 +12,7 @@ import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { DeviceState } from "../generated/DeviceState";
 import type { Schematic } from "../generated/Schematic";
 import { symbols, type LocalPoint } from ".";
+import { emptyDocumentation } from "../editor/documentation";
 
 // The Stage 10 power equipment (docs/contracts/stage-10-three-phase-equipment.md section 2). The
 // IDs and the count of the pins against the Rust catalog are checked for every symbol by
@@ -45,12 +46,13 @@ function part(
 
 function alone(typeId: ComponentTypeId, rotationDeg: Rotation = 0): Schematic {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     components: [part(typeId, rotationDeg)],
     wires: [],
     junctions: [],
     referenceMarkers: [],
     rails: [],
+    documentation: emptyDocumentation(),
   };
 }
 

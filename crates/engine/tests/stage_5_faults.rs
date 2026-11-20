@@ -80,7 +80,7 @@ fn request(parts: Vec<(Value, Value)>, markers: &[(i32, i32)], faults: Value) ->
         .collect::<Vec<_>>();
     let mut value = json!({
         "schematic": {
-            "schemaVersion": 2,"rails":[],
+            "schemaVersion": 3, "documentation": {"designators":[],"wireNumbers":[],"terminals":[],"notes":[],"titleBlock":{"title":"","drawingNumber":"","revision":"","author":"","company":"","date":""},"sheets":[]},"rails":[],
             "components": components,
             "wires": [],
             "junctions": [],

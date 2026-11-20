@@ -351,6 +351,11 @@ fn validate_assignment_for_format(
             if let Some(schematic) = normalized.get_mut(field).and_then(Value::as_object_mut) {
                 schematic.insert("schemaVersion".into(), crate::SCHEMA_VERSION.into());
                 schematic.insert("rails".into(), Value::Array(Vec::new()));
+                schematic.insert(
+                    "documentation".into(),
+                    serde_json::to_value(crate::ProjectDocumentation::default())
+                        .unwrap_or(Value::Null),
+                );
             }
         }
     }
@@ -618,6 +623,7 @@ impl Report {
         let mut fields = SCHEMATIC_FIELDS.to_vec();
         if !self.legacy_schematics {
             fields.push("rails");
+            fields.push("documentation");
         }
         self.unknown_fields(object, &fields, path);
         if !self.legacy_schematics {
@@ -627,6 +633,21 @@ impl Report {
                 }
                 Some(_) => {}
                 None => self.push(AssignmentErrorCode::InvalidField, child(path, "rails")),
+            }
+            // An assignment holds no documentation (stage-12 contract section 2.4).
+            match object
+                .get("documentation")
+                .map(|value| serde_json::from_value::<crate::ProjectDocumentation>(value.clone()))
+            {
+                Some(Ok(documentation)) if documentation.is_empty() => {}
+                Some(Ok(_)) => self.push(
+                    AssignmentErrorCode::TaskMismatch,
+                    child(path, "documentation"),
+                ),
+                _ => self.push(
+                    AssignmentErrorCode::InvalidField,
+                    child(path, "documentation"),
+                ),
             }
         }
         let mut seen = HashSet::new();

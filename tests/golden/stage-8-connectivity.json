@@ -3,7 +3,7 @@
     {
       "id": "interior-crossing",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -60,7 +60,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -192,7 +207,7 @@
     {
       "id": "crossing-junction",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -257,7 +272,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -395,7 +425,7 @@
     {
       "id": "crossing-reference",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -460,7 +490,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -598,7 +643,7 @@
     {
       "id": "wire-end-rail-interior",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -655,7 +700,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -785,7 +845,7 @@
     {
       "id": "wire-end-rail-end",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -846,7 +906,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -980,7 +1055,7 @@
     {
       "id": "rail-end-wire-interior",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -1037,7 +1112,22 @@
               "y": 5
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -1167,7 +1257,7 @@
     {
       "id": "collinear-wire-overlap",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -1236,7 +1326,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -1378,7 +1483,7 @@
     {
       "id": "pin-on-rail-interior",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -1421,7 +1526,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -1538,7 +1658,7 @@
     {
       "id": "rail-overlap",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -1593,7 +1713,22 @@
               "y": 15
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -1729,7 +1864,7 @@
     {
       "id": "rail-end-touch",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -1784,7 +1919,22 @@
               "y": 15
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -1920,7 +2070,7 @@
     {
       "id": "rail-gap",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -1975,7 +2125,22 @@
               "y": 15
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -2105,7 +2270,7 @@
     {
       "id": "dangling-extension",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2148,7 +2313,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -2267,7 +2447,7 @@
     {
       "id": "unique-rename",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2324,7 +2504,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -2456,7 +2651,7 @@
     {
       "id": "case-sensitive-names",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2511,7 +2706,22 @@
               "y": 15
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -2647,7 +2857,7 @@
     {
       "id": "duplicate-name",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2716,7 +2926,22 @@
               "y": 15
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -2863,7 +3088,7 @@
     {
       "id": "invalid-name",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2920,7 +3145,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -3046,7 +3286,7 @@
     {
       "id": "diagonal-rail",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -3103,7 +3343,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -3229,7 +3484,7 @@
     {
       "id": "reversed-rail",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -3286,7 +3541,22 @@
               "y": 0
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -3412,7 +3682,7 @@
     {
       "id": "one-unit-rail",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -3469,7 +3739,22 @@
               "y": 1
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -3595,7 +3880,7 @@
     {
       "id": "overflow-safe-extent",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -3652,7 +3937,22 @@
               "y": 2147483647
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -3778,7 +4078,7 @@
     {
       "id": "detached-reference",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -3843,7 +4143,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -3977,7 +4292,7 @@
     {
       "id": "reference-on-rail",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -4042,7 +4357,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -4182,7 +4512,7 @@
     {
       "id": "global-reference-union",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -4266,7 +4596,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -4428,7 +4773,7 @@
     {
       "id": "empty-rail",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [],
         "wires": [],
         "junctions": [],
@@ -4446,7 +4791,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -4495,7 +4855,7 @@
     {
       "id": "empty-referenced-rail",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [],
         "wires": [],
         "junctions": [],
@@ -4521,7 +4881,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -4582,7 +4957,7 @@
     {
       "id": "duplicate-disconnected-name",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -4651,7 +5026,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,
@@ -4798,7 +5188,7 @@
     {
       "id": "collinear-wire-end-touch",
       "railSchematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -4867,7 +5257,22 @@
               "y": 10
             }
           }
-        ]
+        ],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        }
       },
       "wireSchematic": {
         "schemaVersion": 1,

@@ -10,14 +10,16 @@ import {
   draftToAssignment,
   type AssignmentDraftStore,
 } from "./assignmentDraft";
+import { emptyDocumentation } from "../editor/documentation";
 
 export const emptySchematic: Schematic = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   components: [],
   wires: [],
   junctions: [],
   referenceMarkers: [],
   rails: [],
+  documentation: emptyDocumentation(),
 };
 
 export type OpenOutcome =

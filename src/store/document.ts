@@ -185,14 +185,16 @@ function assertUniqueIds(schematic: Schematic): void {
 
 function assertSchematicShape(schematic: Schematic): void {
   if (
-    schematic.schemaVersion !== 2 ||
+    schematic.schemaVersion !== 3 ||
     !Array.isArray(schematic.components) ||
     !Array.isArray(schematic.wires) ||
     !Array.isArray(schematic.junctions) ||
     !Array.isArray(schematic.referenceMarkers) ||
-    !Array.isArray(schematic.rails)
+    !Array.isArray(schematic.rails) ||
+    typeof schematic.documentation !== "object" ||
+    schematic.documentation === null
   ) {
-    throw new Error("The document is not a version 2 schematic.");
+    throw new Error("The document is not a version 3 schematic.");
   }
 
   assertUniqueIds(schematic);

@@ -2,6 +2,7 @@ import type { Schematic } from "../generated/Schematic";
 import { dividerSchematic } from "./fixtures";
 import type { SchematicDocumentStore } from "./document";
 import type { ProjectFilePort } from "./projectFiles";
+import { emptyDocumentation } from "../editor/documentation";
 
 /**
  * `circuit` replaces the document with a circuit of an assignment the teacher is editing;
@@ -16,12 +17,13 @@ export type CircuitSource = Schematic | (() => Promise<Schematic | null>);
 export type UnsavedChoice = "save" | "discard" | "cancel";
 
 export const blankSchematic: Schematic = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   components: [],
   wires: [],
   junctions: [],
   referenceMarkers: [],
   rails: [],
+  documentation: emptyDocumentation(),
 };
 
 /** Applies file operations only after Rust has returned a validated document. */

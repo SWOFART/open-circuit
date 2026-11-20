@@ -8,7 +8,7 @@ use crate::{
     ParameterId, StableId, component_catalog,
 };
 
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// Integer world-grid coordinates shared by the schematic and editor layers.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -1127,13 +1127,16 @@ pub struct ReferenceMarkerSpec {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "Schematic.ts")]
 pub struct Schematic {
-    #[ts(type = "2")]
+    #[ts(type = "3")]
     pub schema_version: u32,
     pub components: Vec<ComponentSpec>,
     pub wires: Vec<WireSpec>,
     pub junctions: Vec<JunctionSpec>,
     pub reference_markers: Vec<ReferenceMarkerSpec>,
     pub rails: Vec<crate::RailSpec>,
+    /// Designators, wire numbers, terminals, notes, a title block and sheets. The Engine
+    /// ignores it when it compiles and runs a circuit.
+    pub documentation: crate::ProjectDocumentation,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
@@ -1345,6 +1348,37 @@ impl Schematic {
                 &mut diagnostics,
             );
         }
+        for terminal in &self.documentation.terminals {
+            record_id(
+                &mut ids,
+                &terminal.id,
+                DiagnosticReference::Terminal {
+                    terminal_id: terminal.id.clone(),
+                },
+                &mut diagnostics,
+            );
+        }
+        for note in &self.documentation.notes {
+            record_id(
+                &mut ids,
+                &note.id,
+                DiagnosticReference::Note {
+                    note_id: note.id.clone(),
+                },
+                &mut diagnostics,
+            );
+        }
+        for sheet in &self.documentation.sheets {
+            record_id(
+                &mut ids,
+                &sheet.id,
+                DiagnosticReference::Sheet {
+                    sheet_id: sheet.id.clone(),
+                },
+                &mut diagnostics,
+            );
+        }
+        diagnostics.extend(self.validate_documentation());
         diagnostics
     }
 }

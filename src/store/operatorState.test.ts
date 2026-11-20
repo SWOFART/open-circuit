@@ -13,6 +13,7 @@ import { PredeterminedEngineAdapter } from "./mockEngineAdapter";
 import { SimulationController } from "./simulation";
 import { symbols, type SymbolRegistry } from "../symbols";
 import { resistorSymbol } from "../symbols/resistor";
+import { emptyDocumentation } from "../editor/documentation";
 
 const RUN_ID = "00000000-0000-4000-8000-0000000000a0";
 const SOURCE = "00000000-0000-4000-8000-000000000001";
@@ -22,7 +23,7 @@ const BUTTON = "00000000-0000-4000-8000-000000000004";
 
 /** A switch and a normally closed push button in series with a source and a resistor. */
 const schematic: Schematic = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   components: [
     {
       typeId: "dc_voltage_source",
@@ -57,6 +58,7 @@ const schematic: Schematic = {
   junctions: [],
   referenceMarkers: [],
   rails: [],
+  documentation: emptyDocumentation(),
 };
 
 const layout: ResultLayout = {

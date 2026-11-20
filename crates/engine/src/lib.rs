@@ -5,6 +5,7 @@ pub mod catalog;
 pub mod checks;
 mod devices;
 pub mod diagnostics;
+mod documentation;
 pub mod engine;
 pub mod faults;
 pub mod ids;
@@ -39,6 +40,11 @@ pub use checks::{
     MAX_CHECK_SECONDS, MAX_COMPONENT_COUNT, evaluate_checks,
 };
 pub use diagnostics::{Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity};
+pub use documentation::{
+    DESIGNATOR_FIRST_LETTERS, DesignatorEntry, MAX_DESIGNATORS, MAX_NOTES, MAX_SHEETS,
+    MAX_TERMINALS, MAX_WIRE_NUMBERS, NoteSpec, ProjectDocumentation, SheetSize, SheetSpec,
+    TerminalSpec, TitleBlock, WireNumberEntry, is_valid_designator,
+};
 pub use engine::Engine;
 pub use faults::{FaultKind, FaultSpec, SHORT_FAULT_RESISTANCE_OHMS, supported_fault_kinds};
 pub use ids::{InvalidStableId, StableId};

@@ -19,6 +19,7 @@ fn fixture(trip_i2t_ampere_squared_seconds: f64) -> (Schematic, GeometryEnvelope
     let point = |x, y| GridPoint { x, y };
     let schematic = Schematic {
         rails: Vec::new(),
+        documentation: Default::default(),
         schema_version: SCHEMA_VERSION,
         components: vec![
             ComponentSpec::DcVoltageSource {

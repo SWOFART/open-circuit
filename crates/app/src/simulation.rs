@@ -441,7 +441,7 @@ impl std::fmt::Display for ServiceError {
 impl std::error::Error for ServiceError {}
 
 enum Message {
-    Compile(CompileRequest, Sender<CompileResult>),
+    Compile(Box<CompileRequest>, Sender<CompileResult>),
     SetParameter(SetParameterRequest, Sender<SetParameterResult>),
     SetOperatorState(SetOperatorStateRequest, Sender<SetOperatorStateResult>),
     Start(
@@ -495,7 +495,7 @@ impl SimulationService {
     }
 
     pub fn compile(&self, request: CompileRequest) -> Result<CompileResult, ServiceError> {
-        let result = self.request(|reply| Message::Compile(request, reply))?;
+        let result = self.request(|reply| Message::Compile(Box::new(request), reply))?;
         if let CompileResult::Success { run_id, .. } = &result {
             *self
                 .active_run_id
@@ -725,7 +725,7 @@ fn run_worker(mut core: SimulationCore, receiver: Receiver<Message>) {
         match message {
             Ok(Message::Shutdown) | Err(RecvTimeoutError::Disconnected) => break,
             Ok(Message::Compile(request, reply)) => {
-                let _ = reply.send(core.compile(request));
+                let _ = reply.send(core.compile(*request));
             }
             Ok(Message::SetParameter(request, reply)) => {
                 let _ = reply.send(core.set_parameter(request));
