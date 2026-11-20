@@ -1,0 +1,24 @@
+Open Circuit Stage 10 reference: contactor-60
+.options method=trap reltol=1e-9 vntol=1e-10 abstol=1e-12 temp=27 tnom=27
+bsource source 0 v=ternary_fcn(time<0.3,14.142135623730951,1.4142135623730951)*sin(376.99111843077515*time)
+rcoil source probe 10
+vcoil probe winding 0
+lcoil winding 0 0.01 ic=0
+bfilter 0 detector i=i(vcoil)*i(vcoil)
+csense detector 0 0.02 ic=0
+rsense detector 0 1
+vflag supply 0 1
+rflag supply output 1
+sflag output 0 detector 0 pickup
+.model pickup sw(ron=1e-6 roff=1e9 vt=0.325 vh=0.165)
+bstate picked 0 v=1-v(output)
+.tran 0.00001 0.5 0 0.00001 uic
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+wrdata contactor-60.out i(vcoil) v(detector) v(picked)
+quit
+.endc
+.end

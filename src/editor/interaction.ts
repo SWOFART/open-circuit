@@ -169,7 +169,7 @@ export type InteractionIntent =
     };
 
 /** What a press on a switch or a push button asks for. */
-export type OperateAction = "toggle" | "press" | "release";
+export type OperateAction = "toggle" | "press" | "release" | "reset";
 
 /** What an uncommitted drag shows. Nothing is committed until release. */
 export type DragPreview =

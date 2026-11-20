@@ -66,6 +66,80 @@ const messages: Readonly<Record<string, string>> = {
   "component.acAmmeter.name": "AC ammeter",
   "component.acAmmeter.burdenResistance": "Burden resistance",
   "component.acAmmeter.frequency": "Measurement frequency",
+  "component.contactorThreePole.name": "Three-pole contactor",
+  "component.contactorThreePole.keywords":
+    "three phase power contact switching starter",
+  "component.contactorThreePole.coilResistance": "Coil resistance",
+  "component.contactorThreePole.coilInductance": "Coil inductance",
+  "component.contactorThreePole.pickupCurrent": "Pickup RMS current",
+  "component.contactorThreePole.dropoutCurrent": "Dropout RMS current",
+  "component.contactorThreePole.coilSense": "Coil detector time constant",
+  "component.contactorThreePole.closedContactResistance":
+    "Closed contact resistance",
+  "component.breakerThreePole.name": "Three-pole breaker",
+  "component.breakerThreePole.keywords": "three phase switch overcurrent trip",
+  "component.breakerThreePole.closedContactResistance":
+    "Closed contact resistance",
+  "component.breakerThreePole.instantaneousTrip": "Instantaneous trip current",
+  "component.breakerThreePole.initialClosed": "Initial position",
+  "component.thermalOverloadThreePole.name":
+    "Three-pole thermal overload relay",
+  "component.thermalOverloadThreePole.keywords":
+    "three phase protection motor starter thermal trip",
+  "component.thermalOverloadThreePole.closedContactResistance":
+    "Closed auxiliary contact resistance",
+  "component.thermalOverloadThreePole.senseResistance":
+    "Phase sensing resistance",
+  "component.thermalOverloadThreePole.ratedCurrent": "Rated phase current",
+  "component.thermalOverloadThreePole.thermalSense":
+    "Thermal detector time constant",
+  "component.thermalOverloadThreePole.tripScale": "Trip delay scale",
+  "component.thermalOverloadThreePole.cool": "Cooling time constant",
+  "component.thermalOverloadThreePole.resetDose":
+    "Maximum thermal dose for reset",
+  "component.inductionMotorThreePhase.name": "Three-phase induction motor",
+  "component.inductionMotorThreePhase.keywords": "asynchronous squirrel cage",
+  "component.inductionMotorThreePhase.statorResistance": "Stator resistance",
+  "component.inductionMotorThreePhase.rotorResistance": "Rotor resistance",
+  "component.inductionMotorThreePhase.statorLeakage":
+    "Stator leakage inductance",
+  "component.inductionMotorThreePhase.rotorLeakage": "Rotor leakage inductance",
+  "component.inductionMotorThreePhase.magnetizing": "Magnetizing inductance",
+  "component.inductionMotorThreePhase.polePairs": "Pole pairs",
+  "component.inductionMotorThreePhase.inertia": "Rotor inertia",
+  "component.inductionMotorThreePhase.friction": "Viscous friction",
+  "component.inductionMotorThreePhase.loadTorque": "Load torque",
+  "component.transformerThreePhase.name": "Three-phase transformer",
+  "component.transformerThreePhase.keywords": "coupled winding turns ratio",
+  "component.transformerThreePhase.turnsRatio":
+    "Primary-to-secondary turns ratio",
+  "component.transformerThreePhase.primaryResistance":
+    "Primary winding resistance",
+  "component.transformerThreePhase.secondaryResistance":
+    "Secondary winding resistance",
+  "component.transformerThreePhase.primaryLeakage":
+    "Primary leakage inductance",
+  "component.transformerThreePhase.secondaryLeakage":
+    "Secondary leakage inductance",
+  "component.transformerThreePhase.magnetizing": "Magnetizing inductance",
+  "component.threePhaseLoadStar.name": "Three-phase star load",
+  "component.threePhaseLoadStar.keywords": "wye load impedance",
+  "component.threePhaseLoadStar.phase1Resistance": "Branch 1 resistance",
+  "component.threePhaseLoadStar.phase1Inductance": "Branch 1 inductance",
+  "component.threePhaseLoadStar.phase2Resistance": "Branch 2 resistance",
+  "component.threePhaseLoadStar.phase2Inductance": "Branch 2 inductance",
+  "component.threePhaseLoadStar.phase3Resistance": "Branch 3 resistance",
+  "component.threePhaseLoadStar.phase3Inductance": "Branch 3 inductance",
+  "component.threePhaseLoadDelta.name": "Three-phase delta load",
+  "component.threePhaseLoadDelta.keywords": "delta load impedance",
+  "component.threePhaseLoadDelta.phase1Resistance": "Branch 1 resistance",
+  "component.threePhaseLoadDelta.phase1Inductance": "Branch 1 inductance",
+  "component.threePhaseLoadDelta.phase2Resistance": "Branch 2 resistance",
+  "component.threePhaseLoadDelta.phase2Inductance": "Branch 2 inductance",
+  "component.threePhaseLoadDelta.phase3Resistance": "Branch 3 resistance",
+  "component.threePhaseLoadDelta.phase3Inductance": "Branch 3 inductance",
+  "component.breakerThreePole.initialClosedHint":
+    "The breaker starts open by default.",
   "component.wattmeter.name": "Wattmeter",
   "component.wattmeter.inputResistance": "Input resistance",
   "component.wattmeter.burdenResistance": "Burden resistance",

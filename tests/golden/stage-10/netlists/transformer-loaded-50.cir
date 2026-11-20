@@ -1,0 +1,42 @@
+Open Circuit Stage 10 reference: transformer-loaded-50
+.options method=trap reltol=1e-9 vntol=1e-10 abstol=1e-12 temp=27 tnom=27
+vline0 line0 0 ac 48 0 sin(0 67.88225099390857 50 0 0 0)
+vline1 line1 0 ac 48 -120 sin(0 67.88225099390857 50 0 0 -120)
+vline2 line2 0 ac 48 120 sin(0 67.88225099390857 50 0 0 120)
+vp0 line0 probe0 0
+rp0 probe0 primary0 2
+lp0 primary0 0 0.054
+ls0 secondary0 0 0.0185
+kbank0 lp0 ls0 0.790964996460416
+vsec0 output0 sensedsec0 0
+rs0 sensedsec0 secondary0 1
+rload0 output0 load0 10
+lload0 load0 0 0.005
+vp1 line1 probe1 0
+rp1 probe1 primary1 2
+lp1 primary1 0 0.054
+ls1 secondary1 0 0.0185
+kbank1 lp1 ls1 0.790964996460416
+vsec1 output1 sensedsec1 0
+rs1 sensedsec1 secondary1 1
+rload1 output1 load1 16
+lload1 load1 0 0.009
+vp2 line2 probe2 0
+rp2 probe2 primary2 2
+lp2 primary2 0 0.054
+ls2 secondary2 0 0.0185
+kbank2 lp2 ls2 0.790964996460416
+vsec2 output2 sensedsec2 0
+rs2 sensedsec2 secondary2 1
+rload2 output2 load2 24
+lload2 load2 0 0.015
+.ac lin 1 50 50
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+wrdata transformer-loaded-50.out i(vp0) i(vsec0) v(output0) i(vp1) i(vsec1) v(output1) i(vp2) i(vsec2) v(output2)
+quit
+.endc
+.end

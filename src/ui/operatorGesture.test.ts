@@ -144,6 +144,7 @@ describe("the position a user action asks for", () => {
 
     expect(operatorPosition("toggle", undefined)).toBeNull();
     expect(operatorPosition("press", undefined)).toBeNull();
+    expect(operatorPosition("reset", undefined)).toBeNull();
     expect(operatorPosition("toggle", relay)).toBeNull();
     expect(operatorPosition("press", relay)).toBeNull();
     expect(
@@ -153,6 +154,19 @@ describe("the position a user action asks for", () => {
         position: "open",
         conducting: false,
       }),
+    ).toBeNull();
+  });
+
+  it("sends only a pressed action for a latched overload reset", () => {
+    const overload = {
+      kind: "fuse",
+      componentId: id,
+      state: "tripped",
+    } as const;
+    expect(operatorPosition("reset", overload)).toBe("pressed");
+    expect(operatorPosition("release", overload)).toBeNull();
+    expect(
+      operatorPosition("reset", { ...overload, state: "intact" }),
     ).toBeNull();
   });
 });

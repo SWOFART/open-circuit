@@ -30,6 +30,13 @@ pub enum ComponentTypeId {
     Diode,
     BjtNpn,
     BjtPnp,
+    ContactorThreePole,
+    BreakerThreePole,
+    ThermalOverloadThreePole,
+    InductionMotorThreePhase,
+    TransformerThreePhase,
+    ThreePhaseLoadStar,
+    ThreePhaseLoadDelta,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -41,6 +48,9 @@ pub enum PinId {
     L1,
     L2,
     L3,
+    T1,
+    T2,
+    T3,
     N,
     V1,
     V2,
@@ -66,6 +76,22 @@ pub enum PinId {
     Nc1,
     #[serde(rename = "nc_2")]
     Nc2,
+    U1,
+    U2,
+    W1,
+    W2,
+    P1a,
+    P1b,
+    P2a,
+    P2b,
+    P3a,
+    P3b,
+    S1a,
+    S1b,
+    S2a,
+    S2b,
+    S3a,
+    S3b,
 }
 
 impl PinId {
@@ -76,6 +102,9 @@ impl PinId {
             Self::L1 => "l1",
             Self::L2 => "l2",
             Self::L3 => "l3",
+            Self::T1 => "t1",
+            Self::T2 => "t2",
+            Self::T3 => "t3",
             Self::N => "n",
             Self::V1 => "v1",
             Self::V2 => "v2",
@@ -97,6 +126,22 @@ impl PinId {
             Self::No2 => "no_2",
             Self::Nc1 => "nc_1",
             Self::Nc2 => "nc_2",
+            Self::U1 => "u1",
+            Self::U2 => "u2",
+            Self::W1 => "w1",
+            Self::W2 => "w2",
+            Self::P1a => "p1a",
+            Self::P1b => "p1b",
+            Self::P2a => "p2a",
+            Self::P2b => "p2b",
+            Self::P3a => "p3a",
+            Self::P3b => "p3b",
+            Self::S1a => "s1a",
+            Self::S1b => "s1b",
+            Self::S2a => "s2a",
+            Self::S2b => "s2b",
+            Self::S3a => "s3a",
+            Self::S3b => "s3b",
         }
     }
 }
@@ -123,6 +168,31 @@ pub enum ParameterId {
     PickupCurrentAmps,
     DropoutCurrentAmps,
     ClosedContactResistanceOhms,
+    CoilSenseSeconds,
+    InstantaneousTripAmps,
+    SenseResistanceOhms,
+    RatedCurrentAmps,
+    ThermalSenseSeconds,
+    TripScaleSeconds,
+    CoolSeconds,
+    ResetDose,
+    StatorResistanceOhms,
+    RotorResistanceOhms,
+    StatorLeakageHenries,
+    RotorLeakageHenries,
+    MagnetizingHenries,
+    PolePairs,
+    TurnsRatio,
+    PrimaryResistanceOhms,
+    SecondaryResistanceOhms,
+    PrimaryLeakageHenries,
+    SecondaryLeakageHenries,
+    Phase1ResistanceOhms,
+    Phase2ResistanceOhms,
+    Phase3ResistanceOhms,
+    Phase1InductanceHenries,
+    Phase2InductanceHenries,
+    Phase3InductanceHenries,
     IntactResistanceOhms,
     TripI2tAmpereSquaredSeconds,
     ArmatureResistanceOhms,
@@ -155,6 +225,8 @@ pub enum Unit {
     Farad,
     Henry,
     AmpereSquaredSecond,
+    AmpereSquared,
+    Second,
     KilogramMeterSquared,
     NewtonMeter,
     NewtonMeterPerAmp,
@@ -184,6 +256,7 @@ pub enum NumericDomain {
     StrictlyPositive,
     NonNegative,
     ZeroOrOne,
+    Integer,
 }
 
 impl NumericDomain {
@@ -197,6 +270,7 @@ impl NumericDomain {
             Self::StrictlyPositive => value > 0.0,
             Self::NonNegative => value >= 0.0,
             Self::ZeroOrOne => value == 0.0 || value == 1.0,
+            Self::Integer => value.trunc() == value,
         }
     }
 }
@@ -228,6 +302,15 @@ pub struct ParameterDefinition {
     pub maximum_value: Option<f64>,
 }
 
+/// An ordered branch in a component's pin list.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "PinGroupDefinition.ts")]
+pub struct PinGroupDefinition {
+    pub id: String,
+    pub pins: [PinId; 2],
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "ComponentCatalogEntry.ts")]
@@ -239,6 +322,9 @@ pub struct ComponentCatalogEntry {
     // Message keys of alternative names and related words for search.
     pub search_keyword_keys: Vec<String>,
     pub pins: Vec<PinDefinition>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pin_groups: Option<Vec<PinGroupDefinition>>,
     pub parameters: Vec<ParameterDefinition>,
     // The fault kinds this type supports (docs/contracts/stage-5-assignments.md section 5.2).
     pub fault_kinds: Vec<crate::FaultKind>,
@@ -339,6 +425,7 @@ fn transistor_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEnt
             },
         )
         .to_vec(),
+        pin_groups: None,
         fault_kinds: vec![],
     }
 }
@@ -377,6 +464,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Resistor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -418,6 +506,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::DcVoltageSource).to_vec(),
             },
             ComponentCatalogEntry {
@@ -450,6 +539,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Capacitor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -482,6 +572,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Inductor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -568,6 +659,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::RelaySpdt).to_vec(),
             },
             ComponentCatalogEntry {
@@ -600,6 +692,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Fuse).to_vec(),
             },
             ComponentCatalogEntry {
@@ -707,6 +800,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PmdcMotor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -726,6 +820,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Voltmeter).to_vec(),
             },
             ComponentCatalogEntry {
@@ -745,6 +840,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Ammeter).to_vec(),
             },
             ComponentCatalogEntry {
@@ -777,6 +873,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::SwitchSpst).to_vec(),
             },
             ComponentCatalogEntry {
@@ -796,6 +893,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNo).to_vec(),
             },
             ComponentCatalogEntry {
@@ -815,6 +913,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     minimum_value: None,
                     maximum_value: None,
                 }],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
             },
             ComponentCatalogEntry {
@@ -905,6 +1004,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::Contactor).to_vec(),
             },
             ComponentCatalogEntry {
@@ -946,6 +1046,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(2.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             transistor_entry(ComponentTypeId::BjtNpn, "bjtNpn"),
@@ -1011,6 +1112,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: None,
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::AcVoltageSource).to_vec(),
             },
             ComponentCatalogEntry {
@@ -1087,6 +1189,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     },
                 )
                 .to_vec(),
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1163,6 +1266,7 @@ pub fn component_catalog() -> ComponentCatalog {
                     },
                 )
                 .to_vec(),
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1200,6 +1304,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(400.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1237,6 +1342,7 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(400.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
             ComponentCatalogEntry {
@@ -1285,11 +1391,13 @@ pub fn component_catalog() -> ComponentCatalog {
                         maximum_value: Some(400.0),
                     },
                 ],
+                pin_groups: None,
                 fault_kinds: vec![],
             },
         ],
         categories: Vec::new(),
     };
+    catalog.component_types.extend(stage10_equipment_catalog());
     catalog.categories = CategoryId::ALL
         .into_iter()
         .filter(|category| {
@@ -1300,4 +1408,461 @@ pub fn component_catalog() -> ComponentCatalog {
         })
         .collect();
     catalog
+}
+
+fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 7] {
+    use crate::pin_groups::{
+        CONTACTOR_AUXILIARIES, CONTACTOR_COIL, DELTA_LOAD_WINDINGS, INDUCTION_WINDINGS,
+        POWER_POLES, PinGroup, STAR_LOAD_WINDINGS, TRANSFORMER_WINDINGS,
+    };
+    use ParameterId::*;
+
+    let entry = |type_id, name: &str, groups: Vec<PinGroup>, parameters| ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: match type_id {
+            ComponentTypeId::BreakerThreePole | ComponentTypeId::ThermalOverloadThreePole => {
+                CategoryId::Protection
+            }
+            ComponentTypeId::InductionMotorThreePhase
+            | ComponentTypeId::TransformerThreePhase
+            | ComponentTypeId::ThreePhaseLoadStar
+            | ComponentTypeId::ThreePhaseLoadDelta => CategoryId::MotorsAndLoads,
+            _ => CategoryId::Switching,
+        },
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        pins: match type_id {
+            ComponentTypeId::ThreePhaseLoadStar => vec![PinId::L1, PinId::L2, PinId::L3, PinId::N],
+            ComponentTypeId::ThreePhaseLoadDelta => vec![PinId::L1, PinId::L2, PinId::L3],
+            _ => groups.iter().flat_map(|group| group.pins).collect(),
+        }
+        .into_iter()
+        .map(|id| PinDefinition {
+            id,
+            role: PinRole::Unpolarized,
+        })
+        .collect(),
+        pin_groups: Some(
+            groups
+                .iter()
+                .map(|group| PinGroupDefinition {
+                    id: group.id.to_owned(),
+                    pins: group.pins,
+                })
+                .collect(),
+        ),
+        parameters,
+        fault_kinds: vec![],
+    };
+    let parameter =
+        |name: &str, key: &str, id, unit, min, max, default_value| ParameterDefinition {
+            id,
+            unit,
+            default_value,
+            domain: NumericDomain::StrictlyPositive,
+            description_key: format!("component.{name}.{key}"),
+            optional: false,
+            initial_condition: false,
+            minimum_value: Some(min),
+            maximum_value: Some(max),
+        };
+    let motor = "inductionMotorThreePhase";
+    let transformer = "transformerThreePhase";
+    let load_entry = |type_id, name, windings: [PinGroup; 3]| {
+        let parameters = [
+            (
+                "phase1Resistance",
+                Phase1ResistanceOhms,
+                Unit::Ohm,
+                0.001,
+                1_000_000.0,
+                100.0,
+                NumericDomain::StrictlyPositive,
+            ),
+            (
+                "phase2Resistance",
+                Phase2ResistanceOhms,
+                Unit::Ohm,
+                0.001,
+                1_000_000.0,
+                100.0,
+                NumericDomain::StrictlyPositive,
+            ),
+            (
+                "phase3Resistance",
+                Phase3ResistanceOhms,
+                Unit::Ohm,
+                0.001,
+                1_000_000.0,
+                100.0,
+                NumericDomain::StrictlyPositive,
+            ),
+            (
+                "phase1Inductance",
+                Phase1InductanceHenries,
+                Unit::Henry,
+                0.0,
+                10.0,
+                0.0,
+                NumericDomain::NonNegative,
+            ),
+            (
+                "phase2Inductance",
+                Phase2InductanceHenries,
+                Unit::Henry,
+                0.0,
+                10.0,
+                0.0,
+                NumericDomain::NonNegative,
+            ),
+            (
+                "phase3Inductance",
+                Phase3InductanceHenries,
+                Unit::Henry,
+                0.0,
+                10.0,
+                0.0,
+                NumericDomain::NonNegative,
+            ),
+        ]
+        .map(
+            |(key, id, unit, min, max, default, domain)| ParameterDefinition {
+                domain,
+                ..parameter(name, key, id, unit, min, max, default)
+            },
+        )
+        .to_vec();
+        entry(type_id, name, windings.to_vec(), parameters)
+    };
+    let contactor = "contactorThreePole";
+    let breaker = "breakerThreePole";
+    let closed_resistance = |name| {
+        parameter(
+            name,
+            "closedContactResistance",
+            ClosedContactResistanceOhms,
+            Unit::Ohm,
+            0.0001,
+            10.0,
+            0.01,
+        )
+    };
+    [
+        entry(
+            ComponentTypeId::ContactorThreePole,
+            contactor,
+            std::iter::once(CONTACTOR_COIL)
+                .chain(POWER_POLES)
+                .chain(CONTACTOR_AUXILIARIES)
+                .collect(),
+            vec![
+                parameter(
+                    contactor,
+                    "coilResistance",
+                    CoilResistanceOhms,
+                    Unit::Ohm,
+                    0.1,
+                    100_000.0,
+                    230.0,
+                ),
+                parameter(
+                    contactor,
+                    "coilInductance",
+                    CoilInductanceHenries,
+                    Unit::Henry,
+                    0.00001,
+                    100.0,
+                    0.2,
+                ),
+                parameter(
+                    contactor,
+                    "pickupCurrent",
+                    PickupCurrentAmps,
+                    Unit::Amp,
+                    0.001,
+                    100.0,
+                    0.7,
+                ),
+                parameter(
+                    contactor,
+                    "dropoutCurrent",
+                    DropoutCurrentAmps,
+                    Unit::Amp,
+                    0.0001,
+                    100.0,
+                    0.4,
+                ),
+                parameter(
+                    contactor,
+                    "coilSense",
+                    CoilSenseSeconds,
+                    Unit::Second,
+                    0.005,
+                    2.0,
+                    0.02,
+                ),
+                closed_resistance(contactor),
+            ],
+        ),
+        entry(
+            ComponentTypeId::BreakerThreePole,
+            breaker,
+            POWER_POLES.to_vec(),
+            vec![
+                closed_resistance(breaker),
+                parameter(
+                    breaker,
+                    "instantaneousTrip",
+                    InstantaneousTripAmps,
+                    Unit::Amp,
+                    0.1,
+                    100_000.0,
+                    100.0,
+                ),
+                ParameterDefinition {
+                    id: InitialClosed,
+                    unit: Unit::Dimensionless,
+                    default_value: 0.0,
+                    domain: NumericDomain::ZeroOrOne,
+                    description_key: "component.breakerThreePole.initialClosed".to_owned(),
+                    optional: true,
+                    initial_condition: true,
+                    minimum_value: None,
+                    maximum_value: None,
+                },
+            ],
+        ),
+        entry(
+            ComponentTypeId::ThermalOverloadThreePole,
+            "thermalOverloadThreePole",
+            POWER_POLES
+                .into_iter()
+                .chain(CONTACTOR_AUXILIARIES)
+                .collect(),
+            vec![
+                closed_resistance("thermalOverloadThreePole"),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "senseResistance",
+                    SenseResistanceOhms,
+                    Unit::Ohm,
+                    0.0001,
+                    10.0,
+                    0.005,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "ratedCurrent",
+                    RatedCurrentAmps,
+                    Unit::Amp,
+                    0.1,
+                    10_000.0,
+                    10.0,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "thermalSense",
+                    ThermalSenseSeconds,
+                    Unit::Second,
+                    0.005,
+                    2.0,
+                    0.02,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "tripScale",
+                    TripScaleSeconds,
+                    Unit::Second,
+                    0.01,
+                    10_000.0,
+                    10.0,
+                ),
+                parameter(
+                    "thermalOverloadThreePole",
+                    "cool",
+                    CoolSeconds,
+                    Unit::Second,
+                    0.01,
+                    10_000.0,
+                    30.0,
+                ),
+                ParameterDefinition {
+                    domain: NumericDomain::NonNegative,
+                    ..parameter(
+                        "thermalOverloadThreePole",
+                        "resetDose",
+                        ResetDose,
+                        Unit::Dimensionless,
+                        0.0,
+                        0.99,
+                        0.25,
+                    )
+                },
+            ],
+        ),
+        entry(
+            ComponentTypeId::InductionMotorThreePhase,
+            motor,
+            INDUCTION_WINDINGS.to_vec(),
+            [
+                (
+                    "statorResistance",
+                    StatorResistanceOhms,
+                    Unit::Ohm,
+                    0.01,
+                    10_000.0,
+                    1.0,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "rotorResistance",
+                    RotorResistanceOhms,
+                    Unit::Ohm,
+                    0.01,
+                    10_000.0,
+                    1.0,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "statorLeakage",
+                    StatorLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.005,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "rotorLeakage",
+                    RotorLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.005,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "magnetizing",
+                    MagnetizingHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.1,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "polePairs",
+                    PolePairs,
+                    Unit::Dimensionless,
+                    1.0,
+                    8.0,
+                    2.0,
+                    NumericDomain::Integer,
+                ),
+                (
+                    "inertia",
+                    RotorInertiaKilogramMetersSquared,
+                    Unit::KilogramMeterSquared,
+                    0.0001,
+                    100.0,
+                    0.02,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "friction",
+                    ViscousFrictionNewtonMeterSecondsPerRadian,
+                    Unit::NewtonMeterSecondPerRadian,
+                    0.0,
+                    100.0,
+                    0.01,
+                    NumericDomain::NonNegative,
+                ),
+                (
+                    "loadTorque",
+                    LoadTorqueNewtonMeters,
+                    Unit::NewtonMeter,
+                    -1000.0,
+                    1000.0,
+                    0.0,
+                    NumericDomain::Finite,
+                ),
+            ]
+            .map(
+                |(key, id, unit, min, max, default, domain)| ParameterDefinition {
+                    domain,
+                    ..parameter(motor, key, id, unit, min, max, default)
+                },
+            )
+            .to_vec(),
+        ),
+        entry(
+            ComponentTypeId::TransformerThreePhase,
+            transformer,
+            TRANSFORMER_WINDINGS.to_vec(),
+            [
+                (
+                    "turnsRatio",
+                    TurnsRatio,
+                    Unit::Dimensionless,
+                    0.01,
+                    100.0,
+                    2.0,
+                ),
+                (
+                    "primaryResistance",
+                    PrimaryResistanceOhms,
+                    Unit::Ohm,
+                    0.001,
+                    10_000.0,
+                    1.0,
+                ),
+                (
+                    "secondaryResistance",
+                    SecondaryResistanceOhms,
+                    Unit::Ohm,
+                    0.001,
+                    10_000.0,
+                    1.0,
+                ),
+                (
+                    "primaryLeakage",
+                    PrimaryLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.001,
+                ),
+                (
+                    "secondaryLeakage",
+                    SecondaryLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.001,
+                ),
+                (
+                    "magnetizing",
+                    MagnetizingHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    1.0,
+                ),
+            ]
+            .map(|(key, id, unit, min, max, default)| {
+                parameter(transformer, key, id, unit, min, max, default)
+            })
+            .to_vec(),
+        ),
+        load_entry(
+            ComponentTypeId::ThreePhaseLoadStar,
+            "threePhaseLoadStar",
+            STAR_LOAD_WINDINGS,
+        ),
+        load_entry(
+            ComponentTypeId::ThreePhaseLoadDelta,
+            "threePhaseLoadDelta",
+            DELTA_LOAD_WINDINGS,
+        ),
+    ]
 }

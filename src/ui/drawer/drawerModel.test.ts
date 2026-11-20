@@ -33,6 +33,7 @@ describe("the drawer list", () => {
       "push_button_no",
       "push_button_nc",
       "contactor",
+      "contactor_three_pole",
     ]);
   });
 
@@ -56,7 +57,7 @@ describe("the drawer list", () => {
     // A part in Favorites also appears under its category.
     expect(
       ids(view.groups.find((group) => group.id === "protection")?.entries),
-    ).toEqual(["fuse"]);
+    ).toEqual(["fuse", "breaker_three_pole", "thermal_overload_three_pole"]);
     expect(
       buildDrawerView(catalog, DEFAULT_DRAWER_PREFERENCES, "", placeable)
         .groups[0]?.id,
@@ -72,7 +73,14 @@ describe("the drawer list", () => {
     );
 
     expect(view.groups).toEqual([]);
-    expect(ids(view.results ?? undefined)).toEqual(["pmdc_motor"]);
+    expect(ids(view.results ?? undefined)).toEqual([
+      "pmdc_motor",
+      "induction_motor_three_phase",
+      "thermal_overload_three_pole",
+      "transformer_three_phase",
+      "three_phase_load_star",
+      "three_phase_load_delta",
+    ]);
     expect(view.items).toEqual(view.results);
   });
 

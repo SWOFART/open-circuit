@@ -1,0 +1,37 @@
+Open Circuit Stage 10 reference: induction-blocked
+.options method=trap reltol=1e-9 vntol=1e-10 abstol=1e-12 temp=27 tnom=27
+vline0 l0 0 sin(0 67.88225099390857 50 0 0 0)
+vline1 l1 0 sin(0 67.88225099390857 50 0 0 -120)
+vline2 l2 0 sin(0 67.88225099390857 50 0 0 120)
+vstar star 0 pwl(0 1)
+vdelta delta 0 pwl(0 0)
+bsa sa 0 v=(0.10500000000000001*v(fsa)-0.1*v(fra))/0.0010249999999999999
+bsb sb 0 v=(0.10500000000000001*v(fsb)-0.1*v(frb))/0.0010249999999999999
+bra ra 0 v=(0.10500000000000001*v(fra)-0.1*v(fsa))/0.0010249999999999999
+brb rb 0 v=(0.10500000000000001*v(frb)-0.1*v(fsb))/0.0010249999999999999
+bcu cu 0 v=v(sa)
+bcv cv 0 v=(-v(sa)+1.7320508075688772*v(sb))/2
+bcw cw 0 v=(-v(sa)-1.7320508075688772*v(sb))/2
+bvu vu 0 v=v(l0)
+bvv vv 0 v=v(l1)
+bvw vw 0 v=v(l2)
+bfsalpha 0 fsa i=v(vu)-1*v(sa)
+bfsbeta 0 fsb i=(v(vv)-v(vw))/1.7320508075688772-1*v(sb)
+bfralpha 0 fra i=-1*v(ra)-2*v(speed)*v(frb)
+bfrbeta 0 frb i=-1*v(rb)+2*v(speed)*v(fra)
+cfsa fsa 0 1 ic=0
+cfsb fsb 0 1 ic=0
+cfra fra 0 1 ic=0
+cfrb frb 0 1 ic=0
+btorque torque 0 v=0.30000000000000004*(v(ra)*v(sb)-v(rb)*v(sa))
+vspeed speed 0 0
+.tran 0.00001 0.25 0 0.00001 uic
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+wrdata induction-blocked.out v(cu) v(cv) v(cw) v(speed) v(torque)
+quit
+.endc
+.end

@@ -271,6 +271,17 @@ impl MnaSystem {
     /// a very large junction conductance). LU tolerances are unchanged; Newton
     /// still checks the original physical equations after unscaling.
     pub(crate) fn solve_equilibrated(&self) -> Result<SolverSolution, SolverError> {
+        self.solve_equilibrated_with_rhs(self.rhs.clone())
+    }
+
+    pub(crate) fn solve_correction(&self, residual: &[f64]) -> Result<SolverSolution, SolverError> {
+        self.solve_equilibrated_with_rhs(residual.iter().map(|value| -value).collect())
+    }
+
+    fn solve_equilibrated_with_rhs(
+        &self,
+        mut rhs: Vec<f64>,
+    ) -> Result<SolverSolution, SolverError> {
         let n = self.size();
         let scales = (0..n)
             .map(|j| {
@@ -283,7 +294,6 @@ impl MnaSystem {
             })
             .collect::<Vec<_>>();
         let mut matrix = self.matrix.clone();
-        let mut rhs = self.rhs.clone();
         for (i, row) in matrix.iter_mut().enumerate() {
             for (v, s) in row.iter_mut().zip(&scales) {
                 *v *= s;

@@ -26,6 +26,13 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   push_button_no: "S",
   push_button_nc: "S",
   contactor: "Q",
+  contactor_three_pole: "Q",
+  breaker_three_pole: "QF",
+  thermal_overload_three_pole: "FR",
+  induction_motor_three_phase: "M",
+  transformer_three_phase: "T",
+  three_phase_load_star: "Z",
+  three_phase_load_delta: "Z",
 };
 
 /**

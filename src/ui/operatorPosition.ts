@@ -23,5 +23,9 @@ export function operatorPosition(
       return state?.kind === "pushButton" ? "pressed" : null;
     case "release":
       return state?.kind === "pushButton" ? "released" : null;
+    case "reset":
+      return state?.kind === "fuse" && state.state === "tripped"
+        ? "pressed"
+        : null;
   }
 }

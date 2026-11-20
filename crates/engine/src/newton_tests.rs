@@ -60,6 +60,50 @@ impl NonlinearDevice for Law {
 fn variables() -> NodeVariables {
     NodeVariables::for_island(2, &[0, 1], 1, &Default::default())
 }
+
+#[test]
+fn bilinear_rows_use_their_physical_residual_after_linearization() {
+    struct Product(StableId, [BilinearTerm; 1]);
+    impl NonlinearDevice for Product {
+        fn id(&self) -> &StableId {
+            &self.0
+        }
+        fn junctions(&self) -> Vec<Junction> {
+            Vec::new()
+        }
+        fn evaluate(&self, _: &[f64]) -> Evaluation {
+            Evaluation {
+                currents: Vec::new(),
+                derivatives: Vec::new(),
+            }
+        }
+        fn bilinear_terms(&self) -> &[BilinearTerm] {
+            &self.1
+        }
+    }
+    let product = Product(
+        Law::diode().id,
+        [BilinearTerm {
+            row: 0,
+            left: 0,
+            right: 1,
+            coefficient: 2.0,
+        }],
+    );
+    let mut base = MnaSystem::new(2);
+    assert!(base.stamp_linear_equation(0, &[(0, 1.0)], 15.0));
+    assert!(base.stamp_linear_equation(1, &[(1, 1.0)], 2.0));
+    let (solution, _) = solve(
+        &base,
+        &variables(),
+        &[&product],
+        &tolerance(2),
+        vec![0.0; 2],
+        vec![vec![]],
+    )
+    .unwrap();
+    assert_eq!(solution, [3.0, 2.0]);
+}
 fn tolerance(n: usize) -> Vec<UnknownTolerance> {
     let mut t = vec![
         UnknownTolerance {
@@ -165,7 +209,7 @@ fn tiny_updates_do_not_hide_a_large_original_equation_residual() {
     let mut d = Law::diode();
     d.kind = 1;
     assert!(
-        !residual_ok(
+        !evaluate_residual(
             &base,
             &vars,
             &[&d],
@@ -176,6 +220,7 @@ fn tiny_updates_do_not_hide_a_large_original_equation_residual() {
             0.0
         )
         .unwrap()
+        .0
     );
 }
 
@@ -214,7 +259,7 @@ fn motor_voltage_and_torque_rows_and_speed_update_use_distinct_units() {
     let current = 1e-14 * e + 1e-12;
     let x = vec![1.0, -current, (3.0 - 0.1 * current) / 2.0];
     assert!(
-        residual_ok(
+        evaluate_residual(
             &base,
             &vars,
             &[&d],
@@ -225,11 +270,12 @@ fn motor_voltage_and_torque_rows_and_speed_update_use_distinct_units() {
             0.0
         )
         .unwrap()
+        .0
     );
     let mut bad = x.clone();
     bad[2] += 1e-6;
     assert!(
-        !residual_ok(
+        !evaluate_residual(
             &base,
             &vars,
             &[&d],
@@ -240,6 +286,7 @@ fn motor_voltage_and_torque_rows_and_speed_update_use_distinct_units() {
             0.0
         )
         .unwrap()
+        .0
     );
 }
 
@@ -292,7 +339,7 @@ fn cancellation_allowance_accepts_roundoff_but_rejects_a_physically_wrong_curren
         2
     ];
     assert!(
-        residual_ok(
+        evaluate_residual(
             &base,
             &variables,
             &[&d],
@@ -303,10 +350,11 @@ fn cancellation_allowance_accepts_roundoff_but_rejects_a_physically_wrong_curren
             0.0
         )
         .unwrap()
+        .0
     );
     let wrong = [5.0, x[1] + 1e-8];
     assert!(
-        !residual_ok(
+        !evaluate_residual(
             &base,
             &variables,
             &[&d],
@@ -317,11 +365,12 @@ fn cancellation_allowance_accepts_roundoff_but_rejects_a_physically_wrong_curren
             0.0
         )
         .unwrap()
+        .0
     );
     let mut overflow = MnaSystem::new(2);
     overflow.stamp_linear_equation(0, &[(0, 1e308), (1, -1e308)], 0.0);
     assert_eq!(
-        residual_ok(
+        evaluate_residual(
             &overflow,
             &variables,
             &[&d],
@@ -387,7 +436,7 @@ fn finite_source_and_companion_cancellation_cannot_inflate_physical_current_scal
             .current_amps;
         assert!(physical.abs() < 2e-8);
         assert!(
-            !residual_ok(
+            !evaluate_residual(
                 &base,
                 &vars,
                 &[&d],
@@ -397,12 +446,13 @@ fn finite_source_and_companion_cancellation_cannot_inflate_physical_current_scal
                 &Default::default(),
                 0.0
             )
-            .unwrap(),
+            .unwrap()
+            .0,
             "a ~1e-8 A KCL error must not inherit the ~100 A Norton-stamp scale"
         );
         let (solution, junctions) = run(&base, &d).unwrap();
         assert!(
-            residual_ok(
+            evaluate_residual(
                 &base,
                 &vars,
                 &[&d],
@@ -413,6 +463,7 @@ fn finite_source_and_companion_cancellation_cannot_inflate_physical_current_scal
                 0.0
             )
             .unwrap()
+            .0
         );
     }
 }
@@ -483,5 +534,9 @@ fn two_junction_three_terminal_law_uses_a_consistent_linearization_reference() {
     for (actual, expected) in x.iter().zip([0.5, 0.3, 0.2]) {
         assert!((actual - expected).abs() < 1e-9, "{x:?}");
     }
-    assert!(residual_ok(&base, &vars, &[&d], &t, &x, &j, &Default::default(), 0.0).unwrap());
+    assert!(
+        evaluate_residual(&base, &vars, &[&d], &t, &x, &j, &Default::default(), 0.0)
+            .unwrap()
+            .0
+    );
 }

@@ -465,7 +465,7 @@ export function App({
             ),
           );
 
-    if (position === "pressed") {
+    if (action === "press" && position === "pressed") {
       pressedButtons.current.add(componentId);
     } else if (position === "released") {
       pressedButtons.current.delete(componentId);

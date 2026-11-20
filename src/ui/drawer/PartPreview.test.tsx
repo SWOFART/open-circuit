@@ -134,7 +134,15 @@ describe("the placeholder for a part without a symbol", () => {
       .filter((entry) => !symbols[entry.typeId])
       .map((entry) => entry.typeId);
 
-    expect(withoutSymbol).toEqual([]);
+    expect(withoutSymbol).toEqual([
+      "contactor_three_pole",
+      "breaker_three_pole",
+      "thermal_overload_three_pole",
+      "induction_motor_three_phase",
+      "transformer_three_phase",
+      "three_phase_load_star",
+      "three_phase_load_delta",
+    ]);
   });
 });
 

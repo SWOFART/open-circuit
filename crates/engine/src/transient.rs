@@ -5,7 +5,10 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
     RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
-    devices::{DeviceResult, IntegrationMethod, component_diagnostic},
+    devices::{
+        BreakerState, DeviceResult, IntegrationMethod, OverloadState, coil_contact_state,
+        component_diagnostic, detector_step,
+    },
     netlist::derive_netlist_with_open,
 };
 
@@ -82,6 +85,7 @@ pub(super) struct InductorState {
 pub(super) struct RelayState {
     /// The state belongs to a contactor, which is reported as its own kind of device state.
     pub(super) contactor: bool,
+    pub(super) detector: Option<f64>,
     pub(super) current_amps: f64,
     pub(super) voltage_volts: f64,
     pub(super) state: RelayContactState,
@@ -109,6 +113,8 @@ pub(super) struct CircuitStates {
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
+    pub(super) breakers: HashMap<StableId, BreakerState>,
+    pub(super) overloads: HashMap<StableId, OverloadState>,
     pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
     pub(super) motors: HashMap<StableId, MotorState>,
     pub(super) measurements: HashMap<StableId, MeasurementState>,
@@ -143,6 +149,13 @@ impl CircuitStates {
                 }
             })
             .collect::<Vec<_>>();
+        states.extend(self.breakers.iter().map(|(id, state)| DeviceState::Switch {
+            component_id: id.clone(),
+            position: state.position,
+            conducting: state.conducting(),
+            last_transition_time_seconds: state.last_transition_time_seconds,
+        }));
+        states.extend(self.overloads.iter().map(|(id, state)| state.snapshot(id)));
         states.extend(
             self.fuses
                 .iter()
@@ -177,11 +190,25 @@ pub(super) fn circuit_states_from_results(
     schematic: &Schematic,
     results: &[DeviceResult],
     simulation_time_seconds: f64,
+    previous: &CircuitStates,
 ) -> CircuitStates {
     let by_component = results
         .iter()
         .map(|result| (result.component_id.as_str(), result))
         .collect::<HashMap<_, _>>();
+    let overloads = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::ThermalOverloadThreePole { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let mut state = previous.overloads.get(id).copied().unwrap_or_default();
+            state.peak_phase_amps = result.current_amps;
+            Some((id.clone(), state))
+        })
+        .collect();
     let capacitors = schematic
         .components
         .iter()
@@ -220,8 +247,9 @@ pub(super) fn circuit_states_from_results(
         .components
         .iter()
         .filter_map(|component| {
-            let (ComponentSpec::RelaySpdt { id, .. } | ComponentSpec::Contactor { id, .. }) =
-                component
+            let (ComponentSpec::RelaySpdt { id, .. }
+            | ComponentSpec::Contactor { id, .. }
+            | ComponentSpec::ContactorThreePole { id, .. }) = component
             else {
                 return None;
             };
@@ -242,10 +270,48 @@ pub(super) fn circuit_states_from_results(
             Some((
                 id.clone(),
                 RelayState {
-                    contactor: matches!(component, ComponentSpec::Contactor { .. }),
+                    contactor: matches!(
+                        component,
+                        ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. }
+                    ),
+                    detector: result
+                        .extra_values
+                        .iter()
+                        .find(|(key, _)| key.ends_with("/coil/current_squared"))
+                        .map(|(_, value)| *value),
                     current_amps: result.current_amps,
                     voltage_volts: result.voltage_volts,
                     state: *state,
+                    last_transition_time_seconds: *last_transition_time_seconds,
+                },
+            ))
+        })
+        .collect();
+    let breakers = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let ComponentSpec::BreakerThreePole { id, .. } = component else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let DeviceState::Switch {
+                position,
+                last_transition_time_seconds,
+                ..
+            } = result.state.as_ref()?
+            else {
+                return None;
+            };
+            let tripped = result
+                .extra_values
+                .iter()
+                .any(|(key, value)| key.ends_with("/tripped") && *value == 1.0);
+            Some((
+                id.clone(),
+                BreakerState {
+                    position: *position,
+                    tripped,
                     last_transition_time_seconds: *last_transition_time_seconds,
                 },
             ))
@@ -324,6 +390,8 @@ pub(super) fn circuit_states_from_results(
         capacitors,
         inductors,
         relays,
+        breakers,
+        overloads,
         fuses,
         motors,
         measurements: HashMap::new(),
@@ -410,7 +478,7 @@ pub(super) fn advance_public_steps(
             )?;
             diagnostics.extend(step_diagnostics);
             let mut candidate =
-                circuit_states_from_results(schematic, &step_results, step_end_time);
+                circuit_states_from_results(schematic, &step_results, step_end_time, &states);
             // The requested recovery method was consumed by this interval. A new
             // relay transition below can schedule another backward-Euler interval.
             candidate.solver_memory = memory;
@@ -418,13 +486,80 @@ pub(super) fn advance_public_steps(
             candidate.ac_source_phases = states.ac_source_phases.clone();
             candidate.ac_source_step_fraction =
                 f64::from(internal_step_index + 1) / f64::from(internal_substeps);
-            let fuse_transitions = accumulate_fuse_i2t(
+            for component in &schematic.components {
+                let ComponentSpec::ContactorThreePole { id, parameters, .. } = component else {
+                    continue;
+                };
+                let Some(end) = candidate.relays.get_mut(id) else {
+                    continue;
+                };
+                let Some(start) = interval_start_states.relays.get(id) else {
+                    continue;
+                };
+                let Some(detector) = detector_step(
+                    start.detector.unwrap_or(0.0),
+                    start.current_amps,
+                    end.current_amps,
+                    internal_step_seconds,
+                    parameters.coil_sense_seconds,
+                ) else {
+                    return Err(vec![component_diagnostic(
+                        DiagnosticCode::NonFiniteState,
+                        id,
+                    )]);
+                };
+                end.detector = Some(detector);
+                let result = step_results
+                    .iter_mut()
+                    .find(|result| result.component_id == *id)
+                    .expect("contactor result");
+                let (_, value) = result
+                    .extra_values
+                    .iter_mut()
+                    .find(|(key, _)| key.ends_with("/coil/current_squared"))
+                    .expect("contactor detector slot");
+                *value = detector;
+            }
+            let mut trips = accumulate_fuse_i2t(
                 schematic,
                 &interval_start_states,
                 &mut candidate,
                 internal_step_seconds,
                 step_end_time,
             )?;
+            for component in &schematic.components {
+                let ComponentSpec::ThermalOverloadThreePole { id, parameters, .. } = component
+                else {
+                    continue;
+                };
+                let (Some(start), Some(end)) = (
+                    interval_start_states.overloads.get(id),
+                    candidate.overloads.get_mut(id),
+                ) else {
+                    continue;
+                };
+                let Some(next) = end.advance(
+                    start.peak_phase_amps,
+                    end.peak_phase_amps,
+                    internal_step_seconds,
+                    step_end_time,
+                    parameters,
+                ) else {
+                    return Err(vec![component_diagnostic(
+                        DiagnosticCode::NonFiniteState,
+                        id,
+                    )]);
+                };
+                if next.tripped && !end.tripped {
+                    trips.push(id.clone());
+                }
+                *end = next;
+                let result = step_results
+                    .iter_mut()
+                    .find(|result| result.component_id == *id)
+                    .expect("thermal overload result");
+                result.extra_values.last_mut().expect("thermal dose slot").1 = next.dose;
+            }
             settle_discrete_events(
                 CircuitInput {
                     schematic,
@@ -433,7 +568,7 @@ pub(super) fn advance_public_steps(
                 },
                 &mut candidate,
                 &mut step_results,
-                fuse_transitions,
+                trips,
                 step_end_time,
                 &mut diagnostics,
             )?;
@@ -544,7 +679,7 @@ pub(super) fn settle_discrete_events(
     circuit: CircuitInput<'_>,
     states: &mut CircuitStates,
     results: &mut Vec<DeviceResult>,
-    mut fuse_transitions: Vec<StableId>,
+    mut pending_trips: Vec<StableId>,
     event_time_seconds: f64,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(), Vec<Diagnostic>> {
@@ -555,37 +690,66 @@ pub(super) fn settle_discrete_events(
     } = circuit;
     const MAX_SAME_TIME_TRANSITIONS: usize = 16;
     let mut seen = HashSet::new();
-    seen.insert(discrete_state_vector(states, &fuse_transitions));
+    seen.insert(discrete_state_vector(states, &pending_trips));
     let mut same_time_resolves = 0;
     loop {
         let mut relay_changes = Vec::new();
+        let mut breaker_changes = Vec::new();
         for component in &schematic.components {
-            let (ComponentSpec::RelaySpdt { id, parameters, .. }
-            | ComponentSpec::Contactor { id, parameters, .. }) = component
-            else {
+            let id = component.id();
+            if let ComponentSpec::BreakerThreePole { parameters, .. } = component {
+                let Some(state) = states.breakers.get(id).copied() else {
+                    continue;
+                };
+                if !state.conducting() {
+                    continue;
+                }
+                let result = results
+                    .iter()
+                    .find(|result| result.component_id == *id)
+                    .expect("breaker result");
+                let currents = [1, 3, 5].map(|index| result.extra_values[index].1);
+                let next = state.trip_if_needed(
+                    currents,
+                    parameters.instantaneous_trip_amps,
+                    event_time_seconds,
+                );
+                if next != state {
+                    breaker_changes.push((id.clone(), next));
+                }
                 continue;
-            };
+            }
             let Some(relay) = states.relays.get(id) else {
                 continue;
             };
-            let next_state = match relay.state {
-                RelayContactState::Released
-                    if relay.current_amps.abs() >= parameters.pickup_current_amps =>
-                {
-                    Some(RelayContactState::Picked)
-                }
-                RelayContactState::Picked
-                    if relay.current_amps.abs() <= parameters.dropout_current_amps =>
-                {
-                    Some(RelayContactState::Released)
-                }
-                _ => None,
+            let next_state = match component {
+                ComponentSpec::RelaySpdt { parameters, .. }
+                | ComponentSpec::Contactor { parameters, .. } => match relay.state {
+                    RelayContactState::Released
+                        if relay.current_amps.abs() >= parameters.pickup_current_amps =>
+                    {
+                        RelayContactState::Picked
+                    }
+                    RelayContactState::Picked
+                        if relay.current_amps.abs() <= parameters.dropout_current_amps =>
+                    {
+                        RelayContactState::Released
+                    }
+                    _ => relay.state,
+                },
+                ComponentSpec::ContactorThreePole { parameters, .. } => coil_contact_state(
+                    relay.state,
+                    relay.detector.unwrap_or(0.0),
+                    parameters.pickup_current_amps,
+                    parameters.dropout_current_amps,
+                ),
+                _ => continue,
             };
-            if let Some(next_state) = next_state {
+            if next_state != relay.state {
                 relay_changes.push((id.clone(), next_state));
             }
         }
-        if relay_changes.is_empty() && fuse_transitions.is_empty() {
+        if relay_changes.is_empty() && breaker_changes.is_empty() && pending_trips.is_empty() {
             return Ok(());
         }
         relay_changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
@@ -593,7 +757,8 @@ pub(super) fn settle_discrete_events(
             .iter()
             .map(|(component_id, _)| component_id.clone())
             .collect::<Vec<_>>();
-        changed_ids.append(&mut fuse_transitions);
+        changed_ids.extend(breaker_changes.iter().map(|(id, _)| id.clone()));
+        changed_ids.append(&mut pending_trips);
         changed_ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
         changed_ids.dedup();
         if same_time_resolves >= MAX_SAME_TIME_TRANSITIONS {
@@ -615,7 +780,9 @@ pub(super) fn settle_discrete_events(
             relay.state = next_state;
             relay.last_transition_time_seconds = Some(event_time_seconds);
         }
-        fuse_transitions = Vec::new();
+        breaker_changes.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str()));
+        states.breakers.extend(breaker_changes);
+        pending_trips = Vec::new();
         states.backward_euler_next_step = true;
         let state_vector = discrete_state_vector(states, &[]);
         if !seen.insert(state_vector) {
@@ -634,7 +801,7 @@ pub(super) fn settle_discrete_events(
         *results = resolved;
         diagnostics.extend(event_diagnostics);
         let mut resolved_states =
-            circuit_states_from_results(schematic, results, event_time_seconds);
+            circuit_states_from_results(schematic, results, event_time_seconds, states);
         // The event state is the state vector used to solve this reconfiguration; the
         // device results carry that same vector and its exact transition times.
         resolved_states.solver_memory = memory;
@@ -647,10 +814,7 @@ pub(super) fn settle_discrete_events(
     }
 }
 
-fn discrete_state_vector(
-    states: &CircuitStates,
-    pending_fuse_transitions: &[StableId],
-) -> Vec<(String, u8)> {
+fn discrete_state_vector(states: &CircuitStates, pending_trips: &[StableId]) -> Vec<(String, u8)> {
     let mut vector = states
         .relays
         .iter()
@@ -662,11 +826,21 @@ fn discrete_state_vector(
         })
         .collect::<Vec<_>>();
     vector.extend(states.fuses.iter().map(|(id, fuse)| {
-        let pending = pending_fuse_transitions.iter().any(|pending| pending == id);
+        let pending = pending_trips.iter().any(|pending| pending == id);
         (
             id.as_str().to_owned(),
             u8::from(!pending && fuse.state == FuseState::Tripped),
         )
+    }));
+    vector.extend(
+        states
+            .breakers
+            .iter()
+            .map(|(id, state)| (id.as_str().to_owned(), u8::from(state.tripped))),
+    );
+    vector.extend(states.overloads.iter().map(|(id, state)| {
+        let pending = pending_trips.contains(id);
+        (id.as_str().to_owned(), u8::from(!pending && state.tripped))
     }));
     vector.sort_by(|left, right| left.0.cmp(&right.0));
     vector
@@ -798,16 +972,42 @@ fn estimate_transient_rate_bound(
             }
         }
 
-        let reference_root = sets.find(reference_node);
+        let includes_windings = island_specs
+            .iter()
+            .any(|spec| matches!(spec.model, DeviceModel::Windings(_)));
+        let mut reference_roots = HashSet::from([sets.find(reference_node)]);
+        if includes_windings {
+            reference_roots.extend(
+                super::local_reference_nodes(
+                    &island_specs,
+                    island,
+                    SolveMode::OperatingPoint,
+                    netlist.nodes.len(),
+                    reference_node,
+                )
+                .into_iter()
+                .map(|node| sets.find(node)),
+            );
+        }
         let mut root_to_variable = HashMap::new();
         for node in island.node_indices.iter().copied() {
             let root = sets.find(node);
-            if root != reference_root {
+            if !reference_roots.contains(&root) {
                 let next = root_to_variable.len();
                 root_to_variable.entry(root).or_insert(next);
             }
         }
         let dimension = root_to_variable.len();
+        let induction_windings = island_specs
+            .iter()
+            .filter_map(|spec| match spec.model {
+                DeviceModel::InductionMotor {
+                    windings,
+                    parameters,
+                } => Some((windings, parameters)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         let mut conductance = vec![vec![0.0; dimension]; dimension];
         let mut capacitance = vec![vec![0.0; dimension]; dimension];
         let inductor_specs = island_specs
@@ -820,7 +1020,43 @@ fn estimate_transient_rate_bound(
             })
             .copied()
             .collect::<Vec<_>>();
-        let mut incidence = vec![vec![0.0; inductor_specs.len()]; dimension];
+        let winding_branches = island_specs
+            .iter()
+            .filter_map(|spec| match spec.model {
+                DeviceModel::Windings(network) => Some((spec.component_id.clone(), network)),
+                _ => None,
+            })
+            .flat_map(|(id, network)| {
+                (0..network.windings().len()).filter_map(move |i| {
+                    let winding = network.windings()[i];
+                    (winding.inductance > 0.0).then(|| (id.clone(), network, i, winding))
+                })
+            })
+            .collect::<Vec<_>>();
+        if !winding_branches.is_empty()
+            && schematic.components.iter().any(|component| {
+                island.component_ids.contains(component.id())
+                    && matches!(
+                        component,
+                        ComponentSpec::SwitchSpst { .. }
+                            | ComponentSpec::PushButtonNo { .. }
+                            | ComponentSpec::PushButtonNc { .. }
+                            | ComponentSpec::Fuse { .. }
+                            | ComponentSpec::RelaySpdt { .. }
+                            | ComponentSpec::Contactor { .. }
+                            | ComponentSpec::ContactorThreePole { .. }
+                            | ComponentSpec::BreakerThreePole { .. }
+                            | ComponentSpec::ThermalOverloadThreePole { .. }
+                            | ComponentSpec::Diode { .. }
+                            | ComponentSpec::BjtNpn { .. }
+                            | ComponentSpec::BjtPnp { .. }
+                    )
+            })
+        {
+            return None;
+        }
+        let mut incidence =
+            vec![vec![0.0; inductor_specs.len() + winding_branches.len()]; dimension];
 
         for spec in &island_specs {
             let (pin1, pin2) = (
@@ -937,8 +1173,7 @@ fn estimate_transient_rate_bound(
                 DeviceModel::Contactor {
                     coil_resistance_ohms,
                     closed_contact_resistance_ohms,
-                    normally_open,
-                    normally_closed,
+                    poles,
                     ..
                 } => {
                     add_laplacian(
@@ -947,7 +1182,8 @@ fn estimate_transient_rate_bound(
                         variable2,
                         1.0 / coil_resistance_ohms,
                     )?;
-                    for contact in [normally_open, normally_closed] {
+                    for pole in poles.as_slice() {
+                        let contact = pole.terminals;
                         add_laplacian(
                             &mut conductance,
                             root_to_variable.get(&sets.find(contact.pin1)).copied(),
@@ -956,10 +1192,121 @@ fn estimate_transient_rate_bound(
                         )?;
                     }
                 }
+                DeviceModel::Breaker {
+                    resistance, poles, ..
+                } => {
+                    for pole in poles {
+                        let terminals = pole.terminals;
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / resistance,
+                        )?;
+                    }
+                }
+                DeviceModel::Overload {
+                    poles,
+                    auxiliaries,
+                    sense_resistance,
+                    contact_resistance,
+                } => {
+                    for (pole, resistance) in poles
+                        .iter()
+                        .map(|pole| (pole, sense_resistance))
+                        .chain(auxiliaries.iter().map(|pole| (pole, contact_resistance)))
+                    {
+                        let terminals = pole.terminals;
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / resistance,
+                        )?;
+                    }
+                }
+                DeviceModel::InductionMotor { parameters, .. } => {
+                    maximum_rate = maximum_rate.max(parameters.fixed_voltage_rate_bound());
+                }
+                DeviceModel::Windings(network) => {
+                    for winding in network.windings() {
+                        if winding.inductance == 0.0 {
+                            let left = root_to_variable
+                                .get(&sets.find(winding.terminals.pin1))
+                                .copied();
+                            let right = root_to_variable
+                                .get(&sets.find(winding.terminals.pin2))
+                                .copied();
+                            add_laplacian(
+                                &mut conductance,
+                                left,
+                                right,
+                                winding.resistance.recip(),
+                            )?;
+                        }
+                    }
+                }
                 DeviceModel::DcVoltageSource { .. }
                 | DeviceModel::ThreePhaseSource { .. }
                 | DeviceModel::Diode { .. }
                 | DeviceModel::Bjt { .. } => {}
+            }
+        }
+        if induction_windings.iter().any(|(windings, _)| {
+            windings
+                .iter()
+                .any(|winding| sets.find(winding.pin1) != sets.find(winding.pin2))
+        }) {
+            // For a static linear network eliminate the node voltages and
+            // bound the extra winding-voltage derivatives from its driving
+            // resistance. Mixed dynamic and switching networks fall back to
+            // the cap when a joint enclosure cannot be established.
+            if island_specs.iter().any(|spec| {
+                !matches!(
+                    spec.model,
+                    DeviceModel::InductionMotor { .. }
+                        | DeviceModel::Resistor { .. }
+                        | DeviceModel::DcVoltageSource { .. }
+                        | DeviceModel::ThreePhaseSource { .. }
+                        | DeviceModel::Wattmeter { .. }
+                ) || schematic.components.iter().any(|component| {
+                    component.id() == &spec.component_id
+                        && matches!(
+                            component,
+                            ComponentSpec::SwitchSpst { .. }
+                                | ComponentSpec::PushButtonNo { .. }
+                                | ComponentSpec::PushButtonNc { .. }
+                        )
+                })
+            }) {
+                return None;
+            }
+            let columns = induction_windings.len() * 3;
+            let mut branches = vec![vec![0.0; columns]; dimension];
+            for (index, winding) in induction_windings
+                .iter()
+                .flat_map(|(windings, _)| windings)
+                .enumerate()
+            {
+                let left = root_to_variable.get(&sets.find(winding.pin1)).copied();
+                let right = root_to_variable.get(&sets.find(winding.pin2)).copied();
+                add_incidence(&mut branches, left, right, index)?;
+            }
+            let inverse = invert_matrix(conductance.clone())?;
+            let response = multiply_matrices(&inverse, &branches)?;
+            let driving = multiply_matrices(&transpose(&branches), &response)?;
+            let resistance_norm = driving
+                .iter()
+                .map(|row| row.iter().map(|value| value.abs()).sum::<f64>())
+                .fold(0.0_f64, f64::max);
+            let current_gain = induction_windings
+                .iter()
+                .map(|(_, parameters)| parameters.phase_current_gain())
+                .fold(0.0_f64, f64::max);
+            // The L1 norm of any power-invariant Clarke row is at most √3.
+            maximum_rate += 3.0_f64.sqrt() * resistance_norm * current_gain / 100.0;
+            if !maximum_rate.is_finite() {
+                return None;
             }
         }
         for (branch, spec) in inductor_specs.iter().enumerate() {
@@ -971,6 +1318,15 @@ fn estimate_transient_rate_bound(
                 .copied();
             add_incidence(&mut incidence, pin1, pin2, branch)?;
         }
+        for (i, (_, _, _, winding)) in winding_branches.iter().enumerate() {
+            let left = root_to_variable
+                .get(&sets.find(winding.terminals.pin1))
+                .copied();
+            let right = root_to_variable
+                .get(&sets.find(winding.terminals.pin2))
+                .copied();
+            add_incidence(&mut incidence, left, right, inductor_specs.len() + i)?;
+        }
 
         let dynamic = (0..dimension)
             .filter(|index| capacitance[*index][*index] > 0.0)
@@ -978,7 +1334,7 @@ fn estimate_transient_rate_bound(
         let algebraic = (0..dimension)
             .filter(|index| capacitance[*index][*index] == 0.0)
             .collect::<Vec<_>>();
-        let l_values = inductor_specs
+        let mut l_values = inductor_specs
             .iter()
             .map(|spec| match spec.model {
                 DeviceModel::Inductor {
@@ -991,6 +1347,11 @@ fn estimate_transient_rate_bound(
                 _ => None,
             })
             .collect::<Option<Vec<_>>>()?;
+        l_values.extend(
+            winding_branches
+                .iter()
+                .map(|(_, _, _, winding)| winding.inductance),
+        );
         let motor_branches = inductor_specs
             .iter()
             .enumerate()
@@ -1045,6 +1406,27 @@ fn estimate_transient_rate_bound(
         for (branch, armature_resistance_ohms, ..) in &motor_branches {
             reduced_inductor_resistance[*branch][*branch] += *armature_resistance_ohms;
         }
+        for (i, (_, _, _, winding)) in winding_branches.iter().enumerate() {
+            let branch = inductor_specs.len() + i;
+            reduced_inductor_resistance[branch][branch] += winding.resistance;
+        }
+        let inverse_inductance = if winding_branches.is_empty() {
+            None
+        } else {
+            let mut matrix = vec![vec![0.0; l_values.len()]; l_values.len()];
+            for (i, value) in l_values.iter().copied().enumerate() {
+                matrix[i][i] = value;
+            }
+            for (i, (id, network, row, _)) in winding_branches.iter().enumerate() {
+                for (j, (other, _, column, _)) in winding_branches.iter().enumerate() {
+                    if id == other && row != column {
+                        matrix[inductor_specs.len() + i][inductor_specs.len() + j] =
+                            network.inductance(*row, *column);
+                    }
+                }
+            }
+            Some(invert_matrix(matrix)?)
+        };
 
         let motor_state_start = dynamic.len() + l_values.len();
         let mut state_matrix = vec![
@@ -1064,18 +1446,31 @@ fn estimate_transient_rate_bound(
                     state_matrix[row][dynamic.len() + column] = -voltage_b[row][column];
                 }
             }
-            let branch_voltage_b = transpose(&reduced_b);
+            let mut branch_voltage_b = transpose(&reduced_b);
+            if let Some(inverse) = &inverse_inductance {
+                branch_voltage_b = multiply_matrices(inverse, &branch_voltage_b)?;
+            }
             for row in 0..l_values.len() {
                 for column in 0..dynamic.len() {
-                    state_matrix[dynamic.len() + row][column] =
-                        branch_voltage_b[row][column] / l_values[row];
+                    state_matrix[dynamic.len() + row][column] = if inverse_inductance.is_some() {
+                        branch_voltage_b[row][column]
+                    } else {
+                        branch_voltage_b[row][column] / l_values[row]
+                    };
                 }
             }
+        }
+        if let Some(inverse) = &inverse_inductance {
+            reduced_inductor_resistance = multiply_matrices(inverse, &reduced_inductor_resistance)?;
         }
         for row in 0..l_values.len() {
             for column in 0..l_values.len() {
                 state_matrix[dynamic.len() + row][dynamic.len() + column] =
-                    -reduced_inductor_resistance[row][column] / l_values[row];
+                    if inverse_inductance.is_some() {
+                        -reduced_inductor_resistance[row][column]
+                    } else {
+                        -reduced_inductor_resistance[row][column] / l_values[row]
+                    };
             }
         }
 

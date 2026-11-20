@@ -22,6 +22,8 @@ pub(crate) const THERMAL_VOLTAGE: f64 = 0.02586492578632875;
 pub(crate) struct SolverMemory {
     pub nodes: std::collections::HashMap<usize, f64>,
     pub junctions: std::collections::HashMap<StableId, Vec<f64>>,
+    pub induction_motors: std::collections::HashMap<StableId, crate::devices::MotorHistory>,
+    pub windings: std::collections::HashMap<StableId, crate::devices::WindingHistory>,
 }
 
 /// A junction voltage is positive minus negative, including the PNP polarity.
@@ -45,12 +47,25 @@ pub(crate) struct Evaluation {
     pub derivatives: Vec<(usize, usize, f64)>,
 }
 
+/// A nonlinear product added to an MNA residual row. The base stamp
+/// supplies the linear terms of the same equation.
+pub(crate) struct BilinearTerm {
+    pub row: usize,
+    pub left: usize,
+    pub right: usize,
+    pub coefficient: f64,
+}
+
 pub(crate) trait NonlinearDevice {
     fn id(&self) -> &StableId;
     fn junctions(&self) -> Vec<Junction>;
     /// All junction voltages supplied here may be limited during stamping, but
     /// residual evaluation always supplies the unlimited solution differences.
     fn evaluate(&self, junction_voltages: &[f64]) -> Evaluation;
+
+    fn bilinear_terms(&self) -> &[BilinearTerm] {
+        &[]
+    }
 }
 
 /// exp(x)-1 and its derivative; tangent continuation is used only for iteration.
@@ -253,6 +268,19 @@ fn stage(
             }
         }
         for (d, js) in devices.iter().zip(&limited) {
+            for term in d.bilinear_terms() {
+                let left = old[term.left];
+                let right = old[term.right];
+                let dl = term.coefficient * right;
+                let dr = term.coefficient * left;
+                let intercept = dl * left;
+                if !system.add_matrix(term.row, term.left, dl)
+                    || !system.add_matrix(term.row, term.right, dr)
+                    || !system.add_rhs(term.row, intercept)
+                {
+                    return Err(failure(DiagnosticCode::NonFiniteState, devices));
+                }
+            }
             let evaluation = d.evaluate(js);
             let mut intercepts = evaluation
                 .currents
@@ -337,9 +365,8 @@ fn stage(
             next.iter().zip(&old).zip(tolerance).all(|((a, b), t)| {
                 (a - b).abs() <= NEWTON_RELTOL * a.abs().max(b.abs()) + t.update
             });
-        if !was_limited
-            && update
-            && residual_ok(
+        if !was_limited && update {
+            let (converged, mut residual) = evaluate_residual(
                 base,
                 variables,
                 devices,
@@ -348,9 +375,57 @@ fn stage(
                 &unlimited,
                 &continuation_nodes,
                 conductance,
-            )?
-        {
-            return Ok(Some((next, unlimited)));
+            )?;
+            if converged {
+                return Ok(Some((next, unlimited)));
+            }
+            if devices
+                .iter()
+                .any(|device| !device.bilinear_terms().is_empty())
+            {
+                // Re-solving for absolute unknowns can repeat the same
+                // roundoff at a nearly unloaded winding terminal. Refine
+                // with the physical residual and check the same tolerances.
+                let mut estimate = next.clone();
+                for _ in 0..3 {
+                    let correction = system
+                        .solve_correction(&residual)
+                        .map_err(lu_failure)?
+                        .values;
+                    let refined = estimate
+                        .iter()
+                        .zip(correction)
+                        .map(|(value, delta)| value + delta)
+                        .collect::<Vec<_>>();
+                    let small_correction =
+                        refined
+                            .iter()
+                            .zip(&estimate)
+                            .zip(tolerance)
+                            .all(|((a, b), t)| {
+                                (a - b).abs() <= NEWTON_RELTOL * a.abs().max(b.abs()) + t.update
+                            });
+                    let junctions = devices
+                        .iter()
+                        .map(|device| junction_values(*device, &refined, variables))
+                        .collect::<Vec<_>>();
+                    let (converged, refined_residual) = evaluate_residual(
+                        base,
+                        variables,
+                        devices,
+                        tolerance,
+                        &refined,
+                        &junctions,
+                        &continuation_nodes,
+                        conductance,
+                    )?;
+                    if converged && small_correction {
+                        return Ok(Some((refined, junctions)));
+                    }
+                    estimate = refined;
+                    residual = refined_residual;
+                }
+            }
         }
         old = next;
         limited = next_limited;
@@ -359,7 +434,7 @@ fn stage(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn residual_ok(
+fn evaluate_residual(
     base: &MnaSystem,
     variables: &NodeVariables,
     devices: &[&dyn NonlinearDevice],
@@ -368,7 +443,7 @@ fn residual_ok(
     junctions: &[Vec<f64>],
     nodes: &std::collections::BTreeSet<usize>,
     g: f64,
-) -> Result<bool, SolveFailure> {
+) -> Result<(bool, Vec<f64>), SolveFailure> {
     let mut residual = vec![0.0; x.len()];
     let mut scale = vec![0.0; x.len()];
     let mut roundoff = vec![0.0; x.len()];
@@ -424,6 +499,13 @@ fn residual_ok(
         additions[*row] = 1;
     }
     for (d, js) in devices.iter().zip(junctions) {
+        for term in d.bilinear_terms() {
+            let product = (term.coefficient * x[term.left]) * x[term.right];
+            residual[term.row] += product;
+            scale[term.row] += product.abs();
+            roundoff[term.row] += gamma(4) * product.abs();
+            additions[term.row] += 1;
+        }
         for c in d.evaluate(js).currents {
             if let Some(i) = variables.voltage_variable(c.node) {
                 for term in c.terms {
@@ -454,12 +536,13 @@ fn residual_ok(
     {
         return Err(failure(DiagnosticCode::NonFiniteState, devices));
     }
-    Ok(residual
+    let converged = residual
         .iter()
         .zip(&scale)
         .zip(tolerance)
-        .zip(roundoff)
-        .all(|(((r, s), t), rounding)| r.abs() <= NEWTON_RELTOL * s + t.residual + rounding))
+        .zip(&roundoff)
+        .all(|(((r, s), t), rounding)| r.abs() <= NEWTON_RELTOL * s + t.residual + rounding);
+    Ok((converged, residual))
 }
 
 /// Conservative floating-point evaluation allowance approved in #118.

@@ -7,26 +7,38 @@ pub(crate) use diode::DiodeDevice;
 mod capacitor;
 mod contactor;
 mod fuse;
+mod induction_motor;
 mod inductor;
+mod linked_contacts;
 mod motor;
 mod relay;
 mod resistor;
 mod source;
+mod switchgear;
 mod wattmeter;
+mod windings;
 
 use crate::{DeviceState, Diagnostic, StableId};
 
 use super::mna::{MnaSystem, NodeVariables};
 
 pub(crate) use capacitor::{CapacitorDevice, CapacitorMode};
-pub(crate) use contactor::ContactorDevice;
+pub(crate) use contactor::{ContactorDevice, ContactorPoles};
 pub(crate) use fuse::FuseDevice;
+pub(crate) use induction_motor::{
+    InductionMotorDevice, MotorHistory, MotorInterval, MotorParameters, motor_history,
+};
 pub(crate) use inductor::{InductorDevice, InductorMode};
+pub(crate) use linked_contacts::{LinkedContacts, LinkedPole};
 pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};
 pub(crate) use relay::{RelayCoilMode, RelayDevice};
 pub(crate) use resistor::ResistorDevice;
 pub(crate) use source::{DcVoltageSourceDevice, ThreePhaseSourceDevice};
+pub(crate) use switchgear::{
+    BreakerDevice, BreakerState, OverloadDevice, OverloadState, coil_contact_state, detector_step,
+};
 pub(crate) use wattmeter::WattmeterDevice;
+pub(crate) use windings::{Winding, WindingDevice, WindingHistory, WindingMode, WindingNetwork};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Terminals {

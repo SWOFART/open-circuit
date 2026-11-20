@@ -57,7 +57,9 @@ describe("the parts drawer", () => {
     ]) {
       expect(markup).toContain(`>${name}</span>`);
     }
-    expect(markup.match(/role="option"/g)).toHaveLength(22);
+    expect(markup.match(/role="option"/g)).toHaveLength(
+      catalog.componentTypes.length,
+    );
     expect(markup).not.toContain("component.diode.name");
   });
 
@@ -143,17 +145,19 @@ describe("the parts drawer", () => {
     expect(markup).not.toContain('role="option"');
   });
 
-  it("shows a preview for every current catalog part", () => {
+  it("shows symbols and placeholders for the new Engine parts", () => {
     const markup = render();
 
-    expect(markup.match(/<svg/g)).toHaveLength(catalog.componentTypes.length);
-    expect(markup).not.toContain("part-preview-placeholder");
+    expect(markup.match(/<svg/g)).toHaveLength(
+      catalog.componentTypes.length - 7,
+    );
+    expect(markup.match(/part-preview-placeholder/g)).toHaveLength(7);
   });
 
-  it("makes all catalog parts available", () => {
+  it("keeps Stage 10 parts without editor symbols unavailable", () => {
     const markup = render();
 
-    expect(markup).not.toContain('aria-disabled="true"');
-    expect(markup).not.toContain("The editor has no symbol for this part yet");
+    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(7);
+    expect(markup).toContain("The editor has no symbol for this part yet");
   });
 });

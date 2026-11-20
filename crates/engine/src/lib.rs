@@ -12,6 +12,7 @@ mod mna;
 pub mod netlist;
 mod newton;
 mod operator;
+mod pin_groups;
 pub mod project;
 pub mod rails;
 pub mod results;
@@ -29,7 +30,8 @@ pub use assignment::{
 };
 pub use catalog::{
     CategoryId, ComponentCatalog, ComponentCatalogEntry, ComponentTypeId, NumericDomain,
-    ParameterDefinition, ParameterId, PinDefinition, PinId, PinRole, Unit, component_catalog,
+    ParameterDefinition, ParameterId, PinDefinition, PinGroupDefinition, PinId, PinRole, Unit,
+    component_catalog,
 };
 pub use checks::{
     CheckCounts, CheckCriterion, CheckOutcome, CheckRequest, CheckResult, CheckSignal,

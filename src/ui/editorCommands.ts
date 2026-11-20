@@ -39,9 +39,9 @@ export function defaultParameters(
 
 /**
  * The lightweight Engine update for a committed parameter edit, or undefined
- * when the edit must recompile the circuit. An initial condition only sets the
- * state at time zero, so setting or clearing one always starts a new run; the
- * catalog's `initialCondition` flag decides, not the parameter's name.
+ * when the edit must recompile the circuit. Initial conditions and thermal
+ * overload model parameters always start a new run. The induction motor
+ * has one live parameter, its load torque.
  */
 export function liveParameterUpdate(
   catalog: ComponentCatalog,
@@ -57,7 +57,14 @@ export function liveParameterUpdate(
     .find((entry) => entry.typeId === component?.typeId)
     ?.parameters.find((item) => item.id === parameterId);
 
-  return definition && !definition.initialCondition
+  return definition &&
+    !definition.initialCondition &&
+    component?.typeId !== "thermal_overload_three_pole" &&
+    component?.typeId !== "transformer_three_phase" &&
+    component?.typeId !== "three_phase_load_star" &&
+    component?.typeId !== "three_phase_load_delta" &&
+    (component?.typeId !== "induction_motor_three_phase" ||
+      parameterId === "loadTorqueNewtonMeters")
     ? { componentId, parameterId, value }
     : undefined;
 }
