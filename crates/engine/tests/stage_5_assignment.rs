@@ -955,7 +955,7 @@ fn schematics_are_valid_version_1_documents() {
         (
             "an unsupported schematic version",
             edited(divider(), |document| {
-                set(document, "/reference/schemaVersion", json!(2));
+                set(document, "/reference/schemaVersion", json!(3));
             }),
             vec![at(InvalidField, "/reference/schemaVersion")],
         ),

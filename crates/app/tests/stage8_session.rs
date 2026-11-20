@@ -291,7 +291,7 @@ fn a_saved_and_opened_rail_project_keeps_inputs_and_geometry_and_stores_nothing_
             );
         }
         let saved: Value = serde_json::from_str(&file).unwrap();
-        assert_eq!(saved["schemaVersion"], 2);
+        assert_eq!(saved["schemaVersion"], 3);
         assert_eq!(
             saved["rails"], pair["railSchematic"]["rails"],
             "IDs, names, geometry"
@@ -320,7 +320,7 @@ fn a_saved_and_opened_rail_project_keeps_inputs_and_geometry_and_stores_nothing_
 }
 
 #[test]
-fn a_legacy_project_opens_as_version_two_and_the_file_is_not_rewritten() {
+fn a_legacy_project_opens_as_the_current_version_and_the_file_is_not_rewritten() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("legacy.ocircuit");
     std::fs::write(&path, LEGACY).unwrap();
@@ -333,13 +333,14 @@ fn a_legacy_project_opens_as_version_two_and_the_file_is_not_rewritten() {
         "opening does not rewrite"
     );
 
-    // An explicit save writes version 2 and keeps every ID, position and parameter.
+    // An explicit save writes version 3 and keeps every ID, position and parameter.
     let saved = directory.path().join("saved.ocircuit");
     write_project_file(&saved, &schematic).unwrap();
     let before: Value = serde_json::from_str(LEGACY).unwrap();
     let after: Value = serde_json::from_slice(&std::fs::read(&saved).unwrap()).unwrap();
-    assert_eq!(after["schemaVersion"], 2);
+    assert_eq!(after["schemaVersion"], 3);
     assert_eq!(after["rails"], json!([]));
+    assert_eq!(after["documentation"]["designators"], json!([]));
     for key in ["components", "wires", "junctions", "referenceMarkers"] {
         assert!(same_json(&after[key], &before[key]), "{key}");
     }
@@ -389,7 +390,7 @@ fn a_refused_open_or_save_never_touches_the_current_file() {
         ),
         (
             "future version",
-            Box::new(|d: &mut Value| d["schemaVersion"] = json!(3)),
+            Box::new(|d: &mut Value| d["schemaVersion"] = json!(4)),
         ),
     ] {
         let mut document = valid.clone();

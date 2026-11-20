@@ -21,7 +21,10 @@ fn rail(id: usize, name: &str) -> Value {
 }
 
 fn empty() -> Value {
-    json!({"schemaVersion":2,"components":[],"wires":[],"junctions":[],"referenceMarkers":[],"rails":[]})
+    json!({"schemaVersion":3,"components":[],"wires":[],"junctions":[],"referenceMarkers":[],"rails":[],
+        "documentation":{"designators":[],"wireNumbers":[],"terminals":[],"notes":[],
+        "titleBlock":{"title":"","drawingNumber":"","revision":"","author":"","company":"","date":""},
+        "sheets":[]}})
 }
 
 fn decode(v: &Value) -> Result<Schematic, open_circuit_engine::ProjectDocumentError> {
@@ -60,7 +63,7 @@ fn same_json(a: &Value, b: &Value) {
 fn v1_migrates_losslessly_and_v2_roundtrips_only_drawn_inputs() {
     let legacy = include_bytes!("../../../tests/golden/stage-8-legacy-divider.ocircuit");
     let normalized = decode_project_json(legacy).unwrap();
-    assert_eq!(normalized.schema_version, 2);
+    assert_eq!(normalized.schema_version, 3);
     assert!(normalized.rails.is_empty());
     same_json(
         &serde_json::to_value(&normalized).unwrap(),
@@ -138,6 +141,7 @@ fn v1_migration_rejects_stage_9_component_types() {
         let mut legacy = current;
         legacy["schemaVersion"] = 1.into();
         legacy.as_object_mut().unwrap().remove("rails");
+        legacy.as_object_mut().unwrap().remove("documentation");
         let error = decode(&legacy).expect_err("Stage 9 sources require project v2");
         assert!(matches!(
             error,
@@ -149,7 +153,7 @@ fn v1_migration_rejects_stage_9_component_types() {
 
 #[test]
 fn strict_version_shapes_reject_unknown_null_missing_and_duplicate_fields() {
-    for key in ["schemaVersion", "rails"] {
+    for key in ["schemaVersion", "rails", "documentation"] {
         let mut v = with_rail();
         v.as_object_mut().unwrap().remove(key);
         assert!(decode(&v).is_err());
@@ -157,7 +161,7 @@ fn strict_version_shapes_reject_unknown_null_missing_and_duplicate_fields() {
         v[key] = Value::Null;
         assert!(decode(&v).is_err());
     }
-    for version in [0, 3, 999] {
+    for version in [0, 4, 999] {
         let mut v = with_rail();
         v["schemaVersion"] = version.into();
         assert!(decode(&v).is_err());
@@ -185,8 +189,8 @@ fn strict_version_shapes_reject_unknown_null_missing_and_duplicate_fields() {
     }
     let raw = serde_json::to_string(&with_rail()).unwrap();
     let duplicate = raw.replacen(
-        "\"schemaVersion\":2",
-        "\"schemaVersion\":2,\"schemaVersion\":2",
+        "\"schemaVersion\":3",
+        "\"schemaVersion\":3,\"schemaVersion\":3",
         1,
     );
     assert!(decode_project_json(duplicate.as_bytes()).is_err());
@@ -215,6 +219,7 @@ fn legacy_dynamic_and_nonlinear_inputs_preserve_every_model_parameter_and_initia
         let mut legacy = current.clone();
         legacy["schemaVersion"] = 1.into();
         legacy.as_object_mut().unwrap().remove("rails");
+        legacy.as_object_mut().unwrap().remove("documentation");
         assert_eq!(
             decode(&legacy).unwrap(),
             decode(&current).unwrap(),
@@ -358,7 +363,7 @@ fn count_extent_and_full_pin_contact_budget_are_checked_without_grid_expansion()
 }
 
 #[test]
-fn assignment_files_stay_v1_but_live_dtos_are_v2_and_rails_are_refused() {
+fn assignment_files_stay_v1_but_live_dtos_are_v3_and_rails_are_refused() {
     for name in ["divider-build", "fault-finding"] {
         let file = fixture(&format!("stage-5-drawn-{name}.ocassignment"));
         let assignment = decode_assignment_json(&serde_json::to_vec(&file).unwrap()).unwrap();
@@ -367,7 +372,7 @@ fn assignment_files_stay_v1_but_live_dtos_are_v2_and_rails_are_refused() {
             &dto,
             &fixture(&format!("stage-5-drawn-{name}.assignment.json")),
         );
-        assert_eq!(dto["startingCircuit"]["schemaVersion"], 2);
+        assert_eq!(dto["startingCircuit"]["schemaVersion"], 3);
         same_json(
             &serde_json::from_slice::<Value>(&encode_assignment_json(&assignment).unwrap())
                 .unwrap(),

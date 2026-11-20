@@ -1,6 +1,6 @@
 {
   "schematic": {
-    "schemaVersion": 2,
+    "schemaVersion": 3,
     "components": [
       {
         "typeId": "three_phase_source_star",
@@ -998,7 +998,22 @@
         }
       }
     ],
-    "rails": []
+    "rails": [],
+    "documentation": {
+      "designators": [],
+      "wireNumbers": [],
+      "terminals": [],
+      "notes": [],
+      "titleBlock": {
+        "title": "",
+        "drawingNumber": "",
+        "revision": "",
+        "author": "",
+        "company": "",
+        "date": ""
+      },
+      "sheets": []
+    }
   },
   "geometry": {
     "components": [

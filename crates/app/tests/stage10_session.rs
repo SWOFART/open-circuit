@@ -222,7 +222,7 @@ fn request(parts: &[Part<'_>]) -> CompileRequest {
         .collect();
     serde_json::from_value(json!({
         "documentRevision": "rev-1", "geometry": {"components": geometry},
-        "schematic": {"schemaVersion": 2, "components": components, "wires": [],
+        "schematic": {"schemaVersion": 3, "documentation": {"designators":[],"wireNumbers":[],"terminals":[],"notes":[],"titleBlock":{"title":"","drawingNumber":"","revision":"","author":"","company":"","date":""},"sheets":[]}, "components": components, "wires": [],
             "rails": [], "junctions": [], "referenceMarkers": [
                 {"id": index_id(parts.len()), "position": {"x": 0, "y": 0}}
             ]}

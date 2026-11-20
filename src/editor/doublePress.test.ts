@@ -15,6 +15,7 @@ import {
 import { operatingTargets } from "./operate";
 import { buildScene } from "./scene";
 import { toScreen } from "./view";
+import { emptyDocumentation } from "./documentation";
 
 const RESISTOR = "00000000-0000-4000-8000-0000000000a1";
 const SWITCH = "00000000-0000-4000-8000-0000000000a2";
@@ -38,7 +39,7 @@ function part(
 }
 
 const schematic: Schematic = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   components: [
     part("resistor", RESISTOR, 0, { resistanceOhms: 1000 }),
     part("switch_spst", SWITCH, 10, { closedResistanceOhms: 0.01 }),
@@ -51,6 +52,7 @@ const schematic: Schematic = {
   rails: [
     { id: RAIL, name: "L1", start: { x: 40, y: -5 }, end: { x: 40, y: 5 } },
   ],
+  documentation: emptyDocumentation(),
 };
 
 function setUp(operable = false) {

@@ -441,6 +441,19 @@ pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
         result.outcome_key = result.outcome.key().to_owned();
         return result;
     }
+    if [&request.starting_circuit, &request.schematic]
+        .into_iter()
+        .any(|schematic| !schematic.documentation.is_empty())
+    {
+        let diagnostic = Diagnostic::error(
+            crate::DiagnosticCode::UnsupportedAssignmentDocumentation,
+            Vec::new(),
+        );
+        let mut result = evaluate_started(request, Start::Failed(vec![diagnostic]));
+        result.outcome = CheckOutcome::Failed;
+        result.outcome_key = result.outcome.key().to_owned();
+        return result;
+    }
     let mut engine = Engine::default();
     let start = match engine.compile(CompileRequest {
         schematic: request.schematic.clone(),
@@ -1031,6 +1044,7 @@ mod tests {
     fn empty_schematic() -> Schematic {
         Schematic {
             rails: Vec::new(),
+            documentation: crate::ProjectDocumentation::default(),
             schema_version: crate::SCHEMA_VERSION,
             components: Vec::new(),
             wires: Vec::new(),

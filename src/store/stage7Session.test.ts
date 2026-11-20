@@ -12,6 +12,7 @@ import { symbols } from "../symbols";
 import { PredeterminedEngineAdapter } from "./mockEngineAdapter";
 import { SimulationController } from "./simulation";
 import { layoutFor, valuesFor } from "./stage4TestSupport";
+import { emptyDocumentation } from "../editor/documentation";
 
 // Issue #114: the semiconductor drawings go through the same run lifecycle as every other
 // drawing. The adapter answers with scripted results; nothing here solves a circuit.
@@ -20,7 +21,7 @@ const NPN = "00000000-0000-4000-8000-0000000000f2";
 
 function drawing(saturation: number): Schematic {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     components: [
       {
         typeId: "diode",
@@ -48,6 +49,7 @@ function drawing(saturation: number): Schematic {
     junctions: [],
     referenceMarkers: [],
     rails: [],
+    documentation: emptyDocumentation(),
   };
 }
 

@@ -17,7 +17,7 @@ const THIRD_LOAD_ID: &str = "00000000-0000-4000-8000-000000000008";
 fn measurement_request() -> CompileRequest {
     CompileRequest {
         schematic: from_value(json!({
-            "schemaVersion": 2,
+            "schemaVersion": 3, "documentation": {"designators":[],"wireNumbers":[],"terminals":[],"notes":[],"titleBlock":{"title":"","drawingNumber":"","revision":"","author":"","company":"","date":""},"sheets":[]},
             "components": [
                 {
                     "id": SOURCE_ID, "typeId": "ac_voltage_source",
@@ -233,7 +233,7 @@ fn three_phase_meter_request(
 
     CompileRequest {
         schematic: from_value(json!({
-            "schemaVersion": 2,
+            "schemaVersion": 3, "documentation": {"designators":[],"wireNumbers":[],"terminals":[],"notes":[],"titleBlock":{"title":"","drawingNumber":"","revision":"","author":"","company":"","date":""},"sheets":[]},
             "components": components,
             "wires": [],
             "junctions": [],

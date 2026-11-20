@@ -9,6 +9,7 @@ import { resolvePinPositions, type Rotation } from "./geometry";
 import { hitTest } from "./hitTest";
 import { buildScene } from "./scene";
 import { followingWireEdits } from "./transform";
+import { emptyDocumentation } from "./documentation";
 
 const DIODE = "00000000-0000-4000-8000-0000000000e1";
 const NPN = "00000000-0000-4000-8000-0000000000e2";
@@ -26,7 +27,7 @@ const transistor = {
 
 function schematic(): Schematic {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     components: [
       {
         typeId: "diode",
@@ -63,6 +64,7 @@ function schematic(): Schematic {
     junctions: [],
     referenceMarkers: [],
     rails: [],
+    documentation: emptyDocumentation(),
   };
 }
 

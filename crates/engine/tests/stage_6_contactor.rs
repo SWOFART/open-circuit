@@ -148,6 +148,7 @@ fn request(parts: Vec<Part>, grounds: &[GridPoint], revision: &str) -> CompileRe
     CompileRequest {
         schematic: Schematic {
             rails: Vec::new(),
+            documentation: Default::default(),
             schema_version: SCHEMA_VERSION,
             components: parts.into_iter().map(|part| part.spec).collect(),
             wires: Vec::new(),

@@ -41,8 +41,8 @@ Mechanical cabinet layout and wire lengths; cable schedules; ERP, CAD and netlis
 
 ```json
 "documentation": {
-  "designators": { "<componentId>": "Q1" },
-  "wireNumbers": { "<wireId>": "12" },
+  "designators": [ { "componentId": "...", "designator": "Q1" } ],
+  "wireNumbers": [ { "wireId": "...", "number": "12" } ],
   "terminals":   [ { "id": "...", "strip": "X1", "label": "3", "position": { "x": 4, "y": 2 } } ],
   "notes":       [ { "id": "...", "position": { "x": 0, "y": 0 }, "text": "Main supply" } ],
   "titleBlock":  { "title": "", "drawingNumber": "", "revision": "", "author": "", "company": "", "date": "" },
@@ -50,7 +50,7 @@ Mechanical cabinet layout and wire lengths; cable schedules; ERP, CAD and netlis
 }
 ```
 
-Nothing derived is saved: no net, no bill of materials, no sheet number, no result. The maps are keyed by the stable IDs that already exist; an entry whose ID no longer exists in the schematic is a validation error (the interface removes entries together with the object they belong to, in the same history entry).
+Nothing derived is saved: no net, no bill of materials, no sheet number, no result. The designator and wire-number lists are arrays of entries (not JSON maps) so the strict decoders and the generated types stay uniform; each entry names the stable ID it belongs to, an ID may appear once, and the order is not significant. Terminals, notes and sheets carry their own stable IDs, share the one ID space of the document (a duplicate is `DuplicateId`) and are limited in section 2.5. A designator and a wire number are validated as in sections 3.3 and 5; a terminal strip is one capital letter followed by up to seven capital letters or digits, a terminal label is 1 to 8 characters of letters, digits and `+ . _ -`, a wire number 1 to 16 of the same, and a note 1 to 500 characters on at most 10 lines. The catalog gains `designatorPrefix` on every entry (section 3.2). An entry whose ID no longer exists in the schematic is a validation error (the interface removes entries together with the object they belong to, in the same history entry).
 
 ### 2.2 Compatibility
 
@@ -206,6 +206,7 @@ Off-sheet connectors and cross-references; contact mirrors under a coil; termina
 4. **Photographs of book pages are not committed** (copyright and quality). The owner keeps them; if a picture is to be a reference, the owner confirms that it may be published, or supplies one that is free to use, under `docs/symbols/` (stage-11-drawer-and-editing.md section 4.2).
 5. **The PDF writer and the PDF font**: a new Rust dependency or a small own writer, and an embedded font with a licence that allows it (sections 9.2 and 9.3).
 6. **The interface language and the symbol standard.** The pictures follow DIN EN 60617 and IEC 61346. The proposal is to keep the symbols as IEC 60617 drawings (as the existing ones) and to leave the interface in English until the owner decides the language; designator letters do not depend on the language, and every visible text of this stage is a message key.
+7. **Recorded answers (2026-11-20).** The owner confirmed the English interface for now and A4 as the usual sheet, and started the stage with the letters of section 3.2 (`R` for resistors, written in English).
 
 ## 12. Verification
 

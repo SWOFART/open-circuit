@@ -14,6 +14,7 @@ import {
   RAIL_END_RADIUS,
 } from "./scene";
 import { toScreen } from "./view";
+import { emptyDocumentation } from "./documentation";
 
 const RAIL = "00000000-0000-4000-8000-000000008001";
 const RAIL_B = "00000000-0000-4000-8000-000000008002";
@@ -36,12 +37,13 @@ function rail(
 
 function drawing(parts: Partial<Schematic>): Schematic {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     components: [],
     wires: [],
     junctions: [],
     referenceMarkers: [],
     rails: [],
+    documentation: emptyDocumentation(),
     ...parts,
   };
 }
@@ -502,7 +504,7 @@ describe("the wire tool on rails", () => {
   const railDrawing = () =>
     drawing({
       ...dividerSchematic,
-      schemaVersion: 2,
+      schemaVersion: 3,
       components: [],
       wires: [],
       junctions: [],

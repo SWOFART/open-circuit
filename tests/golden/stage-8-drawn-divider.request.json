@@ -1,6 +1,6 @@
 {
   "schematic": {
-    "schemaVersion": 2,
+    "schemaVersion": 3,
     "components": [
       {
         "typeId": "dc_voltage_source",
@@ -124,7 +124,22 @@
           "y": 0
         }
       }
-    ]
+    ],
+    "documentation": {
+      "designators": [],
+      "wireNumbers": [],
+      "terminals": [],
+      "notes": [],
+      "titleBlock": {
+        "title": "",
+        "drawingNumber": "",
+        "revision": "",
+        "author": "",
+        "company": "",
+        "date": ""
+      },
+      "sheets": []
+    }
   },
   "geometry": {
     "components": [

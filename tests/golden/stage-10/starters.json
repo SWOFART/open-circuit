@@ -3,7 +3,7 @@
     "request": {
       "documentRevision": "start",
       "schematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -909,6 +909,21 @@
         ],
         "junctions": [],
         "rails": [],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        },
         "referenceMarkers": [
           {
             "id": "00000000-0000-4000-8000-000000000999",
@@ -1300,7 +1315,7 @@
     "request": {
       "documentRevision": "start",
       "schematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -2206,6 +2221,21 @@
         ],
         "junctions": [],
         "rails": [],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        },
         "referenceMarkers": [
           {
             "id": "00000000-0000-4000-8000-000000000999",
@@ -2597,7 +2627,7 @@
     "request": {
       "documentRevision": "start",
       "schematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -4094,6 +4124,21 @@
         ],
         "junctions": [],
         "rails": [],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        },
         "referenceMarkers": [
           {
             "id": "00000000-0000-4000-8000-000000000999",
@@ -4766,7 +4811,7 @@
     "request": {
       "documentRevision": "start",
       "schematic": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "components": [
           {
             "id": "00000000-0000-4000-8000-000000000001",
@@ -6263,6 +6308,21 @@
         ],
         "junctions": [],
         "rails": [],
+        "documentation": {
+          "designators": [],
+          "wireNumbers": [],
+          "terminals": [],
+          "notes": [],
+          "titleBlock": {
+            "title": "",
+            "drawingNumber": "",
+            "revision": "",
+            "author": "",
+            "company": "",
+            "date": ""
+          },
+          "sheets": []
+        },
         "referenceMarkers": [
           {
             "id": "00000000-0000-4000-8000-000000000999",
