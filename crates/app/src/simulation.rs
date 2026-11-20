@@ -65,6 +65,11 @@ pub struct SimulationConfig {
     /// Cap on physics steps taken at once. After a stall (for example the machine
     /// sleeping) the backlog is dropped instead of being simulated in one burst.
     pub max_steps_per_tick: u32,
+    /// Wall-clock time after which a catch-up batch yields between complete steps, so a slow
+    /// circuit cannot starve operator commands. Real streaming keeps the default. A test that
+    /// drives the core with a fake clock sets a very large value, so that what it checks does not
+    /// depend on how fast the machine computes a step.
+    pub catch_up_budget: Duration,
 }
 
 impl Default for SimulationConfig {
@@ -74,6 +79,7 @@ impl Default for SimulationConfig {
             max_in_flight: 2,
             ack_timeout: Duration::from_secs(1),
             max_steps_per_tick: 1_000,
+            catch_up_budget: Duration::from_millis(8),
         }
     }
 }
@@ -355,7 +361,7 @@ impl SimulationCore {
                     return;
                 }
                 advanced += 1;
-                if started.elapsed() >= Duration::from_millis(8) {
+                if started.elapsed() >= config.catch_up_budget {
                     break;
                 }
             }
