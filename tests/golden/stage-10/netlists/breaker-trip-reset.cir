@@ -1,0 +1,19 @@
+Open Circuit Stage 10 reference: breaker-trip-reset
+.options method=trap reltol=1e-9 vntol=1e-10 abstol=1e-12 temp=27 tnom=27
+vfeed supply 0 pwl(0 1 0.0498 1 0.05 4 0.0798 4 0.08 1)
+vcmd cmd 0 pwl(0 0 0.0198 0 0.02 1 0.1198 1 0.12 0 0.1598 0 0.16 1)
+btripgate gate 0 v=(1+tanh(30*(v(supply)/1.01-2)))/2
+bmemory 0 latch i=(v(cmd)*v(gate)*(1-v(latch))-(1-v(cmd))*v(latch))/5e-5
+clatch latch 0 1 ic=0
+bpole supply probe i=v(supply)*v(cmd)*(1-v(latch))/1.01
+vpole probe 0 0
+.tran 0.00001 0.21 0 0.00001 uic
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+wrdata breaker-trip-reset.out i(vpole) v(latch)
+quit
+.endc
+.end

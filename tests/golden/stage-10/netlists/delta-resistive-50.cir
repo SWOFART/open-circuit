@@ -1,0 +1,21 @@
+Open Circuit Stage 10 reference: delta-resistive-50
+.options method=trap reltol=1e-9 vntol=1e-10 abstol=1e-12 temp=27 tnom=27
+vline0 line0 0 ac 48 0 sin(0 67.88225099390857 50 0 0 0)
+vline1 line1 0 ac 48 -120 sin(0 67.88225099390857 50 0 0 -120)
+vline2 line2 0 ac 48 120 sin(0 67.88225099390857 50 0 0 120)
+vload0 line0 sense0 0
+rload0 sense0 line1 10
+vload1 line1 sense1 0
+rload1 sense1 line2 16
+vload2 line2 sense2 0
+rload2 sense2 line0 24
+.ac lin 1 50 50
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+wrdata delta-resistive-50.out v(line0,line1) i(vload0) v(line1,line2) i(vload1) v(line2,line0) i(vload2)
+quit
+.endc
+.end

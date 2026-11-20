@@ -1,0 +1,2769 @@
+{
+  "generator": "node scripts/stage10-references.mjs --write --ngspice <path>",
+  "ngspice": {
+    "version": "ngspice-47",
+    "archiveSha256": "59225971bd68cdd1199443649aa4615a9e6d684933f205ab49006a3942518f5a",
+    "options": "method=trap reltol=1e-9 vntol=1e-10 abstol=1e-12 temp=27 tnom=27",
+    "maxStepSeconds": 0.00001
+  },
+  "sign": "Voltage first minus second terminal. Positive current enters the first terminal.",
+  "observationFormat": "[timeSeconds, ...vectors]",
+  "ngspiceDataSha256": "4b75cc4d09f6de1ef9ef82370a73daa9957ff5f70ffadce07d41b0755c604b07",
+  "fixtures": [
+    {
+      "id": "contactor-50",
+      "kind": "contactor_three_pole",
+      "inputs": {
+        "hz": 50,
+        "resistance": 10,
+        "inductance": 0.01,
+        "senseSeconds": 0.02,
+        "pickup": 0.7,
+        "dropout": 0.4,
+        "high": 10,
+        "low": 1,
+        "switchTime": 0.3
+      },
+      "vectors": [
+        {
+          "key": "coil/current",
+          "expression": "i(vcoil)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "coil/current_squared",
+          "expression": "v(detector)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "picked",
+          "expression": "v(picked)",
+          "tolerance": 0.0001
+        }
+      ],
+      "times": [
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.03,
+        0.035,
+        0.04,
+        0.045,
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195,
+        0.2,
+        0.205,
+        0.21,
+        0.215,
+        0.22,
+        0.225,
+        0.23,
+        0.235,
+        0.24,
+        0.245,
+        0.25,
+        0.255,
+        0.26,
+        0.265,
+        0.27,
+        0.275,
+        0.28,
+        0.285,
+        0.29,
+        0.295,
+        0.3,
+        0.305,
+        0.31,
+        0.315,
+        0.32,
+        0.325,
+        0.33,
+        0.335,
+        0.34,
+        0.345,
+        0.35,
+        0.355,
+        0.36,
+        0.365,
+        0.37,
+        0.375,
+        0.38,
+        0.385,
+        0.39,
+        0.395,
+        0.4,
+        0.405,
+        0.41,
+        0.415,
+        0.42,
+        0.425,
+        0.43,
+        0.435,
+        0.44,
+        0.445,
+        0.45,
+        0.455,
+        0.46,
+        0.465,
+        0.47,
+        0.475,
+        0.48,
+        0.485,
+        0.49,
+        0.495
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.5
+      },
+      "netlistSha256": "a984baab2b83f6d83249116219ce371be6a9bc1de44c7d2d7d122356e3030f58"
+    },
+    {
+      "id": "contactor-60",
+      "kind": "contactor_three_pole",
+      "inputs": {
+        "hz": 60,
+        "resistance": 10,
+        "inductance": 0.01,
+        "senseSeconds": 0.02,
+        "pickup": 0.7,
+        "dropout": 0.4,
+        "high": 10,
+        "low": 1,
+        "switchTime": 0.3
+      },
+      "vectors": [
+        {
+          "key": "coil/current",
+          "expression": "i(vcoil)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "coil/current_squared",
+          "expression": "v(detector)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "picked",
+          "expression": "v(picked)",
+          "tolerance": 0.0001
+        }
+      ],
+      "times": [
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.03,
+        0.035,
+        0.04,
+        0.045,
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195,
+        0.2,
+        0.205,
+        0.21,
+        0.215,
+        0.22,
+        0.225,
+        0.23,
+        0.235,
+        0.24,
+        0.245,
+        0.25,
+        0.255,
+        0.26,
+        0.265,
+        0.27,
+        0.275,
+        0.28,
+        0.285,
+        0.29,
+        0.295,
+        0.3,
+        0.305,
+        0.31,
+        0.315,
+        0.32,
+        0.325,
+        0.33,
+        0.335,
+        0.34,
+        0.345,
+        0.35,
+        0.355,
+        0.36,
+        0.365,
+        0.37,
+        0.375,
+        0.38,
+        0.385,
+        0.39,
+        0.395,
+        0.4,
+        0.405,
+        0.41,
+        0.415,
+        0.42,
+        0.425,
+        0.43,
+        0.435,
+        0.44,
+        0.445,
+        0.45,
+        0.455,
+        0.46,
+        0.465,
+        0.47,
+        0.475,
+        0.48,
+        0.485,
+        0.49,
+        0.495
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.5
+      },
+      "netlistSha256": "550eef8b223c37ce0bae5ec657a7f29024b511ec89a6618741ac65b33ff621a2"
+    },
+    {
+      "id": "breaker-trip-reset",
+      "kind": "breaker_three_pole",
+      "inputs": {
+        "thresholdAmps": 2,
+        "closedResistance": 0.01,
+        "loadResistance": 1,
+        "closeAt": 0.02,
+        "overloadAt": 0.05,
+        "restoreAt": 0.08,
+        "resetAt": 0.12,
+        "recloseAt": 0.16
+      },
+      "vectors": [
+        {
+          "key": "pole1/current",
+          "expression": "i(vpole)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "tripped",
+          "expression": "v(latch)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.002,
+        0.007,
+        0.012,
+        0.017,
+        0.022,
+        0.027,
+        0.032,
+        0.037,
+        0.042,
+        0.047,
+        0.052,
+        0.057,
+        0.062,
+        0.067,
+        0.072,
+        0.077,
+        0.082,
+        0.087,
+        0.092,
+        0.097,
+        0.102,
+        0.107,
+        0.112,
+        0.117,
+        0.122,
+        0.127,
+        0.132,
+        0.137,
+        0.142,
+        0.147,
+        0.152,
+        0.157,
+        0.162,
+        0.167,
+        0.172,
+        0.177,
+        0.182,
+        0.187,
+        0.192,
+        0.197,
+        0.202
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.21
+      },
+      "netlistSha256": "eaea4fdcf82fc7634cab81519af592f3bb9c54469e7ddfed87ca20770baec1e4"
+    },
+    {
+      "id": "overload-dc-1",
+      "kind": "thermal_overload_three_pole",
+      "inputs": {
+        "multiple": 1,
+        "ac": false,
+        "rated": 10,
+        "senseSeconds": 0.02,
+        "tripScale": 0.1,
+        "cool": 0.1
+      },
+      "vectors": [
+        {
+          "key": "normalized_detector",
+          "expression": "v(q)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "thermal_dose",
+          "expression": "v(dose)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "tripped",
+          "expression": "v(tripped)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.03,
+        0.035,
+        0.04,
+        0.045,
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195,
+        0.2,
+        0.205,
+        0.21,
+        0.215,
+        0.22,
+        0.225,
+        0.23,
+        0.235,
+        0.24,
+        0.245
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "4ff9aad1aaa7985255a5b9632553d024d12ef376098d23e88e77735f7ecc5c00"
+    },
+    {
+      "id": "overload-dc-1p5",
+      "kind": "thermal_overload_three_pole",
+      "inputs": {
+        "multiple": 1.5,
+        "ac": false,
+        "rated": 10,
+        "senseSeconds": 0.02,
+        "tripScale": 0.1,
+        "cool": 0.1
+      },
+      "vectors": [
+        {
+          "key": "normalized_detector",
+          "expression": "v(q)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "thermal_dose",
+          "expression": "v(dose)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "tripped",
+          "expression": "v(tripped)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.03,
+        0.035,
+        0.04,
+        0.045,
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195,
+        0.2,
+        0.205,
+        0.21,
+        0.215,
+        0.22,
+        0.225,
+        0.23,
+        0.235,
+        0.24,
+        0.245
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "9c84cc3cb55e0626c9b7f22c2074332d28a4b72a90f792f81423cc4404c79b0b"
+    },
+    {
+      "id": "overload-dc-2",
+      "kind": "thermal_overload_three_pole",
+      "inputs": {
+        "multiple": 2,
+        "ac": false,
+        "rated": 10,
+        "senseSeconds": 0.02,
+        "tripScale": 0.1,
+        "cool": 0.1
+      },
+      "vectors": [
+        {
+          "key": "normalized_detector",
+          "expression": "v(q)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "thermal_dose",
+          "expression": "v(dose)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "tripped",
+          "expression": "v(tripped)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.03,
+        0.035,
+        0.04,
+        0.045,
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195,
+        0.2,
+        0.205,
+        0.21,
+        0.215,
+        0.22,
+        0.225,
+        0.23,
+        0.235,
+        0.24,
+        0.245
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "16f00ebc279b99ad3e0b2eb6c4fa2930c8be8b9a069c5be23f1bd7579ccde80f"
+    },
+    {
+      "id": "overload-dc-3",
+      "kind": "thermal_overload_three_pole",
+      "inputs": {
+        "multiple": 3,
+        "ac": false,
+        "rated": 10,
+        "senseSeconds": 0.02,
+        "tripScale": 0.1,
+        "cool": 0.1
+      },
+      "vectors": [
+        {
+          "key": "normalized_detector",
+          "expression": "v(q)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "thermal_dose",
+          "expression": "v(dose)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "tripped",
+          "expression": "v(tripped)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.03,
+        0.035,
+        0.04,
+        0.045,
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195,
+        0.2,
+        0.205,
+        0.21,
+        0.215,
+        0.22,
+        0.225,
+        0.23,
+        0.235,
+        0.24,
+        0.245
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "3937ec99a6c0d31b6dc35b9942c1225235573217f54c941561ec09ed45e66640"
+    },
+    {
+      "id": "overload-ac-50",
+      "kind": "thermal_overload_three_pole",
+      "inputs": {
+        "multiple": 1.5,
+        "ac": true,
+        "rated": 10,
+        "senseSeconds": 0.02,
+        "tripScale": 0.1,
+        "cool": 0.1
+      },
+      "vectors": [
+        {
+          "key": "normalized_detector",
+          "expression": "v(q)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "thermal_dose",
+          "expression": "v(dose)",
+          "tolerance": 0.002
+        },
+        {
+          "key": "tripped",
+          "expression": "v(tripped)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.005,
+        0.01,
+        0.015,
+        0.02,
+        0.025,
+        0.03,
+        0.035,
+        0.04,
+        0.045,
+        0.05,
+        0.055,
+        0.06,
+        0.065,
+        0.07,
+        0.075,
+        0.08,
+        0.085,
+        0.09,
+        0.095,
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195,
+        0.2,
+        0.205,
+        0.21,
+        0.215,
+        0.22,
+        0.225,
+        0.23,
+        0.235,
+        0.24,
+        0.245
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "6100e6f3adaa6b968308933e9b2d9ac9c7d8685cb975b1e2a8ca103a2e08bd0c"
+    },
+    {
+      "id": "induction-blocked",
+      "kind": "induction_motor_three_phase",
+      "inputs": {
+        "voltageRmsVolts": 48,
+        "frequencyHz": 50,
+        "statorResistance": 1,
+        "rotorResistance": 1,
+        "statorLeakage": 0.005,
+        "rotorLeakage": 0.005,
+        "magnetizingInductance": 0.1,
+        "polePairs": 2,
+        "inertia": 0.002,
+        "friction": 0.01,
+        "loadTorque": 0.1,
+        "returnResistance": 10,
+        "starSeriesResistance": 0.015,
+        "starContactorResistance": 0.01,
+        "deltaSeriesResistance": 0.055,
+        "locked": true,
+        "reversed": false,
+        "timeline": [
+          {
+            "time": 0,
+            "position": "star"
+          }
+        ]
+      },
+      "vectors": [
+        {
+          "key": "u/current",
+          "expression": "v(cu)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "v/current",
+          "expression": "v(cv)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "w/current",
+          "expression": "v(cw)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "angular_velocity",
+          "expression": "v(speed)",
+          "tolerance": 0.25
+        },
+        {
+          "key": "electromagnetic_torque",
+          "expression": "v(torque)",
+          "tolerance": 0.1
+        }
+      ],
+      "times": [
+        0.003,
+        0.006,
+        0.009,
+        0.012,
+        0.015,
+        0.018,
+        0.021,
+        0.024,
+        0.027,
+        0.03,
+        0.033,
+        0.036,
+        0.039,
+        0.042,
+        0.045,
+        0.048,
+        0.051,
+        0.054,
+        0.057,
+        0.06,
+        0.063,
+        0.066,
+        0.069,
+        0.072,
+        0.075,
+        0.078,
+        0.081,
+        0.084,
+        0.087,
+        0.09,
+        0.093,
+        0.096,
+        0.099,
+        0.102,
+        0.105,
+        0.108,
+        0.111,
+        0.114,
+        0.117,
+        0.12,
+        0.123,
+        0.126,
+        0.129,
+        0.132,
+        0.135,
+        0.138,
+        0.141,
+        0.144,
+        0.147,
+        0.15,
+        0.153,
+        0.156,
+        0.159,
+        0.162,
+        0.165,
+        0.168,
+        0.171,
+        0.174,
+        0.177,
+        0.18,
+        0.183,
+        0.186,
+        0.189,
+        0.192,
+        0.195,
+        0.198,
+        0.201,
+        0.204,
+        0.207,
+        0.21,
+        0.213,
+        0.216,
+        0.219,
+        0.222,
+        0.225,
+        0.228,
+        0.231,
+        0.234,
+        0.237,
+        0.24,
+        0.243
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "3c3079fb6ea0a72878de1b43898561bfca1d4c30e0ab6cacc8edcf66e8fee655"
+    },
+    {
+      "id": "induction-run-up",
+      "kind": "induction_motor_three_phase",
+      "inputs": {
+        "voltageRmsVolts": 48,
+        "frequencyHz": 50,
+        "statorResistance": 1,
+        "rotorResistance": 1,
+        "statorLeakage": 0.005,
+        "rotorLeakage": 0.005,
+        "magnetizingInductance": 0.1,
+        "polePairs": 2,
+        "inertia": 0.002,
+        "friction": 0.01,
+        "loadTorque": 0.1,
+        "returnResistance": 10,
+        "starSeriesResistance": 0.015,
+        "starContactorResistance": 0.01,
+        "deltaSeriesResistance": 0.055,
+        "locked": false,
+        "reversed": false,
+        "timeline": [
+          {
+            "time": 0,
+            "position": "star"
+          }
+        ]
+      },
+      "vectors": [
+        {
+          "key": "u/current",
+          "expression": "v(cu)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "v/current",
+          "expression": "v(cv)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "w/current",
+          "expression": "v(cw)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "angular_velocity",
+          "expression": "v(speed)",
+          "tolerance": 0.25
+        },
+        {
+          "key": "electromagnetic_torque",
+          "expression": "v(torque)",
+          "tolerance": 0.1
+        }
+      ],
+      "times": [
+        0.003,
+        0.006,
+        0.009,
+        0.012,
+        0.015,
+        0.018,
+        0.021,
+        0.024,
+        0.027,
+        0.03,
+        0.033,
+        0.036,
+        0.039,
+        0.042,
+        0.045,
+        0.048,
+        0.051,
+        0.054,
+        0.057,
+        0.06,
+        0.063,
+        0.066,
+        0.069,
+        0.072,
+        0.075,
+        0.078,
+        0.081,
+        0.084,
+        0.087,
+        0.09,
+        0.093,
+        0.096,
+        0.099,
+        0.102,
+        0.105,
+        0.108,
+        0.111,
+        0.114,
+        0.117,
+        0.12,
+        0.123,
+        0.126,
+        0.129,
+        0.132,
+        0.135,
+        0.138,
+        0.141,
+        0.144,
+        0.147,
+        0.15,
+        0.153,
+        0.156,
+        0.159,
+        0.162,
+        0.165,
+        0.168,
+        0.171,
+        0.174,
+        0.177,
+        0.18,
+        0.183,
+        0.186,
+        0.189,
+        0.192,
+        0.195,
+        0.198,
+        0.201,
+        0.204,
+        0.207,
+        0.21,
+        0.213,
+        0.216,
+        0.219,
+        0.222,
+        0.225,
+        0.228,
+        0.231,
+        0.234,
+        0.237,
+        0.24,
+        0.243
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "0155e391c0aaae17867edfcb55a74bcc2bb056acfa976c69e6839f0ee17e24eb"
+    },
+    {
+      "id": "direct-on-line",
+      "kind": "direct-on-line",
+      "inputs": {
+        "voltageRmsVolts": 48,
+        "frequencyHz": 50,
+        "statorResistance": 1,
+        "rotorResistance": 1,
+        "statorLeakage": 0.005,
+        "rotorLeakage": 0.005,
+        "magnetizingInductance": 0.1,
+        "polePairs": 2,
+        "inertia": 0.002,
+        "friction": 0.01,
+        "loadTorque": 0.1,
+        "returnResistance": 10,
+        "starSeriesResistance": 0.015,
+        "starContactorResistance": 0.01,
+        "deltaSeriesResistance": 0.055,
+        "locked": false,
+        "reversed": false,
+        "timeline": [
+          {
+            "time": 0,
+            "position": "open"
+          },
+          {
+            "time": 0.020959600000000002,
+            "position": "star"
+          }
+        ]
+      },
+      "vectors": [
+        {
+          "key": "u/current",
+          "expression": "v(cu)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "v/current",
+          "expression": "v(cv)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "w/current",
+          "expression": "v(cw)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "angular_velocity",
+          "expression": "v(speed)",
+          "tolerance": 0.25
+        },
+        {
+          "key": "electromagnetic_torque",
+          "expression": "v(torque)",
+          "tolerance": 0.1
+        },
+        {
+          "key": "source/l1/current",
+          "expression": "i(vline0)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l2/current",
+          "expression": "i(vline1)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l3/current",
+          "expression": "i(vline2)",
+          "tolerance": 0.12
+        }
+      ],
+      "times": [
+        0.003,
+        0.006,
+        0.009,
+        0.012,
+        0.015,
+        0.018,
+        0.024,
+        0.027,
+        0.03,
+        0.033,
+        0.036,
+        0.039,
+        0.042,
+        0.045,
+        0.048,
+        0.051,
+        0.054,
+        0.057,
+        0.06,
+        0.063,
+        0.066,
+        0.069,
+        0.072,
+        0.075,
+        0.078,
+        0.081,
+        0.084,
+        0.087,
+        0.09,
+        0.093,
+        0.096,
+        0.099,
+        0.102,
+        0.105,
+        0.108,
+        0.111,
+        0.114,
+        0.117,
+        0.12,
+        0.123,
+        0.126,
+        0.129,
+        0.132,
+        0.135,
+        0.138,
+        0.141,
+        0.144,
+        0.147,
+        0.15,
+        0.153,
+        0.156,
+        0.159,
+        0.162,
+        0.165,
+        0.168,
+        0.171,
+        0.174,
+        0.177,
+        0.18,
+        0.183,
+        0.186,
+        0.189,
+        0.192,
+        0.195,
+        0.198,
+        0.201,
+        0.204,
+        0.207,
+        0.21,
+        0.213,
+        0.216,
+        0.219,
+        0.222,
+        0.225,
+        0.228,
+        0.231,
+        0.234,
+        0.237,
+        0.24,
+        0.243
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "8de680c42a1e5bc7adbdfb8dc29eaad5b06b254d979073f5230cf5b4c8106d00"
+    },
+    {
+      "id": "direct-on-line-swapped",
+      "kind": "direct-on-line",
+      "inputs": {
+        "voltageRmsVolts": 48,
+        "frequencyHz": 50,
+        "statorResistance": 1,
+        "rotorResistance": 1,
+        "statorLeakage": 0.005,
+        "rotorLeakage": 0.005,
+        "magnetizingInductance": 0.1,
+        "polePairs": 2,
+        "inertia": 0.002,
+        "friction": 0.01,
+        "loadTorque": 0.1,
+        "returnResistance": 10,
+        "starSeriesResistance": 0.015,
+        "starContactorResistance": 0.01,
+        "deltaSeriesResistance": 0.055,
+        "locked": false,
+        "reversed": true,
+        "timeline": [
+          {
+            "time": 0,
+            "position": "open"
+          },
+          {
+            "time": 0.020959600000000002,
+            "position": "star"
+          }
+        ]
+      },
+      "vectors": [
+        {
+          "key": "u/current",
+          "expression": "v(cu)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "v/current",
+          "expression": "v(cv)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "w/current",
+          "expression": "v(cw)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "angular_velocity",
+          "expression": "v(speed)",
+          "tolerance": 0.25
+        },
+        {
+          "key": "electromagnetic_torque",
+          "expression": "v(torque)",
+          "tolerance": 0.1
+        },
+        {
+          "key": "source/l1/current",
+          "expression": "i(vline0)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l2/current",
+          "expression": "i(vline2)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l3/current",
+          "expression": "i(vline1)",
+          "tolerance": 0.12
+        }
+      ],
+      "times": [
+        0.003,
+        0.006,
+        0.009,
+        0.012,
+        0.015,
+        0.018,
+        0.024,
+        0.027,
+        0.03,
+        0.033,
+        0.036,
+        0.039,
+        0.042,
+        0.045,
+        0.048,
+        0.051,
+        0.054,
+        0.057,
+        0.06,
+        0.063,
+        0.066,
+        0.069,
+        0.072,
+        0.075,
+        0.078,
+        0.081,
+        0.084,
+        0.087,
+        0.09,
+        0.093,
+        0.096,
+        0.099,
+        0.102,
+        0.105,
+        0.108,
+        0.111,
+        0.114,
+        0.117,
+        0.12,
+        0.123,
+        0.126,
+        0.129,
+        0.132,
+        0.135,
+        0.138,
+        0.141,
+        0.144,
+        0.147,
+        0.15,
+        0.153,
+        0.156,
+        0.159,
+        0.162,
+        0.165,
+        0.168,
+        0.171,
+        0.174,
+        0.177,
+        0.18,
+        0.183,
+        0.186,
+        0.189,
+        0.192,
+        0.195,
+        0.198,
+        0.201,
+        0.204,
+        0.207,
+        0.21,
+        0.213,
+        0.216,
+        0.219,
+        0.222,
+        0.225,
+        0.228,
+        0.231,
+        0.234,
+        0.237,
+        0.24,
+        0.243
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "6b65b7d061146cd5c390690e5f5a4600cdc19577a7c9ae28c28feb3daae9b1d3"
+    },
+    {
+      "id": "star-delta",
+      "kind": "star-delta",
+      "inputs": {
+        "voltageRmsVolts": 48,
+        "frequencyHz": 50,
+        "statorResistance": 1,
+        "rotorResistance": 1,
+        "statorLeakage": 0.005,
+        "rotorLeakage": 0.005,
+        "magnetizingInductance": 0.1,
+        "polePairs": 2,
+        "inertia": 0.002,
+        "friction": 0.01,
+        "loadTorque": 0.1,
+        "returnResistance": 10,
+        "starSeriesResistance": 0.015,
+        "starContactorResistance": 0.01,
+        "deltaSeriesResistance": 0.055,
+        "locked": false,
+        "reversed": false,
+        "timeline": [
+          {
+            "time": 0,
+            "position": "open"
+          },
+          {
+            "time": 0.020959600000000002,
+            "position": "star"
+          },
+          {
+            "time": 0.1209642,
+            "position": "open"
+          },
+          {
+            "time": 0.14095960000000002,
+            "position": "delta"
+          }
+        ]
+      },
+      "vectors": [
+        {
+          "key": "u/current",
+          "expression": "v(cu)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "v/current",
+          "expression": "v(cv)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "w/current",
+          "expression": "v(cw)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "angular_velocity",
+          "expression": "v(speed)",
+          "tolerance": 0.25
+        },
+        {
+          "key": "electromagnetic_torque",
+          "expression": "v(torque)",
+          "tolerance": 0.1
+        },
+        {
+          "key": "source/l1/current",
+          "expression": "i(vline0)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l2/current",
+          "expression": "i(vline1)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l3/current",
+          "expression": "i(vline2)",
+          "tolerance": 0.12
+        }
+      ],
+      "times": [
+        0.003,
+        0.006,
+        0.009,
+        0.012,
+        0.015,
+        0.018,
+        0.024,
+        0.027,
+        0.03,
+        0.033,
+        0.036,
+        0.039,
+        0.042,
+        0.045,
+        0.048,
+        0.051,
+        0.054,
+        0.057,
+        0.06,
+        0.063,
+        0.066,
+        0.069,
+        0.072,
+        0.075,
+        0.078,
+        0.081,
+        0.084,
+        0.087,
+        0.09,
+        0.093,
+        0.096,
+        0.099,
+        0.102,
+        0.105,
+        0.108,
+        0.111,
+        0.114,
+        0.117,
+        0.123,
+        0.126,
+        0.129,
+        0.132,
+        0.135,
+        0.138,
+        0.144,
+        0.147,
+        0.15,
+        0.153,
+        0.156,
+        0.159,
+        0.162,
+        0.165,
+        0.168,
+        0.171,
+        0.174,
+        0.177,
+        0.18,
+        0.183,
+        0.186,
+        0.189,
+        0.192,
+        0.195,
+        0.198,
+        0.201,
+        0.204,
+        0.207,
+        0.21,
+        0.213,
+        0.216,
+        0.219,
+        0.222,
+        0.225,
+        0.228,
+        0.231,
+        0.234,
+        0.237,
+        0.24,
+        0.243
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "c0eded4b5a0fb95e48652d0502281758d14ab21d829e3a55d4598ac08195b14d"
+    },
+    {
+      "id": "star-delta-swapped",
+      "kind": "star-delta",
+      "inputs": {
+        "voltageRmsVolts": 48,
+        "frequencyHz": 50,
+        "statorResistance": 1,
+        "rotorResistance": 1,
+        "statorLeakage": 0.005,
+        "rotorLeakage": 0.005,
+        "magnetizingInductance": 0.1,
+        "polePairs": 2,
+        "inertia": 0.002,
+        "friction": 0.01,
+        "loadTorque": 0.1,
+        "returnResistance": 10,
+        "starSeriesResistance": 0.015,
+        "starContactorResistance": 0.01,
+        "deltaSeriesResistance": 0.055,
+        "locked": false,
+        "reversed": true,
+        "timeline": [
+          {
+            "time": 0,
+            "position": "open"
+          },
+          {
+            "time": 0.020959600000000002,
+            "position": "star"
+          },
+          {
+            "time": 0.1209642,
+            "position": "open"
+          },
+          {
+            "time": 0.14095960000000002,
+            "position": "delta"
+          }
+        ]
+      },
+      "vectors": [
+        {
+          "key": "u/current",
+          "expression": "v(cu)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "v/current",
+          "expression": "v(cv)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "w/current",
+          "expression": "v(cw)",
+          "tolerance": 0.08
+        },
+        {
+          "key": "angular_velocity",
+          "expression": "v(speed)",
+          "tolerance": 0.25
+        },
+        {
+          "key": "electromagnetic_torque",
+          "expression": "v(torque)",
+          "tolerance": 0.1
+        },
+        {
+          "key": "source/l1/current",
+          "expression": "i(vline0)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l2/current",
+          "expression": "i(vline2)",
+          "tolerance": 0.12
+        },
+        {
+          "key": "source/l3/current",
+          "expression": "i(vline1)",
+          "tolerance": 0.12
+        }
+      ],
+      "times": [
+        0.003,
+        0.006,
+        0.009,
+        0.012,
+        0.015,
+        0.018,
+        0.024,
+        0.027,
+        0.03,
+        0.033,
+        0.036,
+        0.039,
+        0.042,
+        0.045,
+        0.048,
+        0.051,
+        0.054,
+        0.057,
+        0.06,
+        0.063,
+        0.066,
+        0.069,
+        0.072,
+        0.075,
+        0.078,
+        0.081,
+        0.084,
+        0.087,
+        0.09,
+        0.093,
+        0.096,
+        0.099,
+        0.102,
+        0.105,
+        0.108,
+        0.111,
+        0.114,
+        0.117,
+        0.123,
+        0.126,
+        0.129,
+        0.132,
+        0.135,
+        0.138,
+        0.144,
+        0.147,
+        0.15,
+        0.153,
+        0.156,
+        0.159,
+        0.162,
+        0.165,
+        0.168,
+        0.171,
+        0.174,
+        0.177,
+        0.18,
+        0.183,
+        0.186,
+        0.189,
+        0.192,
+        0.195,
+        0.198,
+        0.201,
+        0.204,
+        0.207,
+        0.21,
+        0.213,
+        0.216,
+        0.219,
+        0.222,
+        0.225,
+        0.228,
+        0.231,
+        0.234,
+        0.237,
+        0.24,
+        0.243
+      ],
+      "analysis": {
+        "kind": "transient",
+        "stopSeconds": 0.25
+      },
+      "netlistSha256": "2a1df63c75180f6537a32dbaf283e38bb0b39200bf41d27da593ca72f45497ef"
+    },
+    {
+      "id": "star-linked-50",
+      "kind": "three_phase_load_star",
+      "inputs": {
+        "hz": 50,
+        "delta": false,
+        "floating": false,
+        "inductive": true,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 50
+      },
+      "netlistSha256": "6b0ae87c51c8d37d4b6f86978c105a219256fa2211c845a5f00b24a3d9e9c5df"
+    },
+    {
+      "id": "star-floating-50",
+      "kind": "three_phase_load_star",
+      "inputs": {
+        "hz": 50,
+        "delta": false,
+        "floating": true,
+        "inductive": true,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0,neutral)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1,neutral)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2,neutral)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 50
+      },
+      "netlistSha256": "8e66d99603a9d8065094ed2400e9faf2e6a3ff0d777ef29ed9047a459997298b"
+    },
+    {
+      "id": "delta-resistive-50",
+      "kind": "three_phase_load_delta",
+      "inputs": {
+        "hz": 50,
+        "delta": true,
+        "floating": false,
+        "inductive": false,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0,
+          0,
+          0
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0,line1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1,line2)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2,line0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 50
+      },
+      "netlistSha256": "9d1c5d72bf52f2f0f030c8df47f7a0b95df044836b4b268b82ecf05449b5de3c"
+    },
+    {
+      "id": "delta-inductive-50",
+      "kind": "three_phase_load_delta",
+      "inputs": {
+        "hz": 50,
+        "delta": true,
+        "floating": false,
+        "inductive": true,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0,line1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1,line2)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2,line0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 50
+      },
+      "netlistSha256": "9775b564bbf73a335b25464cf0dcb05de5b6118ee399c0869ae1968784953223"
+    },
+    {
+      "id": "transformer-open-50",
+      "kind": "transformer_three_phase",
+      "inputs": {
+        "hz": 50,
+        "loaded": false,
+        "turnsRatio": 2,
+        "lp": 0.054,
+        "ls": 0.0185,
+        "mutual": 0.025,
+        "primaryResistance": 2,
+        "secondaryResistance": 1,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ]
+      },
+      "vectors": [
+        {
+          "key": "primary1/current",
+          "expression": "i(vp0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/current",
+          "expression": "i(vsec0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/voltage",
+          "expression": "v(output0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary2/current",
+          "expression": "i(vp1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/current",
+          "expression": "i(vsec1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/voltage",
+          "expression": "v(output1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary3/current",
+          "expression": "i(vp2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/current",
+          "expression": "i(vsec2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/voltage",
+          "expression": "v(output2)",
+          "tolerance": 0.01
+        }
+      ],
+      "times": [
+        0.4,
+        0.405,
+        0.41,
+        0.415,
+        0.42,
+        0.425,
+        0.43,
+        0.435,
+        0.44,
+        0.445,
+        0.45,
+        0.455,
+        0.46,
+        0.465,
+        0.47,
+        0.475,
+        0.48,
+        0.485,
+        0.49,
+        0.495
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 50
+      },
+      "netlistSha256": "91e80adaad0b90b3377f1ace3c9272671ae42d67eccc7f3d2600671a29368e8e"
+    },
+    {
+      "id": "transformer-loaded-50",
+      "kind": "transformer_three_phase",
+      "inputs": {
+        "hz": 50,
+        "loaded": true,
+        "turnsRatio": 2,
+        "lp": 0.054,
+        "ls": 0.0185,
+        "mutual": 0.025,
+        "primaryResistance": 2,
+        "secondaryResistance": 1,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ]
+      },
+      "vectors": [
+        {
+          "key": "primary1/current",
+          "expression": "i(vp0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/current",
+          "expression": "i(vsec0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/voltage",
+          "expression": "v(output0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary2/current",
+          "expression": "i(vp1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/current",
+          "expression": "i(vsec1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/voltage",
+          "expression": "v(output1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary3/current",
+          "expression": "i(vp2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/current",
+          "expression": "i(vsec2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/voltage",
+          "expression": "v(output2)",
+          "tolerance": 0.01
+        }
+      ],
+      "times": [
+        0.4,
+        0.405,
+        0.41,
+        0.415,
+        0.42,
+        0.425,
+        0.43,
+        0.435,
+        0.44,
+        0.445,
+        0.45,
+        0.455,
+        0.46,
+        0.465,
+        0.47,
+        0.475,
+        0.48,
+        0.485,
+        0.49,
+        0.495
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 50
+      },
+      "netlistSha256": "3ba4e0a5be6598e658423dab64e5f3b7db9093f5cef519cd03d17f41aed6a159"
+    },
+    {
+      "id": "star-linked-60",
+      "kind": "three_phase_load_star",
+      "inputs": {
+        "hz": 60,
+        "delta": false,
+        "floating": false,
+        "inductive": true,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 60
+      },
+      "netlistSha256": "706fe65f1b5bfb1c08cb2c9e4bbcceb0af151f2f0b29f09a231cfb3e34b92b29"
+    },
+    {
+      "id": "star-floating-60",
+      "kind": "three_phase_load_star",
+      "inputs": {
+        "hz": 60,
+        "delta": false,
+        "floating": true,
+        "inductive": true,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0,neutral)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1,neutral)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2,neutral)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 60
+      },
+      "netlistSha256": "fcde709d3ec9c1e2249cdef0f2deff1d91d972b3fda28dc01b05bef1ab520048"
+    },
+    {
+      "id": "delta-resistive-60",
+      "kind": "three_phase_load_delta",
+      "inputs": {
+        "hz": 60,
+        "delta": true,
+        "floating": false,
+        "inductive": false,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0,
+          0,
+          0
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0,line1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1,line2)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2,line0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 60
+      },
+      "netlistSha256": "b44b300136e1e68a84d904ac1535895aefcf389d62f1e3cbd153de59ed448900"
+    },
+    {
+      "id": "delta-inductive-60",
+      "kind": "three_phase_load_delta",
+      "inputs": {
+        "hz": 60,
+        "delta": true,
+        "floating": false,
+        "inductive": true,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ],
+        "phaseRmsVolts": 48
+      },
+      "vectors": [
+        {
+          "key": "branch1/voltage",
+          "expression": "v(line0,line1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch1/current",
+          "expression": "i(vload0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch2/voltage",
+          "expression": "v(line1,line2)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch2/current",
+          "expression": "i(vload1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "branch3/voltage",
+          "expression": "v(line2,line0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "branch3/current",
+          "expression": "i(vload2)",
+          "tolerance": 0.001
+        }
+      ],
+      "times": [
+        0.1,
+        0.105,
+        0.11,
+        0.115,
+        0.12,
+        0.125,
+        0.13,
+        0.135,
+        0.14,
+        0.145,
+        0.15,
+        0.155,
+        0.16,
+        0.165,
+        0.17,
+        0.175,
+        0.18,
+        0.185,
+        0.19,
+        0.195
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 60
+      },
+      "netlistSha256": "6eb431f543561b3487724ef1b77f60f0d767a272f22c4cfcec9b99992f4c91c4"
+    },
+    {
+      "id": "transformer-open-60",
+      "kind": "transformer_three_phase",
+      "inputs": {
+        "hz": 60,
+        "loaded": false,
+        "turnsRatio": 2,
+        "lp": 0.054,
+        "ls": 0.0185,
+        "mutual": 0.025,
+        "primaryResistance": 2,
+        "secondaryResistance": 1,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ]
+      },
+      "vectors": [
+        {
+          "key": "primary1/current",
+          "expression": "i(vp0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/current",
+          "expression": "i(vsec0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/voltage",
+          "expression": "v(output0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary2/current",
+          "expression": "i(vp1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/current",
+          "expression": "i(vsec1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/voltage",
+          "expression": "v(output1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary3/current",
+          "expression": "i(vp2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/current",
+          "expression": "i(vsec2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/voltage",
+          "expression": "v(output2)",
+          "tolerance": 0.01
+        }
+      ],
+      "times": [
+        0.4,
+        0.405,
+        0.41,
+        0.415,
+        0.42,
+        0.425,
+        0.43,
+        0.435,
+        0.44,
+        0.445,
+        0.45,
+        0.455,
+        0.46,
+        0.465,
+        0.47,
+        0.475,
+        0.48,
+        0.485,
+        0.49,
+        0.495
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 60
+      },
+      "netlistSha256": "d3cb56efd6268b37e110421b84cb698be63e21ad8a1913a7dcd06940df6940f8"
+    },
+    {
+      "id": "transformer-loaded-60",
+      "kind": "transformer_three_phase",
+      "inputs": {
+        "hz": 60,
+        "loaded": true,
+        "turnsRatio": 2,
+        "lp": 0.054,
+        "ls": 0.0185,
+        "mutual": 0.025,
+        "primaryResistance": 2,
+        "secondaryResistance": 1,
+        "resistance": [
+          10,
+          16,
+          24
+        ],
+        "inductance": [
+          0.005,
+          0.009,
+          0.015
+        ]
+      },
+      "vectors": [
+        {
+          "key": "primary1/current",
+          "expression": "i(vp0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/current",
+          "expression": "i(vsec0)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary1/voltage",
+          "expression": "v(output0)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary2/current",
+          "expression": "i(vp1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/current",
+          "expression": "i(vsec1)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary2/voltage",
+          "expression": "v(output1)",
+          "tolerance": 0.01
+        },
+        {
+          "key": "primary3/current",
+          "expression": "i(vp2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/current",
+          "expression": "i(vsec2)",
+          "tolerance": 0.001
+        },
+        {
+          "key": "secondary3/voltage",
+          "expression": "v(output2)",
+          "tolerance": 0.01
+        }
+      ],
+      "times": [
+        0.4,
+        0.405,
+        0.41,
+        0.415,
+        0.42,
+        0.425,
+        0.43,
+        0.435,
+        0.44,
+        0.445,
+        0.45,
+        0.455,
+        0.46,
+        0.465,
+        0.47,
+        0.475,
+        0.48,
+        0.485,
+        0.49,
+        0.495
+      ],
+      "analysis": {
+        "kind": "ac",
+        "frequencyHz": 60
+      },
+      "netlistSha256": "27877fcf6402eb857a2f873a1c8e56e85d9f820ee8bee81a22d0c715b866184e"
+    }
+  ]
+}

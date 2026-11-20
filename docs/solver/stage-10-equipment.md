@@ -61,6 +61,10 @@ residual terms at the same endpoint as the electrical solution. The
 same-time solve stamps the committed winding currents and keeps the flux
 and speed fixed.
 
+For coupled motor rows, the solver can refine a stalled Newton iterate
+by solving the tangent system against the physical residual. It checks
+the refined solution against the same update and residual tolerances.
+
 The rate estimate encloses the motor Jacobian over the declared state
 limits. Ideal voltage constraints can fix the winding differences. For a
 static linear feeding network, the solver also bounds the winding-voltage
@@ -109,3 +113,5 @@ Reference fixtures use analytical DC, balanced phasors and independent
 transient integration. SPICE behavioral sources implement the model
 equations for comparisons, and coupled inductors cross-check transformer
 mutual terms. Keep those implementations independent of the Rust stamps.
+The [reference fixture guide](stage-10-references.md) lists the cases and
+regeneration commands.

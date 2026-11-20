@@ -365,9 +365,8 @@ fn stage(
             next.iter().zip(&old).zip(tolerance).all(|((a, b), t)| {
                 (a - b).abs() <= NEWTON_RELTOL * a.abs().max(b.abs()) + t.update
             });
-        if !was_limited
-            && update
-            && residual_ok(
+        if !was_limited && update {
+            let (converged, mut residual) = evaluate_residual(
                 base,
                 variables,
                 devices,
@@ -376,9 +375,57 @@ fn stage(
                 &unlimited,
                 &continuation_nodes,
                 conductance,
-            )?
-        {
-            return Ok(Some((next, unlimited)));
+            )?;
+            if converged {
+                return Ok(Some((next, unlimited)));
+            }
+            if devices
+                .iter()
+                .any(|device| !device.bilinear_terms().is_empty())
+            {
+                // Re-solving for absolute unknowns can repeat the same
+                // roundoff at a nearly unloaded winding terminal. Refine
+                // with the physical residual and check the same tolerances.
+                let mut estimate = next.clone();
+                for _ in 0..3 {
+                    let correction = system
+                        .solve_correction(&residual)
+                        .map_err(lu_failure)?
+                        .values;
+                    let refined = estimate
+                        .iter()
+                        .zip(correction)
+                        .map(|(value, delta)| value + delta)
+                        .collect::<Vec<_>>();
+                    let small_correction =
+                        refined
+                            .iter()
+                            .zip(&estimate)
+                            .zip(tolerance)
+                            .all(|((a, b), t)| {
+                                (a - b).abs() <= NEWTON_RELTOL * a.abs().max(b.abs()) + t.update
+                            });
+                    let junctions = devices
+                        .iter()
+                        .map(|device| junction_values(*device, &refined, variables))
+                        .collect::<Vec<_>>();
+                    let (converged, refined_residual) = evaluate_residual(
+                        base,
+                        variables,
+                        devices,
+                        tolerance,
+                        &refined,
+                        &junctions,
+                        &continuation_nodes,
+                        conductance,
+                    )?;
+                    if converged && small_correction {
+                        return Ok(Some((refined, junctions)));
+                    }
+                    estimate = refined;
+                    residual = refined_residual;
+                }
+            }
         }
         old = next;
         limited = next_limited;
@@ -387,7 +434,7 @@ fn stage(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn residual_ok(
+fn evaluate_residual(
     base: &MnaSystem,
     variables: &NodeVariables,
     devices: &[&dyn NonlinearDevice],
@@ -396,7 +443,7 @@ fn residual_ok(
     junctions: &[Vec<f64>],
     nodes: &std::collections::BTreeSet<usize>,
     g: f64,
-) -> Result<bool, SolveFailure> {
+) -> Result<(bool, Vec<f64>), SolveFailure> {
     let mut residual = vec![0.0; x.len()];
     let mut scale = vec![0.0; x.len()];
     let mut roundoff = vec![0.0; x.len()];
@@ -489,12 +536,13 @@ fn residual_ok(
     {
         return Err(failure(DiagnosticCode::NonFiniteState, devices));
     }
-    Ok(residual
+    let converged = residual
         .iter()
         .zip(&scale)
         .zip(tolerance)
-        .zip(roundoff)
-        .all(|(((r, s), t), rounding)| r.abs() <= NEWTON_RELTOL * s + t.residual + rounding))
+        .zip(&roundoff)
+        .all(|(((r, s), t), rounding)| r.abs() <= NEWTON_RELTOL * s + t.residual + rounding);
+    Ok((converged, residual))
 }
 
 /// Conservative floating-point evaluation allowance approved in #118.

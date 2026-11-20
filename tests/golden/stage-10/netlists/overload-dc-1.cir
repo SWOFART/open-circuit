@@ -1,0 +1,25 @@
+Open Circuit Stage 10 reference: overload-dc-1
+.options method=trap reltol=1e-9 vntol=1e-10 abstol=1e-12 temp=27 tnom=27
+vline0 line0 0 dc 2
+vline1 line1 0 dc -10
+vline2 line2 0 dc 3
+rtest0 line0 0 1
+rtest1 line1 0 1
+rtest2 line2 0 1
+bfilter 0 q i=max(max((i(vline0)/10)^2,(i(vline1)/10)^2),(i(vline2)/10)^2)
+csense q 0 0.02 ic=0
+rsense q 0 1
+bdose 0 accum i=ternary_fcn(v(q)>1,(v(q)-1)/0.1,-v(accum)/0.1)
+cdose accum 0 1 ic=0
+bclip dose 0 v=min(v(accum),1)
+btrip tripped 0 v=ternary_fcn(v(accum)>=1,1,0)
+.tran 0.00001 0.25 0 0.00001 uic
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+wrdata overload-dc-1.out v(q) v(dose) v(tripped)
+quit
+.endc
+.end
