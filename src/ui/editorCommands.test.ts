@@ -409,3 +409,58 @@ describe("choosing between a live update and a recompile", () => {
     ).toBeUndefined();
   });
 });
+
+describe("which edits of the Stage 10 devices are live", () => {
+  // The contract's list (stage-10-three-phase-equipment.md section 7). The same list is pinned
+  // against the real Engine in crates/app/tests/stage10_session.rs.
+  const LIVE: Readonly<Record<string, readonly string[]>> = {
+    induction_motor_three_phase: ["loadTorqueNewtonMeters"],
+    contactor_three_pole: ["pickupCurrentAmps", "dropoutCurrentAmps"],
+    breaker_three_pole: ["instantaneousTripAmps"],
+    thermal_overload_three_pole: [],
+    transformer_three_phase: [],
+    three_phase_load_star: [],
+    three_phase_load_delta: [],
+  };
+
+  it.each(Object.keys(LIVE))(
+    "sends a live update for %s exactly when the contract says so, and recompiles otherwise",
+    (typeId) => {
+      const entry = catalog.componentTypes.find(
+        (candidate) => candidate.typeId === typeId,
+      )!;
+      const id = "00000000-0000-4000-8000-0000000000a1";
+      const drawn = {
+        ...dividerSchematic,
+        components: [
+          {
+            typeId,
+            id,
+            position: { x: 0, y: 0 },
+            rotationDeg: 0,
+            parameters: Object.fromEntries(
+              entry.parameters.map((parameter) => [
+                parameter.id,
+                parameter.defaultValue,
+              ]),
+            ),
+          },
+        ],
+      } as unknown as Schematic;
+
+      for (const parameter of entry.parameters) {
+        const update = liveParameterUpdate(
+          catalog,
+          drawn,
+          id,
+          parameter.id,
+          parameter.defaultValue,
+        );
+
+        expect(update !== undefined, `${typeId} ${parameter.id}`).toBe(
+          LIVE[typeId]!.includes(parameter.id) && !parameter.initialCondition,
+        );
+      }
+    },
+  );
+});

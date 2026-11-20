@@ -38,10 +38,28 @@ export function defaultParameters(
 }
 
 /**
+ * The only live parameters of the Stage 10 devices (docs/contracts/stage-10-three-phase-equipment.md
+ * section 7): the motor's load torque, the contactor's pickup and dropout thresholds and the
+ * breaker's trip threshold. Every other input of these devices, and every input of the thermal
+ * overload relay, the transformer and the three-phase loads, is compile-only: the Engine refuses
+ * a live update of it, so it must start a new run.
+ */
+const LIVE_PARAMETERS_OF_STAGE_10: Readonly<
+  Partial<Record<ComponentTypeId, readonly ParameterId[]>>
+> = {
+  induction_motor_three_phase: ["loadTorqueNewtonMeters"],
+  contactor_three_pole: ["pickupCurrentAmps", "dropoutCurrentAmps"],
+  breaker_three_pole: ["instantaneousTripAmps"],
+  thermal_overload_three_pole: [],
+  transformer_three_phase: [],
+  three_phase_load_star: [],
+  three_phase_load_delta: [],
+};
+
+/**
  * The lightweight Engine update for a committed parameter edit, or undefined
- * when the edit must recompile the circuit. Initial conditions and thermal
- * overload model parameters always start a new run. The induction motor
- * has one live parameter, its load torque.
+ * when the edit must recompile the circuit. Initial conditions always start a
+ * new run, and so does every Stage 10 input that is not listed as live above.
  */
 export function liveParameterUpdate(
   catalog: ComponentCatalog,
@@ -56,15 +74,11 @@ export function liveParameterUpdate(
   const definition = catalog.componentTypes
     .find((entry) => entry.typeId === component?.typeId)
     ?.parameters.find((item) => item.id === parameterId);
+  const live = component && LIVE_PARAMETERS_OF_STAGE_10[component.typeId];
 
   return definition &&
     !definition.initialCondition &&
-    component?.typeId !== "thermal_overload_three_pole" &&
-    component?.typeId !== "transformer_three_phase" &&
-    component?.typeId !== "three_phase_load_star" &&
-    component?.typeId !== "three_phase_load_delta" &&
-    (component?.typeId !== "induction_motor_three_phase" ||
-      parameterId === "loadTorqueNewtonMeters")
+    (live === undefined || live.includes(parameterId))
     ? { componentId, parameterId, value }
     : undefined;
 }
