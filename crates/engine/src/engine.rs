@@ -20,16 +20,17 @@ use crate::{
     TraceRequest,
     devices::{
         BreakerDevice, BreakerState, CapacitorDevice, CapacitorMode, ContactorDevice,
-        ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice, InductorDevice,
-        InductorMode, LinkedContacts, LinkedPole, OverloadDevice, OverloadState, PmdcMotorDevice,
+        ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
+        InductionMotorDevice, InductorDevice, InductorMode, LinkedContacts, LinkedPole,
+        MotorInterval, MotorParameters, OverloadDevice, OverloadState, PmdcMotorDevice,
         PmdcMotorMode, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
-        ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic,
+        ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic, motor_history,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
     netlist::{ElectricalIsland, Netlist, PinRef, derive_netlist_with_open},
     operator::OperatorState,
-    pin_groups::{CONTACTOR_AUXILIARIES, POWER_POLES},
+    pin_groups::{CONTACTOR_AUXILIARIES, INDUCTION_WINDINGS, POWER_POLES},
     slots::slot_definitions,
 };
 use trace::TraceHistory;
@@ -191,6 +192,10 @@ enum DeviceModel {
         auxiliaries: [LinkedPole; 2],
         sense_resistance: f64,
         contact_resistance: f64,
+    },
+    InductionMotor {
+        windings: [Terminals; 3],
+        parameters: MotorParameters,
     },
     PmdcMotor {
         armature_resistance_ohms: f64,
@@ -1212,6 +1217,7 @@ fn compute_circuit(
         let mut branch_variables = HashMap::new();
         let mut three_phase_ideal_branch_variables = HashMap::new();
         let mut motor_speed_variables = HashMap::new();
+        let mut induction_variables = HashMap::new();
         let mut next_variable = variables.voltage_variable_count();
         for spec in &island_specs {
             let ideal_source = matches!(
@@ -1257,11 +1263,49 @@ fn compute_circuit(
                     next_variable += 1;
                 }
             }
+            if matches!(spec.model, DeviceModel::InductionMotor { .. })
+                && matches!(mode, SolveMode::Transient { .. })
+            {
+                induction_variables.insert(
+                    spec.component_id.clone(),
+                    std::array::from_fn(|i| next_variable + i),
+                );
+                next_variable += 6;
+            }
         }
 
         let devices = island_specs
             .iter()
-            .map(|spec| {
+            .map(|spec| -> Box<dyn Device> {
+                if let DeviceModel::InductionMotor {
+                    windings,
+                    parameters,
+                } = spec.model
+                {
+                    let history = previous_memory
+                        .and_then(|memory| memory.induction_motors.get(&spec.component_id))
+                        .copied()
+                        .unwrap_or_default();
+                    let interval = match mode {
+                        SolveMode::Transient {
+                            step_seconds,
+                            integration_method,
+                            ..
+                        } => Some(MotorInterval {
+                            variables: induction_variables[&spec.component_id],
+                            seconds: step_seconds,
+                            method: integration_method,
+                        }),
+                        _ => None,
+                    };
+                    return Box::new(InductionMotorDevice::new(
+                        spec.component_id.clone(),
+                        windings,
+                        parameters,
+                        history,
+                        interval,
+                    ));
+                }
                 make_device(
                     spec,
                     branch_variables.get(spec.component_id.as_str()).copied(),
@@ -1305,6 +1349,18 @@ fn compute_circuit(
             tolerances[*i].residual = crate::newton::NEWTON_TORQUE_ABSTOL;
         }
         let mut initial = vec![0.0; next_variable];
+        for (id, indices) in &induction_variables {
+            let history = previous_memory
+                .and_then(|memory| memory.induction_motors.get(id))
+                .copied()
+                .unwrap_or_default();
+            for (index, value) in indices.iter().zip(history.state) {
+                initial[*index] = value;
+                tolerances[*index].update = crate::newton::NEWTON_VNTOL;
+            }
+            tolerances[indices[5]].update = crate::newton::NEWTON_SPEED_ABSTOL;
+            tolerances[indices[5]].residual = crate::newton::NEWTON_SPEED_ABSTOL;
+        }
         for node in &island.node_indices {
             if let Some(i) = variables.voltage_variable(*node) {
                 initial[i] = previous_memory
@@ -1360,6 +1416,23 @@ fn compute_circuit(
         for node in island.node_indices.iter().copied() {
             solved_nodes.insert(node, (island_index, node_voltages[node]));
             memory.nodes.insert(node, node_voltages[node]);
+        }
+        for spec in &island_specs {
+            if let DeviceModel::InductionMotor { windings, .. } = spec.model {
+                let state = induction_variables
+                    .get(&spec.component_id)
+                    .map(|indices| indices.map(|index| solution[index]))
+                    .or_else(|| {
+                        previous_memory
+                            .and_then(|memory| memory.induction_motors.get(&spec.component_id))
+                            .map(|history| history.state)
+                    })
+                    .unwrap_or_default();
+                memory.induction_motors.insert(
+                    spec.component_id.clone(),
+                    motor_history(state, windings, &node_voltages),
+                );
+            }
         }
         for device in devices {
             match device.result(&node_voltages, &solution) {
@@ -1480,13 +1553,11 @@ fn open_results(
 /// device (the relay coil and contacts are galvanically isolated). Give each
 /// disconnected matrix block its own gauge reference so one port cannot make
 /// another port singular or accidentally tie their potentials together.
-fn local_reference_nodes(
+fn local_adjacency(
     specs: &[&DeviceSpec],
-    island: &ElectricalIsland,
     mode: SolveMode<'_>,
     node_count: usize,
-    primary_reference: usize,
-) -> HashSet<usize> {
+) -> Vec<Vec<usize>> {
     let mut adjacency = vec![Vec::new(); node_count];
     let mut connect = |left: usize, right: usize| {
         adjacency[left].push(right);
@@ -1623,10 +1694,28 @@ fn local_reference_nodes(
                     connect(pole.terminals.pin1, pole.terminals.pin2);
                 }
             }
+            DeviceModel::InductionMotor { windings, .. } => {
+                if matches!(mode, SolveMode::Transient { .. }) {
+                    for winding in windings {
+                        connect(winding.pin1, winding.pin2);
+                    }
+                }
+            }
             DeviceModel::Capacitor { .. } | DeviceModel::Inductor { .. } => {}
         }
     }
 
+    adjacency
+}
+
+fn local_reference_nodes(
+    specs: &[&DeviceSpec],
+    island: &ElectricalIsland,
+    mode: SolveMode<'_>,
+    node_count: usize,
+    primary_reference: usize,
+) -> HashSet<usize> {
+    let adjacency = local_adjacency(specs, mode, node_count);
     let mut extra_references = HashSet::new();
     let mut visited = vec![false; node_count];
     for start in island.node_indices.iter().copied() {
@@ -1702,6 +1791,8 @@ fn build_device_specs(
             ComponentSpec::BreakerThreePole { .. } | ComponentSpec::ThermalOverloadThreePole { .. }
         ) {
             (PinId::L1, PinId::T1)
+        } else if matches!(component, ComponentSpec::InductionMotorThreePhase { .. }) {
+            (PinId::U1, PinId::U2)
         } else {
             (PinId::Pin1, PinId::Pin2)
         };
@@ -2075,6 +2166,30 @@ fn build_device_specs(
                     .unwrap_or(0.0),
                 initial_armature_current_amps: parameters.initial_armature_current_amps,
             },
+            ComponentSpec::InductionMotorThreePhase { parameters, .. } => {
+                let [u, v, w] = INDUCTION_WINDINGS.map(|group| group.resolve(node_for_pin));
+                let (Some(u), Some(v), Some(w)) = (u, v, w) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::InductionMotor {
+                    windings: [u, v, w],
+                    parameters: MotorParameters {
+                        stator_resistance: parameters.stator_resistance_ohms,
+                        rotor_resistance: parameters.rotor_resistance_ohms,
+                        stator_leakage: parameters.stator_leakage_henries,
+                        rotor_leakage: parameters.rotor_leakage_henries,
+                        magnetizing_inductance: parameters.magnetizing_henries,
+                        pole_pairs: parameters.pole_pairs,
+                        inertia: parameters.rotor_inertia_kilogram_meters_squared,
+                        friction: parameters.viscous_friction_newton_meter_seconds_per_radian,
+                        load_torque: parameters.load_torque_newton_meters,
+                    },
+                }
+            }
         };
         specs.push(DeviceSpec {
             component_id: component.id().clone(),
@@ -2434,6 +2549,9 @@ fn make_device(
             contact_resistance,
             state: overload_state(mode, &spec.component_id),
         }),
+        DeviceModel::InductionMotor { .. } => {
+            unreachable!("induction motors allocate coupled variables in the island")
+        }
         DeviceModel::Fuse {
             intact_resistance_ohms,
             ..
@@ -2737,8 +2855,33 @@ fn check_initial_state_constraints(
             .iter()
             .filter(|spec| component_ids.contains(spec.component_id.as_str()))
             .collect::<Vec<_>>();
-        let mut adjacency = vec![Vec::<usize>::new(); node_count];
-        for spec in &island_specs {
+        let fixed_motors = island_specs
+            .iter()
+            .filter_map(|spec| {
+                let DeviceModel::InductionMotor {
+                    windings,
+                    parameters,
+                } = spec.model
+                else {
+                    return None;
+                };
+                let history = states
+                    .solver_memory
+                    .induction_motors
+                    .get(&spec.component_id)?;
+                Some((
+                    &spec.component_id,
+                    windings,
+                    parameters.winding_currents(history.state),
+                ))
+            })
+            .collect::<Vec<_>>();
+        let mut adjacency = if fixed_motors.is_empty() {
+            vec![Vec::<usize>::new(); node_count]
+        } else {
+            local_adjacency(&island_specs, SolveMode::InitialState(states), node_count)
+        };
+        for spec in island_specs.iter().filter(|_| fixed_motors.is_empty()) {
             if !matches!(
                 spec.model,
                 DeviceModel::Inductor { .. } | DeviceModel::PmdcMotor { .. }
@@ -2775,6 +2918,19 @@ fn check_initial_state_constraints(
 
         let mut injections = vec![0.0_f64; group_count];
         let mut scales = vec![0.0_f64; group_count];
+        let mut inject = |terminals: Terminals, current: f64| {
+            let pin1_group = groups[terminals.pin1];
+            let pin2_group = groups[terminals.pin2];
+            injections[pin1_group] -= current;
+            injections[pin2_group] += current;
+            scales[pin1_group] += current.abs();
+            scales[pin2_group] += current.abs();
+        };
+        for (_, windings, currents) in &fixed_motors {
+            for (winding, current) in windings.iter().zip(currents) {
+                inject(*winding, *current);
+            }
+        }
         for spec in &island_specs {
             let current_amps = match spec.model {
                 DeviceModel::Inductor { .. } => states
@@ -2785,22 +2941,33 @@ fn check_initial_state_constraints(
                     .motors
                     .get(&spec.component_id)
                     .map(|state| state.armature_current_amps),
+                DeviceModel::RelaySpdt { .. } | DeviceModel::Contactor { .. }
+                    if !fixed_motors.is_empty() =>
+                {
+                    states
+                        .relays
+                        .get(&spec.component_id)
+                        .map(|state| state.current_amps)
+                }
                 _ => None,
             };
             let Some(current_amps) = current_amps else {
                 continue;
             };
-            let pin1_group = groups[spec.terminals.pin1];
-            let pin2_group = groups[spec.terminals.pin2];
-            injections[pin1_group] -= current_amps;
-            injections[pin2_group] += current_amps;
-            scales[pin1_group] += current_amps.abs();
-            scales[pin2_group] += current_amps.abs();
+            inject(spec.terminals, current_amps);
         }
         for (group, injection) in injections.iter().enumerate() {
             let tolerance =
                 f64::EPSILON * (island_specs.len().max(1) as f64) * 32.0 * scales[group].max(1.0);
             if injection.abs() > tolerance {
+                for (id, windings, currents) in &fixed_motors {
+                    if windings.iter().zip(currents).any(|(winding, current)| {
+                        current.abs() > tolerance
+                            && ((groups[winding.pin1] == group) != (groups[winding.pin2] == group))
+                    }) {
+                        conflicting_explicit_states.insert((*id).clone());
+                    }
+                }
                 // Only explicit inductor states crossing the unbalanced cut
                 // are attributed to this initial-state conflict.
                 for spec in &island_specs {
@@ -3086,6 +3253,7 @@ fn values_for_layout(
                 | ResultQuantity::PhaseAngle
                 | ResultQuantity::MeanSquareCurrent
                 | ResultQuantity::ThermalDose
+                | ResultQuantity::ElectromagneticTorque
                 | ResultQuantity::Valid => f64::NAN,
             });
         if value.is_finite() {
@@ -3128,6 +3296,10 @@ pub(crate) fn update_parameter(
             _ => return false,
         },
         ComponentSpec::ThermalOverloadThreePole { .. } => return false,
+        ComponentSpec::InductionMotorThreePhase { parameters, .. } => match parameter_id {
+            ParameterId::LoadTorqueNewtonMeters => parameters.load_torque_newton_meters = value,
+            _ => return false,
+        },
         ComponentSpec::BjtNpn { parameters, .. } | ComponentSpec::BjtPnp { parameters, .. } => {
             match parameter_id {
                 ParameterId::SaturationCurrentAmps => parameters.saturation_current_amps = value,

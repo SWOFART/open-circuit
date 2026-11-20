@@ -45,6 +45,21 @@ convergence rules. A same-time re-solve holds the integrated states
 fixed. Event candidates share the existing rollback boundary with those
 states.
 
+The induction motor uses six transient unknowns for stator αβ0 flux,
+rotor αβ flux, and speed. The winding KCL rows use the linear flux-to-current
+map. Newton evaluates the rotor rotation and shaft torque as bilinear
+residual terms at the same endpoint as the electrical solution. The
+same-time solve stamps the committed winding currents and keeps the flux
+and speed fixed.
+
+The rate estimate encloses the motor Jacobian over the declared state
+limits. Ideal voltage constraints can fix the winding differences. For a
+static linear feeding network, the solver also bounds the winding-voltage
+feedback using the driving resistance after algebraic elimination. When
+a joint enclosure is unavailable, including mixed dynamic or switching
+networks without ideal winding constraints, the existing 64-substep
+fallback reports the accuracy warning.
+
 Include all coupled winding modes and the attached-network contribution
 in the Stage 3 estimate. For a transformer winding matrix L with minimum
 eigenvalue λmin > 0 and resistive driving matrix R, ‖R‖₂/λmin bounds its

@@ -209,6 +209,21 @@ pub struct ThermalOverloadThreePoleParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "InductionMotorThreePhaseParameters.ts")]
+pub struct InductionMotorThreePhaseParameters {
+    pub stator_resistance_ohms: f64,
+    pub rotor_resistance_ohms: f64,
+    pub stator_leakage_henries: f64,
+    pub rotor_leakage_henries: f64,
+    pub magnetizing_henries: f64,
+    pub pole_pairs: f64,
+    pub rotor_inertia_kilogram_meters_squared: f64,
+    pub viscous_friction_newton_meter_seconds_per_radian: f64,
+    pub load_torque_newton_meters: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "FuseParameters.ts")]
 pub struct FuseParameters {
     pub intact_resistance_ohms: f64,
@@ -531,6 +546,13 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: ThermalOverloadThreePoleParameters,
     },
+    InductionMotorThreePhase {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: InductionMotorThreePhaseParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -560,7 +582,8 @@ impl ComponentSpec {
             | Self::Contactor { id, .. }
             | Self::ContactorThreePole { id, .. }
             | Self::BreakerThreePole { id, .. }
-            | Self::ThermalOverloadThreePole { id, .. } => id,
+            | Self::ThermalOverloadThreePole { id, .. }
+            | Self::InductionMotorThreePhase { id, .. } => id,
         }
     }
 
@@ -590,7 +613,8 @@ impl ComponentSpec {
             | Self::Contactor { position, .. }
             | Self::ContactorThreePole { position, .. }
             | Self::BreakerThreePole { position, .. }
-            | Self::ThermalOverloadThreePole { position, .. } => *position,
+            | Self::ThermalOverloadThreePole { position, .. }
+            | Self::InductionMotorThreePhase { position, .. } => *position,
         }
     }
 
@@ -620,7 +644,8 @@ impl ComponentSpec {
             | Self::Contactor { rotation_deg, .. }
             | Self::ContactorThreePole { rotation_deg, .. }
             | Self::BreakerThreePole { rotation_deg, .. }
-            | Self::ThermalOverloadThreePole { rotation_deg, .. } => *rotation_deg,
+            | Self::ThermalOverloadThreePole { rotation_deg, .. }
+            | Self::InductionMotorThreePhase { rotation_deg, .. } => *rotation_deg,
         }
     }
 
@@ -651,6 +676,7 @@ impl ComponentSpec {
             Self::ContactorThreePole { .. } => ComponentTypeId::ContactorThreePole,
             Self::BreakerThreePole { .. } => ComponentTypeId::BreakerThreePole,
             Self::ThermalOverloadThreePole { .. } => ComponentTypeId::ThermalOverloadThreePole,
+            Self::InductionMotorThreePhase { .. } => ComponentTypeId::InductionMotorThreePhase,
         }
     }
 
@@ -678,6 +704,41 @@ impl ComponentSpec {
                     parameters.closed_contact_resistance_ohms,
                 ),
                 (ParameterId::CoilSenseSeconds, parameters.coil_sense_seconds),
+            ],
+            Self::InductionMotorThreePhase { parameters, .. } => vec![
+                (
+                    ParameterId::StatorResistanceOhms,
+                    parameters.stator_resistance_ohms,
+                ),
+                (
+                    ParameterId::RotorResistanceOhms,
+                    parameters.rotor_resistance_ohms,
+                ),
+                (
+                    ParameterId::StatorLeakageHenries,
+                    parameters.stator_leakage_henries,
+                ),
+                (
+                    ParameterId::RotorLeakageHenries,
+                    parameters.rotor_leakage_henries,
+                ),
+                (
+                    ParameterId::MagnetizingHenries,
+                    parameters.magnetizing_henries,
+                ),
+                (ParameterId::PolePairs, parameters.pole_pairs),
+                (
+                    ParameterId::RotorInertiaKilogramMetersSquared,
+                    parameters.rotor_inertia_kilogram_meters_squared,
+                ),
+                (
+                    ParameterId::ViscousFrictionNewtonMeterSecondsPerRadian,
+                    parameters.viscous_friction_newton_meter_seconds_per_radian,
+                ),
+                (
+                    ParameterId::LoadTorqueNewtonMeters,
+                    parameters.load_torque_newton_meters,
+                ),
             ],
             Self::ThermalOverloadThreePole { parameters, .. } => vec![
                 (
@@ -1045,7 +1106,8 @@ impl Schematic {
             | ComponentSpec::Contactor { rotation_deg, .. }
             | ComponentSpec::ContactorThreePole { rotation_deg, .. }
             | ComponentSpec::BreakerThreePole { rotation_deg, .. }
-            | ComponentSpec::ThermalOverloadThreePole { rotation_deg, .. } = component
+            | ComponentSpec::ThermalOverloadThreePole { rotation_deg, .. }
+            | ComponentSpec::InductionMotorThreePhase { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {
                 diagnostics.push(Diagnostic::error(

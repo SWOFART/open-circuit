@@ -138,6 +138,7 @@ describe("the placeholder for a part without a symbol", () => {
       "contactor_three_pole",
       "breaker_three_pole",
       "thermal_overload_three_pole",
+      "induction_motor_three_phase",
     ]);
   });
 });

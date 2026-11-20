@@ -97,6 +97,18 @@ const messages: Readonly<Record<string, string>> = {
   "component.thermalOverloadThreePole.cool": "Cooling time constant",
   "component.thermalOverloadThreePole.resetDose":
     "Maximum thermal dose for reset",
+  "component.inductionMotorThreePhase.name": "Three-phase induction motor",
+  "component.inductionMotorThreePhase.keywords": "asynchronous squirrel cage",
+  "component.inductionMotorThreePhase.statorResistance": "Stator resistance",
+  "component.inductionMotorThreePhase.rotorResistance": "Rotor resistance",
+  "component.inductionMotorThreePhase.statorLeakage":
+    "Stator leakage inductance",
+  "component.inductionMotorThreePhase.rotorLeakage": "Rotor leakage inductance",
+  "component.inductionMotorThreePhase.magnetizing": "Magnetizing inductance",
+  "component.inductionMotorThreePhase.polePairs": "Pole pairs",
+  "component.inductionMotorThreePhase.inertia": "Rotor inertia",
+  "component.inductionMotorThreePhase.friction": "Viscous friction",
+  "component.inductionMotorThreePhase.loadTorque": "Load torque",
   "component.breakerThreePole.initialClosedHint":
     "The breaker starts open by default.",
   "component.wattmeter.name": "Wattmeter",

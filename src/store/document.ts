@@ -240,6 +240,8 @@ function matchesDomain(
       return value >= 0;
     case "zero_or_one":
       return value === 0 || value === 1;
+    case "integer":
+      return Number.isInteger(value);
   }
 }
 

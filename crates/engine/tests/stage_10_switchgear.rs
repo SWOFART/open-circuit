@@ -692,3 +692,342 @@ fn balanced_ac_overload_uses_the_maximum_phase_before_filtering() {
     }
     panic!("balanced AC did not trip");
 }
+
+fn induction_request(delta: bool) -> CompileRequest {
+    let windings = if delta {
+        [
+            ("u1", 1),
+            ("u2", 2),
+            ("v1", 2),
+            ("v2", 3),
+            ("w1", 3),
+            ("w2", 1),
+        ]
+    } else {
+        [
+            ("u1", 1),
+            ("u2", 0),
+            ("v1", 2),
+            ("v2", 0),
+            ("w1", 3),
+            ("w2", 0),
+        ]
+    };
+    request(&[
+        (
+            "induction_motor_three_phase",
+            json!({"statorResistanceOhms":1,"rotorResistanceOhms":1,
+              "statorLeakageHenries":0.005,"rotorLeakageHenries":0.005,"magnetizingHenries":0.1,
+              "polePairs":2,"rotorInertiaKilogramMetersSquared":0.002,
+              "viscousFrictionNewtonMeterSecondsPerRadian":0.01,"loadTorqueNewtonMeters":0.1}),
+            &windings,
+        ),
+        (
+            "three_phase_source_star",
+            json!({"phaseVoltageRmsVolts":48,"frequencyHz":50,"phaseOffsetDegrees":0,"internalResistanceOhms":0,"reversedSequence":0}),
+            &[("l1", 1), ("l2", 2), ("l3", 3), ("n", 0)],
+        ),
+    ])
+}
+
+#[test]
+fn induction_motor_starts_from_zero_and_accelerates_in_star_and_delta() {
+    for delta in [false, true] {
+        let mut run = Run::compile(induction_request(delta));
+        for key in [
+            "u/current",
+            "v/current",
+            "w/current",
+            "angular_velocity",
+            "electromagnetic_torque",
+        ] {
+            assert_eq!(run.value(0, key), 0.0);
+        }
+        let mut reference = MotorReference {
+            state: [0.0; 5],
+            delta,
+        };
+        let mut samples = Vec::new();
+        for step in 1..=180 {
+            reference.advance(step);
+            run.advance(1);
+            let speed = run.value(0, "angular_velocity");
+            let torque = run.value(0, "electromagnetic_torque");
+            let current = run.value(0, "u/current");
+            let [is_alpha, _, _, _, expected_speed] = reference.state;
+            let expected_torque = MotorReference::torque(reference.state);
+            assert!((speed - expected_speed).abs() <= 0.5_f64.max(0.02 * expected_speed.abs()));
+            assert!((torque - expected_torque).abs() <= 0.05_f64.max(0.03 * expected_torque.abs()));
+            samples.push((speed, expected_speed, current, is_alpha));
+        }
+        for cycle in samples.as_chunks::<20>().0 {
+            let actual = cycle
+                .iter()
+                .map(|sample| sample.2.powi(2))
+                .sum::<f64>()
+                .sqrt();
+            let expected = cycle
+                .iter()
+                .map(|sample| sample.3.powi(2))
+                .sum::<f64>()
+                .sqrt();
+            assert!((actual - expected).abs() <= 0.02 * expected);
+        }
+        let [settled, expected_settled] = [samples.last().unwrap().0, samples.last().unwrap().1];
+        assert!(
+            settled > 100.0 && settled < 157.1,
+            "delta={delta}, speed={settled}"
+        );
+        let actual_90 = samples
+            .iter()
+            .position(|sample| sample.0 >= 0.9 * expected_settled)
+            .unwrap();
+        let expected_90 = samples
+            .iter()
+            .position(|sample| sample.1 >= 0.9 * expected_settled)
+            .unwrap();
+        assert!(actual_90.abs_diff(expected_90) as f64 <= 5.0_f64.max(0.05 * expected_90 as f64));
+        let before = run.value(0, "angular_velocity");
+        run.set(0, ParameterId::LoadTorqueNewtonMeters, 0.2);
+        assert!(run.value(0, "angular_velocity") < before);
+    }
+}
+
+#[test]
+fn induction_motor_validates_integer_poles_and_refuses_compile_only_edits() {
+    for (pole_pairs, valid) in [
+        (1.0, true),
+        (8.0, true),
+        (0.0, false),
+        (1.5, false),
+        (9.0, false),
+    ] {
+        let mut fixture = induction_request(false);
+        let open_circuit_engine::ComponentSpec::InductionMotorThreePhase { parameters, .. } =
+            &mut fixture.schematic.components[0]
+        else {
+            unreachable!()
+        };
+        parameters.pole_pairs = pole_pairs;
+        match Engine::default().compile(fixture) {
+            CompileResult::Success { .. } if valid => {}
+            CompileResult::Failure { diagnostics } if !valid => {
+                assert!(
+                    diagnostics
+                        .iter()
+                        .any(|diagnostic| diagnostic.code == DiagnosticCode::InvalidParameter)
+                );
+            }
+            result => panic!("pole pairs {pole_pairs}: {result:?}"),
+        }
+    }
+
+    let mut actual = Run::compile(induction_request(false));
+    let mut control = Run::compile(induction_request(false));
+    actual.advance(1);
+    control.advance(1);
+    let refused = actual.engine.set_parameter(SetParameterRequest {
+        run_id: actual.snapshot.metadata.run_id.clone(),
+        expected_document_revision: actual.snapshot.metadata.document_revision.clone(),
+        document_revision: "refused".to_owned(),
+        component_id: StableId::parse(id(0)).unwrap(),
+        parameter_id: ParameterId::PolePairs,
+        value: 3.0,
+    });
+    assert!(matches!(refused, SetParameterResult::Failure { .. }));
+    actual.set(0, ParameterId::LoadTorqueNewtonMeters, 0.2);
+    control.set(0, ParameterId::LoadTorqueNewtonMeters, 0.2);
+    actual.advance(2);
+    control.advance(2);
+    assert_eq!(actual.snapshot.values, control.snapshot.values);
+}
+
+fn switched_motor_request(shunt: bool) -> CompileRequest {
+    let mut fixture = induction_request(false);
+    for (pin, node) in [(0, 4), (2, 5), (4, 6)] {
+        fixture.geometry.components[0].pins[pin].position.x = node;
+    }
+    let switchgear = request(&[
+        (
+            "breaker_three_pole",
+            json!({"closedContactResistanceOhms":0.01,
+            "instantaneousTripAmps":1000,"initialClosed":1}),
+            &[
+                ("l1", 1),
+                ("t1", 4),
+                ("l2", 2),
+                ("t2", 5),
+                ("l3", 3),
+                ("t3", 6),
+            ],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":5}),
+            &[("pin1", 4), ("pin2", 0)],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":5}),
+            &[("pin1", 5), ("pin2", 0)],
+        ),
+        (
+            "resistor",
+            json!({"resistanceOhms":5}),
+            &[("pin1", 6), ("pin2", 0)],
+        ),
+    ]);
+    for (index, (component, mut geometry)) in switchgear
+        .schematic
+        .components
+        .into_iter()
+        .zip(switchgear.geometry.components)
+        .enumerate()
+    {
+        if index > 0 && !shunt {
+            break;
+        }
+        let new_id = id(index + 3);
+        let mut value = serde_json::to_value(component).unwrap();
+        value["id"] = json!(new_id);
+        geometry.component_id = StableId::parse(new_id).unwrap();
+        fixture
+            .schematic
+            .components
+            .push(serde_json::from_value(value).unwrap());
+        fixture.geometry.components.push(geometry);
+    }
+    fixture
+}
+
+#[test]
+fn induction_motor_switching_preserves_currents_and_rejects_an_open_cut() {
+    for shunt in [false, true] {
+        let fixture = switched_motor_request(shunt);
+        let CompileResult::Success {
+            diagnostics,
+            internal_substeps,
+            ..
+        } = Engine::default().compile(fixture.clone())
+        else {
+            panic!("motor and breaker must compile");
+        };
+        assert_eq!(internal_substeps, 64);
+        assert!(
+            diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == DiagnosticCode::StepAccuracyLimited)
+        );
+        let mut run = Run::compile(fixture.clone());
+        run.advance(12);
+        let before = run.snapshot.clone();
+        let paths = [
+            "u/current",
+            "v/current",
+            "w/current",
+            "angular_velocity",
+            "electromagnetic_torque",
+        ];
+        let before_state = paths.map(|path| run.value(0, path));
+        assert!(before_state[0].abs() > 0.1);
+        let action = run.operate(3, OperatorPosition::Open);
+        if !shunt {
+            let SetOperatorStateResult::Failure { diagnostics } = action else {
+                panic!("opening an energized winding without a return path must fail");
+            };
+            assert!(
+                diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.code == DiagnosticCode::InconsistentState)
+            );
+            let mut control = Run::compile(fixture);
+            control.advance(13);
+            run.advance(1);
+            assert_eq!(run.snapshot.values, control.snapshot.values);
+            assert_eq!(run.snapshot.states, control.snapshot.states);
+            assert_eq!(
+                run.snapshot.metadata.document_revision,
+                before.metadata.document_revision
+            );
+            continue;
+        }
+        assert!(
+            matches!(action, SetOperatorStateResult::Success { .. }),
+            "{action:?}"
+        );
+        assert_eq!(
+            run.snapshot.metadata.simulation_time_seconds,
+            before.metadata.simulation_time_seconds
+        );
+        assert_eq!(paths.map(|path| run.value(0, path)), before_state);
+        for (current, voltage) in
+            before_state[..3]
+                .iter()
+                .zip(["u/voltage", "v/voltage", "w/voltage"])
+        {
+            assert!((run.value(0, voltage) + 5.0 * current).abs() < 1e-9);
+        }
+        run.advance(1);
+        assert!(run.value(0, "u/current").abs() < before_state[0].abs());
+        assert_eq!(run.value(3, "pole1/current"), 0.0);
+    }
+}
+
+// Independent current-coordinate, amplitude-invariant model. Its fixed
+// 10 µs RK4 grid is separate from the Engine's implicit flux equations.
+struct MotorReference {
+    state: [f64; 5],
+    delta: bool,
+}
+
+impl MotorReference {
+    fn torque([sa, sb, ra, rb, _]: [f64; 5]) -> f64 {
+        0.3 * (ra * sb - rb * sa)
+    }
+
+    fn derivative(&self, time: f64, state: [f64; 5]) -> [f64; 5] {
+        let [sa, sb, ra, rb, speed] = state;
+        let angle = std::f64::consts::TAU * 50.0 * time;
+        let line = |thirds: f64| {
+            48.0 * 2.0_f64.sqrt() * (angle + thirds * std::f64::consts::TAU / 3.0).sin()
+        };
+        let (u, v, w) = (line(0.0), line(-1.0), line(1.0));
+        let phase = if self.delta {
+            [u - v, v - w, w - u]
+        } else {
+            [u, v, w]
+        };
+        let voltage = [phase[0], (phase[1] - phase[2]) / 3.0_f64.sqrt()];
+        let electrical_speed = 2.0 * speed;
+        let stator = [voltage[0] - sa, voltage[1] - sb];
+        let rotor = [
+            -ra - electrical_speed * (0.1 * sb + 0.105 * rb),
+            -rb + electrical_speed * (0.1 * sa + 0.105 * ra),
+        ];
+        let det = 0.105_f64.powi(2) - 0.1_f64.powi(2);
+        [
+            (0.105 * stator[0] - 0.1 * rotor[0]) / det,
+            (0.105 * stator[1] - 0.1 * rotor[1]) / det,
+            (0.105 * rotor[0] - 0.1 * stator[0]) / det,
+            (0.105 * rotor[1] - 0.1 * stator[1]) / det,
+            (Self::torque(state) - 0.01 * speed - 0.1) / 0.002,
+        ]
+    }
+
+    fn advance(&mut self, public_step: u32) {
+        let dt = 1e-5;
+        let shifted = |state: [f64; 5], slope: [f64; 5], duration| {
+            std::array::from_fn(|i| state[i] + slope[i] * duration)
+        };
+        for tick in (public_step - 1) * 100..public_step * 100 {
+            let t = f64::from(tick) * dt;
+            let k1 = self.derivative(t, self.state);
+            let k2 = self.derivative(t + dt / 2.0, shifted(self.state, k1, dt / 2.0));
+            let k3 = self.derivative(t + dt / 2.0, shifted(self.state, k2, dt / 2.0));
+            let k4 = self.derivative(t + dt, shifted(self.state, k3, dt));
+            for i in 0..5 {
+                self.state[i] += dt * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]) / 6.0;
+            }
+        }
+    }
+}

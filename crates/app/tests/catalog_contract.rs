@@ -91,6 +91,7 @@ fn parts_are_assigned_to_the_categories_of_the_stage_11_contract() {
         (ContactorThreePole, CategoryId::Switching),
         (BreakerThreePole, CategoryId::Protection),
         (ThermalOverloadThreePole, CategoryId::Protection),
+        (InductionMotorThreePhase, CategoryId::MotorsAndLoads),
         (Voltmeter, CategoryId::Measurement),
         (Ammeter, CategoryId::Measurement),
         (AcVoltmeter, CategoryId::Measurement),

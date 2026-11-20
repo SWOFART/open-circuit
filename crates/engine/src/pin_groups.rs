@@ -51,3 +51,18 @@ pub(crate) const POWER_POLES: [PinGroup; 3] = [
         pins: [PinId::L3, PinId::T3],
     },
 ];
+
+pub(crate) const INDUCTION_WINDINGS: [PinGroup; 3] = [
+    PinGroup {
+        id: "u",
+        pins: [PinId::U1, PinId::U2],
+    },
+    PinGroup {
+        id: "v",
+        pins: [PinId::V1, PinId::V2],
+    },
+    PinGroup {
+        id: "w",
+        pins: [PinId::W1, PinId::W2],
+    },
+];

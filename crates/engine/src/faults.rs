@@ -76,6 +76,7 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::ContactorThreePole
         | ComponentTypeId::BreakerThreePole
         | ComponentTypeId::ThermalOverloadThreePole
+        | ComponentTypeId::InductionMotorThreePhase
         | ComponentTypeId::Diode
         | ComponentTypeId::BjtNpn
         | ComponentTypeId::BjtPnp => &[],

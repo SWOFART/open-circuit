@@ -982,6 +982,16 @@ fn estimate_transient_rate_bound(
             }
         }
         let dimension = root_to_variable.len();
+        let induction_windings = island_specs
+            .iter()
+            .filter_map(|spec| match spec.model {
+                DeviceModel::InductionMotor {
+                    windings,
+                    parameters,
+                } => Some((windings, parameters)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
         let mut conductance = vec![vec![0.0; dimension]; dimension];
         let mut capacitance = vec![vec![0.0; dimension]; dimension];
         let inductor_specs = island_specs
@@ -1163,10 +1173,70 @@ fn estimate_transient_rate_bound(
                         )?;
                     }
                 }
+                DeviceModel::InductionMotor { parameters, .. } => {
+                    maximum_rate = maximum_rate.max(parameters.fixed_voltage_rate_bound());
+                }
                 DeviceModel::DcVoltageSource { .. }
                 | DeviceModel::ThreePhaseSource { .. }
                 | DeviceModel::Diode { .. }
                 | DeviceModel::Bjt { .. } => {}
+            }
+        }
+        if induction_windings.iter().any(|(windings, _)| {
+            windings
+                .iter()
+                .any(|winding| sets.find(winding.pin1) != sets.find(winding.pin2))
+        }) {
+            // For a static linear network eliminate the node voltages and
+            // bound the extra winding-voltage derivatives from its driving
+            // resistance. Mixed dynamic and switching networks fall back to
+            // the cap when a joint enclosure cannot be established.
+            if island_specs.iter().any(|spec| {
+                !matches!(
+                    spec.model,
+                    DeviceModel::InductionMotor { .. }
+                        | DeviceModel::Resistor { .. }
+                        | DeviceModel::DcVoltageSource { .. }
+                        | DeviceModel::ThreePhaseSource { .. }
+                        | DeviceModel::Wattmeter { .. }
+                ) || schematic.components.iter().any(|component| {
+                    component.id() == &spec.component_id
+                        && matches!(
+                            component,
+                            ComponentSpec::SwitchSpst { .. }
+                                | ComponentSpec::PushButtonNo { .. }
+                                | ComponentSpec::PushButtonNc { .. }
+                        )
+                })
+            }) {
+                return None;
+            }
+            let columns = induction_windings.len() * 3;
+            let mut branches = vec![vec![0.0; columns]; dimension];
+            for (index, winding) in induction_windings
+                .iter()
+                .flat_map(|(windings, _)| windings)
+                .enumerate()
+            {
+                let left = root_to_variable.get(&sets.find(winding.pin1)).copied();
+                let right = root_to_variable.get(&sets.find(winding.pin2)).copied();
+                add_incidence(&mut branches, left, right, index)?;
+            }
+            let inverse = invert_matrix(conductance.clone())?;
+            let response = multiply_matrices(&inverse, &branches)?;
+            let driving = multiply_matrices(&transpose(&branches), &response)?;
+            let resistance_norm = driving
+                .iter()
+                .map(|row| row.iter().map(|value| value.abs()).sum::<f64>())
+                .fold(0.0_f64, f64::max);
+            let current_gain = induction_windings
+                .iter()
+                .map(|(_, parameters)| parameters.phase_current_gain())
+                .fold(0.0_f64, f64::max);
+            // The L1 norm of any power-invariant Clarke row is at most √3.
+            maximum_rate += 3.0_f64.sqrt() * resistance_norm * current_gain / 100.0;
+            if !maximum_rate.is_finite() {
+                return None;
             }
         }
         for (branch, spec) in inductor_specs.iter().enumerate() {

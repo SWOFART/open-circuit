@@ -75,6 +75,7 @@ describe("the drawer list", () => {
     expect(view.groups).toEqual([]);
     expect(ids(view.results ?? undefined)).toEqual([
       "pmdc_motor",
+      "induction_motor_three_phase",
       "thermal_overload_three_pole",
     ]);
     expect(view.items).toEqual(view.results);

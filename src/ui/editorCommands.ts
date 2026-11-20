@@ -40,7 +40,8 @@ export function defaultParameters(
 /**
  * The lightweight Engine update for a committed parameter edit, or undefined
  * when the edit must recompile the circuit. Initial conditions and thermal
- * overload model parameters always start a new run.
+ * overload model parameters always start a new run. The induction motor
+ * has one live parameter, its load torque.
  */
 export function liveParameterUpdate(
   catalog: ComponentCatalog,
@@ -58,7 +59,9 @@ export function liveParameterUpdate(
 
   return definition &&
     !definition.initialCondition &&
-    component?.typeId !== "thermal_overload_three_pole"
+    component?.typeId !== "thermal_overload_three_pole" &&
+    (component?.typeId !== "induction_motor_three_phase" ||
+      parameterId === "loadTorqueNewtonMeters")
     ? { componentId, parameterId, value }
     : undefined;
 }

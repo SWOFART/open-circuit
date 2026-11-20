@@ -33,6 +33,7 @@ pub enum ComponentTypeId {
     ContactorThreePole,
     BreakerThreePole,
     ThermalOverloadThreePole,
+    InductionMotorThreePhase,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -72,6 +73,10 @@ pub enum PinId {
     Nc1,
     #[serde(rename = "nc_2")]
     Nc2,
+    U1,
+    U2,
+    W1,
+    W2,
 }
 
 impl PinId {
@@ -106,6 +111,10 @@ impl PinId {
             Self::No2 => "no_2",
             Self::Nc1 => "nc_1",
             Self::Nc2 => "nc_2",
+            Self::U1 => "u1",
+            Self::U2 => "u2",
+            Self::W1 => "w1",
+            Self::W2 => "w2",
         }
     }
 }
@@ -140,6 +149,12 @@ pub enum ParameterId {
     TripScaleSeconds,
     CoolSeconds,
     ResetDose,
+    StatorResistanceOhms,
+    RotorResistanceOhms,
+    StatorLeakageHenries,
+    RotorLeakageHenries,
+    MagnetizingHenries,
+    PolePairs,
     IntactResistanceOhms,
     TripI2tAmpereSquaredSeconds,
     ArmatureResistanceOhms,
@@ -203,6 +218,7 @@ pub enum NumericDomain {
     StrictlyPositive,
     NonNegative,
     ZeroOrOne,
+    Integer,
 }
 
 impl NumericDomain {
@@ -216,6 +232,7 @@ impl NumericDomain {
             Self::StrictlyPositive => value > 0.0,
             Self::NonNegative => value >= 0.0,
             Self::ZeroOrOne => value == 0.0 || value == 1.0,
+            Self::Integer => value.trunc() == value,
         }
     }
 }
@@ -1342,7 +1359,7 @@ pub fn component_catalog() -> ComponentCatalog {
         ],
         categories: Vec::new(),
     };
-    catalog.component_types.extend(stage10_switch_catalog());
+    catalog.component_types.extend(stage10_equipment_catalog());
     catalog.categories = CategoryId::ALL
         .into_iter()
         .filter(|category| {
@@ -1355,20 +1372,21 @@ pub fn component_catalog() -> ComponentCatalog {
     catalog
 }
 
-fn stage10_switch_catalog() -> [ComponentCatalogEntry; 3] {
-    use crate::pin_groups::{CONTACTOR_AUXILIARIES, CONTACTOR_COIL, POWER_POLES, PinGroup};
+fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 4] {
+    use crate::pin_groups::{
+        CONTACTOR_AUXILIARIES, CONTACTOR_COIL, INDUCTION_WINDINGS, POWER_POLES, PinGroup,
+    };
     use ParameterId::*;
 
     let entry = |type_id, name: &str, groups: Vec<PinGroup>, parameters| ComponentCatalogEntry {
         type_id,
         display_name_key: format!("component.{name}.name"),
-        category: if matches!(
-            type_id,
-            ComponentTypeId::BreakerThreePole | ComponentTypeId::ThermalOverloadThreePole
-        ) {
-            CategoryId::Protection
-        } else {
-            CategoryId::Switching
+        category: match type_id {
+            ComponentTypeId::BreakerThreePole | ComponentTypeId::ThermalOverloadThreePole => {
+                CategoryId::Protection
+            }
+            ComponentTypeId::InductionMotorThreePhase => CategoryId::MotorsAndLoads,
+            _ => CategoryId::Switching,
         },
         search_keyword_keys: vec![format!("component.{name}.keywords")],
         pins: groups
@@ -1403,6 +1421,7 @@ fn stage10_switch_catalog() -> [ComponentCatalogEntry; 3] {
             minimum_value: Some(min),
             maximum_value: Some(max),
         };
+    let motor = "inductionMotorThreePhase";
     let contactor = "contactorThreePole";
     let breaker = "breakerThreePole";
     let closed_resistance = |name| {
@@ -1568,6 +1587,101 @@ fn stage10_switch_catalog() -> [ComponentCatalogEntry; 3] {
                     )
                 },
             ],
+        ),
+        entry(
+            ComponentTypeId::InductionMotorThreePhase,
+            motor,
+            INDUCTION_WINDINGS.to_vec(),
+            [
+                (
+                    "statorResistance",
+                    StatorResistanceOhms,
+                    Unit::Ohm,
+                    0.01,
+                    10_000.0,
+                    1.0,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "rotorResistance",
+                    RotorResistanceOhms,
+                    Unit::Ohm,
+                    0.01,
+                    10_000.0,
+                    1.0,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "statorLeakage",
+                    StatorLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.005,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "rotorLeakage",
+                    RotorLeakageHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.005,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "magnetizing",
+                    MagnetizingHenries,
+                    Unit::Henry,
+                    0.00001,
+                    10.0,
+                    0.1,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "polePairs",
+                    PolePairs,
+                    Unit::Dimensionless,
+                    1.0,
+                    8.0,
+                    2.0,
+                    NumericDomain::Integer,
+                ),
+                (
+                    "inertia",
+                    RotorInertiaKilogramMetersSquared,
+                    Unit::KilogramMeterSquared,
+                    0.0001,
+                    100.0,
+                    0.02,
+                    NumericDomain::StrictlyPositive,
+                ),
+                (
+                    "friction",
+                    ViscousFrictionNewtonMeterSecondsPerRadian,
+                    Unit::NewtonMeterSecondPerRadian,
+                    0.0,
+                    100.0,
+                    0.01,
+                    NumericDomain::NonNegative,
+                ),
+                (
+                    "loadTorque",
+                    LoadTorqueNewtonMeters,
+                    Unit::NewtonMeter,
+                    -1000.0,
+                    1000.0,
+                    0.0,
+                    NumericDomain::Finite,
+                ),
+            ]
+            .map(
+                |(key, id, unit, min, max, default, domain)| ParameterDefinition {
+                    domain,
+                    ..parameter(motor, key, id, unit, min, max, default)
+                },
+            )
+            .to_vec(),
         ),
     ]
 }

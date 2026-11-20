@@ -60,6 +60,50 @@ impl NonlinearDevice for Law {
 fn variables() -> NodeVariables {
     NodeVariables::for_island(2, &[0, 1], 1, &Default::default())
 }
+
+#[test]
+fn bilinear_rows_use_their_physical_residual_after_linearization() {
+    struct Product(StableId, [BilinearTerm; 1]);
+    impl NonlinearDevice for Product {
+        fn id(&self) -> &StableId {
+            &self.0
+        }
+        fn junctions(&self) -> Vec<Junction> {
+            Vec::new()
+        }
+        fn evaluate(&self, _: &[f64]) -> Evaluation {
+            Evaluation {
+                currents: Vec::new(),
+                derivatives: Vec::new(),
+            }
+        }
+        fn bilinear_terms(&self) -> &[BilinearTerm] {
+            &self.1
+        }
+    }
+    let product = Product(
+        Law::diode().id,
+        [BilinearTerm {
+            row: 0,
+            left: 0,
+            right: 1,
+            coefficient: 2.0,
+        }],
+    );
+    let mut base = MnaSystem::new(2);
+    assert!(base.stamp_linear_equation(0, &[(0, 1.0)], 15.0));
+    assert!(base.stamp_linear_equation(1, &[(1, 1.0)], 2.0));
+    let (solution, _) = solve(
+        &base,
+        &variables(),
+        &[&product],
+        &tolerance(2),
+        vec![0.0; 2],
+        vec![vec![]],
+    )
+    .unwrap();
+    assert_eq!(solution, [3.0, 2.0]);
+}
 fn tolerance(n: usize) -> Vec<UnknownTolerance> {
     let mut t = vec![
         UnknownTolerance {

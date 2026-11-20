@@ -1282,6 +1282,154 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "induction_motor_three_phase",
+      "displayNameKey": "component.inductionMotorThreePhase.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": ["component.inductionMotorThreePhase.keywords"],
+      "pins": [
+        {
+          "id": "u1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "u2",
+          "role": "unpolarized"
+        },
+        {
+          "id": "v1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "v2",
+          "role": "unpolarized"
+        },
+        {
+          "id": "w1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "w2",
+          "role": "unpolarized"
+        }
+      ],
+      "pinGroups": [
+        {
+          "id": "u",
+          "pins": ["u1", "u2"]
+        },
+        {
+          "id": "v",
+          "pins": ["v1", "v2"]
+        },
+        {
+          "id": "w",
+          "pins": ["w1", "w2"]
+        }
+      ],
+      "parameters": [
+        {
+          "id": "statorResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 1.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.inductionMotorThreePhase.statorResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "rotorResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 1.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.inductionMotorThreePhase.rotorResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "statorLeakageHenries",
+          "unit": "henry",
+          "defaultValue": 0.005,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.inductionMotorThreePhase.statorLeakage",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.00001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "rotorLeakageHenries",
+          "unit": "henry",
+          "defaultValue": 0.005,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.inductionMotorThreePhase.rotorLeakage",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.00001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "magnetizingHenries",
+          "unit": "henry",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.inductionMotorThreePhase.magnetizing",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.00001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "polePairs",
+          "unit": "dimensionless",
+          "defaultValue": 2.0,
+          "domain": "integer",
+          "descriptionKey": "component.inductionMotorThreePhase.polePairs",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 8.0
+        },
+        {
+          "id": "rotorInertiaKilogramMetersSquared",
+          "unit": "kilogram_meter_squared",
+          "defaultValue": 0.02,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.inductionMotorThreePhase.inertia",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0001,
+          "maximumValue": 100.0
+        },
+        {
+          "id": "viscousFrictionNewtonMeterSecondsPerRadian",
+          "unit": "newton_meter_second_per_radian",
+          "defaultValue": 0.01,
+          "domain": "non_negative",
+          "descriptionKey": "component.inductionMotorThreePhase.friction",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 100.0
+        },
+        {
+          "id": "loadTorqueNewtonMeters",
+          "unit": "newton_meter",
+          "defaultValue": 0.0,
+          "domain": "finite",
+          "descriptionKey": "component.inductionMotorThreePhase.loadTorque",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": -1000.0,
+          "maximumValue": 1000.0
+        }
+      ],
+      "faultKinds": []
     }
   ],
   "categories": [

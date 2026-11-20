@@ -22,6 +22,7 @@ pub(crate) const THERMAL_VOLTAGE: f64 = 0.02586492578632875;
 pub(crate) struct SolverMemory {
     pub nodes: std::collections::HashMap<usize, f64>,
     pub junctions: std::collections::HashMap<StableId, Vec<f64>>,
+    pub induction_motors: std::collections::HashMap<StableId, crate::devices::MotorHistory>,
 }
 
 /// A junction voltage is positive minus negative, including the PNP polarity.
@@ -45,12 +46,25 @@ pub(crate) struct Evaluation {
     pub derivatives: Vec<(usize, usize, f64)>,
 }
 
+/// A nonlinear product added to an MNA residual row. The base stamp
+/// supplies the linear terms of the same equation.
+pub(crate) struct BilinearTerm {
+    pub row: usize,
+    pub left: usize,
+    pub right: usize,
+    pub coefficient: f64,
+}
+
 pub(crate) trait NonlinearDevice {
     fn id(&self) -> &StableId;
     fn junctions(&self) -> Vec<Junction>;
     /// All junction voltages supplied here may be limited during stamping, but
     /// residual evaluation always supplies the unlimited solution differences.
     fn evaluate(&self, junction_voltages: &[f64]) -> Evaluation;
+
+    fn bilinear_terms(&self) -> &[BilinearTerm] {
+        &[]
+    }
 }
 
 /// exp(x)-1 and its derivative; tangent continuation is used only for iteration.
@@ -253,6 +267,19 @@ fn stage(
             }
         }
         for (d, js) in devices.iter().zip(&limited) {
+            for term in d.bilinear_terms() {
+                let left = old[term.left];
+                let right = old[term.right];
+                let dl = term.coefficient * right;
+                let dr = term.coefficient * left;
+                let intercept = dl * left;
+                if !system.add_matrix(term.row, term.left, dl)
+                    || !system.add_matrix(term.row, term.right, dr)
+                    || !system.add_rhs(term.row, intercept)
+                {
+                    return Err(failure(DiagnosticCode::NonFiniteState, devices));
+                }
+            }
             let evaluation = d.evaluate(js);
             let mut intercepts = evaluation
                 .currents
@@ -424,6 +451,13 @@ fn residual_ok(
         additions[*row] = 1;
     }
     for (d, js) in devices.iter().zip(junctions) {
+        for term in d.bilinear_terms() {
+            let product = (term.coefficient * x[term.left]) * x[term.right];
+            residual[term.row] += product;
+            scale[term.row] += product.abs();
+            roundoff[term.row] += gamma(4) * product.abs();
+            additions[term.row] += 1;
+        }
         for c in d.evaluate(js).currents {
             if let Some(i) = variables.voltage_variable(c.node) {
                 for term in c.terms {

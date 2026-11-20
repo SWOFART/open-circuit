@@ -211,6 +211,26 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 CurrentIntoPin1,
             ),
         ],
+        ComponentTypeId::InductionMotorThreePhase => crate::pin_groups::INDUCTION_WINDINGS
+            .into_iter()
+            .flat_map(group_slots)
+            .chain([
+                slot(
+                    ResultQuantity::AngularVelocity,
+                    Unit::RadianPerSecond,
+                    '/',
+                    "angular_velocity",
+                    ResultSignConvention::PositivePhaseSequence,
+                ),
+                slot(
+                    ResultQuantity::ElectromagneticTorque,
+                    Unit::NewtonMeter,
+                    '/',
+                    "electromagnetic_torque",
+                    ResultSignConvention::PositivePhaseSequence,
+                ),
+            ])
+            .collect(),
         ComponentTypeId::PmdcMotor => vec![
             voltage,
             current,
