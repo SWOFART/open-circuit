@@ -20,6 +20,15 @@ import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
 import { resistorSymbol } from "./resistor";
 import { switchSpstSymbol } from "./switch";
+import {
+  breakerThreePoleSymbol,
+  contactorThreePoleSymbol,
+  inductionMotorThreePhaseSymbol,
+  thermalOverloadThreePoleSymbol,
+  threePhaseLoadDeltaSymbol,
+  threePhaseLoadStarSymbol,
+  transformerThreePhaseSymbol,
+} from "./threePhase";
 import type { SymbolDefinition } from "./types";
 import { voltmeterSymbol } from "./voltmeter";
 
@@ -52,6 +61,13 @@ export const symbols: SymbolRegistry = {
   relay_spdt: relaySpdtSymbol,
   fuse: fuseSymbol,
   pmdc_motor: pmdcMotorSymbol,
+  contactor_three_pole: contactorThreePoleSymbol,
+  breaker_three_pole: breakerThreePoleSymbol,
+  thermal_overload_three_pole: thermalOverloadThreePoleSymbol,
+  induction_motor_three_phase: inductionMotorThreePhaseSymbol,
+  transformer_three_phase: transformerThreePhaseSymbol,
+  three_phase_load_star: threePhaseLoadStarSymbol,
+  three_phase_load_delta: threePhaseLoadDeltaSymbol,
   voltmeter: voltmeterSymbol,
   ammeter: ammeterSymbol,
   switch_spst: switchSpstSymbol,

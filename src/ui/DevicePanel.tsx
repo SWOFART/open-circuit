@@ -4,6 +4,7 @@ import type { DeviceState } from "../generated/DeviceState";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
+import type { Unit } from "../generated/Unit";
 import { measurementValidityKey } from "../store/measurementValidity";
 import type { ActiveRun, SimulationState } from "../store/simulation";
 import { message } from "./messages";
@@ -23,7 +24,13 @@ export interface DevicePanelProps {
 const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "relay_spdt",
   "fuse",
+  "contactor_three_pole",
+  "breaker_three_pole",
   "thermal_overload_three_pole",
+  "induction_motor_three_phase",
+  "transformer_three_phase",
+  "three_phase_load_star",
+  "three_phase_load_delta",
   "pmdc_motor",
   "voltmeter",
   "ammeter",
@@ -93,11 +100,24 @@ interface Device {
     readonly kind: "switch" | "pushButton";
     readonly name: string;
     readonly actuated: boolean;
+    /** What the control is called in its accessible name; a switch by default. */
+    readonly noun?: string;
   };
 }
 
 function yesNo(value: boolean): string {
   return value ? "Yes" : "No";
+}
+
+/** The three pole currents of a switching device, as the Engine reported them. */
+function poleRows(
+  id: StableId,
+  show: (key: string, unit: Unit) => string,
+): readonly Row[] {
+  return [1, 2, 3].map((pole) => ({
+    name: `Pole L${pole} current`,
+    value: show(`${id}/pole${pole}/current`, "amp"),
+  }));
 }
 
 function describe(
@@ -108,7 +128,7 @@ function describe(
 ): Device {
   const id = component.id;
   const name = labels.get(id) ?? component.typeId;
-  const show = (key: string, unit: "volt" | "amp") => {
+  const show = (key: string, unit: Unit) => {
     const value = reading(run, snapshot, key);
 
     return value === undefined ? "—" : formatSi(value, unit);
@@ -135,6 +155,69 @@ function describe(
         ],
       };
     }
+    case "contactor_three_pole": {
+      const state = stateOf(snapshot, id, "contactor");
+      const since = transition(state);
+      const picked = state?.kind === "contactor" && state.state === "picked";
+
+      return {
+        id,
+        title: `${name} ${message("component.contactorThreePole.name")}`,
+        badge:
+          state?.kind === "contactor"
+            ? {
+                text: picked ? "Picked" : "Released",
+                tone: picked ? "on" : "off",
+              }
+            : undefined,
+        rows: [
+          ...(since === null ? [] : [{ name: "Last change", value: since }]),
+          { name: "Coil current", value: show(`${id}/coil/current`, "amp") },
+          {
+            name: "Coil detector (mean square)",
+            value: show(`${id}/coil/current_squared`, "ampere_squared"),
+          },
+          ...poleRows(id, show),
+          {
+            name: "Normally open contact current",
+            value: show(`${id}/no/current`, "amp"),
+          },
+          {
+            name: "Normally closed contact current",
+            value: show(`${id}/nc/current`, "amp"),
+          },
+        ],
+      };
+    }
+    case "breaker_three_pole": {
+      const state = stateOf(snapshot, id, "switch");
+      const since = transition(state);
+      const closed = state?.kind === "switch" && state.position === "closed";
+      const tripped = reading(run, snapshot, `${id}/tripped`) === 1;
+
+      return {
+        id,
+        title: `${name} ${message("component.breakerThreePole.name")}`,
+        badge:
+          state?.kind === "switch"
+            ? tripped
+              ? { text: "Tripped", tone: "fault" }
+              : {
+                  text: closed ? "Closed" : "Open",
+                  tone: closed ? "on" : "off",
+                }
+            : undefined,
+        control: { kind: "switch", name, actuated: closed, noun: "breaker" },
+        rows: [
+          ...(tripped ? [{ name: "To reset", value: "Open the breaker" }] : []),
+          ...(state?.kind === "switch"
+            ? [{ name: "Conducting", value: yesNo(state.conducting) }]
+            : []),
+          ...(since === null ? [] : [{ name: "Last change", value: since }]),
+          ...poleRows(id, show),
+        ],
+      };
+    }
     case "thermal_overload_three_pole": {
       const state = stateOf(snapshot, id, "fuse");
       const since = transition(state);
@@ -154,6 +237,7 @@ function describe(
             name: "Thermal dose",
             value: dose === undefined ? "—" : formatSi(dose, "dimensionless"),
           },
+          ...poleRows(id, show),
         ],
       };
     }
@@ -322,6 +406,79 @@ function describe(
         ],
       };
     }
+    case "induction_motor_three_phase": {
+      const speed = reading(run, snapshot, `${id}/angular_velocity`);
+
+      return {
+        id,
+        title: `${name} ${message("component.inductionMotorThreePhase.name")}`,
+        rows: [
+          {
+            name: "Angular velocity",
+            value:
+              speed === undefined ? "—" : formatSi(speed, "radian_per_second"),
+          },
+          {
+            name: "Electromagnetic torque",
+            value: show(`${id}/electromagnetic_torque`, "newton_meter"),
+          },
+          ...["u", "v", "w"].map((winding) => ({
+            name: `Winding ${winding.toUpperCase()} current`,
+            value: show(`${id}/${winding}/current`, "amp"),
+          })),
+        ],
+      };
+    }
+    case "transformer_three_phase":
+      return {
+        id,
+        title: `${name} ${message("component.transformerThreePhase.name")}`,
+        rows: [1, 2, 3].flatMap((bank) => [
+          {
+            name: `Primary ${bank} current`,
+            value: show(`${id}/primary${bank}/current`, "amp"),
+          },
+          {
+            name: `Secondary ${bank} current`,
+            value: show(`${id}/secondary${bank}/current`, "amp"),
+          },
+          {
+            name: `Secondary ${bank} voltage`,
+            value: show(`${id}/secondary${bank}/voltage`, "volt"),
+          },
+        ]),
+      };
+    case "three_phase_load_star":
+      return {
+        id,
+        title: `${name} ${message("component.threePhaseLoadStar.name")}`,
+        rows: [
+          ...[1, 2, 3].map((line) => ({
+            name: `Branch L${line}–N current`,
+            value: show(`${id}/l${line}/current`, "amp"),
+          })),
+          { name: "Neutral current", value: show(`${id}/n/current`, "amp") },
+        ],
+      };
+    case "three_phase_load_delta":
+      return {
+        id,
+        title: `${name} ${message("component.threePhaseLoadDelta.name")}`,
+        rows: [
+          ...[
+            ["l12", "L1–L2"],
+            ["l23", "L2–L3"],
+            ["l31", "L3–L1"],
+          ].map(([group, label]) => ({
+            name: `Branch ${label} current`,
+            value: show(`${id}/${group}/current`, "amp"),
+          })),
+          ...[1, 2, 3].map((line) => ({
+            name: `Line L${line} current`,
+            value: show(`${id}/l${line}/current`, "amp"),
+          })),
+        ],
+      };
     case "pmdc_motor": {
       const speed = reading(run, snapshot, `${id}/angular_velocity`);
 
@@ -443,6 +600,7 @@ export function DevicePanel({
                   componentId={device.id}
                   name={device.control.name}
                   kind={device.control.kind}
+                  noun={device.control.noun}
                   actuated={device.control.actuated}
                   disabled={
                     state.status !== "ready" || state.run === null || !onOperate

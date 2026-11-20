@@ -9,6 +9,8 @@ export interface OperatorControlProps {
   readonly name: string;
   /** What the control operates, as words: "switch" or "push button". */
   readonly kind: "switch" | "pushButton";
+  /** What a switch is called in its accessible name: "switch" unless the part says otherwise. */
+  readonly noun?: string;
   /** The position the Engine reported: closed (switch) or pressed (push button). */
   readonly actuated: boolean;
   /** True while there is no run on screen to send the position to. */
@@ -28,6 +30,7 @@ export function OperatorControl({
   componentId,
   name,
   kind,
+  noun = "switch",
   actuated,
   disabled,
   onOperate,
@@ -52,7 +55,7 @@ export function OperatorControl({
         role="switch"
         className="operator-control"
         aria-checked={actuated}
-        aria-label={`${name} switch`}
+        aria-label={`${name} ${noun}`}
         disabled={disabled}
         onClick={() => onOperate(componentId, "toggle")}
         onKeyDown={(event) => {
