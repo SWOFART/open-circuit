@@ -3,6 +3,8 @@
 
 #![allow(dead_code)]
 
+pub mod stage10;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
