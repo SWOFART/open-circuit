@@ -57,6 +57,13 @@ export type EditorCommand =
       readonly position: GridPoint;
     }
   | { readonly kind: "deleteReferenceMarker"; readonly id: StableId }
+  | { readonly kind: "addNote"; readonly position: GridPoint }
+  | {
+      readonly kind: "moveNote";
+      readonly id: StableId;
+      readonly position: GridPoint;
+    }
+  | { readonly kind: "deleteNote"; readonly id: StableId }
   | {
       readonly kind: "addRail";
       /** Left out, the smallest unused `RAIL<n>` names the new rail. */
@@ -186,6 +193,12 @@ export function commandForIntent(
             position: intent.position,
           }
         : null;
+    case "addNote":
+      return { kind: "addNote", position: intent.position };
+    case "moveNote":
+      return schematic.documentation.notes.some((note) => note.id === intent.id)
+        ? { kind: "moveNote", id: intent.id, position: intent.position }
+        : null;
     case "openEditor":
       // Opening an editor shows the document; it never changes it.
       return null;
@@ -231,6 +244,10 @@ function deleteCommand(
     case "rail":
       return exists(schematic.rails, target.id)
         ? { kind: "deleteRail", railId: target.id }
+        : null;
+    case "note":
+      return exists(schematic.documentation.notes, target.id)
+        ? { kind: "deleteNote", id: target.id }
         : null;
   }
 }
@@ -295,6 +312,16 @@ export function dragPreviewSchematic(
         ),
       };
     }
+    case "note":
+      return {
+        ...schematic,
+        documentation: {
+          ...schematic.documentation,
+          notes: schematic.documentation.notes.map((item) =>
+            item.id === drag.id ? { ...item, position: drag.to } : item,
+          ),
+        },
+      };
     case "marker": {
       if (!drag.valid) {
         return schematic;

@@ -58,6 +58,7 @@ import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
 import { operatorPosition } from "./operatorPosition";
 import { ComponentEditor } from "./ComponentEditor";
+import { NoteEditor } from "./NoteEditor";
 import { PartsDrawer } from "./drawer/PartsDrawer";
 import { usePartsDrawer } from "./drawer/usePartsDrawer";
 import { Palette, toolHint } from "./Palette";
@@ -137,6 +138,11 @@ export function App({
     readonly componentId: StableId;
     readonly position: { readonly left: number; readonly top: number };
   } | null>(null);
+  // The note whose text editor is open (a double-click or Enter on a selected note).
+  const [editingNote, setEditingNote] = useState<{
+    readonly noteId: StableId;
+    readonly position: { readonly left: number; readonly top: number };
+  } | null>(null);
   const documentStore = useMemo(
     () => new SchematicDocumentStore(dividerSchematic),
     [],
@@ -213,6 +219,9 @@ export function App({
   // Assignments hold no documentation (contract section 2.4): while one is open, parts are not
   // named and the designator field is not offered.
   const documentationAvailable = railUnavailable === null;
+  const noteUnavailable = documentationAvailable
+    ? null
+    : "Notes are not available in an assignment. Leave assignment mode to edit notes.";
   const railNames = useMemo(
     () => new Map(document.schematic.rails.map((rail) => [rail.id, rail.name])),
     [document.schematic.rails],
@@ -486,6 +495,20 @@ export function App({
         setEditError(railUnavailable);
         return;
       }
+      if (
+        (command.kind === "addNote" ||
+          command.kind === "moveNote" ||
+          command.kind === "deleteNote") &&
+        noteUnavailable !== null
+      ) {
+        setEditError(noteUnavailable);
+        return;
+      }
+      const knownNotes = new Set(
+        documentStore
+          .getState()
+          .schematic.documentation.notes.map(({ id }) => id),
+      );
       try {
         // The assignment's restrictions are checked before the document's own rules apply.
         const verdict = applyRestrictedCommand(
@@ -496,6 +519,16 @@ export function App({
           documentationAvailable,
         );
         setEditError(verdict.allowed ? null : verdict.reason);
+        if (verdict.allowed && command.kind === "addNote") {
+          // The new note is selected, so Enter or a double-click edits its text at once.
+          const created = documentStore
+            .getState()
+            .schematic.documentation.notes.find(
+              ({ id }) => !knownNotes.has(id),
+            );
+          if (created)
+            editorRef.current?.select({ kind: "note", id: created.id });
+        }
       } catch (error) {
         setEditError(error instanceof Error ? error.message : String(error));
       }
@@ -593,7 +626,7 @@ export function App({
       );
       return;
     }
-    if (target.kind !== "component") return;
+    if (target.kind !== "component" && target.kind !== "note") return;
 
     const stage = stageRef.current;
     const canvas = canvasHost.current;
@@ -612,10 +645,17 @@ export function App({
         (stage?.clientHeight ?? 240) - 240,
       ),
     );
-    setEditing({ componentId: target.id, position: { left, top } });
+    if (target.kind === "note") {
+      setEditing(null);
+      setEditingNote({ noteId: target.id, position: { left, top } });
+    } else {
+      setEditingNote(null);
+      setEditing({ componentId: target.id, position: { left, top } });
+    }
   };
   const closeEditor = (refocusCanvas: boolean) => {
     setEditing(null);
+    setEditingNote(null);
     if (refocusCanvas) editorRef.current?.focusCanvas();
   };
   // The editor follows the selection and the document: selecting another object, deleting the
@@ -634,6 +674,33 @@ export function App({
       setEditing(null);
     }
   }, [editing, status.selection, document.schematic.components]);
+  useEffect(() => {
+    if (editingNote === null) return;
+    const selected = status.selection;
+    const present = document.schematic.documentation.notes.some(
+      ({ id }) => id === editingNote.noteId,
+    );
+    if (
+      !present ||
+      selected?.kind !== "note" ||
+      selected.id !== editingNote.noteId
+    ) {
+      setEditingNote(null);
+    }
+  }, [editingNote, status.selection, document.schematic.documentation.notes]);
+
+  /** Stores a note's text; returns why it was refused, or null. */
+  const setNoteText = (noteId: StableId, text: string): string | null => {
+    if (projectOperationLocked) return "A project operation is in progress.";
+    if (noteUnavailable !== null) return noteUnavailable;
+    try {
+      documentStore.setNoteText(noteId, text);
+      setEditError(null);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
+  };
 
   const commitParameter = (
     componentId: StableId,
@@ -775,6 +842,7 @@ export function App({
               onToggleDrawer={drawer.toggle}
               disabled={projectOperationLocked}
               railUnavailable={railUnavailable}
+              noteUnavailable={noteUnavailable}
               onSelectTool={(next) => editorRef.current?.setTool(next)}
             />
             <div className="editor-actions">
@@ -877,6 +945,20 @@ export function App({
                   : "editor-canvas"
               }
             />
+            {editingNote !== null && noteUnavailable === null && (
+              <NoteEditor
+                schematic={document.schematic}
+                noteId={editingNote.noteId}
+                position={editingNote.position}
+                enabled={!projectOperationLocked}
+                onCommit={setNoteText}
+                onDelete={(noteId) => {
+                  commandHandler.current({ kind: "deleteNote", id: noteId });
+                  closeEditor(true);
+                }}
+                onClose={() => closeEditor(true)}
+              />
+            )}
             {editing !== null && (
               <ComponentEditor
                 state={state}

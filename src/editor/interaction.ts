@@ -84,7 +84,9 @@ export type EditorTool =
   | { readonly kind: "junction" }
   | { readonly kind: "reference" }
   /** Draws a vertical DC rail: the first click fixes x and one y, the second the other y. */
-  | { readonly kind: "rail" };
+  | { readonly kind: "rail" }
+  /** Places a text note, a documentation object, at the clicked point. */
+  | { readonly kind: "note" };
 
 /** Why the last click of a drawing tool did nothing, until the pointer moves. */
 export type Rejection = "crossing" | "attachment";
@@ -166,6 +168,12 @@ export type InteractionIntent =
       readonly kind: "moveReferenceMarker";
       readonly id: StableId;
       readonly position: GridPoint;
+    }
+  | { readonly kind: "addNote"; readonly position: GridPoint }
+  | {
+      readonly kind: "moveNote";
+      readonly id: StableId;
+      readonly position: GridPoint;
     };
 
 /** What a press on a switch or a push button asks for. */
@@ -193,6 +201,12 @@ export type DragPreview =
       readonly valid: boolean;
     }
   | {
+      /** A note being moved; `to` is its new top-left corner. */
+      readonly kind: "note";
+      readonly id: StableId;
+      readonly to: GridPoint;
+    }
+  | {
       /** A rail, or one of its ends, being moved or resized; `to` is the rail as dragged. */
       readonly kind: "rail";
       readonly railId: StableId;
@@ -215,7 +229,7 @@ type DragTarget =
     }
   | { readonly kind: "component"; readonly id: StableId }
   | {
-      readonly kind: "junction" | "referenceMarker";
+      readonly kind: "junction" | "referenceMarker" | "note";
       readonly id: StableId;
       readonly origin: GridPoint;
     }
@@ -354,6 +368,9 @@ export class CanvasInteraction {
     }
 
     const to = { x: target.origin.x + delta.x, y: target.origin.y + delta.y };
+    if (target.kind === "note") {
+      return { kind: "note", id: target.id, to };
+    }
     return target.kind === "vertex"
       ? { kind: "vertex", wireId: target.wireId, index: target.index, to }
       : {
@@ -607,6 +624,9 @@ export class CanvasInteraction {
           this.setRejected("attachment");
         }
         return false;
+      case "note":
+        this.onIntent({ kind: "addNote", position: at });
+        return false;
       case "select":
         return this.selectPress(pointer, at);
     }
@@ -646,7 +666,9 @@ export class CanvasInteraction {
     const hitKey = hit ? `${hit.kind}:${hit.id}` : null;
     const double =
       hit !== null &&
-      (hit.kind === "component" || hit.kind === "rail") &&
+      (hit.kind === "component" ||
+        hit.kind === "rail" ||
+        hit.kind === "note") &&
       hitKey !== null &&
       this.isDoublePress(pointer, hitKey);
 
@@ -672,11 +694,17 @@ export class CanvasInteraction {
       return line ? this.armDrag(pointer, at, line) : false;
     }
 
-    if (hit?.kind === "junction" || hit?.kind === "referenceMarker") {
+    if (
+      hit?.kind === "junction" ||
+      hit?.kind === "referenceMarker" ||
+      hit?.kind === "note"
+    ) {
       const origin = (
         hit.kind === "junction"
           ? this.geometry.junctions
-          : this.geometry.referenceMarkers
+          : hit.kind === "note"
+            ? this.geometry.notes
+            : this.geometry.referenceMarkers
       ).get(hit.id);
 
       return origin
@@ -715,12 +743,12 @@ export class CanvasInteraction {
   }
 
   /**
-   * Enter on the canvas: asks for the editor of the selected component. Nothing happens for
-   * any other selection, or while a gesture or a route is in progress.
+   * Enter on the canvas: asks for the editor of the selected component or note. Nothing
+   * happens for any other selection, or while a gesture or a route is in progress.
    */
   openEditorForSelection(): boolean {
     if (
-      this.selected?.kind !== "component" ||
+      (this.selected?.kind !== "component" && this.selected?.kind !== "note") ||
       this.gesture.kind !== "idle" ||
       this.route !== null
     ) {
@@ -1038,6 +1066,17 @@ export class CanvasInteraction {
             x: preview.x,
             top: preview.top,
             bottom: preview.bottom,
+          });
+        }
+        return;
+      }
+      case "note": {
+        const origin = this.geometry.notes.get(preview.id);
+        if (origin && !samePoint(origin, preview.to)) {
+          this.onIntent({
+            kind: "moveNote",
+            id: preview.id,
+            position: preview.to,
           });
         }
         return;

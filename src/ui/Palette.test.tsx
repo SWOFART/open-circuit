@@ -34,10 +34,11 @@ describe("editor tools", () => {
       "Wire",
       "Junction",
       "Ground",
+      "Note",
     ]) {
       expect(markup).toContain(`>${label}<`);
     }
-    expect(markup.match(/<button/g)).toHaveLength(6);
+    expect(markup.match(/<button/g)).toHaveLength(7);
     expect(markup).not.toContain("Resistor");
     expect(pressed(markup)).toEqual(["Select"]);
   });
@@ -55,7 +56,23 @@ describe("editor tools", () => {
   it("disables every tool while a project operation is pending", () => {
     expect(
       render({ kind: "select" }, false, true).match(/disabled=""/g),
-    ).toHaveLength(6);
+    ).toHaveLength(7);
+  });
+
+  it("keeps the Note tool visible but disabled, with the reason, when it is unavailable", () => {
+    const markup = renderToStaticMarkup(
+      <Palette
+        tool={{ kind: "select" }}
+        drawerOpen={false}
+        onToggleDrawer={() => {}}
+        noteUnavailable="Notes are not available in an assignment."
+        onSelectTool={() => {}}
+      />,
+    );
+
+    expect(markup).toMatch(
+      /<button[^>]*disabled=""[^>]*title="Notes are not available in an assignment\."[^>]*>Note<\/button>/,
+    );
   });
 
   it.each([
@@ -63,6 +80,7 @@ describe("editor tools", () => {
     [{ kind: "junction" }, "Junction"],
     [{ kind: "reference" }, "Ground"],
     [{ kind: "rail" }, "DC rail"],
+    [{ kind: "note" }, "Note"],
   ] as const)("marks the %o tool", (tool, label) => {
     expect(pressed(render(tool))).toEqual([label]);
   });
@@ -85,6 +103,7 @@ describe("tool hint", () => {
       status({ tool: { kind: "wire" } }),
       status({ tool: { kind: "junction" } }),
       status({ tool: { kind: "reference" } }),
+      status({ tool: { kind: "note" } }),
     ].map((value) => toolHint(value).text);
 
     expect(new Set(texts).size).toBe(texts.length);

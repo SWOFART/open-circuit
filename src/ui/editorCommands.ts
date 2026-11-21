@@ -1,4 +1,5 @@
 import type { EditorCommand } from "../editor/commands";
+import { DEFAULT_NOTE_TEXT } from "../editor/noteRules";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { ParameterId } from "../generated/ParameterId";
@@ -149,6 +150,15 @@ export function applyEditorCommand(
       return;
     case "deleteReferenceMarker":
       store.removeReferenceMarker(command.id);
+      return;
+    case "addNote":
+      store.addNote(command.position, DEFAULT_NOTE_TEXT);
+      return;
+    case "moveNote":
+      store.moveNote(command.id, command.position);
+      return;
+    case "deleteNote":
+      store.removeNote(command.id);
       return;
     case "addRail":
       store.addRail({

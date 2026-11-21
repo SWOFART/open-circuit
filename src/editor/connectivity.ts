@@ -20,6 +20,8 @@ export interface EditorGeometry {
   readonly rails: ReadonlyMap<StableId, readonly [GridPoint, GridPoint]>;
   readonly junctions: ReadonlyMap<StableId, GridPoint>;
   readonly referenceMarkers: ReadonlyMap<StableId, GridPoint>;
+  /** Every note's top-left corner by ID. Notes are documentation: they take no part in connectivity. */
+  readonly notes: ReadonlyMap<StableId, GridPoint>;
   /** Points where the Junction tool may place a marker. */
   readonly junctionSpots: readonly GridPoint[];
   /** Derived connection dots: T-junctions and similar joins. Never saved. */
@@ -39,6 +41,7 @@ export const EMPTY_GEOMETRY: EditorGeometry = {
   rails: new Map(),
   junctions: new Map(),
   referenceMarkers: new Map(),
+  notes: new Map(),
   junctionSpots: [],
   connectionDots: [],
   detachedMarkers: new Set(),
@@ -234,6 +237,11 @@ export function analyzeGeometry(
     rails,
     junctions,
     referenceMarkers,
+    notes: new Map(
+      schematic.documentation.notes.map(
+        (item) => [item.id, item.position] as const,
+      ),
+    ),
     junctionSpots: [...spots.values()],
     connectionDots,
     detachedMarkers,

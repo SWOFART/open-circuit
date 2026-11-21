@@ -12,6 +12,11 @@ export interface PaletteProps {
    * when it is available. The button stays visible and says why.
    */
   readonly railUnavailable?: string | null;
+  /**
+   * Why the Note tool is unavailable (an assignment holds no documentation); null or absent
+   * when it is available.
+   */
+  readonly noteUnavailable?: string | null;
   readonly onSelectTool: (tool: EditorTool) => void;
 }
 
@@ -47,6 +52,7 @@ export function Palette({
   onToggleDrawer,
   disabled = false,
   railUnavailable = null,
+  noteUnavailable = null,
   onSelectTool,
 }: PaletteProps) {
   return (
@@ -97,6 +103,19 @@ export function Palette({
           {entry.label}
         </button>
       ))}
+      <button
+        type="button"
+        className="toolbar-button"
+        disabled={disabled || noteUnavailable !== null}
+        title={
+          noteUnavailable ??
+          "Place a text note on the drawing. Double-click it to edit the text."
+        }
+        aria-pressed={tool.kind === "note"}
+        onClick={() => onSelectTool({ kind: "note" })}
+      >
+        Note
+      </button>
     </div>
   );
 }
@@ -131,6 +150,11 @@ export function toolHint(status: EditorStatus): {
         text: status.railStarted
           ? "Click the other end of the rail at the same x. Esc cancels this rail."
           : "Click to fix one end of a vertical DC rail; the line shown is only a preview. Esc stops drawing. A rail is a conductor only: names such as L1, N or PE carry no meaning.",
+        warning: false,
+      };
+    case "note":
+      return {
+        text: "Click to place a note, then double-click it or press Enter to edit its text. Esc stops placing notes.",
         warning: false,
       };
     case "junction":

@@ -23,6 +23,8 @@ const PRIORITY: Readonly<Record<SelectableKind, number>> = {
   component: 1,
   rail: 2,
   wire: 3,
+  // Documentation never shadows the circuit: a note is picked only where nothing electrical is.
+  note: 4,
 };
 
 function distance(a: ScenePoint, b: ScenePoint): number {
@@ -82,11 +84,12 @@ function shapeDistance(shape: SceneShape, point: ScenePoint): number {
       return Math.max(distance(point, shape.center) - shape.radius, 0);
     case "label": {
       const halfWidth = shape.halfWidth ?? LABEL_HALF_WIDTH;
+      const halfHeight = shape.halfHeight ?? LABEL_HALF_HEIGHT;
       return distanceToBounds(point, {
         minX: shape.position.x - halfWidth,
-        minY: shape.position.y - LABEL_HALF_HEIGHT,
+        minY: shape.position.y - halfHeight,
         maxX: shape.position.x + halfWidth,
-        maxY: shape.position.y + LABEL_HALF_HEIGHT,
+        maxY: shape.position.y + halfHeight,
       });
     }
   }
