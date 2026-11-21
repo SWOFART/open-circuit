@@ -86,12 +86,14 @@ export function liveParameterUpdate(
 /**
  * Applies a canvas command to the document store as one history entry. The
  * store validates it against the catalog and throws, leaving the document
- * unchanged, when it is invalid.
+ * unchanged, when it is invalid. With `designate` a placed part is named in the same history
+ * entry; it is left off while an assignment is open, which holds no documentation.
  */
 export function applyEditorCommand(
   store: SchematicDocumentStore,
   command: EditorCommand,
   catalog: ComponentCatalog | null,
+  designate = false,
 ): void {
   switch (command.kind) {
     case "placeComponent": {
@@ -106,6 +108,7 @@ export function applyEditorCommand(
           parameters: defaultParameters(catalog, command.typeId),
         } as NewComponentSpec,
         catalog,
+        { designate },
       );
       return;
     }
@@ -181,11 +184,12 @@ export function applyRestrictedCommand(
   command: EditorCommand,
   catalog: ComponentCatalog | null,
   restrictions: EditorRestrictions | null,
+  designate = false,
 ): Verdict {
   const verdict = commandVerdict(command, restrictions);
 
   if (verdict.allowed) {
-    applyEditorCommand(store, command, catalog);
+    applyEditorCommand(store, command, catalog, designate);
   }
 
   return verdict;

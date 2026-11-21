@@ -4,6 +4,7 @@ import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { SimulationState } from "../store/simulation";
 import { ComponentParameterFields } from "./ComponentParameterFields";
+import { DesignatorField } from "./DesignatorField";
 
 export interface ComponentEditorProps {
   readonly state: SimulationState;
@@ -22,6 +23,14 @@ export interface ComponentEditorProps {
     value: number,
   ) => void;
   readonly onClear: (componentId: StableId, parameterId: ParameterId) => void;
+  /**
+   * Stores the part's designator and returns why it was refused, or null. Left out while an
+   * assignment is open: assignments hold no documentation, so the field is not offered.
+   */
+  readonly onSetDesignator?: (
+    componentId: StableId,
+    text: string,
+  ) => string | null;
   /** Escape or the close button: the host returns the focus to the canvas. */
   readonly onClose: () => void;
 }
@@ -44,6 +53,7 @@ export function ComponentEditor({
   locked,
   onCommit,
   onClear,
+  onSetDesignator,
   onClose,
 }: ComponentEditorProps) {
   const body = useRef<HTMLDivElement>(null);
@@ -51,6 +61,12 @@ export function ComponentEditor({
   const component = schematic.components.find(({ id }) => id === componentId);
   const { catalog } = state;
   const label = component ? (labels.get(component.id) ?? component.typeId) : "";
+  const designators = new Map(
+    schematic.documentation.designators.map((entry) => [
+      entry.componentId,
+      entry.designator,
+    ]),
+  );
 
   // Opening moves the focus to the first field; a part with no field focuses Close. A double
   // press opens the editor while the browser is still handling the press, and the browser then
@@ -110,6 +126,17 @@ export function ComponentEditor({
         </p>
       )}
       <div ref={body}>
+        {onSetDesignator !== undefined && (
+          <DesignatorField
+            label={label}
+            committed={designators.get(component.id)}
+            others={[...designators]
+              .filter(([id]) => id !== component.id)
+              .map(([, name]) => name)}
+            disabled={!enabled}
+            onCommit={(text) => onSetDesignator(component.id, text)}
+          />
+        )}
         {entry && entry.parameters.length > 0 ? (
           <ComponentParameterFields
             catalog={catalog}

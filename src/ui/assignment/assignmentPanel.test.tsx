@@ -20,11 +20,29 @@ import { AssignmentPanel, type AssignmentPanelProps } from "./AssignmentPanel";
 import { CheckEditor } from "./CheckEditor";
 import { CheckResultView } from "./CheckResultView";
 import { FaultEditor } from "./FaultEditor";
+import type { Schematic } from "../../generated/Schematic";
+import { emptyDocumentation } from "../../editor/documentation";
 
 const catalog = catalogFixture as ComponentCatalog;
-const dividerAssignment = JSON.parse(divider) as Assignment;
-const faultAssignment = JSON.parse(faultFinding) as Assignment;
-const fuseAssignment = JSON.parse(fuse) as Assignment;
+// The files hold the frozen assignment shape; the live document type also carries documentation.
+function parsed(text: string): Assignment {
+  const assignment = JSON.parse(text) as Assignment;
+  const live = (schematic: Schematic): Schematic => ({
+    ...schematic,
+    documentation: emptyDocumentation(),
+  });
+  return {
+    ...assignment,
+    ...(assignment.startingCircuit
+      ? { startingCircuit: live(assignment.startingCircuit) }
+      : {}),
+    ...(assignment.reference ? { reference: live(assignment.reference) } : {}),
+  };
+}
+
+const dividerAssignment = parsed(divider);
+const faultAssignment = parsed(faultFinding);
+const fuseAssignment = parsed(fuse);
 
 const V1 = "00000000-0000-4000-8000-000000000001";
 const VM1 = "00000000-0000-4000-8000-000000000002";

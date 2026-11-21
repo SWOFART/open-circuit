@@ -22,6 +22,11 @@ import {
   railExtentProblem,
   railNameProblem,
 } from "../editor/railRules";
+import {
+  DESIGNATOR_MESSAGES,
+  designatorProblem,
+  nextDesignator,
+} from "../editor/designators";
 import { ComponentLabels } from "./labels";
 
 enablePatches();
@@ -330,9 +335,15 @@ export class SchematicDocumentStore {
     return () => this.listeners.delete(listener);
   };
 
+  /**
+   * Adds a component. With `designate` the same history entry stores its designator: the
+   * catalog's default letters and the next number (contract section 3.4). Assignments hold no
+   * documentation, so the caller leaves it off there.
+   */
   addComponent(
     component: NewComponentSpec,
     catalog: ComponentCatalog,
+    options: { readonly designate?: boolean } = {},
   ): StableId {
     assertPoint(component.position);
     if (!VALID_ROTATIONS.has(component.rotationDeg)) {
@@ -349,10 +360,66 @@ export class SchematicDocumentStore {
       position: pointCopy(component.position),
       parameters: { ...component.parameters },
     } as ComponentSpec;
+    const designator = options.designate
+      ? nextDesignator(
+          catalog.componentTypes.find(
+            (entry) => entry.typeId === created.typeId,
+          )?.designatorPrefix ?? "",
+          this.schematic.documentation.designators.map(
+            (entry) => entry.designator,
+          ),
+        )
+      : null;
     this.commit((draft) => {
       draft.components.push(created);
+      if (designator !== null) {
+        draft.documentation.designators.push({
+          componentId: id,
+          designator,
+        });
+      }
     });
     return id;
+  }
+
+  /** The component's stored designator, if it has one. */
+  designatorOf(id: StableId): string | undefined {
+    return this.schematic.documentation.designators.find(
+      (entry) => entry.componentId === id,
+    )?.designator;
+  }
+
+  /**
+   * Names a component. One history entry; refused, with the document unchanged, when the text
+   * is not a designator or another part has it. It is a documentation edit: nothing electrical
+   * changes.
+   */
+  setDesignator(id: StableId, text: string): void {
+    if (!this.schematic.components.some((item) => item.id === id)) {
+      throw new Error(`Component ${id} does not exist.`);
+    }
+    const problem = designatorProblem(
+      text,
+      this.schematic.documentation.designators
+        .filter((entry) => entry.componentId !== id)
+        .map((entry) => entry.designator),
+    );
+    if (problem !== null) {
+      throw new Error(DESIGNATOR_MESSAGES[problem]);
+    }
+    this.commit((draft) => {
+      const entry = draft.documentation.designators.find(
+        (item) => item.componentId === id,
+      );
+      if (entry) {
+        entry.designator = text;
+      } else {
+        draft.documentation.designators.push({
+          componentId: id,
+          designator: text,
+        });
+      }
+    });
   }
 
   removeComponent(id: StableId): void {
@@ -360,6 +427,11 @@ export class SchematicDocumentStore {
       const index = draft.components.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`Component ${id} does not exist.`);
       draft.components.splice(index, 1);
+      // The name goes with the part, in the same history entry.
+      const named = draft.documentation.designators.findIndex(
+        (entry) => entry.componentId === id,
+      );
+      if (named >= 0) draft.documentation.designators.splice(named, 1);
     });
   }
 
