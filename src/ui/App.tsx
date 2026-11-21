@@ -210,6 +210,9 @@ export function App({
       ? "DC rails are not available in an assignment. Leave assignment mode to edit DC rails."
       : null;
   assignmentOpenRef.current = railUnavailable !== null;
+  // Assignments hold no documentation (contract section 2.4): while one is open, parts are not
+  // named and the designator field is not offered.
+  const documentationAvailable = railUnavailable === null;
   const railNames = useMemo(
     () => new Map(document.schematic.rails.map((rail) => [rail.id, rail.name])),
     [document.schematic.rails],
@@ -230,6 +233,7 @@ export function App({
         command,
         state.catalog,
         restrictions,
+        documentationAvailable,
       );
       if (!verdict.allowed) {
         setEditError(verdict.reason);
@@ -489,6 +493,7 @@ export function App({
           command,
           state.catalog,
           restrictions,
+          documentationAvailable,
         );
         setEditError(verdict.allowed ? null : verdict.reason);
       } catch (error) {
@@ -668,6 +673,24 @@ export function App({
         value,
       ),
     );
+  };
+
+  /** Names a part; returns why it was refused, or null. */
+  const setDesignator = (
+    componentId: StableId,
+    text: string,
+  ): string | null => {
+    if (projectOperationLocked) return "A project operation is in progress.";
+    if (!documentationAvailable) {
+      return "Designators are not available in an assignment.";
+    }
+    try {
+      documentStore.setDesignator(componentId, text);
+      setEditError(null);
+      return null;
+    } catch (error) {
+      return error instanceof Error ? error.message : String(error);
+    }
   };
 
   const clearParameter = (componentId: StableId, parameterId: ParameterId) => {
@@ -865,6 +888,9 @@ export function App({
                 locked={restrictions?.locked.has(editing.componentId) ?? false}
                 onCommit={commitParameter}
                 onClear={clearParameter}
+                onSetDesignator={
+                  documentationAvailable ? setDesignator : undefined
+                }
                 onClose={() => closeEditor(true)}
               />
             )}
@@ -903,6 +929,7 @@ export function App({
             lockedComponents={restrictions?.locked}
             onCommit={commitParameter}
             onClear={clearParameter}
+            onSetDesignator={documentationAvailable ? setDesignator : undefined}
           />
           <RailPanel
             rails={document.schematic.rails}

@@ -62,3 +62,19 @@ tests. Every other live fixture was moved to v3 with empty documentation by
 - `SimulationController.syncDocument` sends nothing when only `documentation` changed
   (`hasSameElectricalPart`: version and the component, wire, junction, marker and rail lists by
   identity): the run, traces and operator positions stay. Any other change recompiles as before.
+
+## Designators (issue #191)
+
+- Placing a part stores its designator in the same history entry: the catalog's
+  `designatorPrefix` and the next number (the highest in use with exactly those letters plus
+  one). Deleting the part removes the entry in the same entry; undo and redo restore both.
+  While an assignment is open nothing is stored and the field is not offered.
+- `SchematicDocumentStore.setDesignator` is one history entry and refuses, leaving the document
+  unchanged, a text outside the grammar of contract section 3.3 or one another part has. The
+  Designator field of the double-click editor and of the Inspector call it; the Engine's
+  validation remains the authority.
+- A part without a stored designator keeps its automatic name, which skips every stored
+  designator, so no name is shown twice. `src/editor/designators.ts` mirrors the grammar and the
+  numbering for the immediate check.
+- Not in this change: the **Note** tool and the commands of the documentation panel (Assign
+  missing designators); both follow in their own changes under #191.

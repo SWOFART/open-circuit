@@ -144,3 +144,70 @@ describe("the component editor", () => {
     );
   });
 });
+
+describe("the designator field", () => {
+  const withDesignators = (types: readonly ComponentTypeId[]) => {
+    let next = 0x61;
+    const store = new SchematicDocumentStore(
+      blankSchematic,
+      () => `00000000-0000-4000-8000-0000000000${(next++).toString(16)}`,
+    );
+    types.forEach((typeId, index) =>
+      applyEditorCommand(
+        store,
+        {
+          kind: "placeComponent",
+          typeId,
+          position: { x: index * 8, y: 0 },
+          rotationDeg: 0,
+        },
+        catalog,
+        true,
+      ),
+    );
+    return store.getState();
+  };
+
+  it("is offered above the parameters with the stored designator in it", () => {
+    const document = withDesignators(["contactor"]);
+    const html = render(document, 0, { onSetDesignator: () => null });
+
+    expect(html).toContain("Q1 designator");
+    expect(html).toContain('value="Q1"');
+    expect(html.indexOf("Q1 designator")).toBeLessThan(html.indexOf("Q1 coil"));
+  });
+
+  it("is not offered while an assignment is open", () => {
+    const document = withDesignators(["contactor"]);
+
+    expect(render(document, 0)).not.toContain("designator");
+  });
+
+  it("is disabled while a project operation runs", () => {
+    const document = withDesignators(["resistor"]);
+    const html = render(document, 0, {
+      enabled: false,
+      onSetDesignator: () => null,
+    });
+
+    expect(html).toMatch(/<input[^>]*placeholder="R1"[^>]*disabled=""/);
+  });
+
+  it("is in the inspector for every part, and only when it is offered", () => {
+    const document = withDesignators(["resistor", "capacitor"]);
+    const inspect = (offered: boolean) =>
+      renderToStaticMarkup(
+        <Inspector
+          state={state}
+          schematic={document.schematic}
+          labels={document.labels}
+          onCommit={() => {}}
+          {...(offered ? { onSetDesignator: () => null } : {})}
+        />,
+      );
+
+    expect(inspect(true)).toContain("R1 designator");
+    expect(inspect(true)).toContain("C1 designator");
+    expect(inspect(false)).not.toContain("designator");
+  });
+});

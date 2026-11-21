@@ -464,3 +464,33 @@ describe("which edits of the Stage 10 devices are live", () => {
     },
   );
 });
+
+describe("naming a placed part", () => {
+  const place = (typeId: ComponentTypeId) =>
+    ({
+      kind: "placeComponent",
+      typeId,
+      position: { x: 40, y: 10 },
+      rotationDeg: 0,
+    }) as const;
+
+  it("stores the catalog letter and number with the part when designating", () => {
+    const store = createStore();
+
+    applyEditorCommand(store, place("breaker_three_pole"), catalog, true);
+
+    expect(store.getState().schematic.documentation.designators).toEqual([
+      { componentId: NEW_ID, designator: "Q1" },
+    ]);
+    store.undo();
+    expect(store.getState().schematic.documentation.designators).toEqual([]);
+  });
+
+  it("stores nothing without it, as in an assignment", () => {
+    const store = createStore();
+
+    applyEditorCommand(store, place("resistor"), catalog);
+
+    expect(store.getState().schematic.documentation.designators).toEqual([]);
+  });
+});
