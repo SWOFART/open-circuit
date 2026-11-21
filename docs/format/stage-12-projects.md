@@ -76,5 +76,20 @@ tests. Every other live fixture was moved to v3 with empty documentation by
 - A part without a stored designator keeps its automatic name, which skips every stored
   designator, so no name is shown twice. `src/editor/designators.ts` mirrors the grammar and the
   numbering for the immediate check.
-- Not in this change: the **Note** tool and the commands of the documentation panel (Assign
+- Not in this change: the **Note** tool (see below) and the commands of the documentation panel (Assign
   missing designators); both follow in their own changes under #191.
+
+## Notes (issue #191, second part)
+
+- The **Note** tool of the toolbar places a note at the clicked grid point (its top-left
+  corner) with the text "Note", selects it, and stays active until Escape. A note is
+  selected, moved by dragging, edited by a double press or Enter (a non-modal panel with one
+  text area: Enter adds a line, Ctrl+Enter or leaving the field stores, Escape restores, a
+  refused text stays with its reason) and deleted with Delete or the panel's button. Each is
+  one history entry (`addNote`, `moveNote`, `setNoteText`, `removeNote` of the document store).
+- A note is drawn on top of the circuit and is picked only where no electrical object is, so it
+  never shadows one. It takes no part in connectivity. `src/editor/noteRules.ts` mirrors the
+  text rules (1 to 500 characters, at most ten lines, no control character but the line break,
+  counted as the Engine counts) and the limit of 200 notes.
+- While an assignment is open the Note tool is disabled and note commands are refused.
+- Not in this change: the documentation panel's **Assign missing designators**.

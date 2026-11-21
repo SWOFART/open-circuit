@@ -5,6 +5,7 @@ import type { StableId } from "../generated/StableId";
 import { symbolFor, type LocalPoint, type SymbolRegistry } from "../symbols";
 import type { EditorGeometry } from "./connectivity";
 import { toWorld } from "./geometry";
+import { noteExtent } from "./noteRules";
 
 export interface ScenePoint {
   readonly x: number;
@@ -19,7 +20,7 @@ export interface Bounds {
 }
 
 export type SelectableKind =
-  "component" | "wire" | "junction" | "referenceMarker" | "rail";
+  "component" | "wire" | "junction" | "referenceMarker" | "rail" | "note";
 
 /** The schematic object a shape belongs to; selection and hit tests use it. */
 export interface SceneOwner {
@@ -54,6 +55,8 @@ export type SceneShape =
       readonly position: ScenePoint;
       /** Half the text's extent in grid units; the default is `LABEL_HALF_WIDTH`. */
       readonly halfWidth?: number;
+      /** Half the text's height in grid units; the default is `LABEL_HALF_HEIGHT`. */
+      readonly halfHeight?: number;
     };
 
 /** Everything the renderer draws, in logical grid units. No Pixi types. */
@@ -143,14 +146,15 @@ function shapePoints(shape: SceneShape): ScenePoint[] {
       ];
     case "label": {
       const halfWidth = shape.halfWidth ?? LABEL_HALF_WIDTH;
+      const halfHeight = shape.halfHeight ?? LABEL_HALF_HEIGHT;
       return [
         {
           x: shape.position.x - halfWidth,
-          y: shape.position.y - LABEL_HALF_HEIGHT,
+          y: shape.position.y - halfHeight,
         },
         {
           x: shape.position.x + halfWidth,
-          y: shape.position.y + LABEL_HALF_HEIGHT,
+          y: shape.position.y + halfHeight,
         },
       ];
     }
@@ -294,6 +298,23 @@ export function buildScene(
         options.geometry?.detachedMarkers.has(marker.id) ?? false,
       ),
     );
+  }
+
+  // A note is drawn last, on top. Its position is the top-left corner of its text; the label
+  // shape is centred, so it is put at the middle of the text's box.
+  for (const note of schematic.documentation.notes) {
+    const { width, height } = noteExtent(note.text);
+    shapes.push({
+      kind: "label",
+      owner: { kind: "note", id: note.id },
+      text: note.text,
+      position: {
+        x: note.position.x + width / 2,
+        y: note.position.y + height / 2,
+      },
+      halfWidth: width / 2,
+      halfHeight: height / 2,
+    });
   }
 
   return {

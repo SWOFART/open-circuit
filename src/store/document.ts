@@ -27,6 +27,7 @@ import {
   designatorProblem,
   nextDesignator,
 } from "../editor/designators";
+import { MAX_NOTES, NOTE_MESSAGES, noteProblem } from "../editor/noteRules";
 import { ComponentLabels } from "./labels";
 
 enablePatches();
@@ -172,6 +173,9 @@ function allIds(schematic: Schematic): StableId[] {
     ...schematic.junctions.map((item) => item.id),
     ...schematic.referenceMarkers.map((item) => item.id),
     ...schematic.rails.map((item) => item.id),
+    ...schematic.documentation.terminals.map((item) => item.id),
+    ...schematic.documentation.notes.map((item) => item.id),
+    ...schematic.documentation.sheets.map((item) => item.id),
   ];
 }
 
@@ -420,6 +424,61 @@ export class SchematicDocumentStore {
         });
       }
     });
+  }
+
+  /**
+   * Places a text note: documentation, not part of the circuit. One history entry; refused,
+   * with the document unchanged, for a text outside the rules of contract section 6 or when the
+   * document already holds the most notes.
+   */
+  addNote(position: GridPoint, text: string): StableId {
+    assertPoint(position);
+    this.assertNoteText(text);
+    if (this.schematic.documentation.notes.length >= MAX_NOTES) {
+      throw new Error(`A document holds at most ${MAX_NOTES} notes.`);
+    }
+    const id = this.nextId();
+    this.commit((draft) => {
+      draft.documentation.notes.push({
+        id,
+        position: pointCopy(position),
+        text,
+      });
+    });
+    return id;
+  }
+
+  moveNote(id: StableId, position: GridPoint): void {
+    assertPoint(position);
+    this.commit((draft) => {
+      const note = draft.documentation.notes.find((item) => item.id === id);
+      if (!note) throw new Error(`Note ${id} does not exist.`);
+      note.position = pointCopy(position);
+    });
+  }
+
+  setNoteText(id: StableId, text: string): void {
+    this.assertNoteText(text);
+    this.commit((draft) => {
+      const note = draft.documentation.notes.find((item) => item.id === id);
+      if (!note) throw new Error(`Note ${id} does not exist.`);
+      note.text = text;
+    });
+  }
+
+  removeNote(id: StableId): void {
+    this.commit((draft) => {
+      const index = draft.documentation.notes.findIndex(
+        (item) => item.id === id,
+      );
+      if (index < 0) throw new Error(`Note ${id} does not exist.`);
+      draft.documentation.notes.splice(index, 1);
+    });
+  }
+
+  private assertNoteText(text: string): void {
+    const problem = noteProblem(text);
+    if (problem !== null) throw new Error(NOTE_MESSAGES[problem]);
   }
 
   removeComponent(id: StableId): void {
