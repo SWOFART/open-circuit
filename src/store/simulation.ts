@@ -289,6 +289,22 @@ function isOperatorUpdate(update: QueuedUpdate): update is OperatorUpdate {
 }
 
 /**
+ * Whether two documents hold the same circuit: everything except `documentation`. Each part is
+ * compared by identity, because an edit replaces only the lists it changes; a copy that is equal
+ * but not shared is conservatively an electrical change.
+ */
+export function hasSameElectricalPart(a: Schematic, b: Schematic): boolean {
+  return (
+    a.schemaVersion === b.schemaVersion &&
+    a.components === b.components &&
+    a.wires === b.wires &&
+    a.junctions === b.junctions &&
+    a.referenceMarkers === b.referenceMarkers &&
+    a.rails === b.rails
+  );
+}
+
+/**
  * Owns the active run and the latest result. Plain TypeScript
  * with no React or Pixi: React subscribes through `subscribe`/`getState`.
  *
@@ -388,6 +404,15 @@ export class SimulationController {
     }
 
     const previous = this.syncedSchematic;
+
+    // A documentation edit changes no circuit (docs/contracts/stage-12-cabinet-documentation.md
+    // section 2.3): the Engine is sent nothing and the run, its traces and its operator
+    // positions stay. The document the run was built from stays the tracked one, so a result
+    // still in flight is not taken for a stale one.
+    if (previous !== null && hasSameElectricalPart(previous, schematic)) {
+      return this.compiling ?? Promise.resolve();
+    }
+
     this.syncedSchematic = schematic;
 
     if (!this.started || this.state.catalog === null) {
