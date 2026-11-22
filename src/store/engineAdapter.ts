@@ -1,6 +1,10 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import type { CompileRequest } from "../generated/CompileRequest";
 import type { CompileResult } from "../generated/CompileResult";
+import type { Diagnostic } from "../generated/Diagnostic";
+import type { GeometryEnvelope } from "../generated/GeometryEnvelope";
+import type { Schematic } from "../generated/Schematic";
+import type { WireNumberEntry } from "../generated/WireNumberEntry";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { SetOperatorStateRequest } from "../generated/SetOperatorStateRequest";
@@ -188,6 +192,23 @@ async function call<T>(
     throw new EngineUnavailableError(describeError(error));
   }
 }
+
+type DocumentationReply<T> = { Ok: T } | { Err: Diagnostic[] };
+
+export const tauriWireDocumentation = {
+  diagnostics(schematic: Schematic, geometry: GeometryEnvelope) {
+    return call<DocumentationReply<Diagnostic[]>>("documentation_diagnostics", {
+      schematic,
+      geometry,
+    });
+  },
+  number(schematic: Schematic, geometry: GeometryEnvelope) {
+    return call<DocumentationReply<WireNumberEntry[]>>("number_wires", {
+      schematic,
+      geometry,
+    });
+  },
+};
 
 /**
  * Production adapter: every call goes to the Rust engine through Tauri commands, and

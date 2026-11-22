@@ -75,6 +75,33 @@ fn get_component_catalog() -> ComponentCatalog {
     component_catalog()
 }
 
+#[tauri::command]
+async fn documentation_diagnostics(
+    schematic: Schematic,
+    geometry: open_circuit_engine::GeometryEnvelope,
+) -> Result<
+    Result<Vec<open_circuit_engine::Diagnostic>, Vec<open_circuit_engine::Diagnostic>>,
+    String,
+> {
+    run_blocking(move || {
+        Ok(open_circuit_engine::documentation_diagnostics(
+            &schematic, &geometry,
+        ))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn number_wires(
+    schematic: Schematic,
+    geometry: open_circuit_engine::GeometryEnvelope,
+) -> Result<
+    Result<Vec<open_circuit_engine::WireNumberEntry>, Vec<open_circuit_engine::Diagnostic>>,
+    String,
+> {
+    run_blocking(move || Ok(open_circuit_engine::number_wires(&schematic, &geometry))).await
+}
+
 /// Opens a native file picker and replaces the active path only after validation succeeds.
 #[tauri::command]
 async fn open_project(
@@ -430,6 +457,8 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_component_catalog,
+            documentation_diagnostics,
+            number_wires,
             open_project,
             save_project,
             save_project_as,

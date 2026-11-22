@@ -281,10 +281,16 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.duplicateDesignator": "Two components share the same designator.",
   "diagnostic.invalidWireNumber":
     "A wire number must be 1–16 ASCII letters, digits or + . _ - characters.",
+  "diagnostic.wireNumberOnDifferentNets":
+    "The same wire number appears on separate conductors.",
+  "diagnostic.netHasTwoWireNumbers":
+    "One conductor carries more than one wire number.",
+  "diagnostic.wireNumberOnUnconnectedWire":
+    "A numbered conductor does not connect to any component pin.",
   "diagnostic.invalidTerminal":
     "A terminal needs a strip name such as X1 and a label of 1–8 ASCII letters, digits or + . _ - characters.",
   "diagnostic.duplicateTerminal":
-    "Two terminals share the same strip and label.",
+    "Two terminals share a strip and label or the same point.",
   "diagnostic.invalidNote":
     "A note must be 1–500 characters on at most 10 lines, without control characters.",
   "diagnostic.invalidTitleBlock":

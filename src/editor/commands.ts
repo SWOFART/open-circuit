@@ -58,6 +58,8 @@ export type EditorCommand =
     }
   | { readonly kind: "deleteReferenceMarker"; readonly id: StableId }
   | { readonly kind: "addNote"; readonly position: GridPoint }
+  | { readonly kind: "addTerminal"; readonly position: GridPoint }
+  | { readonly kind: "deleteTerminal"; readonly id: StableId }
   | {
       readonly kind: "moveNote";
       readonly id: StableId;
@@ -194,7 +196,8 @@ export function commandForIntent(
           }
         : null;
     case "addNote":
-      return { kind: "addNote", position: intent.position };
+    case "addTerminal":
+      return { kind: intent.kind, position: intent.position };
     case "moveNote":
       return schematic.documentation.notes.some((note) => note.id === intent.id)
         ? { kind: "moveNote", id: intent.id, position: intent.position }
@@ -248,6 +251,10 @@ function deleteCommand(
     case "note":
       return exists(schematic.documentation.notes, target.id)
         ? { kind: "deleteNote", id: target.id }
+        : null;
+    case "terminal":
+      return exists(schematic.documentation.terminals, target.id)
+        ? { kind: "deleteTerminal", id: target.id }
         : null;
   }
 }

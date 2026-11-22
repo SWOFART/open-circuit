@@ -86,7 +86,8 @@ export type EditorTool =
   /** Draws a vertical DC rail: the first click fixes x and one y, the second the other y. */
   | { readonly kind: "rail" }
   /** Places a text note, a documentation object, at the clicked point. */
-  | { readonly kind: "note" };
+  | { readonly kind: "note" }
+  | { readonly kind: "terminal" };
 
 /** Why the last click of a drawing tool did nothing, until the pointer moves. */
 export type Rejection = "crossing" | "attachment";
@@ -170,6 +171,7 @@ export type InteractionIntent =
       readonly position: GridPoint;
     }
   | { readonly kind: "addNote"; readonly position: GridPoint }
+  | { readonly kind: "addTerminal"; readonly position: GridPoint }
   | {
       readonly kind: "moveNote";
       readonly id: StableId;
@@ -626,6 +628,14 @@ export class CanvasInteraction {
         return false;
       case "note":
         this.onIntent({ kind: "addNote", position: at });
+        return false;
+      case "terminal":
+        if (this.geometry.isAttachment(at)) {
+          this.setRejected(null);
+          this.onIntent({ kind: "addTerminal", position: at });
+        } else {
+          this.setRejected("attachment");
+        }
         return false;
       case "select":
         return this.selectPress(pointer, at);

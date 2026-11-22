@@ -43,7 +43,8 @@ pub use diagnostics::{Diagnostic, DiagnosticCode, DiagnosticReference, Diagnosti
 pub use documentation::{
     DESIGNATOR_FIRST_LETTERS, DesignatorEntry, MAX_DESIGNATORS, MAX_NOTES, MAX_SHEETS,
     MAX_TERMINALS, MAX_WIRE_NUMBERS, NoteSpec, ProjectDocumentation, SheetSize, SheetSpec,
-    TerminalSpec, TitleBlock, WireNumberEntry, is_valid_designator,
+    TerminalSpec, TitleBlock, WireNumberEntry, documentation_diagnostics, is_valid_designator,
+    number_wires,
 };
 pub use engine::Engine;
 pub use faults::{FaultKind, FaultSpec, SHORT_FAULT_RESISTANCE_OHMS, supported_fault_kinds};

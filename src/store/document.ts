@@ -16,6 +16,7 @@ import type { ReferenceMarkerSpec } from "../generated/ReferenceMarkerSpec";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import type { WireSpec } from "../generated/WireSpec";
+import type { WireNumberEntry } from "../generated/WireNumberEntry";
 import {
   MAX_RAILS,
   nextRailName,
@@ -28,6 +29,16 @@ import {
   nextDesignator,
 } from "../editor/designators";
 import { MAX_NOTES, NOTE_MESSAGES, noteProblem } from "../editor/noteRules";
+import {
+  MAX_TERMINALS,
+  pointAtWireOffset,
+  samePoint,
+  validTerminalName,
+  validWireNumber,
+  wireOffset,
+} from "../editor/terminalRules";
+import { resolvePinPositions } from "../editor/geometry";
+import { symbols } from "../symbols";
 import { ComponentLabels } from "./labels";
 
 enablePatches();
@@ -481,8 +492,134 @@ export class SchematicDocumentStore {
     if (problem !== null) throw new Error(NOTE_MESSAGES[problem]);
   }
 
-  removeComponent(id: StableId): void {
+  addTerminal(position: GridPoint, strip: string, label: string): StableId {
+    assertPoint(position);
+    if (this.schematic.documentation.terminals.length >= MAX_TERMINALS) {
+      throw new Error(`A document holds at most ${MAX_TERMINALS} terminals.`);
+    }
+    if (!this.terminalAttachment(this.schematic, position)) {
+      throw new Error("Place the terminal on a pin or a wire.");
+    }
+    if (
+      this.schematic.documentation.terminals.some((terminal) =>
+        samePoint(terminal.position, position),
+      )
+    ) {
+      throw new Error("This point already has a terminal.");
+    }
+    this.assertTerminalName(strip, label);
+    const id = this.nextId();
     this.commit((draft) => {
+      draft.documentation.terminals.push({
+        id,
+        strip,
+        label,
+        position: pointCopy(position),
+      });
+    });
+    return id;
+  }
+
+  setTerminalName(id: StableId, strip: string, label: string): void {
+    this.assertTerminalName(strip, label, id);
+    this.commit((draft) => {
+      const terminal = draft.documentation.terminals.find(
+        (entry) => entry.id === id,
+      );
+      if (!terminal) throw new Error("This terminal no longer exists.");
+      terminal.strip = strip;
+      terminal.label = label;
+    });
+  }
+
+  removeTerminal(id: StableId): void {
+    this.commit((draft) => {
+      draft.documentation.terminals = draft.documentation.terminals.filter(
+        (terminal) => terminal.id !== id,
+      );
+    });
+  }
+
+  private assertTerminalName(
+    strip: string,
+    label: string,
+    id?: StableId,
+  ): void {
+    if (!validTerminalName(strip, label)) {
+      throw new Error(
+        "Enter a strip such as X1 and a label of 1 to 8 letters, digits, or + . _ -.",
+      );
+    }
+    if (
+      this.schematic.documentation.terminals.some(
+        (entry) =>
+          entry.id !== id && entry.strip === strip && entry.label === label,
+      )
+    ) {
+      throw new Error("That strip and label are already in use.");
+    }
+  }
+
+  private terminalAttachment(schematic: Schematic, point: GridPoint) {
+    for (const component of schematic.components) {
+      if (!symbols[component.typeId]) continue;
+      const pin = resolvePinPositions(component, symbols).find((pin) =>
+        samePoint(pin.position, point),
+      );
+      if (pin)
+        return { kind: "pin" as const, id: component.id, pinId: pin.pinId };
+    }
+    for (const wire of schematic.wires) {
+      const offset = wireOffset(wire.points, point);
+      if (offset !== null)
+        return { kind: "wire" as const, id: wire.id, offset };
+    }
+    return null;
+  }
+
+  private commitTopology(recipe: (draft: Draft<Schematic>) => void): void {
+    this.commit((draft) => {
+      recipe(draft);
+      if (draft.documentation.terminals.length === 0) return;
+      const occupied = new Set<string>();
+      draft.documentation.terminals = draft.documentation.terminals.filter(
+        (terminal) => {
+          const attachment = this.terminalAttachment(
+            this.schematic,
+            terminal.position,
+          );
+          let position: GridPoint | undefined = terminal.position;
+          if (attachment?.kind === "pin") {
+            const component = draft.components.find(
+              (entry) => entry.id === attachment.id,
+            );
+            position =
+              component &&
+              resolvePinPositions(component, symbols).find(
+                (pin) => pin.pinId === attachment.pinId,
+              )?.position;
+          } else if (attachment?.kind === "wire") {
+            const wire = draft.wires.find(
+              (entry) => entry.id === attachment.id,
+            );
+            position =
+              wire && pointAtWireOffset(wire.points, attachment.offset);
+          }
+          if (!position) return false;
+          const key = `${position.x},${position.y}`;
+          if (occupied.has(key))
+            throw new Error("This move would put two terminals at one point.");
+          occupied.add(key);
+          if (!samePoint(position, terminal.position))
+            terminal.position = position;
+          return true;
+        },
+      );
+    });
+  }
+
+  removeComponent(id: StableId): void {
+    this.commitTopology((draft) => {
       const index = draft.components.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`Component ${id} does not exist.`);
       draft.components.splice(index, 1);
@@ -496,7 +633,7 @@ export class SchematicDocumentStore {
 
   moveComponent(id: StableId, position: GridPoint): void {
     assertPoint(position);
-    this.commit((draft) => {
+    this.commitTopology((draft) => {
       const component = draft.components.find((item) => item.id === id);
       if (!component) throw new Error(`Component ${id} does not exist.`);
       component.position = pointCopy(position);
@@ -512,7 +649,7 @@ export class SchematicDocumentStore {
         "A component rotation must be 0, 90, 180, or 270 degrees.",
       );
     }
-    this.commit((draft) => {
+    this.commitTopology((draft) => {
       const component = draft.components.find((item) => item.id === id);
       if (!component) throw new Error(`Component ${id} does not exist.`);
       component.rotationDeg = rotationDeg;
@@ -537,7 +674,7 @@ export class SchematicDocumentStore {
     }
     wires.forEach((wire) => assertWirePoints(wire.points));
 
-    this.commit((draft) => {
+    this.commitTopology((draft) => {
       const component = draft.components.find((item) => item.id === id);
       if (!component) throw new Error(`Component ${id} does not exist.`);
       component.position = pointCopy(position);
@@ -629,7 +766,7 @@ export class SchematicDocumentStore {
 
   editWire(id: StableId, points: readonly GridPoint[]): void {
     assertWirePoints(points);
-    this.commit((draft) => {
+    this.commitTopology((draft) => {
       const wire = draft.wires.find((item) => item.id === id);
       if (!wire) throw new Error(`Wire ${id} does not exist.`);
       wire.points = pointsCopy(points);
@@ -637,10 +774,58 @@ export class SchematicDocumentStore {
   }
 
   removeWire(id: StableId): void {
-    this.commit((draft) => {
+    this.commitTopology((draft) => {
       const index = draft.wires.findIndex((item) => item.id === id);
       if (index < 0) throw new Error(`Wire ${id} does not exist.`);
       draft.wires.splice(index, 1);
+      draft.documentation.wireNumbers = draft.documentation.wireNumbers.filter(
+        (entry) => entry.wireId !== id,
+      );
+    });
+  }
+
+  /** Set a drawn label, or clear it when the field is empty. */
+  setWireNumber(id: StableId, number: string): void {
+    if (number !== "" && !validWireNumber(number)) {
+      throw new Error(
+        "A wire number must contain 1 to 16 letters, digits, or + . _ -.",
+      );
+    }
+    this.commit((draft) => {
+      if (!draft.wires.some((wire) => wire.id === id)) {
+        throw new Error(`Wire ${id} does not exist.`);
+      }
+      const entries = draft.documentation.wireNumbers;
+      const index = entries.findIndex((entry) => entry.wireId === id);
+      if (index >= 0) {
+        if (number === "") entries.splice(index, 1);
+        else entries[index].number = number;
+      } else if (number !== "") {
+        if (entries.length >= 4096) {
+          throw new Error("A document holds at most 4096 wire numbers.");
+        }
+        entries.push({ wireId: id, number });
+      }
+    });
+  }
+
+  addWireNumbers(numbers: readonly WireNumberEntry[]): void {
+    this.commit((draft) => {
+      const entries = draft.documentation.wireNumbers;
+      if (entries.length + numbers.length > 4096) {
+        throw new Error("A document holds at most 4096 wire numbers.");
+      }
+      const unnumbered = new Set(draft.wires.map(({ id }) => id));
+      for (const entry of entries) unnumbered.delete(entry.wireId);
+      for (const entry of numbers) {
+        if (
+          !unnumbered.delete(entry.wireId) ||
+          !validWireNumber(entry.number)
+        ) {
+          throw new Error("The wire numbering no longer matches the drawing.");
+        }
+        entries.push({ ...entry });
+      }
     });
   }
 

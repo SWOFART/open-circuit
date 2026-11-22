@@ -15,9 +15,17 @@ Projects of version 1 and 2 are decoded by their frozen shapes (`LegacySchematic
 `documentation` field is malformed, not accepted. Opening a legacy file does not rewrite it;
 saving writes v3, which an older reader rejects.
 
-The Engine validates `documentation` with the document and otherwise ignores it: it changes no
-compile, run or result. Terminal attachment to a pin or wire is checked with the drawing in
-issue #192.
+The Engine validates `documentation` with the document and otherwise ignores it during circuit
+solving. Wire numbering and its warnings use derived conductor connectivity on demand.
+
+In the editor, the Terminal tool places a marker on a pin or wire. Select its label to edit the
+strip and terminal name. At a pin, the terminal follows that pin. On a wire, it follows its
+distance along the route, limited to the new end if the route becomes shorter. Moving or
+deleting the attachment and updating the terminal share one undo entry.
+
+Select a wire to edit its number, or use **Number the wires** to number fully unnumbered
+conductors. The same number is assigned to each wire on that conductor. Saved numbers on
+other conductors are kept. Undo reverses the whole numbering operation.
 
 ## Validation
 
