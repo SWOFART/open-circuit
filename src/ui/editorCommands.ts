@@ -55,6 +55,11 @@ const LIVE_PARAMETERS_OF_STAGE_10: Readonly<
   transformer_three_phase: [],
   three_phase_load_star: [],
   three_phase_load_delta: [],
+  // Stage 13: the rated residual current and the trip time are live; the rest is compile-only.
+  rcd_two_pole: ["ratedResidualCurrentAmps", "tripTimeAtRatedSeconds"],
+  rcd_four_pole: ["ratedResidualCurrentAmps", "tripTimeAtRatedSeconds"],
+  // The earth electrode is compile-only; the exposed part's inputs are live.
+  earth_electrode: [],
 };
 
 /**

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::pin_groups::{RCD_FOUR_POLES, RCD_TWO_POLES};
 use crate::supported_fault_kinds;
 
 /// Stable IDs are serialized exactly as specified by the Stage 1 contract.
@@ -39,6 +40,8 @@ pub enum ComponentTypeId {
     ThreePhaseLoadDelta,
     EarthElectrode,
     ExposedPart,
+    RcdTwoPole,
+    RcdFourPole,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -96,6 +99,8 @@ pub enum PinId {
     S3b,
     Pe,
     Ep,
+    L4,
+    T4,
 }
 
 impl PinId {
@@ -148,6 +153,8 @@ impl PinId {
             Self::S3b => "s3b",
             Self::Pe => "pe",
             Self::Ep => "ep",
+            Self::L4 => "l4",
+            Self::T4 => "t4",
         }
     }
 }
@@ -219,6 +226,9 @@ pub enum ParameterId {
     ReverseBeta,
     EarthResistanceOhms,
     TouchVoltageLimitVolts,
+    RatedResidualCurrentAmps,
+    TripTimeAtRatedSeconds,
+    ResidualSenseSeconds,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -1450,7 +1460,7 @@ pub fn component_catalog() -> ComponentCatalog {
 
 /// The Stage 13 devices (docs/contracts/stage-13-protection-and-safety.md sections 2 and 7):
 /// the earth electrode and the exposed part, each with one pin.
-fn stage13_protection_catalog() -> [ComponentCatalogEntry; 2] {
+fn stage13_protection_catalog() -> [ComponentCatalogEntry; 4] {
     let one_pin = |id| {
         vec![PinDefinition {
             id,
@@ -1516,7 +1526,100 @@ fn stage13_protection_catalog() -> [ComponentCatalogEntry; 2] {
             ],
             fault_kinds: vec![],
         },
+        rcd_entry(ComponentTypeId::RcdTwoPole, "rcdTwoPole", &RCD_TWO_POLES),
+        rcd_entry(ComponentTypeId::RcdFourPole, "rcdFourPole", &RCD_FOUR_POLES),
     ]
+}
+
+/// A residual-current device with `groups` as its poles (docs/contracts/
+/// stage-13-protection-and-safety.md section 4).
+fn rcd_entry(
+    type_id: ComponentTypeId,
+    name: &str,
+    groups: &[crate::pin_groups::PinGroup],
+) -> ComponentCatalogEntry {
+    let parameter = |id, unit, key: &str, default_value, min, max| ParameterDefinition {
+        id,
+        unit,
+        default_value,
+        domain: NumericDomain::StrictlyPositive,
+        description_key: format!("component.{name}.{key}"),
+        optional: false,
+        initial_condition: false,
+        minimum_value: Some(min),
+        maximum_value: Some(max),
+    };
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: CategoryId::Protection,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        // The owner's table puts residual-current devices with the direct protection (F).
+        designator_prefix: "F".to_owned(),
+        pins: groups
+            .iter()
+            .flat_map(|group| group.pins)
+            .map(|id| PinDefinition {
+                id,
+                role: PinRole::Unpolarized,
+            })
+            .collect(),
+        pin_groups: Some(
+            groups
+                .iter()
+                .map(|group| PinGroupDefinition {
+                    id: group.id.to_owned(),
+                    pins: group.pins,
+                })
+                .collect(),
+        ),
+        parameters: vec![
+            parameter(
+                ParameterId::RatedResidualCurrentAmps,
+                Unit::Amp,
+                "ratedResidualCurrent",
+                0.03,
+                0.003,
+                1.0,
+            ),
+            parameter(
+                ParameterId::TripTimeAtRatedSeconds,
+                Unit::Second,
+                "tripTimeAtRated",
+                0.1,
+                0.01,
+                2.0,
+            ),
+            parameter(
+                ParameterId::ResidualSenseSeconds,
+                Unit::Second,
+                "residualSense",
+                0.02,
+                0.001,
+                0.2,
+            ),
+            parameter(
+                ParameterId::ClosedContactResistanceOhms,
+                Unit::Ohm,
+                "closedContactResistance",
+                0.01,
+                0.0001,
+                10.0,
+            ),
+            ParameterDefinition {
+                id: ParameterId::InitialClosed,
+                unit: Unit::Dimensionless,
+                default_value: 0.0,
+                domain: NumericDomain::ZeroOrOne,
+                description_key: format!("component.{name}.initialClosed"),
+                optional: true,
+                initial_condition: true,
+                minimum_value: None,
+                maximum_value: None,
+            },
+        ],
+        fault_kinds: vec![],
+    }
 }
 
 fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 7] {

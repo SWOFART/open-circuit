@@ -6,7 +6,7 @@ use crate::{
     ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
     RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
     devices::{
-        BreakerState, DeviceResult, IntegrationMethod, OverloadState, coil_contact_state,
+        BreakerState, DeviceResult, IntegrationMethod, OverloadState, RcdState, coil_contact_state,
         component_diagnostic, detector_step,
     },
     netlist::derive_netlist_with_open,
@@ -115,6 +115,7 @@ pub(super) struct CircuitStates {
     pub(super) relays: HashMap<StableId, RelayState>,
     pub(super) breakers: HashMap<StableId, BreakerState>,
     pub(super) overloads: HashMap<StableId, OverloadState>,
+    pub(super) rcds: HashMap<StableId, RcdState>,
     pub(super) fuses: HashMap<StableId, FuseRuntimeState>,
     pub(super) motors: HashMap<StableId, MotorState>,
     pub(super) measurements: HashMap<StableId, MeasurementState>,
@@ -156,6 +157,12 @@ impl CircuitStates {
             last_transition_time_seconds: state.last_transition_time_seconds,
         }));
         states.extend(self.overloads.iter().map(|(id, state)| state.snapshot(id)));
+        states.extend(self.rcds.iter().map(|(id, state)| DeviceState::Switch {
+            component_id: id.clone(),
+            position: state.position,
+            conducting: state.conducting(),
+            last_transition_time_seconds: state.last_transition_time_seconds,
+        }));
         states.extend(
             self.fuses
                 .iter()
@@ -207,6 +214,47 @@ pub(super) fn circuit_states_from_results(
             let mut state = previous.overloads.get(id).copied().unwrap_or_default();
             state.peak_phase_amps = result.current_amps;
             Some((id.clone(), state))
+        })
+        .collect();
+    let rcds = schematic
+        .components
+        .iter()
+        .filter_map(|component| {
+            let (ComponentSpec::RcdTwoPole { id, .. } | ComponentSpec::RcdFourPole { id, .. }) =
+                component
+            else {
+                return None;
+            };
+            let result = by_component.get(id.as_str())?;
+            let DeviceState::Switch {
+                position,
+                last_transition_time_seconds,
+                ..
+            } = result.state.as_ref()?
+            else {
+                return None;
+            };
+            let tripped = result
+                .extra_values
+                .iter()
+                .any(|(key, value)| key.ends_with("/tripped") && *value == 1.0);
+            // The detector and the dose are state of the run, carried from the committed
+            // predecessor; the result only reports them.
+            let carried = previous
+                .rcds
+                .get(id)
+                .copied()
+                .unwrap_or(RcdState::new(false));
+            Some((
+                id.clone(),
+                RcdState {
+                    position: *position,
+                    tripped,
+                    residual_amps: result.current_amps,
+                    last_transition_time_seconds: *last_transition_time_seconds,
+                    ..carried
+                },
+            ))
         })
         .collect();
     let capacitors = schematic
@@ -392,6 +440,7 @@ pub(super) fn circuit_states_from_results(
         relays,
         breakers,
         overloads,
+        rcds,
         fuses,
         motors,
         measurements: HashMap::new(),
@@ -559,6 +608,43 @@ pub(super) fn advance_public_steps(
                     .find(|result| result.component_id == *id)
                     .expect("thermal overload result");
                 result.extra_values.last_mut().expect("thermal dose slot").1 = next.dose;
+            }
+            for component in &schematic.components {
+                let (ComponentSpec::RcdTwoPole { id, parameters, .. }
+                | ComponentSpec::RcdFourPole { id, parameters, .. }) = component
+                else {
+                    continue;
+                };
+                let (Some(start), Some(end)) = (
+                    interval_start_states.rcds.get(id),
+                    candidate.rcds.get_mut(id),
+                ) else {
+                    continue;
+                };
+                let Some(next) = end.advance(
+                    start.residual_amps,
+                    end.residual_amps,
+                    internal_step_seconds,
+                    step_end_time,
+                    parameters,
+                ) else {
+                    return Err(vec![component_diagnostic(
+                        DiagnosticCode::NonFiniteState,
+                        id,
+                    )]);
+                };
+                if next.tripped && !end.tripped {
+                    trips.push(id.clone());
+                }
+                *end = next;
+                let result = step_results
+                    .iter_mut()
+                    .find(|result| result.component_id == *id)
+                    .expect("rcd result");
+                let slots = result.extra_values.len();
+                result.extra_values[slots - 3].1 = f64::from(next.tripped);
+                result.extra_values[slots - 2].1 = next.detector.sqrt();
+                result.extra_values[slots - 1].1 = next.dose;
             }
             settle_discrete_events(
                 CircuitInput {
@@ -842,6 +928,10 @@ fn discrete_state_vector(states: &CircuitStates, pending_trips: &[StableId]) -> 
         let pending = pending_trips.contains(id);
         (id.as_str().to_owned(), u8::from(!pending && state.tripped))
     }));
+    vector.extend(states.rcds.iter().map(|(id, state)| {
+        let pending = pending_trips.contains(id);
+        (id.as_str().to_owned(), u8::from(!pending && state.tripped))
+    }));
     vector.sort_by(|left, right| left.0.cmp(&right.0));
     vector
 }
@@ -1047,6 +1137,8 @@ fn estimate_transient_rate_bound(
                             | ComponentSpec::ContactorThreePole { .. }
                             | ComponentSpec::BreakerThreePole { .. }
                             | ComponentSpec::ThermalOverloadThreePole { .. }
+                            | ComponentSpec::RcdTwoPole { .. }
+                            | ComponentSpec::RcdFourPole { .. }
                             | ComponentSpec::Diode { .. }
                             | ComponentSpec::BjtNpn { .. }
                             | ComponentSpec::BjtPnp { .. }
@@ -1196,6 +1288,22 @@ fn estimate_transient_rate_bound(
                     resistance, poles, ..
                 } => {
                     for pole in poles {
+                        let terminals = pole.terminals;
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / resistance,
+                        )?;
+                    }
+                }
+                DeviceModel::Rcd {
+                    resistance,
+                    poles,
+                    pole_count,
+                    ..
+                } => {
+                    for pole in &poles[..pole_count] {
                         let terminals = pole.terminals;
                         add_laplacian(
                             &mut conductance,

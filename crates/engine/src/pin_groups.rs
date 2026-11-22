@@ -121,3 +121,34 @@ pub(crate) const DELTA_LOAD_WINDINGS: [PinGroup; 3] = [
         pins: [PinId::L3, PinId::L1],
     },
 ];
+
+/// The poles of the residual-current devices (docs/contracts/stage-13-protection-and-safety.md
+/// section 4.1): the third and fourth pole of the four-pole device carry L3 and the neutral.
+pub(crate) const RCD_TWO_POLES: [PinGroup; 2] = [
+    PinGroup {
+        id: "pole1",
+        pins: [PinId::L1, PinId::T1],
+    },
+    PinGroup {
+        id: "pole2",
+        pins: [PinId::L2, PinId::T2],
+    },
+];
+pub(crate) const RCD_FOUR_POLES: [PinGroup; 4] = [
+    PinGroup {
+        id: "pole1",
+        pins: [PinId::L1, PinId::T1],
+    },
+    PinGroup {
+        id: "pole2",
+        pins: [PinId::L2, PinId::T2],
+    },
+    PinGroup {
+        id: "pole3",
+        pins: [PinId::L3, PinId::T3],
+    },
+    PinGroup {
+        id: "pole4",
+        pins: [PinId::L4, PinId::T4],
+    },
+];

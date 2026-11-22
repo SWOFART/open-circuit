@@ -62,7 +62,7 @@ pub use schematic::{
     AcAmmeterParameters, AcVoltageSourceParameters, AcVoltmeterParameters, AmmeterParameters,
     BjtParameters, ComponentGeometry, ComponentSpec, DcVoltageSourceParameters, DiodeParameters,
     EarthElectrodeParameters, ExposedPartParameters, FuseParameters, GeometryEnvelope, GridPoint,
-    InductorParameters, JunctionSpec, PmdcMotorParameters, PushButtonParameters,
+    InductorParameters, JunctionSpec, PmdcMotorParameters, PushButtonParameters, RcdParameters,
     ReferenceMarkerSpec, RelayParameters, ResistorParameters, ResolvedPinPosition, SCHEMA_VERSION,
     Schematic, SwitchParameters, ThreePhaseSourceDeltaParameters, ThreePhaseSourceStarParameters,
     VoltmeterParameters, WattmeterParameters, WireSpec,

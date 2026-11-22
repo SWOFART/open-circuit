@@ -177,6 +177,29 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                     .flat_map(group_slots),
             )
             .collect(),
+        ComponentTypeId::RcdTwoPole | ComponentTypeId::RcdFourPole => {
+            let groups: &[crate::pin_groups::PinGroup] = if type_id == ComponentTypeId::RcdTwoPole {
+                &crate::pin_groups::RCD_TWO_POLES
+            } else {
+                &crate::pin_groups::RCD_FOUR_POLES
+            };
+            groups
+                .iter()
+                .copied()
+                .flat_map(group_slots)
+                .chain([
+                    slot(Valid, Unit::Dimensionless, '/', "tripped", Flag),
+                    slot(RmsCurrent, Unit::Amp, '/', "residual_rms", Unsigned),
+                    slot(
+                        ResultQuantity::ThermalDose,
+                        Unit::Dimensionless,
+                        '/',
+                        "trip_dose",
+                        Unsigned,
+                    ),
+                ])
+                .collect()
+        }
         ComponentTypeId::BreakerThreePole => POWER_POLES
             .into_iter()
             .flat_map(group_slots)

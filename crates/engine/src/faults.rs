@@ -108,7 +108,9 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::BjtNpn
         | ComponentTypeId::BjtPnp
         | ComponentTypeId::EarthElectrode
-        | ComponentTypeId::ExposedPart => &[],
+        | ComponentTypeId::ExposedPart
+        | ComponentTypeId::RcdTwoPole
+        | ComponentTypeId::RcdFourPole => &[],
     }
 }
 

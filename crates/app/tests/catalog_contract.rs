@@ -107,6 +107,8 @@ fn parts_are_assigned_to_the_categories_of_the_stage_11_contract() {
         // Stage 13 (docs/contracts/stage-13-protection-and-safety.md sections 2 and 7).
         (EarthElectrode, CategoryId::Protection),
         (ExposedPart, CategoryId::Measurement),
+        (RcdTwoPole, CategoryId::Protection),
+        (RcdFourPole, CategoryId::Protection),
     ];
     let catalog = component_catalog();
     assert_eq!(catalog.component_types.len(), expected.len());

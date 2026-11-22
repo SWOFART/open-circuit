@@ -117,7 +117,7 @@ fn rejects_invalid_component_rotations_and_wire_paths() {
 #[test]
 fn catalog_is_authoritative_for_defaults_units_and_domains() {
     let catalog: ComponentCatalog = component_catalog();
-    assert_eq!(catalog.component_types.len(), 31);
+    assert_eq!(catalog.component_types.len(), 33);
 
     let resistor = catalog
         .component_types

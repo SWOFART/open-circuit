@@ -1629,6 +1629,158 @@
         }
       ],
       "faultKinds": []
+    },
+    {
+      "typeId": "rcd_two_pole",
+      "displayNameKey": "component.rcdTwoPole.name",
+      "category": "protection",
+      "searchKeywordKeys": ["component.rcdTwoPole.keywords"],
+      "designatorPrefix": "F",
+      "pins": [
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "t1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "t2", "role": "unpolarized" }
+      ],
+      "pinGroups": [
+        { "id": "pole1", "pins": ["l1", "t1"] },
+        { "id": "pole2", "pins": ["l2", "t2"] }
+      ],
+      "parameters": [
+        {
+          "id": "ratedResidualCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.03,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdTwoPole.ratedResidualCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.003,
+          "maximumValue": 1.0
+        },
+        {
+          "id": "tripTimeAtRatedSeconds",
+          "unit": "second",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdTwoPole.tripTimeAtRated",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 2.0
+        },
+        {
+          "id": "residualSenseSeconds",
+          "unit": "second",
+          "defaultValue": 0.02,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdTwoPole.residualSense",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 0.2
+        },
+        {
+          "id": "closedContactResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdTwoPole.closedContactResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "initialClosed",
+          "unit": "dimensionless",
+          "defaultValue": 0.0,
+          "domain": "zero_or_one",
+          "descriptionKey": "component.rcdTwoPole.initialClosed",
+          "optional": true,
+          "initialCondition": true
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "rcd_four_pole",
+      "displayNameKey": "component.rcdFourPole.name",
+      "category": "protection",
+      "searchKeywordKeys": ["component.rcdFourPole.keywords"],
+      "designatorPrefix": "F",
+      "pins": [
+        { "id": "l1", "role": "unpolarized" },
+        { "id": "t1", "role": "unpolarized" },
+        { "id": "l2", "role": "unpolarized" },
+        { "id": "t2", "role": "unpolarized" },
+        { "id": "l3", "role": "unpolarized" },
+        { "id": "t3", "role": "unpolarized" },
+        { "id": "l4", "role": "unpolarized" },
+        { "id": "t4", "role": "unpolarized" }
+      ],
+      "pinGroups": [
+        { "id": "pole1", "pins": ["l1", "t1"] },
+        { "id": "pole2", "pins": ["l2", "t2"] },
+        { "id": "pole3", "pins": ["l3", "t3"] },
+        { "id": "pole4", "pins": ["l4", "t4"] }
+      ],
+      "parameters": [
+        {
+          "id": "ratedResidualCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.03,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdFourPole.ratedResidualCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.003,
+          "maximumValue": 1.0
+        },
+        {
+          "id": "tripTimeAtRatedSeconds",
+          "unit": "second",
+          "defaultValue": 0.1,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdFourPole.tripTimeAtRated",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 2.0
+        },
+        {
+          "id": "residualSenseSeconds",
+          "unit": "second",
+          "defaultValue": 0.02,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdFourPole.residualSense",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 0.2
+        },
+        {
+          "id": "closedContactResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.rcdFourPole.closedContactResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "initialClosed",
+          "unit": "dimensionless",
+          "defaultValue": 0.0,
+          "domain": "zero_or_one",
+          "descriptionKey": "component.rcdFourPole.initialClosed",
+          "optional": true,
+          "initialCondition": true
+        }
+      ],
+      "faultKinds": []
     }
   ],
   "categories": [

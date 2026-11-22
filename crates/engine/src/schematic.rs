@@ -211,6 +211,23 @@ pub struct BreakerThreePoleParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "RcdParameters.ts")]
+pub struct RcdParameters {
+    pub rated_residual_current_amps: f64,
+    pub trip_time_at_rated_seconds: f64,
+    pub residual_sense_seconds: f64,
+    pub closed_contact_resistance_ohms: f64,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null_f64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub initial_closed: Option<f64>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "ThermalOverloadThreePoleParameters.ts")]
 pub struct ThermalOverloadThreePoleParameters {
     pub closed_contact_resistance_ohms: f64,
@@ -627,6 +644,20 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: ExposedPartParameters,
     },
+    RcdTwoPole {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: RcdParameters,
+    },
+    RcdFourPole {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: RcdParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -662,6 +693,8 @@ impl ComponentSpec {
             | Self::ThreePhaseLoadStar { id, .. }
             | Self::EarthElectrode { id, .. }
             | Self::ExposedPart { id, .. }
+            | Self::RcdTwoPole { id, .. }
+            | Self::RcdFourPole { id, .. }
             | Self::ThreePhaseLoadDelta { id, .. } => id,
         }
     }
@@ -698,6 +731,8 @@ impl ComponentSpec {
             | Self::ThreePhaseLoadStar { position, .. }
             | Self::EarthElectrode { position, .. }
             | Self::ExposedPart { position, .. }
+            | Self::RcdTwoPole { position, .. }
+            | Self::RcdFourPole { position, .. }
             | Self::ThreePhaseLoadDelta { position, .. } => *position,
         }
     }
@@ -734,6 +769,8 @@ impl ComponentSpec {
             | Self::ThreePhaseLoadStar { rotation_deg, .. }
             | Self::EarthElectrode { rotation_deg, .. }
             | Self::ExposedPart { rotation_deg, .. }
+            | Self::RcdTwoPole { rotation_deg, .. }
+            | Self::RcdFourPole { rotation_deg, .. }
             | Self::ThreePhaseLoadDelta { rotation_deg, .. } => *rotation_deg,
         }
     }
@@ -771,6 +808,8 @@ impl ComponentSpec {
             Self::ThreePhaseLoadDelta { .. } => ComponentTypeId::ThreePhaseLoadDelta,
             Self::EarthElectrode { .. } => ComponentTypeId::EarthElectrode,
             Self::ExposedPart { .. } => ComponentTypeId::ExposedPart,
+            Self::RcdTwoPole { .. } => ComponentTypeId::RcdTwoPole,
+            Self::RcdFourPole { .. } => ComponentTypeId::RcdFourPole,
         }
     }
 
@@ -902,6 +941,31 @@ impl ComponentSpec {
                 (ParameterId::CoolSeconds, parameters.cool_seconds),
                 (ParameterId::ResetDose, parameters.reset_dose),
             ],
+            Self::RcdTwoPole { parameters, .. } | Self::RcdFourPole { parameters, .. } => vec![
+                (
+                    ParameterId::RatedResidualCurrentAmps,
+                    parameters.rated_residual_current_amps,
+                ),
+                (
+                    ParameterId::TripTimeAtRatedSeconds,
+                    parameters.trip_time_at_rated_seconds,
+                ),
+                (
+                    ParameterId::ResidualSenseSeconds,
+                    parameters.residual_sense_seconds,
+                ),
+                (
+                    ParameterId::ClosedContactResistanceOhms,
+                    parameters.closed_contact_resistance_ohms,
+                ),
+            ]
+            .into_iter()
+            .chain(
+                parameters
+                    .initial_closed
+                    .map(|value| (ParameterId::InitialClosed, value)),
+            )
+            .collect(),
             Self::BreakerThreePole { parameters, .. } => vec![
                 (
                     ParameterId::ClosedContactResistanceOhms,
@@ -1270,6 +1334,8 @@ impl Schematic {
             | ComponentSpec::ThreePhaseLoadStar { rotation_deg, .. }
             | ComponentSpec::EarthElectrode { rotation_deg, .. }
             | ComponentSpec::ExposedPart { rotation_deg, .. }
+            | ComponentSpec::RcdTwoPole { rotation_deg, .. }
+            | ComponentSpec::RcdFourPole { rotation_deg, .. }
             | ComponentSpec::ThreePhaseLoadDelta { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {

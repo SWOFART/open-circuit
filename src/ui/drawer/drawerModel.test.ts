@@ -62,6 +62,8 @@ describe("the drawer list", () => {
       "breaker_three_pole",
       "thermal_overload_three_pole",
       "earth_electrode",
+      "rcd_two_pole",
+      "rcd_four_pole",
     ]);
     expect(
       buildDrawerView(catalog, DEFAULT_DRAWER_PREFERENCES, "", placeable)
