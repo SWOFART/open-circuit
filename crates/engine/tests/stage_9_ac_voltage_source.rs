@@ -159,7 +159,11 @@ fn ac_source_catalog_and_parameter_domains_match_the_contract() {
             .collect::<Vec<_>>(),
         ["pin1", "pin2"]
     );
-    assert!(entry.fault_kinds.is_empty());
+    // Only the insulation can fail (docs/contracts/stage-13-protection-and-safety.md 3.2).
+    assert_eq!(
+        entry.fault_kinds,
+        vec![open_circuit_engine::FaultKind::Leak]
+    );
     let parameter = |id| {
         entry
             .parameters

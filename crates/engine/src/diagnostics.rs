@@ -15,6 +15,8 @@ pub enum DiagnosticCode {
     RailLimitExceeded,
     UnsupportedAssignmentRails,
     UnsupportedAssignmentDocumentation,
+    NoEarthPath,
+    ExposedPartNotBonded,
     InvalidDesignator,
     DuplicateDesignator,
     InvalidWireNumber,
@@ -59,6 +61,8 @@ impl DiagnosticCode {
             Self::UnsupportedAssignmentDocumentation => {
                 "diagnostic.unsupportedAssignmentDocumentation"
             }
+            Self::NoEarthPath => "diagnostic.noEarthPath",
+            Self::ExposedPartNotBonded => "diagnostic.exposedPartNotBonded",
             Self::InvalidDesignator => "diagnostic.invalidDesignator",
             Self::DuplicateDesignator => "diagnostic.duplicateDesignator",
             Self::InvalidWireNumber => "diagnostic.invalidWireNumber",

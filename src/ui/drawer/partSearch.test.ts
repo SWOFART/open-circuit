@@ -53,6 +53,7 @@ describe("part search", () => {
       "fuse",
       "thermal_overload_three_pole",
       "breaker_three_pole",
+      "earth_electrode",
     ]);
   });
 

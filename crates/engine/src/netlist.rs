@@ -6,8 +6,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::{
-    Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity, GeometryEnvelope,
-    GridPoint, PinId, Schematic, StableId, component_catalog,
+    ComponentSpec, Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity,
+    GeometryEnvelope, GridPoint, PinId, Schematic, StableId, component_catalog,
 };
 
 /// A stable terminal identity within a schematic.
@@ -47,6 +47,10 @@ pub struct Netlist {
     pub nodes: Vec<NetNode>,
     pub islands: Vec<ElectricalIsland>,
     pub diagnostics: Vec<Diagnostic>,
+    /// The earth node (docs/contracts/stage-13-protection-and-safety.md section 2.1), present
+    /// when the drawing has an earth electrode: the one node every electrode reaches through its
+    /// resistance, joined to the ground markers' reference.
+    pub earth_node: Option<usize>,
 }
 
 /// Derive conductor nodes, electrical islands, and numerical references.
@@ -78,7 +82,9 @@ pub fn derive_netlist_with_open(
 
     let (segments, wire_segment_groups) = make_segments(schematic);
     let pins = make_pins(schematic, geometry);
-    let mut conductors = DisjointSet::new(segments.len() + pins.len());
+    // The last element stands for the earth node of Stage 13; it joins nothing unless the
+    // drawing has an earth electrode.
+    let mut conductors = DisjointSet::new(segments.len() + pins.len() + 1);
 
     // Every route is one continuous conductor, including a route that crosses itself.
     for segment_group in &wire_segment_groups {
@@ -168,7 +174,29 @@ pub fn derive_netlist_with_open(
         return Err(diagnostics);
     }
 
-    let (mut nodes, root_to_node) = make_nodes(&mut conductors, &segments, &pins, pin_offset);
+    // The earth node is the reference every ground marker already denotes, so it is joined to
+    // them; it exists only when there is an electrode to reach it through.
+    let earth_entity = segments.len() + pins.len();
+    let electrodes = schematic
+        .components
+        .iter()
+        .filter(|component| matches!(component, ComponentSpec::EarthElectrode { .. }))
+        .map(|component| component.id().clone())
+        .collect::<HashSet<_>>();
+    let has_earth = !electrodes.is_empty();
+    if has_earth {
+        for entity in &explicit_reference_entities {
+            conductors.union(earth_entity, *entity);
+        }
+    }
+    let (mut nodes, root_to_node) = make_nodes(
+        &mut conductors,
+        &segments,
+        &pins,
+        pin_offset,
+        has_earth.then_some(earth_entity),
+    );
+    let earth_node = has_earth.then(|| root_to_node[&conductors.find(earth_entity)]);
     let mut node_markers = HashMap::<usize, Vec<DiagnosticReference>>::new();
     for (entity, reference) in attached_markers {
         node_markers
@@ -194,6 +222,12 @@ pub fn derive_netlist_with_open(
             .filter(|pin| pin.reference.component_id == *component.id())
             .filter_map(|pin| pin_to_node.get(&pin.reference).copied())
             .collect::<Vec<_>>();
+        // An electrode reaches the earth node through its resistance: that joins the island.
+        if let Some(earth) = earth_node
+            && electrodes.contains(component.id())
+        {
+            component_pin_nodes.push(earth);
+        }
         component_pin_nodes.sort_unstable();
         component_pin_nodes.dedup();
         if let Some(first) = component_pin_nodes.first().copied() {
@@ -204,10 +238,11 @@ pub fn derive_netlist_with_open(
         }
     }
 
-    let explicit_reference_nodes = explicit_reference_entities
+    let mut explicit_reference_nodes = explicit_reference_entities
         .iter()
         .filter_map(|entity| root_to_node.get(&conductors.find(*entity)).copied())
         .collect::<BTreeSet<_>>();
+    explicit_reference_nodes.extend(earth_node);
 
     let mut grouped_islands = BTreeMap::<usize, Vec<usize>>::new();
     for node_index in 0..nodes.len() {
@@ -290,6 +325,43 @@ pub fn derive_netlist_with_open(
         });
     }
 
+    // Exposed parts need an earth to be read against and a bond to PE to be safe (docs/contracts/
+    // stage-13-protection-and-safety.md section 8). Both are advice, never errors.
+    for component in &schematic.components {
+        let ComponentSpec::ExposedPart { id, .. } = component else {
+            continue;
+        };
+        let Some(&node) = pin_to_node.get(&PinRef {
+            component_id: id.clone(),
+            pin_id: PinId::Ep,
+        }) else {
+            continue;
+        };
+        let references = vec![DiagnosticReference::Component {
+            component_id: id.clone(),
+        }];
+        let joined_to_earth = islands
+            .iter()
+            .find(|island| island.node_indices.contains(&node))
+            .is_some_and(|island| island.reference_kind == Some(ReferenceKind::ExplicitMarker));
+        if !joined_to_earth {
+            diagnostics.push(Diagnostic::warning(
+                DiagnosticCode::NoEarthPath,
+                references.clone(),
+            ));
+        }
+        if !nodes[node]
+            .pins
+            .iter()
+            .any(|pin| electrodes.contains(&pin.component_id))
+        {
+            diagnostics.push(Diagnostic::warning(
+                DiagnosticCode::ExposedPartNotBonded,
+                references,
+            ));
+        }
+    }
+
     islands.sort_by_key(|island| island.node_indices.first().copied().unwrap_or(usize::MAX));
     nodes.shrink_to_fit();
     sort_diagnostics(&mut diagnostics);
@@ -300,6 +372,7 @@ pub fn derive_netlist_with_open(
             nodes,
             islands,
             diagnostics,
+            earth_node,
         })
     }
 }
@@ -469,8 +542,12 @@ fn make_nodes(
     segments: &[Segment],
     pins: &[Pin],
     pin_offset: usize,
+    earth: Option<usize>,
 ) -> (Vec<NetNode>, HashMap<usize, usize>) {
     let mut grouped = BTreeMap::<usize, NodeBuilder>::new();
+    if let Some(earth) = earth {
+        grouped.entry(conductors.find(earth)).or_default();
+    }
     for (index, segment) in segments.iter().enumerate() {
         let builder = grouped.entry(conductors.find(index)).or_default();
         let (ids, id) = match &segment.owner {

@@ -400,6 +400,8 @@ fn every_catalog_part_has_a_valid_default_designator_prefix() {
         ("transformer_three_phase", "T"),
         ("voltmeter", "P"),
         ("ammeter", "P"),
+        ("earth_electrode", "X"),
+        ("exposed_part", "P"),
         ("ac_voltmeter", "P"),
         ("ac_ammeter", "P"),
         ("wattmeter", "P"),

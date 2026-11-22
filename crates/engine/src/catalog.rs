@@ -37,6 +37,8 @@ pub enum ComponentTypeId {
     TransformerThreePhase,
     ThreePhaseLoadStar,
     ThreePhaseLoadDelta,
+    EarthElectrode,
+    ExposedPart,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -92,6 +94,8 @@ pub enum PinId {
     S2b,
     S3a,
     S3b,
+    Pe,
+    Ep,
 }
 
 impl PinId {
@@ -142,6 +146,8 @@ impl PinId {
             Self::S2b => "s2b",
             Self::S3a => "s3a",
             Self::S3b => "s3b",
+            Self::Pe => "pe",
+            Self::Ep => "ep",
         }
     }
 }
@@ -211,6 +217,8 @@ pub enum ParameterId {
     EmissionCoefficient,
     ForwardBeta,
     ReverseBeta,
+    EarthResistanceOhms,
+    TouchVoltageLimitVolts,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -1422,6 +1430,12 @@ pub fn component_catalog() -> ComponentCatalog {
         categories: Vec::new(),
     };
     catalog.component_types.extend(stage10_equipment_catalog());
+    catalog.component_types.extend(stage13_protection_catalog());
+    // One source of truth for the fault kinds of every type (docs/contracts/
+    // stage-13-protection-and-safety.md section 3.2 adds `leak`).
+    for entry in &mut catalog.component_types {
+        entry.fault_kinds = supported_fault_kinds(entry.type_id).to_vec();
+    }
     catalog.categories = CategoryId::ALL
         .into_iter()
         .filter(|category| {
@@ -1432,6 +1446,77 @@ pub fn component_catalog() -> ComponentCatalog {
         })
         .collect();
     catalog
+}
+
+/// The Stage 13 devices (docs/contracts/stage-13-protection-and-safety.md sections 2 and 7):
+/// the earth electrode and the exposed part, each with one pin.
+fn stage13_protection_catalog() -> [ComponentCatalogEntry; 2] {
+    let one_pin = |id| {
+        vec![PinDefinition {
+            id,
+            role: PinRole::Unpolarized,
+        }]
+    };
+    let parameter = |id, unit, default_value, min, max, key: &str| ParameterDefinition {
+        id,
+        unit,
+        default_value,
+        domain: NumericDomain::StrictlyPositive,
+        description_key: key.to_owned(),
+        optional: false,
+        initial_condition: false,
+        minimum_value: Some(min),
+        maximum_value: Some(max),
+    };
+
+    [
+        ComponentCatalogEntry {
+            type_id: ComponentTypeId::EarthElectrode,
+            display_name_key: "component.earthElectrode.name".to_owned(),
+            category: CategoryId::Protection,
+            search_keyword_keys: vec!["component.earthElectrode.keywords".to_owned()],
+            designator_prefix: "X".to_owned(),
+            pins: one_pin(PinId::Pe),
+            pin_groups: None,
+            parameters: vec![parameter(
+                ParameterId::EarthResistanceOhms,
+                Unit::Ohm,
+                10.0,
+                0.001,
+                1_000_000.0,
+                "component.earthElectrode.earthResistance",
+            )],
+            fault_kinds: vec![],
+        },
+        ComponentCatalogEntry {
+            type_id: ComponentTypeId::ExposedPart,
+            display_name_key: "component.exposedPart.name".to_owned(),
+            category: CategoryId::Measurement,
+            search_keyword_keys: vec!["component.exposedPart.keywords".to_owned()],
+            designator_prefix: "P".to_owned(),
+            pins: one_pin(PinId::Ep),
+            pin_groups: None,
+            parameters: vec![
+                parameter(
+                    ParameterId::FrequencyHz,
+                    Unit::Hertz,
+                    50.0,
+                    1.0,
+                    400.0,
+                    "component.exposedPart.frequency",
+                ),
+                parameter(
+                    ParameterId::TouchVoltageLimitVolts,
+                    Unit::Volt,
+                    50.0,
+                    1.0,
+                    1000.0,
+                    "component.exposedPart.touchVoltageLimit",
+                ),
+            ],
+            fault_kinds: vec![],
+        },
+    ]
 }
 
 fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 7] {

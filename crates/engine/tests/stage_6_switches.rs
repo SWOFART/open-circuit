@@ -743,6 +743,8 @@ fn a_fault_on_a_contact_is_refused() {
             component_id: id(CONTACT),
             parameter_id: None,
             value: None,
+            pin_id: None,
+            frame_id: None,
         }]);
         let CompileResult::Failure { diagnostics } = Engine::default().compile(circuit) else {
             panic!("a {kind:?} fault on a switch should be refused");

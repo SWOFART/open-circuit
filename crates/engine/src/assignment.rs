@@ -1134,7 +1134,7 @@ fn check_faults_against_the_circuit(assignment: &Assignment) -> Result<(), Vec<A
         return Ok(());
     };
     let mut report = Report::default();
-    if let Err(diagnostics) = FaultOverlay::new(starting, faults) {
+    if let Err(diagnostics) = FaultOverlay::new(starting, None, faults) {
         for diagnostic in diagnostics {
             let at = diagnostic.references.iter().find_map(|reference| {
                 let DiagnosticReference::Component { component_id } = reference else {

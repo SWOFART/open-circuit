@@ -33,6 +33,8 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   transformer_three_phase: "T",
   three_phase_load_star: "Z",
   three_phase_load_delta: "Z",
+  earth_electrode: "PE",
+  exposed_part: "EP",
 };
 
 /**
