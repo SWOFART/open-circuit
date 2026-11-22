@@ -517,6 +517,11 @@ export class CanvasInteraction {
     this.fit();
   }
 
+  fitToBounds(bounds: SceneModel["bounds"]): void {
+    this.autoFit = false;
+    this.changeView(fitView(bounds, this.viewport));
+  }
+
   /** Selects `target` if it is drawn, or clears the selection with null. */
   select(target: SelectionTarget | null): void {
     const next =

@@ -54,3 +54,13 @@ export function saveDrawing(
 ): Promise<boolean> {
   return invokeProject<boolean>("export_drawing", { format, data });
 }
+
+export function saveSheetDrawings(
+  format: "svg" | "png",
+  pages: readonly unknown[],
+): Promise<string | null> {
+  return invokeProject<string | null>("export_sheet_drawings", {
+    format,
+    pages,
+  });
+}

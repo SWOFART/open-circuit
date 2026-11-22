@@ -393,6 +393,99 @@ fn sheets_overlap(a: &SheetSpec, b: &SheetSpec) -> bool {
     ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah
 }
 
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "SheetComponentBounds.ts")]
+pub struct SheetComponentBounds {
+    pub component_id: StableId,
+    pub min_x: f64,
+    pub min_y: f64,
+    pub max_x: f64,
+    pub max_y: f64,
+}
+
+fn sheet_at(sheets: &[SheetSpec], position: GridPoint) -> Option<&SheetSpec> {
+    sheets.iter().find(|sheet| {
+        let (width, height) = sheet.size.grid_units();
+        let x = i64::from(position.x) - i64::from(sheet.origin.x);
+        let y = i64::from(position.y) - i64::from(sheet.origin.y);
+        (0..width).contains(&x) && (0..height).contains(&y)
+    })
+}
+
+/// Sheet membership uses the saved origins; symbol extents come from Application's drawing.
+pub fn sheet_diagnostics(
+    schematic: &Schematic,
+    geometry: &[SheetComponentBounds],
+) -> Vec<Diagnostic> {
+    let sheets = &schematic.documentation.sheets;
+    if sheets.is_empty() {
+        return Vec::new();
+    }
+    let bounds: HashMap<_, _> = geometry
+        .iter()
+        .map(|entry| (&entry.component_id, entry))
+        .collect();
+    let mut warnings = Vec::new();
+    for component in &schematic.components {
+        let reference = DiagnosticReference::Component {
+            component_id: component.id().clone(),
+        };
+        let Some(sheet) = sheet_at(sheets, component.position()) else {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::ObjectOutsideSheets,
+                vec![reference],
+            ));
+            continue;
+        };
+        let Some(body) = bounds.get(component.id()) else {
+            continue;
+        };
+        let (width, height) = sheet.size.grid_units();
+        let (x, y) = (f64::from(sheet.origin.x), f64::from(sheet.origin.y));
+        if body.min_x < x + 2.0
+            || body.min_y < y + 2.0
+            || body.max_x > x + width as f64 - 2.0
+            || body.max_y > y + height as f64 - 2.0
+        {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::ObjectCrossesSheetEdge,
+                vec![
+                    reference,
+                    DiagnosticReference::Sheet {
+                        sheet_id: sheet.id.clone(),
+                    },
+                ],
+            ));
+        }
+    }
+    let notes = schematic.documentation.notes.iter().map(|note| {
+        (
+            note.position,
+            DiagnosticReference::Note {
+                note_id: note.id.clone(),
+            },
+        )
+    });
+    let terminals = schematic.documentation.terminals.iter().map(|terminal| {
+        (
+            terminal.position,
+            DiagnosticReference::Terminal {
+                terminal_id: terminal.id.clone(),
+            },
+        )
+    });
+    for (position, reference) in notes.chain(terminals) {
+        if sheet_at(sheets, position).is_none() {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::ObjectOutsideSheets,
+                vec![reference],
+            ));
+        }
+    }
+    warnings
+}
+
 /// Check wire labels against the same conductor connectivity used by the solver.
 pub fn documentation_diagnostics(
     schematic: &Schematic,

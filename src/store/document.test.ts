@@ -26,6 +26,36 @@ function createStore(): SchematicDocumentStore {
 }
 
 describe("SchematicDocumentStore", () => {
+  it("edits and reorders sheet inputs in undo history and reloads them in order", () => {
+    const store = createStore();
+    const first = store.saveSheet({
+      name: "Power",
+      origin: { x: 0, y: 0 },
+      size: "a4",
+    });
+    const second = store.saveSheet({
+      name: "Control",
+      origin: { x: 59, y: 0 },
+      size: "a3",
+    });
+    expect(() =>
+      store.saveSheet({ name: "Overlap", origin: { x: 58, y: 0 }, size: "a4" }),
+    ).toThrow("overlap");
+    const read = () => store.getState().schematic.documentation.sheets;
+    store.saveSheet({ ...read()[1], name: "Controls" }, second);
+    store.reorderSheet(second, -1);
+    expect(read().map(({ name }) => name)).toEqual(["Controls", "Power"]);
+    store.undo();
+    expect(read().map(({ id }) => id)).toEqual([first, second]);
+    store.redo();
+    store.removeSheet(first);
+    store.undo();
+    const reopened = new SchematicDocumentStore(
+      JSON.parse(JSON.stringify(store.getState().schematic)),
+    );
+    expect(reopened.getState().schematic.documentation.sheets).toEqual(read());
+  });
+
   it("follows a relocated pin and restores the terminal when its component deletion is undone", () => {
     const store = createStore();
     const read = () => store.getState().schematic;

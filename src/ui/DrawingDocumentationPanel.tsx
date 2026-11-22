@@ -4,6 +4,7 @@ import { analyzeGeometry } from "../editor/connectivity";
 import { drawingPng, drawingSvg } from "../editor/drawingExport";
 import {
   drawingPage,
+  sheetDrawingPage,
   type DrawingPage,
   type PageMark,
 } from "../editor/drawingPage";
@@ -12,28 +13,38 @@ import type { BillOfMaterials } from "../generated/BillOfMaterials";
 import type { MaterialParameter } from "../generated/MaterialParameter";
 import type { Schematic } from "../generated/Schematic";
 import type { SheetSize } from "../generated/SheetSize";
+import type { SheetSpec } from "../generated/SheetSpec";
+import type { StableId } from "../generated/StableId";
 import type { TitleBlock } from "../generated/TitleBlock";
 import type { SchematicDocumentStore } from "../store/document";
 import { loadBillOfMaterials } from "../store/engineAdapter";
 import { ComponentLabels } from "../store/labels";
-import { saveDrawing } from "../store/projectFiles";
+import { saveDrawing, saveSheetDrawings } from "../store/projectFiles";
 import { symbols } from "../symbols";
 import { message } from "./messages";
 import { unitSymbols } from "./units";
+import { SheetPanel } from "./SheetPanel";
 
-function buildDrawing(
+function buildDrawings(
   schematic: Schematic,
   size: "auto" | SheetSize,
-): DrawingPage {
+): DrawingPage[] {
   const scene = buildScene(schematic, symbols, {
     labels: new ComponentLabels().labelsFor(schematic),
     geometry: analyzeGeometry(schematic, symbols),
   });
-  return drawingPage(
-    scene,
-    schematic.documentation.titleBlock,
-    size === "auto" ? undefined : size,
-  );
+  const sheets = schematic.documentation.sheets;
+  if (sheets.length)
+    return sheets.map((sheet, index) =>
+      sheetDrawingPage(scene, schematic, sheet, index),
+    );
+  return [
+    drawingPage(
+      scene,
+      schematic.documentation.titleBlock,
+      size === "auto" ? undefined : size,
+    ),
+  ];
 }
 
 const TITLE_FIELDS = {
@@ -93,17 +104,25 @@ interface Props {
   readonly schematic: Schematic;
   readonly store: SchematicDocumentStore;
   readonly disabled: boolean;
+  readonly onFitSheet: (sheet: SheetSpec) => void;
 }
 
 export function DrawingDocumentationPanel({
   schematic,
   store,
   disabled,
+  onFitSheet,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [size, setSize] = useState<"auto" | SheetSize>("auto");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exportFolder, setExportFolder] = useState<string | null>(null);
+  const [selectedSheet, setSelectedSheet] = useState<StableId | null>(null);
+  const sheets = schematic.documentation.sheets;
+  const active =
+    sheets.find((sheet) => sheet.id === selectedSheet) ?? sheets[0];
+  const activeIndex = active ? sheets.indexOf(active) : 0;
   const [materials, setMaterials] = useState<{
     schematic: Schematic;
     data: BillOfMaterials;
@@ -113,12 +132,12 @@ export function DrawingDocumentationPanel({
   const preview = useMemo<{ svg: string } | { error: string } | null>(() => {
     if (!open) return null;
     try {
-      const page = buildDrawing(schematic, size);
+      const page = buildDrawings(schematic, size)[activeIndex];
       return { svg: drawingSvg(page) };
     } catch (failure) {
       return { error: String(failure) };
     }
-  }, [open, schematic, size]);
+  }, [activeIndex, open, schematic, size]);
   useEffect(() => {
     if (!open || !desktop) return;
     let current = true;
@@ -151,21 +170,30 @@ export function DrawingDocumentationPanel({
   async function exportDrawing(format: "svg" | "png" | "pdf") {
     if (disabled || pending) return;
     setError(null);
+    setExportFolder(null);
     setPending(true);
     try {
       // Use the saved drawing only, independent of active simulation and editor history.
       const current = store.getState().schematic;
-      const page = buildDrawing(current, size);
+      const pages = buildDrawings(current, size);
+      const savePages = async (
+        kind: "svg" | "png",
+        data: readonly unknown[],
+      ) => {
+        if (data.length === 1) await saveDrawing(kind, data[0]);
+        else setExportFolder(await saveSheetDrawings(kind, data));
+      };
       switch (format) {
         case "svg":
-          await saveDrawing(format, drawingSvg(page));
+          await savePages(format, pages.map(drawingSvg));
           break;
         case "png": {
-          const image = await drawingPng(page);
-          await saveDrawing(
-            format,
-            Array.from(new Uint8Array(await image.arrayBuffer())),
-          );
+          const images: number[][] = [];
+          for (const page of pages) {
+            const image = await drawingPng(page);
+            images.push(Array.from(new Uint8Array(await image.arrayBuffer())));
+          }
+          await savePages(format, images);
           break;
         }
         case "pdf": {
@@ -173,7 +201,7 @@ export function DrawingDocumentationPanel({
             materials?.schematic === current
               ? materials.data
               : await loadBillOfMaterials(current);
-          await saveDrawing(format, [page, ...materialsPages(data)]);
+          await saveDrawing(format, [...pages, ...materialsPages(data)]);
           break;
         }
       }
@@ -190,6 +218,18 @@ export function DrawingDocumentationPanel({
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
       <summary>{message("drawing.documentation")}</summary>
+      {open && (
+        <SheetPanel
+          schematic={schematic}
+          store={store}
+          selected={active}
+          disabled={disabled || pending}
+          onSelect={(sheet) => {
+            setSelectedSheet(sheet.id);
+            onFitSheet(sheet);
+          }}
+        />
+      )}
       <fieldset disabled={disabled}>
         <legend>{message("drawing.titleBlock")}</legend>
         {(Object.keys(TITLE_FIELDS) as (keyof TitleBlock)[]).map((field) => (
@@ -222,19 +262,21 @@ export function DrawingDocumentationPanel({
       </fieldset>
       <fieldset disabled={disabled || !desktop || pending}>
         <legend>{message("drawing.export")}</legend>
-        <label>
-          {message("drawing.pageSize")}
-          <select
-            value={size}
-            onChange={(event) =>
-              setSize(event.currentTarget.value as typeof size)
-            }
-          >
-            <option value="auto">{message("drawing.autoSize")}</option>
-            <option value="a4">A4</option>
-            <option value="a3">A3</option>
-          </select>
-        </label>
+        {sheets.length === 0 && (
+          <label>
+            {message("drawing.pageSize")}
+            <select
+              value={size}
+              onChange={(event) =>
+                setSize(event.currentTarget.value as typeof size)
+              }
+            >
+              <option value="auto">{message("drawing.autoSize")}</option>
+              <option value="a4">A4</option>
+              <option value="a3">A3</option>
+            </select>
+          </label>
+        )}
         {(["svg", "png", "pdf"] as const).map((format) => (
           <button
             key={format}
@@ -246,6 +288,11 @@ export function DrawingDocumentationPanel({
           </button>
         ))}
       </fieldset>
+      {exportFolder && (
+        <p role="status">
+          {message("drawing.exportFolder")} {exportFolder}
+        </p>
+      )}
       {preview &&
         ("svg" in preview ? (
           <img

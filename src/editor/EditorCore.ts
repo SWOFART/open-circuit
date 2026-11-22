@@ -6,6 +6,7 @@ import { Application, Container, Graphics, Text } from "pixi.js";
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { DeviceState } from "../generated/DeviceState";
 import type { Schematic } from "../generated/Schematic";
+import { sheetBounds } from "./sheetRules";
 import type { StableId } from "../generated/StableId";
 import { symbols, type SymbolRegistry } from "../symbols";
 import { bindCanvasInput, type CanvasInputBinding } from "./canvasInput";
@@ -319,6 +320,10 @@ export class EditorCore {
     this.interaction.fitToCircuit();
   }
 
+  fitToBounds(bounds: SceneModel["bounds"]): void {
+    this.interaction.fitToBounds(bounds);
+  }
+
   destroy(): void {
     this.destroyed = true;
     this.input?.dispose();
@@ -433,6 +438,19 @@ export class EditorCore {
     }
 
     this.content.addChild(this.drawGrid(width, height, view));
+
+    if (shown?.documentation.sheets.length) {
+      const frames = new Graphics();
+      for (const sheet of shown.documentation.sheets) {
+        const bounds = sheetBounds(sheet);
+        const first = toScreen({ x: bounds.minX, y: bounds.minY }, view);
+        const last = toScreen({ x: bounds.maxX, y: bounds.maxY }, view);
+        frames
+          .rect(first.x, first.y, last.x - first.x, last.y - first.y)
+          .stroke({ color: COLORS.preview, width: 1, alpha: 0.65 });
+      }
+      this.content.addChild(frames);
+    }
 
     if (scene) {
       for (const shape of scene.shapes) {

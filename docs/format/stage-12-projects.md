@@ -8,6 +8,16 @@ after the drawing. PNG uses 300 dpi, and SVG keeps text editable. The exported
 files reflect the static drawing, including its designators, terminals, wire
 numbers, and notes. Export leaves the project and its save location intact.
 
+Add sheets in Drawing documentation. Each sheet has a name, landscape size,
+and a top-left origin in grid units. Select a sheet to navigate to its frame.
+The sheet order controls the numbers printed in each title block. Changing
+sheet fields, order, or presence participates in undo and project saves.
+Wires that cross a sheet end at its printable border in the export.
+If drawing marks cover a sheet's title block, export names the affected sheet
+so the marks or the sheet can be moved before saving a copy.
+PDF combines the sheets and materials list. For a project with multiple
+sheets, PNG and SVG create numbered files together in a new folder.
+
 Contract: [`docs/contracts/stage-12-cabinet-documentation.md`](../contracts/stage-12-cabinet-documentation.md)
 sections 2 and 3. This file records what issue #189 implemented.
 

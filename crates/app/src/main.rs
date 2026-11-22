@@ -105,6 +105,33 @@ async fn number_wires(
 }
 
 #[tauri::command]
+async fn sheet_diagnostics(
+    schematic: Schematic,
+    geometry: Vec<open_circuit_engine::SheetComponentBounds>,
+) -> Result<Vec<open_circuit_engine::Diagnostic>, String> {
+    run_project_blocking(move || {
+        open_circuit_engine::validate_project_schematic(&schematic)
+            .map_err(|error| error.to_string())?;
+        if geometry.len() != schematic.components.len()
+            || geometry.iter().any(|entry| {
+                !entry.min_x.is_finite()
+                    || !entry.max_x.is_finite()
+                    || !entry.min_y.is_finite()
+                    || !entry.max_y.is_finite()
+                    || entry.min_x > entry.max_x
+                    || entry.min_y > entry.max_y
+            })
+        {
+            return Err("Invalid sheet geometry.".into());
+        }
+        Ok(open_circuit_engine::sheet_diagnostics(
+            &schematic, &geometry,
+        ))
+    })
+    .await
+}
+
+#[tauri::command]
 async fn bill_of_materials(
     schematic: Schematic,
 ) -> Result<open_circuit_engine::BillOfMaterials, String> {
@@ -150,34 +177,84 @@ async fn export_drawing(
         _ => return Err(format!("Use the .{extension} extension for this export.")),
     };
     run_project_blocking(move || {
-        let bytes = match extension {
-            "pdf" => drawing_pdf::encode(&data)?,
-            "svg" => data
-                .as_str()
-                .filter(|xml| xml.len() <= 16 * 1024 * 1024)
-                .ok_or("Invalid SVG export data.")?
-                .as_bytes()
-                .to_vec(),
-            _ => {
-                let bytes = data
-                    .as_array()
-                    .filter(|bytes| bytes.len() <= 20 * 1024 * 1024)
-                    .ok_or("Invalid PNG export data.")?;
-                bytes
-                    .iter()
-                    .map(|value| {
-                        value
-                            .as_u64()
-                            .and_then(|byte| u8::try_from(byte).ok())
-                            .ok_or("Invalid PNG byte.")
-                    })
-                    .collect::<Result<Vec<_>, _>>()?
-            }
-        };
+        let bytes = drawing_bytes(extension, &data)?;
         write_drawing_file(&path, &bytes, appended_extension)?;
         Ok(true)
     })
     .await
+}
+
+fn drawing_bytes(format: &str, data: &serde_json::Value) -> Result<Vec<u8>, String> {
+    match format {
+        "pdf" => drawing_pdf::encode(data),
+        "svg" => data
+            .as_str()
+            .filter(|xml| xml.len() <= 16 * 1024 * 1024)
+            .map(|xml| xml.as_bytes().to_vec())
+            .ok_or_else(|| "Invalid SVG export data.".into()),
+        "png" => {
+            let bytes = data
+                .as_array()
+                .filter(|bytes| bytes.len() <= 20 * 1024 * 1024)
+                .ok_or("Invalid PNG export data.")?;
+            bytes
+                .iter()
+                .map(|value| {
+                    value
+                        .as_u64()
+                        .and_then(|byte| u8::try_from(byte).ok())
+                        .ok_or_else(|| "Invalid PNG byte.".into())
+                })
+                .collect()
+        }
+        _ => Err("Unknown drawing export format.".into()),
+    }
+}
+
+#[tauri::command]
+async fn export_sheet_drawings(
+    app: tauri::AppHandle,
+    format: String,
+    pages: Vec<serde_json::Value>,
+) -> Result<Option<String>, String> {
+    if !matches!(format.as_str(), "svg" | "png") || !(2..=32).contains(&pages.len()) {
+        return Err("Invalid sheet export request.".into());
+    }
+    let Some(selected) = app
+        .dialog()
+        .file()
+        .set_title("Choose where to export all sheets")
+        .blocking_pick_folder()
+    else {
+        return Ok(None);
+    };
+    let parent = selected
+        .into_path()
+        .map_err(|_| "Expected a local export folder.")?;
+    run_project_blocking(move || export_sheet_set(&parent, &format, &pages).map(Some)).await
+}
+
+fn export_sheet_set(
+    parent: &std::path::Path,
+    format: &str,
+    pages: &[serde_json::Value],
+) -> Result<String, String> {
+    let directory = tempfile::Builder::new()
+        .prefix("Open Circuit Sheets-")
+        .tempdir_in(parent)
+        .map_err(|_| "Could not create a sheet export folder.")?;
+    for (index, page) in pages.iter().enumerate() {
+        let bytes = drawing_bytes(format, page)?;
+        let path = directory
+            .path()
+            .join(format!("Sheet-{:02}.{format}", index + 1));
+        write_drawing_file(&path, &bytes, true)?;
+    }
+    let path = directory.keep();
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(str::to_owned)
+        .ok_or_else(|| "Could not report the sheet export folder.".into())
 }
 
 fn write_drawing_file(
@@ -217,6 +294,22 @@ fn an_existing_export_requires_the_selected_filename() {
     assert_eq!(std::fs::read(&file).unwrap(), b"initial");
     write_drawing_file(&file, b"updated", false).unwrap();
     assert_eq!(std::fs::read(&file).unwrap(), b"updated");
+}
+
+#[cfg(test)]
+#[test]
+fn sheet_export_keeps_all_pages_or_discards_the_new_folder() {
+    use serde_json::json;
+    let directory = tempfile::tempdir().unwrap();
+    let parent = directory.path();
+    let existing = parent.join("existing.svg");
+    std::fs::write(&existing, "unchanged").unwrap();
+    assert!(export_sheet_set(parent, "svg", &[json!("<svg/>"), json!(null)]).is_err());
+    assert_eq!(std::fs::read_dir(parent).unwrap().count(), 1);
+    let folder = export_sheet_set(parent, "svg", &[json!("<svg/>"), json!("<svg/>")]).unwrap();
+    assert!(parent.join(&folder).join("Sheet-01.svg").exists());
+    assert!(parent.join(&folder).join("Sheet-02.svg").exists());
+    assert_eq!(std::fs::read_to_string(existing).unwrap(), "unchanged");
 }
 
 /// Opens a native file picker and replaces the active path only after validation succeeds.
@@ -577,7 +670,9 @@ fn main() {
             documentation_diagnostics,
             number_wires,
             bill_of_materials,
+            sheet_diagnostics,
             export_drawing,
+            export_sheet_drawings,
             open_project,
             save_project,
             save_project_as,

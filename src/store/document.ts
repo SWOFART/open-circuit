@@ -14,8 +14,10 @@ import type { ParameterDefinition } from "../generated/ParameterDefinition";
 import type { ParameterId } from "../generated/ParameterId";
 import type { ReferenceMarkerSpec } from "../generated/ReferenceMarkerSpec";
 import type { Schematic } from "../generated/Schematic";
+import type { SheetSpec } from "../generated/SheetSpec";
 import type { StableId } from "../generated/StableId";
 import type { TitleBlock } from "../generated/TitleBlock";
+import { sheetsOverlap } from "../editor/sheetRules";
 import type { WireSpec } from "../generated/WireSpec";
 import type { WireNumberEntry } from "../generated/WireNumberEntry";
 import {
@@ -807,6 +809,66 @@ export class SchematicDocumentStore {
         }
         entries.push({ wireId: id, number });
       }
+    });
+  }
+
+  saveSheet(value: Omit<SheetSpec, "id">, existingId?: StableId): StableId {
+    assertPoint(value.origin);
+    if (
+      !value.name.trim() ||
+      Array.from(value.name).length > 32 ||
+      /\p{Cc}/u.test(value.name)
+    ) {
+      throw new Error(
+        "Use a sheet name of 1 to 32 characters without control characters.",
+      );
+    }
+    if (value.size !== "a4" && value.size !== "a3")
+      throw new Error("Choose A4 or A3.");
+    const sheets = this.schematic.documentation.sheets;
+    if (existingId && !sheets.some((sheet) => sheet.id === existingId)) {
+      throw new Error("The sheet no longer exists.");
+    }
+    if (!existingId && sheets.length >= 32)
+      throw new Error("A project holds up to 32 sheets.");
+    const sheet = {
+      ...value,
+      origin: { ...value.origin },
+      id: existingId ?? this.nextId(),
+    };
+    if (
+      sheets.some(
+        (other) => other.id !== sheet.id && sheetsOverlap(sheet, other),
+      )
+    ) {
+      throw new Error("Sheets cannot overlap.");
+    }
+    this.commit((draft) => {
+      const index = draft.documentation.sheets.findIndex(
+        (other) => other.id === sheet.id,
+      );
+      if (index === -1) draft.documentation.sheets.push(sheet);
+      else draft.documentation.sheets[index] = sheet;
+    });
+    return sheet.id;
+  }
+
+  reorderSheet(id: StableId, offset: -1 | 1): void {
+    this.commit((draft) => {
+      const sheets = draft.documentation.sheets;
+      const index = sheets.findIndex((sheet) => sheet.id === id);
+      const target = index + offset;
+      if (index < 0 || target < 0 || target >= sheets.length) return;
+      [sheets[index], sheets[target]] = [sheets[target], sheets[index]];
+    });
+  }
+
+  removeSheet(id: StableId): void {
+    this.commit((draft) => {
+      const index = draft.documentation.sheets.findIndex(
+        (sheet) => sheet.id === id,
+      );
+      if (index >= 0) draft.documentation.sheets.splice(index, 1);
     });
   }
 

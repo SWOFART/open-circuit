@@ -1,4 +1,6 @@
 import type { SheetSize } from "../generated/SheetSize";
+import type { SheetSpec } from "../generated/SheetSpec";
+import type { Schematic } from "../generated/Schematic";
 import type { TitleBlock } from "../generated/TitleBlock";
 import {
   boundsOf,
@@ -6,6 +8,12 @@ import {
   type SceneModel,
   type ScenePoint,
 } from "./scene";
+import {
+  clipConductor,
+  containsPoint,
+  sheetBounds,
+  SHEET_INSET,
+} from "./sheetRules";
 
 export type PageMark =
   | { kind: "polyline"; points: readonly ScenePoint[] }
@@ -75,6 +83,7 @@ function titleBlockMarks(
   title: TitleBlock,
   right: number,
   bottom: number,
+  sheetNumber = "1 of 1",
 ): PageMark[] {
   const left = right - BLOCK_WIDTH_MM;
   const top = bottom - BLOCK_HEIGHT_MM;
@@ -97,7 +106,7 @@ function titleBlockMarks(
   addText(title.author, center, top + 20, 52);
   addText(title.company, center, top + 28, 52);
   addText(title.date, left + 60, top + 36, 32);
-  addText("1 of 1", left + 150, top + 36, 16);
+  addText(sheetNumber, left + 150, top + 36, 16);
   return marks;
 }
 
@@ -156,9 +165,11 @@ export function drawingPage(
   ) {
     throw new Error("The drawing does not fit the chosen page size.");
   }
+  const xGap = Math.min(2, (right - left - (maxX - minX) * GRID_MM) / 2);
+  const yGap = Math.min(2, (bottom - top - (maxY - minY) * GRID_MM) / 2);
   const mm = ({ x, y }: ScenePoint): ScenePoint => ({
-    x: left + (x - minX) * GRID_MM,
-    y: top + (y - minY) * GRID_MM,
+    x: left + xGap + (x - minX) * GRID_MM,
+    y: top + yGap + (y - minY) * GRID_MM,
   });
   if (
     intersectsBlock(scene, mm, right - BLOCK_WIDTH_MM, bottom - BLOCK_HEIGHT_MM)
@@ -168,6 +179,90 @@ export function drawingPage(
       "The drawing overlaps the title block. Choose a larger page or add sheets.",
     );
   }
+  return formattedPage(scene, title, size, mm);
+}
+
+export function sheetDrawingPage(
+  scene: SceneModel,
+  schematic: Schematic,
+  sheet: SheetSpec,
+  index: number,
+): DrawingPage {
+  const frame = sheetBounds(sheet);
+  const printable = sheetBounds(sheet, SHEET_INSET);
+  const { width, height, frameWidth, frameHeight } = pageDimensions[sheet.size];
+  const left = (width - frameWidth) / 2;
+  const top = (height - frameHeight) / 2;
+  const mm = ({ x, y }: ScenePoint): ScenePoint => ({
+    x: left + (x - frame.minX) * GRID_MM,
+    y: top + (y - frame.minY) * GRID_MM,
+  });
+  const origins = new Map(
+    [
+      ...schematic.components,
+      ...schematic.junctions,
+      ...schematic.referenceMarkers,
+      ...schematic.documentation.notes,
+      ...schematic.documentation.terminals,
+    ].map(({ id, position }) => [id, position]),
+  );
+
+  const shapes = scene.shapes.flatMap((shape): SceneModel["shapes"] => {
+    if (shape.owner.kind === "wire" || shape.owner.kind === "rail") {
+      if (shape.kind === "polyline") {
+        return shape.points.slice(1).flatMap((end, i) => {
+          const points = clipConductor(shape.points[i], end, printable);
+          return points.length ? [{ ...shape, points }] : [];
+        });
+      }
+      const point = shape.kind === "label" ? shape.position : shape.center;
+      return containsPoint(printable, point) ? [shape] : [];
+    }
+    const origin = origins.get(shape.owner.id);
+    return origin && containsPoint(frame, origin) ? [shape] : [];
+  });
+  const forSheet: SceneModel = {
+    bounds: printable,
+    shapes,
+    connectionDots: scene.connectionDots.filter((point) =>
+      containsPoint(printable, point),
+    ),
+  };
+  const right = width - left - INSET_MM;
+  const bottom = height - top - INSET_MM;
+  if (
+    intersectsBlock(
+      forSheet,
+      mm,
+      right - BLOCK_WIDTH_MM,
+      bottom - BLOCK_HEIGHT_MM,
+    )
+  ) {
+    throw new Error(
+      `Drawing marks overlap the title block on sheet ${index + 1} (${sheet.name}). Move the marks or reposition the sheet before exporting.`,
+    );
+  }
+  return formattedPage(
+    forSheet,
+    schematic.documentation.titleBlock,
+    sheet.size,
+    mm,
+    `${index + 1} of ${schematic.documentation.sheets.length}`,
+  );
+}
+
+function formattedPage(
+  scene: SceneModel,
+  title: TitleBlock,
+  size: SheetSize,
+  mm: (point: ScenePoint) => ScenePoint,
+  sheetNumber?: string,
+): DrawingPage {
+  const { width, height, frameWidth, frameHeight } = pageDimensions[size];
+  const left = (width - frameWidth) / 2 + INSET_MM;
+  const top = (height - frameHeight) / 2 + INSET_MM;
+  const right = width - left;
+  const bottom = height - top;
   const marks: PageMark[] = [rectangle(left, top, right, bottom)];
   for (const shape of scene.shapes) {
     if (shape.kind === "polyline") {
@@ -198,6 +293,6 @@ export function drawingPage(
   for (const dot of scene.connectionDots) {
     marks.push({ kind: "circle", center: mm(dot), radius: 0.6, filled: true });
   }
-  marks.push(...titleBlockMarks(title, right, bottom));
+  marks.push(...titleBlockMarks(title, right, bottom, sheetNumber));
   return { size, marks };
 }

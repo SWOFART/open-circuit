@@ -12,6 +12,32 @@ const R2: &str = "00000000-0000-4000-8000-000000000003";
 const WIRE: &str = "00000000-0000-4000-8000-000000000004";
 
 #[test]
+fn sheet_diagnostics_follow_saved_origins_and_printable_geometry() {
+    let value = with_documentation(json!({
+        "sheets": [{"id":id(1),"name":"Power","size":"a4","origin":{"x":2,"y":-10}}]
+    }));
+    let schematic = decode(&value).unwrap();
+    let warnings = open_circuit_engine::sheet_diagnostics(
+        &schematic,
+        &[open_circuit_engine::SheetComponentBounds {
+            component_id: open_circuit_engine::StableId::parse(R1).unwrap(),
+            min_x: 3.0,
+            min_y: -1.0,
+            max_x: 5.0,
+            max_y: 1.0,
+        }],
+    );
+    let codes: Vec<_> = warnings.iter().map(|warning| warning.code).collect();
+    assert_eq!(
+        codes,
+        [
+            DiagnosticCode::ObjectOutsideSheets,
+            DiagnosticCode::ObjectCrossesSheetEdge
+        ]
+    );
+}
+
+#[test]
 fn materials_group_identical_values_and_sort_designators() {
     let value = with_documentation(json!({
         "designators": [{"componentId": R1, "designator": "R10"}, {"componentId": R2, "designator": "R2"}],

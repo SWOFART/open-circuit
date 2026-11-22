@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { TitleBlock } from "../generated/TitleBlock";
 import { drawingSvg } from "./drawingExport";
-import { drawingPage, fittingPageSize, pageDimensions } from "./drawingPage";
+import {
+  drawingPage,
+  fittingPageSize,
+  pageDimensions,
+  sheetDrawingPage,
+} from "./drawingPage";
+import { dividerSchematic } from "../store/fixtures";
 import type { SceneModel } from "./scene";
 
 const title: TitleBlock = {
@@ -30,13 +36,87 @@ const scene: SceneModel = {
 };
 
 describe("drawing pages", () => {
+  it("clips a crossing conductor to each printable frame and numbers sheets in order", () => {
+    const first = {
+      id: "first",
+      name: "Power",
+      origin: { x: 0, y: 0 },
+      size: "a4",
+    } as const;
+    const second = {
+      id: "second",
+      name: "Control",
+      origin: { x: 59, y: 0 },
+      size: "a3",
+    } as const;
+    const schematic = {
+      ...dividerSchematic,
+      documentation: {
+        ...dividerSchematic.documentation,
+        sheets: [first, second],
+      },
+    };
+    const crossing: SceneModel = {
+      bounds: { minX: 4, minY: 15, maxX: 80, maxY: 15 },
+      shapes: [
+        {
+          kind: "polyline",
+          role: "wire",
+          owner: { kind: "wire", id: "wire" },
+          points: [
+            { x: 4, y: 15 },
+            { x: 80, y: 15 },
+          ],
+        },
+      ],
+      connectionDots: [],
+    };
+    const a4 = drawingSvg(sheetDrawingPage(crossing, schematic, first, 0));
+    const a3 = drawingSvg(sheetDrawingPage(crossing, schematic, second, 1));
+    expect(a4).toContain('points="21,75 286,75"');
+    expect(a3).toContain('points="10,76 105,76"');
+    expect(a4).toContain(">1 of 2</text>");
+    expect(a3).toContain(">2 of 2</text>");
+  });
+
+  it("identifies the explicit sheet when a wire enters its title block", () => {
+    const sheet = {
+      id: "power",
+      name: "Power",
+      origin: { x: 0, y: 0 },
+      size: "a4",
+    } as const;
+    const schematic = {
+      ...dividerSchematic,
+      documentation: { ...dividerSchematic.documentation, sheets: [sheet] },
+    };
+    const crossing: SceneModel = {
+      bounds: { minX: 4, minY: 35, maxX: 40, maxY: 35 },
+      shapes: [
+        {
+          kind: "polyline",
+          role: "wire",
+          owner: { kind: "wire", id: "wire" },
+          points: [
+            { x: 4, y: 35 },
+            { x: 40, y: 35 },
+          ],
+        },
+      ],
+      connectionDots: [],
+    };
+    expect(() => sheetDrawingPage(crossing, schematic, sheet, 0)).toThrow(
+      "title block on sheet 1 (Power)",
+    );
+  });
+
   it("uses millimetres and real escaped SVG text deterministically", () => {
     const page = drawingPage(scene, title);
     expect(page.marks).toContainEqual({
       kind: "polyline",
       points: [
-        { x: 11, y: 20 },
-        { x: 61, y: 20 },
+        { x: 13, y: 22 },
+        { x: 63, y: 22 },
       ],
     });
     const svg = drawingSvg(page);
@@ -45,7 +125,7 @@ describe("drawing pages", () => {
     expect(svg).toContain('font-family="sans-serif"');
     expect(svg).toContain("Über &amp; Щит &lt;A&gt;</text>");
     expect(svg).toContain(">1 of 1</text>");
-    expect(svg).toContain('cx="36" cy="20" r="0.6" fill="black"');
+    expect(svg).toContain('cx="38" cy="22" r="0.6" fill="black"');
   });
 
   it("picks A3 for larger drawings and refuses a drawing outside both sizes", () => {
