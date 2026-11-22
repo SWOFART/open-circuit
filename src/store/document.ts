@@ -15,6 +15,7 @@ import type { ParameterId } from "../generated/ParameterId";
 import type { ReferenceMarkerSpec } from "../generated/ReferenceMarkerSpec";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
+import type { TitleBlock } from "../generated/TitleBlock";
 import type { WireSpec } from "../generated/WireSpec";
 import type { WireNumberEntry } from "../generated/WireNumberEntry";
 import {
@@ -806,6 +807,25 @@ export class SchematicDocumentStore {
         }
         entries.push({ wireId: id, number });
       }
+    });
+  }
+
+  setTitleBlockField(field: keyof TitleBlock, value: string): void {
+    const limits: Record<keyof TitleBlock, number> = {
+      title: 100,
+      drawingNumber: 32,
+      revision: 16,
+      author: 64,
+      company: 64,
+      date: 32,
+    };
+    if (Array.from(value).length > limits[field] || /\p{Cc}/u.test(value)) {
+      throw new Error(
+        "The title block field is too long or contains a control character.",
+      );
+    }
+    this.commit((draft) => {
+      draft.documentation.titleBlock[field] = value;
     });
   }
 

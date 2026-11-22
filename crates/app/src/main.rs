@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod drawing_pdf;
+
 use std::sync::Arc;
 
 use open_circuit_app_lib::assignment::{
@@ -100,6 +102,121 @@ async fn number_wires(
     String,
 > {
     run_blocking(move || Ok(open_circuit_engine::number_wires(&schematic, &geometry))).await
+}
+
+#[tauri::command]
+async fn bill_of_materials(
+    schematic: Schematic,
+) -> Result<open_circuit_engine::BillOfMaterials, String> {
+    run_project_blocking(move || {
+        open_circuit_engine::validate_project_schematic(&schematic)
+            .map_err(|error| error.to_string())?;
+        Ok(open_circuit_engine::bill_of_materials(&schematic))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn export_drawing(
+    app: tauri::AppHandle,
+    format: String,
+    data: serde_json::Value,
+) -> Result<bool, String> {
+    let (extension, label) = match format.as_str() {
+        "svg" => ("svg", "SVG drawing"),
+        "png" => ("png", "PNG drawing"),
+        "pdf" => ("pdf", "PDF drawing"),
+        _ => return Err("Unknown drawing export format.".into()),
+    };
+    let Some(selected) = app
+        .dialog()
+        .file()
+        .set_title(label)
+        .set_file_name(format!("Drawing.{extension}"))
+        .add_filter(label, &[extension])
+        .blocking_save_file()
+    else {
+        return Ok(false);
+    };
+    let mut path = selected
+        .into_path()
+        .map_err(|_| "Expected a local export file.")?;
+    let appended_extension = match path.extension().and_then(|suffix| suffix.to_str()) {
+        None => {
+            path.set_extension(extension);
+            true
+        }
+        Some(suffix) if suffix.eq_ignore_ascii_case(extension) => false,
+        _ => return Err(format!("Use the .{extension} extension for this export.")),
+    };
+    run_project_blocking(move || {
+        let bytes = match extension {
+            "pdf" => drawing_pdf::encode(&data)?,
+            "svg" => data
+                .as_str()
+                .filter(|xml| xml.len() <= 16 * 1024 * 1024)
+                .ok_or("Invalid SVG export data.")?
+                .as_bytes()
+                .to_vec(),
+            _ => {
+                let bytes = data
+                    .as_array()
+                    .filter(|bytes| bytes.len() <= 20 * 1024 * 1024)
+                    .ok_or("Invalid PNG export data.")?;
+                bytes
+                    .iter()
+                    .map(|value| {
+                        value
+                            .as_u64()
+                            .and_then(|byte| u8::try_from(byte).ok())
+                            .ok_or("Invalid PNG byte.")
+                    })
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+        };
+        write_drawing_file(&path, &bytes, appended_extension)?;
+        Ok(true)
+    })
+    .await
+}
+
+fn write_drawing_file(
+    path: &std::path::Path,
+    bytes: &[u8],
+    appended_extension: bool,
+) -> Result<(), String> {
+    use std::io::Write as _;
+    let parent = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| std::path::Path::new("."));
+    let mut temporary = tempfile::NamedTempFile::new_in(parent)
+        .map_err(|_| "Could not prepare the drawing export.")?;
+    temporary
+        .write_all(bytes)
+        .and_then(|()| temporary.as_file().sync_all())
+        .map_err(|_| "Could not write the drawing export.")?;
+    if appended_extension {
+        temporary.persist_noclobber(path)
+            .map_err(|_| "Could not save the drawing. Choose the full filename to replace an existing export.")?;
+    } else {
+        temporary
+            .persist(path)
+            .map_err(|_| "Could not replace the drawing export.")?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[test]
+fn an_existing_export_requires_the_selected_filename() {
+    let directory = tempfile::tempdir().unwrap();
+    let file = directory.path().join("Circuit.pdf");
+    write_drawing_file(&file, b"initial", true).unwrap();
+    assert!(write_drawing_file(&file, b"refused", true).is_err());
+    assert_eq!(std::fs::read(&file).unwrap(), b"initial");
+    write_drawing_file(&file, b"updated", false).unwrap();
+    assert_eq!(std::fs::read(&file).unwrap(), b"updated");
 }
 
 /// Opens a native file picker and replaces the active path only after validation succeeds.
@@ -459,6 +576,8 @@ fn main() {
             get_component_catalog,
             documentation_diagnostics,
             number_wires,
+            bill_of_materials,
+            export_drawing,
             open_project,
             save_project,
             save_project_as,

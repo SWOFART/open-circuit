@@ -813,7 +813,7 @@ impl ComponentSpec {
         }
     }
 
-    fn parameter_values(&self) -> Vec<(ParameterId, f64)> {
+    pub(crate) fn parameter_values(&self) -> Vec<(ParameterId, f64)> {
         match self {
             Self::ContactorThreePole { parameters, .. } => vec![
                 (

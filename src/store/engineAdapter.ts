@@ -1,4 +1,5 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
+import type { BillOfMaterials } from "../generated/BillOfMaterials";
 import type { CompileRequest } from "../generated/CompileRequest";
 import type { CompileResult } from "../generated/CompileResult";
 import type { Diagnostic } from "../generated/Diagnostic";
@@ -209,6 +210,12 @@ export const tauriWireDocumentation = {
     });
   },
 };
+
+export function loadBillOfMaterials(
+  schematic: Schematic,
+): Promise<BillOfMaterials> {
+  return call<BillOfMaterials>("bill_of_materials", { schematic });
+}
 
 /**
  * Production adapter: every call goes to the Rust engine through Tauri commands, and

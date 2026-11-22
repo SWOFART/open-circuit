@@ -161,7 +161,7 @@ An object is on the sheet whose frame contains its origin (a component's positio
 
 ### 7.4 No sheets defined
 
-With no sheet, export and the bill of materials treat the whole drawing as one sheet: A4 if the drawing's bounds fit its printable area (55 by 38 grid units), otherwise A3 (80 by 55), otherwise export is refused with a message that says the drawing needs sheets.
+With no sheet, export and the bill of materials treat the whole drawing as one sheet. Automatic sizing first tries A4 (55 by 38 printable grid units), then A3 (80 by 55). A size is usable when the drawing's bounds fit the printable area and no drawing mark intersects the bottom-right title block. The drawing keeps its original orientation and the 5 mm per grid unit scale. An explicitly chosen size must pass the same checks. If neither size can hold the drawing, export is refused with a message that says the drawing needs sheets.
 
 ## 8. Bill of materials
 
@@ -207,6 +207,8 @@ Off-sheet connectors and cross-references; contact mirrors under a coil; termina
 5. **The PDF writer and the PDF font**: a new Rust dependency or a small own writer, and an embedded font with a licence that allows it (sections 9.2 and 9.3).
 6. **The interface language and the symbol standard.** The pictures follow DIN EN 60617 and IEC 61346. The proposal is to keep the symbols as IEC 60617 drawings (as the existing ones) and to leave the interface in English until the owner decides the language; designator letters do not depend on the language, and every visible text of this stage is a message key.
 7. **Recorded answers (2026-11-20).** The owner confirmed the English interface for now and A4 as the usual sheet, and started the stage with the letters of section 3.2 (`R` for resistors, written in English).
+8. **PDF export decision (2026-11-22).** The owner approved a small Rust PDF writer and embedded [DejaVu Sans 2.37](https://dejavu-fonts.github.io/). The distribution license is included with the font; the writer adds no Rust dependency.
+9. **Automatic page sizing decision (2026-11-22).** The owner approved reserving the title-block area while keeping the fixed scale, with A3 fallback and a request to add sheets when needed (§7.4).
 
 ## 12. Verification
 

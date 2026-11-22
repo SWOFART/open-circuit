@@ -1,5 +1,13 @@
 # Stage 12 project format (schema version 3)
 
+The desktop application's Drawing documentation panel edits the title block, shows
+the derived bill of materials, and exports a drawing at A4 or A3 landscape.
+Automatic sizing tries A4 first and keeps the drawing clear of the title block.
+Drawings that need more room require sheets. PDF adds the parts and terminal-strip list
+after the drawing. PNG uses 300 dpi, and SVG keeps text editable. The exported
+files reflect the static drawing, including its designators, terminals, wire
+numbers, and notes. Export leaves the project and its save location intact.
+
 Contract: [`docs/contracts/stage-12-cabinet-documentation.md`](../contracts/stage-12-cabinet-documentation.md)
 sections 2 and 3. This file records what issue #189 implemented.
 

@@ -15,6 +15,7 @@ import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import { EditorCore } from "../editor/EditorCore";
 import { WireDocumentationPanel } from "./WireDocumentationPanel";
+import { DrawingDocumentationPanel } from "./DrawingDocumentationPanel";
 import type { EditorStatus, OperateAction } from "../editor/interaction";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
@@ -1018,6 +1019,13 @@ export function App({
         </section>
 
         <aside className="side">
+          {documentationAvailable && (
+            <DrawingDocumentationPanel
+              schematic={document.schematic}
+              store={documentStore}
+              disabled={projectOperationLocked}
+            />
+          )}
           {documentationAvailable && (
             <WireDocumentationPanel
               schematic={document.schematic}

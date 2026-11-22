@@ -3,6 +3,23 @@ import type { DraftEvaluation } from "./units";
 
 // User-facing prose lives in the UI. The Engine sends only stable keys.
 const messages: Readonly<Record<string, string>> = {
+  "drawing.documentation": "Drawing documentation",
+  "drawing.titleBlock": "Title block",
+  "drawing.title": "Title",
+  "drawing.number": "Drawing number",
+  "drawing.revision": "Revision",
+  "drawing.author": "Author",
+  "drawing.company": "Company",
+  "drawing.date": "Date",
+  "drawing.useToday": "Use today's date",
+  "drawing.export": "Export drawing",
+  "drawing.pageSize": "Page size",
+  "drawing.autoSize": "Automatic",
+  "drawing.preview": "Drawing and title block preview",
+  "drawing.materials": "Bill of materials",
+  "drawing.emptyMaterials": "The drawing has no components.",
+  "drawing.terminalStrips": "Terminal strips",
+  "drawing.unset": "Unset",
   "component.resistor.keywords": "resistance ohm load",
   "component.dcVoltageSource.keywords":
     "battery supply power source direct current dc",
