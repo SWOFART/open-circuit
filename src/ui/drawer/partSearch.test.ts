@@ -52,6 +52,8 @@ describe("part search", () => {
     expect(find("protection")).toEqual([
       "fuse",
       "thermal_overload_three_pole",
+      "rcd_two_pole",
+      "rcd_four_pole",
       "breaker_three_pole",
       "earth_electrode",
     ]);

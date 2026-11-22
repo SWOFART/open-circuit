@@ -273,6 +273,169 @@ impl super::Device for BreakerDevice {
     }
 }
 
+/// The state of a residual-current device (docs/contracts/stage-13-protection-and-safety.md
+/// section 4.2): the operator position and latch like the breaker's, plus the mean-square
+/// detector and the trip dose of the residual current.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct RcdState {
+    pub(crate) position: SwitchPosition,
+    pub(crate) tripped: bool,
+    /// The detector's mean-square residual current, in A^2.
+    pub(crate) detector: f64,
+    pub(crate) dose: f64,
+    /// The instantaneous residual current (the sum of the pole currents) of the last solve.
+    pub(crate) residual_amps: f64,
+    pub(crate) last_transition_time_seconds: Option<f64>,
+}
+
+impl RcdState {
+    pub(crate) fn new(initially_closed: bool) -> Self {
+        Self {
+            position: if initially_closed {
+                SwitchPosition::Closed
+            } else {
+                SwitchPosition::Open
+            },
+            tripped: false,
+            detector: 0.0,
+            dose: 0.0,
+            residual_amps: 0.0,
+            last_transition_time_seconds: None,
+        }
+    }
+
+    pub(crate) fn conducting(self) -> bool {
+        self.position == SwitchPosition::Closed && !self.tripped
+    }
+
+    /// An explicit open clears the latch, the dose and the detector; a close is refused while
+    /// latched. The RCD never trips in the reply of a close: its detector and dose start from
+    /// rest.
+    pub(crate) fn actuated(
+        mut self,
+        position: OperatorPosition,
+        time_seconds: f64,
+    ) -> Option<Self> {
+        let was_conducting = self.conducting();
+        match position {
+            OperatorPosition::Open => {
+                self.position = SwitchPosition::Open;
+                self.tripped = false;
+                self.detector = 0.0;
+                self.dose = 0.0;
+            }
+            OperatorPosition::Closed if !self.tripped => self.position = SwitchPosition::Closed,
+            _ => return None,
+        }
+        if was_conducting != self.conducting() {
+            self.last_transition_time_seconds = Some(time_seconds);
+        }
+        Some(self)
+    }
+
+    /// One internal step: the detector takes the held mean square of the residual current, and
+    /// the dose grows by `(I / In)^2 / T` per second while the detector RMS `I` is at least the
+    /// rated residual current `In`, and is cleared while it is below. At a dose of 1 the device
+    /// latches.
+    pub(crate) fn advance(
+        mut self,
+        start_amps: f64,
+        end_amps: f64,
+        step_seconds: f64,
+        end_time_seconds: f64,
+        parameters: &crate::schematic::RcdParameters,
+    ) -> Option<Self> {
+        self.detector = detector_step(
+            self.detector,
+            start_amps,
+            end_amps,
+            step_seconds,
+            parameters.residual_sense_seconds,
+        )?;
+        let ratio = self.detector.sqrt() / parameters.rated_residual_current_amps;
+        if !ratio.is_finite() {
+            return None;
+        }
+        self.dose = if self.tripped {
+            1.0
+        } else if ratio >= 1.0 {
+            (self.dose + step_seconds * ratio * ratio / parameters.trip_time_at_rated_seconds)
+                .min(1.0)
+        } else {
+            0.0
+        };
+        if self.dose >= 1.0 && self.conducting() {
+            self.tripped = true;
+            self.last_transition_time_seconds = Some(end_time_seconds);
+        }
+        Some(self)
+    }
+}
+
+pub(crate) struct RcdDevice {
+    pub(crate) id: crate::StableId,
+    /// Two or four poles; only the first `pole_count` are real.
+    pub(crate) poles: [super::LinkedPole; 4],
+    pub(crate) pole_count: usize,
+    pub(crate) resistance: f64,
+    pub(crate) state: RcdState,
+}
+
+impl super::Device for RcdDevice {
+    fn stamp(
+        &self,
+        system: &mut crate::mna::MnaSystem,
+        variables: &crate::mna::NodeVariables,
+    ) -> Result<(), crate::Diagnostic> {
+        super::LinkedContacts {
+            poles: &self.poles[..self.pole_count],
+            active: self.state.conducting(),
+        }
+        .stamp(&self.id, self.resistance, system, variables)
+    }
+
+    fn result(
+        &self,
+        node_voltages: &[f64],
+        _solution_values: &[f64],
+    ) -> Result<super::DeviceResult, crate::Diagnostic> {
+        let mut extra_values = Vec::with_capacity(11);
+        let conducting = self.state.conducting();
+        super::LinkedContacts {
+            poles: &self.poles[..self.pole_count],
+            active: conducting,
+        }
+        .append_results(&self.id, self.resistance, node_voltages, &mut extra_values)?;
+        // Current enters the first pin of each pole; the residual is the sum over the poles.
+        let residual_amps: f64 = extra_values
+            .iter()
+            .filter(|(key, _)| key.ends_with("/current"))
+            .map(|(_, value)| *value)
+            .sum();
+        extra_values.push((
+            format!("{}/tripped", self.id.as_str()),
+            f64::from(self.state.tripped),
+        ));
+        extra_values.push((
+            format!("{}/residual_rms", self.id.as_str()),
+            self.state.detector.sqrt(),
+        ));
+        extra_values.push((format!("{}/trip_dose", self.id.as_str()), self.state.dose));
+        Ok(super::DeviceResult {
+            component_id: self.id.clone(),
+            voltage_volts: 0.0,
+            current_amps: residual_amps,
+            extra_values,
+            state: Some(crate::DeviceState::Switch {
+                component_id: self.id.clone(),
+                position: self.state.position,
+                conducting,
+                last_transition_time_seconds: self.state.last_transition_time_seconds,
+            }),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

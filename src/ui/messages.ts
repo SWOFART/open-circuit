@@ -122,6 +122,21 @@ const messages: Readonly<Record<string, string>> = {
   "component.transformerThreePhase.secondaryLeakage":
     "Secondary leakage inductance",
   "component.transformerThreePhase.magnetizing": "Magnetizing inductance",
+  "component.rcdTwoPole.name": "Residual-current device, 2 poles",
+  "component.rcdTwoPole.keywords": "RCD RCCB GFCI FI fault current protection",
+  "component.rcdTwoPole.ratedResidualCurrent": "Rated residual current",
+  "component.rcdTwoPole.tripTimeAtRated": "Trip time at rated current",
+  "component.rcdTwoPole.residualSense": "Residual detector time constant",
+  "component.rcdTwoPole.closedContactResistance": "Closed contact resistance",
+  "component.rcdTwoPole.initialClosed": "Initially closed",
+  "component.rcdFourPole.name": "Residual-current device, 4 poles",
+  "component.rcdFourPole.keywords":
+    "RCD RCCB FI fault current protection three phase",
+  "component.rcdFourPole.ratedResidualCurrent": "Rated residual current",
+  "component.rcdFourPole.tripTimeAtRated": "Trip time at rated current",
+  "component.rcdFourPole.residualSense": "Residual detector time constant",
+  "component.rcdFourPole.closedContactResistance": "Closed contact resistance",
+  "component.rcdFourPole.initialClosed": "Initially closed",
   "component.earthElectrode.name": "Earth electrode",
   "component.earthElectrode.keywords":
     "ground earthing protective earth PE rod",

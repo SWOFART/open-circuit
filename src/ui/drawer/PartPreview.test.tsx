@@ -135,7 +135,12 @@ describe("the placeholder for a part without a symbol", () => {
       .map((entry) => entry.typeId);
 
     // The Stage 13 earth devices get their symbols with issue #204.
-    expect(withoutSymbol).toEqual(["earth_electrode", "exposed_part"]);
+    expect(withoutSymbol).toEqual([
+      "earth_electrode",
+      "exposed_part",
+      "rcd_two_pole",
+      "rcd_four_pole",
+    ]);
   });
 });
 

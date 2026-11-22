@@ -23,7 +23,7 @@ use crate::{
         ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
         InductionMotorDevice, InductorDevice, InductorMode, LinkedContacts, LinkedPole,
         MotorInterval, MotorParameters, OverloadDevice, OverloadState, PmdcMotorDevice,
-        PmdcMotorMode, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
+        PmdcMotorMode, RcdDevice, RcdState, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
         ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic, motor_history,
     },
     faults::FaultOverlay,
@@ -69,6 +69,8 @@ struct CompiledRun {
     step_start_states: CircuitStates,
     /// The latest explicit breaker setting per device at the newest public step.
     breaker_overrides: HashMap<StableId, BreakerState>,
+    /// The latest explicit residual-current-device setting per device at the newest step.
+    rcd_overrides: HashMap<StableId, RcdState>,
     internal_substeps: u32,
     trace_history: TraceHistory,
     stopped: Option<Vec<Diagnostic>>,
@@ -80,6 +82,7 @@ type InitializationOutcome =
 #[derive(Clone, Copy)]
 enum SwitchgearAction {
     Breaker(BreakerState),
+    Rcd(RcdState),
     OverloadLatch {
         tripped: bool,
         last_transition_time_seconds: Option<f64>,
@@ -99,6 +102,18 @@ impl CompiledRun {
                 .iter()
                 .filter(|(_, state)| state.tripped)
                 .map(|(id, state)| (id.clone(), SwitchgearAction::Breaker(*state))),
+        );
+        settings.extend(
+            self.rcd_overrides
+                .iter()
+                .map(|(id, state)| (id.clone(), SwitchgearAction::Rcd(*state))),
+        );
+        settings.extend(
+            self.states
+                .rcds
+                .iter()
+                .filter(|(_, state)| state.tripped)
+                .map(|(id, state)| (id.clone(), SwitchgearAction::Rcd(*state))),
         );
         let time = self.snapshot.metadata.simulation_time_seconds;
         settings.extend(
@@ -191,6 +206,13 @@ enum DeviceModel {
     Breaker {
         resistance: f64,
         poles: [LinkedPole; 3],
+        initially_closed: bool,
+    },
+    Rcd {
+        resistance: f64,
+        /// Two or four poles; only the first `pole_count` are real.
+        poles: [LinkedPole; 4],
+        pole_count: usize,
         initially_closed: bool,
     },
     Overload {
@@ -295,6 +317,7 @@ impl Engine {
             snapshot: snapshot.clone(),
             step_start_states: states.clone(),
             breaker_overrides: HashMap::new(),
+            rcd_overrides: HashMap::new(),
             states,
             internal_substeps,
             trace_history,
@@ -531,6 +554,7 @@ impl Engine {
         }
         if active.states.breakers.contains_key(&request.component_id)
             || active.states.overloads.contains_key(&request.component_id)
+            || active.states.rcds.contains_key(&request.component_id)
         {
             return self.set_switchgear_operator(request);
         }
@@ -693,6 +717,10 @@ impl Engine {
             state
                 .actuated(request.position, time)
                 .map(SwitchgearAction::Breaker)
+        } else if let Some(state) = active.states.rcds.get(id) {
+            state
+                .actuated(request.position, time)
+                .map(SwitchgearAction::Rcd)
         } else {
             active
                 .overlay
@@ -755,8 +783,14 @@ impl Engine {
         }
         active.snapshot = snapshot.clone();
         active.states = states;
-        if let SwitchgearAction::Breaker(state) = action {
-            active.breaker_overrides.insert(request.component_id, state);
+        match action {
+            SwitchgearAction::Breaker(state) => {
+                active.breaker_overrides.insert(request.component_id, state);
+            }
+            SwitchgearAction::Rcd(state) => {
+                active.rcd_overrides.insert(request.component_id, state);
+            }
+            SwitchgearAction::OverloadLatch { .. } => {}
         }
         active.stopped = None;
         SetOperatorStateResult::Success {
@@ -891,6 +925,7 @@ impl Engine {
         })?;
         active.step_start_states = step_start_states;
         active.breaker_overrides.clear();
+        active.rcd_overrides.clear();
         active.states = states;
         active.snapshot.values = final_values.expect("advance requires at least one step");
         active.snapshot.states = snapshot_states(&active.states, &active.operator);
@@ -957,6 +992,19 @@ fn resolve_switchgear_actions(
             SwitchgearAction::Breaker(next) => {
                 if let Some(previous) = states.breakers.insert(id.clone(), next) {
                     states.backward_euler_next_step |= previous.conducting() != next.conducting();
+                }
+            }
+            SwitchgearAction::Rcd(next) => {
+                if let Some(state) = states.rcds.get_mut(id) {
+                    states.backward_euler_next_step |= state.conducting() != next.conducting();
+                    state.position = next.position;
+                    state.tripped = next.tripped;
+                    state.last_transition_time_seconds = next.last_transition_time_seconds;
+                    // An explicit open starts the detector and the dose from rest again.
+                    if next.position == crate::SwitchPosition::Open && !next.tripped {
+                        state.detector = 0.0;
+                        state.dose = 0.0;
+                    }
                 }
             }
             SwitchgearAction::OverloadLatch {
@@ -1750,6 +1798,21 @@ fn local_adjacency(
                     connect(terminals.pin1, terminals.pin2);
                 }
             }
+            DeviceModel::Rcd {
+                poles,
+                pole_count,
+                initially_closed,
+                ..
+            } => {
+                let state = rcd_state(mode, &spec.component_id, initially_closed);
+                let contacts = LinkedContacts {
+                    poles: &poles[..pole_count],
+                    active: state.conducting(),
+                };
+                for terminals in contacts.conducting() {
+                    connect(terminals.pin1, terminals.pin2);
+                }
+            }
             DeviceModel::Overload {
                 poles, auxiliaries, ..
             } => {
@@ -1864,7 +1927,10 @@ fn build_device_specs(
             (PinId::A1, PinId::A2)
         } else if matches!(
             component,
-            ComponentSpec::BreakerThreePole { .. } | ComponentSpec::ThermalOverloadThreePole { .. }
+            ComponentSpec::BreakerThreePole { .. }
+                | ComponentSpec::ThermalOverloadThreePole { .. }
+                | ComponentSpec::RcdTwoPole { .. }
+                | ComponentSpec::RcdFourPole { .. }
         ) {
             (PinId::L1, PinId::T1)
         } else if matches!(component, ComponentSpec::InductionMotorThreePhase { .. }) {
@@ -2183,6 +2249,40 @@ fn build_device_specs(
                     initially_closed: parameters.initial_closed == Some(1.0),
                 }
             }
+            ComponentSpec::RcdTwoPole { parameters, .. }
+            | ComponentSpec::RcdFourPole { parameters, .. } => {
+                let groups: &[crate::pin_groups::PinGroup] =
+                    if matches!(component, ComponentSpec::RcdTwoPole { .. }) {
+                        &crate::pin_groups::RCD_TWO_POLES
+                    } else {
+                        &crate::pin_groups::RCD_FOUR_POLES
+                    };
+                let resolved = groups
+                    .iter()
+                    .map(|group| {
+                        group.resolve(node_for_pin).map(|terminals| LinkedPole {
+                            group: *group,
+                            terminals,
+                            closed_when_active: true,
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>();
+                let Some(resolved) = resolved else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                // The unused poles of a two-pole device repeat the first and are never read.
+                let poles = std::array::from_fn(|index| resolved[index.min(resolved.len() - 1)]);
+                DeviceModel::Rcd {
+                    resistance: parameters.closed_contact_resistance_ohms,
+                    poles,
+                    pole_count: resolved.len(),
+                    initially_closed: parameters.initial_closed == Some(1.0),
+                }
+            }
             ComponentSpec::ThermalOverloadThreePole { parameters, .. } => {
                 let (Some(poles), Some(auxiliaries)) = (
                     resolve_power_poles(node_for_pin),
@@ -2451,6 +2551,16 @@ fn resolve_auxiliaries(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<
             closed_when_active: false,
         },
     ])
+}
+
+fn rcd_state(mode: SolveMode<'_>, id: &StableId, initially_closed: bool) -> RcdState {
+    let previous = match mode {
+        SolveMode::OperatingPoint => None,
+        SolveMode::Transient { states, .. } | SolveMode::InitialState(states) => {
+            states.rcds.get(id).copied()
+        }
+    };
+    previous.unwrap_or(RcdState::new(initially_closed))
 }
 
 fn overload_state(mode: SolveMode<'_>, id: &StableId) -> OverloadState {
@@ -2757,6 +2867,18 @@ fn make_device(
             poles,
             resistance,
             state: breaker_state(mode, &spec.component_id, initially_closed),
+        }),
+        DeviceModel::Rcd {
+            resistance,
+            poles,
+            pole_count,
+            initially_closed,
+        } => Box::new(RcdDevice {
+            id: spec.component_id.clone(),
+            poles,
+            pole_count,
+            resistance,
+            state: rcd_state(mode, &spec.component_id, initially_closed),
         }),
         DeviceModel::Overload {
             poles,
@@ -3553,6 +3675,15 @@ pub(crate) fn update_parameter(
         // The electrode's resistance is a compile-only input; the exposed part's frequency and
         // limit are live (they change no circuit).
         ComponentSpec::EarthElectrode { .. } => return false,
+        // The rated residual current and the trip time are live; the rest is compile-only.
+        ComponentSpec::RcdTwoPole { parameters, .. }
+        | ComponentSpec::RcdFourPole { parameters, .. } => match parameter_id {
+            ParameterId::RatedResidualCurrentAmps => {
+                parameters.rated_residual_current_amps = value;
+            }
+            ParameterId::TripTimeAtRatedSeconds => parameters.trip_time_at_rated_seconds = value,
+            _ => return false,
+        },
         ComponentSpec::ExposedPart { parameters, .. } => match parameter_id {
             ParameterId::FrequencyHz => parameters.frequency_hz = value,
             ParameterId::TouchVoltageLimitVolts => parameters.touch_voltage_limit_volts = value,

@@ -35,6 +35,8 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   three_phase_load_delta: "Z",
   earth_electrode: "PE",
   exposed_part: "EP",
+  rcd_two_pole: "FI",
+  rcd_four_pole: "FI",
 };
 
 /**

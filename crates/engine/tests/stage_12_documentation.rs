@@ -402,6 +402,8 @@ fn every_catalog_part_has_a_valid_default_designator_prefix() {
         ("ammeter", "P"),
         ("earth_electrode", "X"),
         ("exposed_part", "P"),
+        ("rcd_two_pole", "F"),
+        ("rcd_four_pole", "F"),
         ("ac_voltmeter", "P"),
         ("ac_ammeter", "P"),
         ("wattmeter", "P"),
