@@ -229,6 +229,7 @@ pub enum ParameterId {
     RatedResidualCurrentAmps,
     TripTimeAtRatedSeconds,
     ResidualSenseSeconds,
+    CurveClass,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -1849,6 +1850,68 @@ fn stage10_equipment_catalog() -> [ComponentCatalogEntry; 7] {
                     initial_condition: true,
                     minimum_value: None,
                     maximum_value: None,
+                },
+                // The optional thermal-magnetic trip class and its inputs (docs/contracts/
+                // stage-13-protection-and-safety.md section 5). Absent, the breaker is the
+                // Stage 10 instantaneous breaker.
+                ParameterDefinition {
+                    id: CurveClass,
+                    unit: Unit::Dimensionless,
+                    default_value: 0.0,
+                    domain: NumericDomain::Integer,
+                    description_key: "component.breakerThreePole.curveClass".to_owned(),
+                    optional: true,
+                    initial_condition: false,
+                    minimum_value: Some(0.0),
+                    maximum_value: Some(3.0),
+                },
+                ParameterDefinition {
+                    optional: true,
+                    ..parameter(
+                        breaker,
+                        "ratedCurrent",
+                        RatedCurrentAmps,
+                        Unit::Amp,
+                        0.1,
+                        10_000.0,
+                        crate::schematic::DEFAULT_BREAKER_RATED_CURRENT_AMPS,
+                    )
+                },
+                ParameterDefinition {
+                    optional: true,
+                    ..parameter(
+                        breaker,
+                        "thermalSense",
+                        ThermalSenseSeconds,
+                        Unit::Second,
+                        0.005,
+                        2.0,
+                        crate::schematic::DEFAULT_BREAKER_THERMAL_SENSE_SECONDS,
+                    )
+                },
+                ParameterDefinition {
+                    optional: true,
+                    ..parameter(
+                        breaker,
+                        "tripScale",
+                        TripScaleSeconds,
+                        Unit::Second,
+                        0.01,
+                        10_000.0,
+                        crate::schematic::DEFAULT_BREAKER_TRIP_SCALE_SECONDS,
+                    )
+                },
+                ParameterDefinition {
+                    optional: true,
+                    ..parameter(
+                        breaker,
+                        "cool",
+                        CoolSeconds,
+                        Unit::Second,
+                        0.01,
+                        10_000.0,
+                        crate::schematic::DEFAULT_BREAKER_COOL_SECONDS,
+                    )
                 },
             ],
         ),

@@ -34,7 +34,7 @@ use crate::{
         CONTACTOR_AUXILIARIES, DELTA_LOAD_WINDINGS, INDUCTION_WINDINGS, POWER_POLES, PinGroup,
         STAR_LOAD_WINDINGS, TRANSFORMER_WINDINGS,
     },
-    slots::slot_definitions,
+    slots::component_slot_definitions,
 };
 use trace::TraceHistory;
 use transient::{
@@ -207,6 +207,8 @@ enum DeviceModel {
         resistance: f64,
         poles: [LinkedPole; 3],
         initially_closed: bool,
+        /// The breaker has a trip class: its thermal dose is a result.
+        reports_dose: bool,
     },
     Rcd {
         resistance: f64,
@@ -990,6 +992,19 @@ fn resolve_switchgear_actions(
     for (id, action) in overrides {
         match *action {
             SwitchgearAction::Breaker(next) => {
+                // The position, the latch and the transition time are the setting; the thermal
+                // detector and dose stay those of the state being replayed.
+                let carried = states
+                    .breakers
+                    .get(id)
+                    .map(|state| (state.detector, state.dose, state.peak_amps));
+                let (detector, dose, peak_amps) = carried.unwrap_or((0.0, 0.0, 0.0));
+                let next = BreakerState {
+                    detector,
+                    dose,
+                    peak_amps,
+                    ..next
+                };
                 if let Some(previous) = states.breakers.insert(id.clone(), next) {
                     states.backward_euler_next_step |= previous.conducting() != next.conducting();
                 }
@@ -2247,6 +2262,7 @@ fn build_device_specs(
                     resistance: parameters.closed_contact_resistance_ohms,
                     poles,
                     initially_closed: parameters.initial_closed == Some(1.0),
+                    reports_dose: parameters.thermal_magnetic(),
                 }
             }
             ComponentSpec::RcdTwoPole { parameters, .. }
@@ -2587,6 +2603,9 @@ fn breaker_state(mode: SolveMode<'_>, id: &StableId, initially_closed: bool) -> 
         },
         tripped: false,
         last_transition_time_seconds: None,
+        detector: 0.0,
+        dose: 0.0,
+        peak_amps: 0.0,
     })
 }
 
@@ -2862,11 +2881,13 @@ fn make_device(
             resistance,
             poles,
             initially_closed,
+            reports_dose,
         } => Box::new(BreakerDevice {
             id: spec.component_id.clone(),
             poles,
             resistance,
             state: breaker_state(mode, &spec.component_id, initially_closed),
+            reports_dose,
         }),
         DeviceModel::Rcd {
             resistance,
@@ -3488,7 +3509,7 @@ fn build_result_layout(schematic: &Schematic) -> Result<ResultLayout, Vec<Diagno
     components.sort_by(|left, right| left.id().as_str().cmp(right.id().as_str()));
     let mut slots = Vec::with_capacity(components.len().saturating_mul(2));
     for component in components {
-        for definition in slot_definitions(component.type_id()) {
+        for definition in component_slot_definitions(component) {
             slots.push(ResultSlot {
                 key: definition.key(component.id().as_str()),
                 component_id: component.id().clone(),

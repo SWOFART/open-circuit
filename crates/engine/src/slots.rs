@@ -80,6 +80,28 @@ pub(crate) fn group_slots(group: PinGroup) -> [SlotDefinition; 2] {
 
 /// The slots of a type, in layout order. A relay has six ports; a fuse also reports its
 /// accumulated `I^2 t`, and a motor its angular velocity.
+/// The slots of one component. A breaker with a trip class (1 to 3) also has its thermal dose
+/// after `tripped`; every other component has the slots of its type.
+pub(crate) fn component_slot_definitions(component: &crate::ComponentSpec) -> Vec<SlotDefinition> {
+    let mut definitions = slot_definitions(component.type_id());
+    if let crate::ComponentSpec::BreakerThreePole { parameters, .. } = component
+        && parameters.thermal_magnetic()
+    {
+        definitions.push(breaker_thermal_dose_slot());
+    }
+    definitions
+}
+
+fn breaker_thermal_dose_slot() -> SlotDefinition {
+    slot(
+        ResultQuantity::ThermalDose,
+        Unit::Dimensionless,
+        '/',
+        "thermal_dose",
+        ResultSignConvention::Unsigned,
+    )
+}
+
 pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> {
     use ResultQuantity::{
         AccumulatedI2t, AngularVelocity, ApparentPower, Current, Frequency, MeanCurrent,
@@ -393,7 +415,12 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
 /// The slot of a type that a layout key `<componentId><separator><suffix>` names, if any.
 /// `rest` is the key after the component ID, separator included.
 pub(crate) fn slot_for_key_rest(type_id: ComponentTypeId, rest: &str) -> Option<SlotDefinition> {
-    slot_definitions(type_id)
+    let mut definitions = slot_definitions(type_id);
+    // A breaker's thermal dose exists only for a trip class; the key names it for any breaker.
+    if type_id == ComponentTypeId::BreakerThreePole {
+        definitions.push(breaker_thermal_dose_slot());
+    }
+    definitions
         .into_iter()
         .find(|definition| definition.matches_rest(rest))
 }

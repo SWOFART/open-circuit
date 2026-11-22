@@ -1072,6 +1072,61 @@
           "descriptionKey": "component.breakerThreePole.initialClosed",
           "optional": true,
           "initialCondition": true
+        },
+        {
+          "id": "curveClass",
+          "unit": "dimensionless",
+          "defaultValue": 0.0,
+          "domain": "integer",
+          "descriptionKey": "component.breakerThreePole.curveClass",
+          "optional": true,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 3.0
+        },
+        {
+          "id": "ratedCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 10.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.breakerThreePole.ratedCurrent",
+          "optional": true,
+          "initialCondition": false,
+          "minimumValue": 0.1,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "thermalSenseSeconds",
+          "unit": "second",
+          "defaultValue": 0.02,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.breakerThreePole.thermalSense",
+          "optional": true,
+          "initialCondition": false,
+          "minimumValue": 0.005,
+          "maximumValue": 2.0
+        },
+        {
+          "id": "tripScaleSeconds",
+          "unit": "second",
+          "defaultValue": 10.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.breakerThreePole.tripScale",
+          "optional": true,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 10000.0
+        },
+        {
+          "id": "coolSeconds",
+          "unit": "second",
+          "defaultValue": 30.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.breakerThreePole.cool",
+          "optional": true,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 10000.0
         }
       ],
       "faultKinds": ["leak"]

@@ -82,6 +82,14 @@ const messages: Readonly<Record<string, string>> = {
     "Closed contact resistance",
   "component.breakerThreePole.instantaneousTrip": "Instantaneous trip current",
   "component.breakerThreePole.initialClosed": "Initial position",
+  "component.breakerThreePole.curveClass":
+    "Trip class (0 instantaneous only, 1 B, 2 C, 3 D)",
+  "component.breakerThreePole.ratedCurrent": "Rated current (classes B, C, D)",
+  "component.breakerThreePole.thermalSense":
+    "Thermal detector time constant (classes B, C, D)",
+  "component.breakerThreePole.tripScale":
+    "Thermal trip scale (classes B, C, D)",
+  "component.breakerThreePole.cool": "Cooling time constant (classes B, C, D)",
   "component.thermalOverloadThreePole.name":
     "Three-pole thermal overload relay",
   "component.thermalOverloadThreePole.keywords":
