@@ -224,9 +224,9 @@ export function DrawingDocumentationPanel({
           store={store}
           selected={active}
           disabled={disabled || pending}
-          onSelect={(sheet) => {
+          onSelect={(sheet, fit = true) => {
             setSelectedSheet(sheet.id);
-            onFitSheet(sheet);
+            if (fit) onFitSheet(sheet);
           }}
         />
       )}

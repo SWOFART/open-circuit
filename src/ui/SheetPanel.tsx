@@ -16,7 +16,7 @@ interface Props {
   store: SchematicDocumentStore;
   selected: SheetSpec | undefined;
   disabled: boolean;
-  onSelect: (sheet: SheetSpec) => void;
+  onSelect: (sheet: SheetSpec, fit?: boolean) => void;
 }
 
 export function SheetPanel({
@@ -63,6 +63,11 @@ export function SheetPanel({
     if (sheet) onSelect(sheet);
   }
 
+  function reorder(sheet: SheetSpec, offset: -1 | 1) {
+    onSelect(sheet, false);
+    store.reorderSheet(sheet.id, offset);
+  }
+
   const draft = adding
     ? {
         id: "",
@@ -106,14 +111,14 @@ export function SheetPanel({
           <button
             type="button"
             disabled={index <= 0}
-            onClick={() => store.reorderSheet(selected.id, -1)}
+            onClick={() => reorder(selected, -1)}
           >
             {message("drawing.moveSheetEarlier")}
           </button>
           <button
             type="button"
             disabled={index >= sheets.length - 1}
-            onClick={() => store.reorderSheet(selected.id, 1)}
+            onClick={() => reorder(selected, 1)}
           >
             {message("drawing.moveSheetLater")}
           </button>
