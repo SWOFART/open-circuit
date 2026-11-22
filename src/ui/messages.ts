@@ -122,6 +122,15 @@ const messages: Readonly<Record<string, string>> = {
   "component.transformerThreePhase.secondaryLeakage":
     "Secondary leakage inductance",
   "component.transformerThreePhase.magnetizing": "Magnetizing inductance",
+  "component.earthElectrode.name": "Earth electrode",
+  "component.earthElectrode.keywords":
+    "ground earthing protective earth PE rod",
+  "component.earthElectrode.earthResistance": "Earth resistance",
+  "component.exposedPart.name": "Exposed part",
+  "component.exposedPart.keywords":
+    "frame housing enclosure touch voltage hazard body",
+  "component.exposedPart.frequency": "Measurement frequency",
+  "component.exposedPart.touchVoltageLimit": "Touch voltage limit",
   "component.threePhaseLoadStar.name": "Three-phase star load",
   "component.threePhaseLoadStar.keywords": "wye load impedance",
   "component.threePhaseLoadStar.phase1Resistance": "Branch 1 resistance",
@@ -279,6 +288,10 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.unknownPin": "A component has a missing or unexpected pin.",
   "diagnostic.detachedReferenceMarker":
     "A ground marker is not placed on a wire or pin.",
+  "diagnostic.noEarthPath":
+    "An exposed part has no path to earth, so its touch voltage cannot be read. Add an earth electrode or a ground marker.",
+  "diagnostic.exposedPartNotBonded":
+    "An exposed part is not connected to a protective earth conductor.",
   "diagnostic.noGroundReference":
     "A connected part of the circuit has no ground marker.",
   "diagnostic.floatingNode": "A node is not connected to any reference.",

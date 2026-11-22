@@ -101,6 +101,21 @@ pub struct AcAmmeterParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "EarthElectrodeParameters.ts")]
+pub struct EarthElectrodeParameters {
+    pub earth_resistance_ohms: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "ExposedPartParameters.ts")]
+pub struct ExposedPartParameters {
+    pub frequency_hz: f64,
+    pub touch_voltage_limit_volts: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "WattmeterParameters.ts")]
 pub struct WattmeterParameters {
     pub input_resistance_ohms: f64,
@@ -598,6 +613,20 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: ThreePhaseLoadParameters,
     },
+    EarthElectrode {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: EarthElectrodeParameters,
+    },
+    ExposedPart {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: ExposedPartParameters,
+    },
 }
 
 impl ComponentSpec {
@@ -631,6 +660,8 @@ impl ComponentSpec {
             | Self::InductionMotorThreePhase { id, .. }
             | Self::TransformerThreePhase { id, .. }
             | Self::ThreePhaseLoadStar { id, .. }
+            | Self::EarthElectrode { id, .. }
+            | Self::ExposedPart { id, .. }
             | Self::ThreePhaseLoadDelta { id, .. } => id,
         }
     }
@@ -665,6 +696,8 @@ impl ComponentSpec {
             | Self::InductionMotorThreePhase { position, .. }
             | Self::TransformerThreePhase { position, .. }
             | Self::ThreePhaseLoadStar { position, .. }
+            | Self::EarthElectrode { position, .. }
+            | Self::ExposedPart { position, .. }
             | Self::ThreePhaseLoadDelta { position, .. } => *position,
         }
     }
@@ -699,6 +732,8 @@ impl ComponentSpec {
             | Self::InductionMotorThreePhase { rotation_deg, .. }
             | Self::TransformerThreePhase { rotation_deg, .. }
             | Self::ThreePhaseLoadStar { rotation_deg, .. }
+            | Self::EarthElectrode { rotation_deg, .. }
+            | Self::ExposedPart { rotation_deg, .. }
             | Self::ThreePhaseLoadDelta { rotation_deg, .. } => *rotation_deg,
         }
     }
@@ -734,6 +769,8 @@ impl ComponentSpec {
             Self::TransformerThreePhase { .. } => ComponentTypeId::TransformerThreePhase,
             Self::ThreePhaseLoadStar { .. } => ComponentTypeId::ThreePhaseLoadStar,
             Self::ThreePhaseLoadDelta { .. } => ComponentTypeId::ThreePhaseLoadDelta,
+            Self::EarthElectrode { .. } => ComponentTypeId::EarthElectrode,
+            Self::ExposedPart { .. } => ComponentTypeId::ExposedPart,
         }
     }
 
@@ -967,6 +1004,17 @@ impl ComponentSpec {
                     parameters.burden_resistance_ohms,
                 ),
                 (ParameterId::FrequencyHz, parameters.frequency_hz),
+            ],
+            Self::EarthElectrode { parameters, .. } => vec![(
+                ParameterId::EarthResistanceOhms,
+                parameters.earth_resistance_ohms,
+            )],
+            Self::ExposedPart { parameters, .. } => vec![
+                (ParameterId::FrequencyHz, parameters.frequency_hz),
+                (
+                    ParameterId::TouchVoltageLimitVolts,
+                    parameters.touch_voltage_limit_volts,
+                ),
             ],
             Self::Wattmeter { parameters, .. } => vec![
                 (
@@ -1220,6 +1268,8 @@ impl Schematic {
             | ComponentSpec::InductionMotorThreePhase { rotation_deg, .. }
             | ComponentSpec::TransformerThreePhase { rotation_deg, .. }
             | ComponentSpec::ThreePhaseLoadStar { rotation_deg, .. }
+            | ComponentSpec::EarthElectrode { rotation_deg, .. }
+            | ComponentSpec::ExposedPart { rotation_deg, .. }
             | ComponentSpec::ThreePhaseLoadDelta { rotation_deg, .. } = component
                 && !matches!(rotation_deg, 0 | 90 | 180 | 270)
             {

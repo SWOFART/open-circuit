@@ -78,7 +78,9 @@ export function faultKindsFor(
   typeId: ComponentTypeId,
 ): FaultKind[] {
   const entry = catalog?.componentTypes.find((type) => type.typeId === typeId);
-  return entry ? [...entry.faultKinds] : [];
+  // A `leak` needs a pin and a frame the authoring panel cannot name yet (issue #205 adds
+  // them), so it is not offered here.
+  return entry ? entry.faultKinds.filter((kind) => kind !== "leak") : [];
 }
 
 /** The parameters a `parameter` fault may name: the catalog's, without initial conditions. */
@@ -96,6 +98,7 @@ export const faultKindWords: Readonly<Record<FaultKind, string>> = {
   open: "Open (no current flows)",
   short: "Short (1 mΩ)",
   parameter: "Wrong parameter value",
+  leak: "Insulation leak to a frame",
 };
 
 /** A time in seconds typed as `2`, `5 ms`, `250us`, or `1.5e-3 s`. */

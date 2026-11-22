@@ -122,6 +122,9 @@ impl CompiledRun {
     }
 }
 
+/// The fixed resistance of an exposed part to the reference of its island.
+const EXPOSED_PART_RESISTANCE_OHMS: f64 = 1.0e9;
+
 #[derive(Clone)]
 struct DeviceSpec {
     component_id: StableId,
@@ -217,19 +220,20 @@ impl Engine {
     /// Validate, compile, and solve the operating point at simulation step zero.
     pub fn compile(&mut self, request: CompileRequest) -> CompileResult {
         let faults = request.faults.clone().unwrap_or_default();
-        let overlay = match FaultOverlay::new(&request.schematic, &faults) {
+        let overlay = match FaultOverlay::new(&request.schematic, Some(&request.geometry), &faults)
+        {
             Ok(overlay) => overlay,
             Err(diagnostics) => return CompileResult::Failure { diagnostics },
         };
         let operator = OperatorState::new(&request.schematic);
         let open = operator.effective_open(&overlay.open);
         let (device_results, states, mut diagnostics) =
-            match initialize_circuit(&overlay.schematic, &request.geometry, &open) {
+            match initialize_circuit(&overlay.schematic, &overlay.geometry, &open) {
                 Ok(computed) => computed,
                 Err(diagnostics) => return CompileResult::Failure { diagnostics },
             };
         let (internal_substeps, limited) =
-            choose_internal_substeps(&overlay.schematic, &request.geometry, &open);
+            choose_internal_substeps(&overlay.schematic, &overlay.geometry, &open);
         if limited {
             diagnostics.push(Diagnostic::warning(
                 DiagnosticCode::StepAccuracyLimited,
@@ -356,12 +360,13 @@ impl Engine {
 
         // A parameter a fault overrides keeps the fault's value: the overlay is built again
         // from the edited schematic and the same faults, so such an update changes nothing.
-        let candidate_overlay = match FaultOverlay::new(&candidate, &active.faults) {
-            Ok(overlay) => overlay,
-            Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
-        };
+        let candidate_overlay =
+            match FaultOverlay::new(&candidate, Some(&active.geometry), &active.faults) {
+                Ok(overlay) => overlay,
+                Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
+            };
         let candidate_open = active.operator.effective_open(&candidate_overlay.open);
-        let geometry = active.geometry.clone();
+        let geometry = candidate_overlay.geometry.clone();
         let run_id = active.run_id.clone();
         let layout = active.layout.clone();
         let simulation_step = active.snapshot.metadata.simulation_step;
@@ -557,7 +562,7 @@ impl Engine {
             return invalid();
         };
 
-        let geometry = active.geometry.clone();
+        let geometry = active.overlay.geometry.clone();
         let layout = active.layout.clone();
         let open = operator.effective_open(&active.overlay.open);
         let (internal_substeps, limited) =
@@ -720,7 +725,7 @@ impl Engine {
         let actions = HashMap::from([(id.clone(), action)]);
         let (results, states, diagnostics) = match resolve_switchgear_actions(
             &active.overlay.schematic,
-            &active.geometry,
+            &active.overlay.geometry,
             &active.open,
             active.states.clone(),
             &actions,
@@ -853,7 +858,7 @@ impl Engine {
             let (device_results, next_states, next_step_start_states, _diagnostics) =
                 advance_public_steps(
                     &active.overlay.schematic,
-                    &active.geometry,
+                    &active.overlay.geometry,
                     &active.open,
                     states,
                     active.internal_substeps,
@@ -1870,6 +1875,10 @@ fn build_device_specs(
             (PinId::L1, PinId::N)
         } else if matches!(component, ComponentSpec::ThreePhaseLoadDelta { .. }) {
             (PinId::L1, PinId::L2)
+        } else if matches!(component, ComponentSpec::EarthElectrode { .. }) {
+            (PinId::Pe, PinId::Pe)
+        } else if matches!(component, ComponentSpec::ExposedPart { .. }) {
+            (PinId::Ep, PinId::Ep)
         } else {
             (PinId::Pin1, PinId::Pin2)
         };
@@ -1880,6 +1889,18 @@ fn build_device_specs(
                 component.id(),
             ));
             continue;
+        };
+        // The earth devices have one pin and a second terminal that is not a pin: the electrode
+        // reaches the earth node, the exposed part the reference of its island.
+        let pin2 = match component {
+            ComponentSpec::EarthElectrode { .. } => netlist.earth_node.unwrap_or(pin1),
+            ComponentSpec::ExposedPart { .. } => netlist
+                .islands
+                .iter()
+                .find(|island| island.node_indices.contains(&pin1))
+                .and_then(|island| island.reference_node)
+                .unwrap_or(pin1),
+            _ => pin2,
         };
         let terminals = Terminals { pin1, pin2 };
 
@@ -1906,6 +1927,14 @@ fn build_device_specs(
             },
             ComponentSpec::Resistor { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.resistance_ohms,
+            },
+            ComponentSpec::EarthElectrode { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.earth_resistance_ohms,
+            },
+            // A fixed 1 gigaohm to the reference of its island keeps an unbonded frame from
+            // being a floating net (docs/contracts/stage-13-protection-and-safety.md 7.1).
+            ComponentSpec::ExposedPart { .. } => DeviceModel::Resistor {
+                resistance_ohms: EXPOSED_PART_RESISTANCE_OHMS,
             },
             ComponentSpec::Voltmeter { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.input_resistance_ohms,
@@ -3519,6 +3548,14 @@ pub(crate) fn update_parameter(
         },
         ComponentSpec::BreakerThreePole { parameters, .. } => match parameter_id {
             ParameterId::InstantaneousTripAmps => parameters.instantaneous_trip_amps = value,
+            _ => return false,
+        },
+        // The electrode's resistance is a compile-only input; the exposed part's frequency and
+        // limit are live (they change no circuit).
+        ComponentSpec::EarthElectrode { .. } => return false,
+        ComponentSpec::ExposedPart { parameters, .. } => match parameter_id {
+            ParameterId::FrequencyHz => parameters.frequency_hz = value,
+            ParameterId::TouchVoltageLimitVolts => parameters.touch_voltage_limit_volts = value,
             _ => return false,
         },
         ComponentSpec::ThermalOverloadThreePole { .. }

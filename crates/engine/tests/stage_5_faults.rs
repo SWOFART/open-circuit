@@ -906,18 +906,27 @@ fn the_catalog_lists_the_fault_kinds_of_every_type() {
             .fault_kinds
             .clone()
     };
-    let all = vec![FaultKind::Open, FaultKind::Short, FaultKind::Parameter];
+    let all = vec![
+        FaultKind::Open,
+        FaultKind::Short,
+        FaultKind::Parameter,
+        FaultKind::Leak,
+    ];
 
     for passive in ["resistor", "capacitor", "inductor"] {
         assert_eq!(kinds(passive), all);
     }
     assert_eq!(
         kinds("dc_voltage_source"),
-        vec![FaultKind::Open, FaultKind::Parameter]
+        vec![FaultKind::Open, FaultKind::Parameter, FaultKind::Leak]
     );
-    for device in ["relay_spdt", "fuse", "pmdc_motor", "voltmeter", "ammeter"] {
+    for device in ["relay_spdt", "fuse", "voltmeter", "ammeter"] {
         assert_eq!(kinds(device), vec![FaultKind::Parameter]);
     }
+    assert_eq!(
+        kinds("pmdc_motor"),
+        vec![FaultKind::Parameter, FaultKind::Leak]
+    );
     for entry in &catalog.component_types {
         assert_eq!(entry.fault_kinds, supported_fault_kinds(entry.type_id));
     }

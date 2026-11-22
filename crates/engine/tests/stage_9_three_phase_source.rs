@@ -242,7 +242,7 @@ fn three_phase_catalog_matches_the_star_and_delta_contract() {
             .collect::<Vec<_>>(),
         ["l1", "l2", "l3", "n"]
     );
-    assert!(star.fault_kinds.is_empty());
+    assert_eq!(star.fault_kinds, vec![open_circuit_engine::FaultKind::Leak]);
     assert_eq!(
         catalog_parameter(star, ParameterId::PhaseVoltageRmsVolts).default_value,
         230.0
@@ -265,7 +265,10 @@ fn three_phase_catalog_matches_the_star_and_delta_contract() {
             .collect::<Vec<_>>(),
         ["l1", "l2", "l3"]
     );
-    assert!(delta.fault_kinds.is_empty());
+    assert_eq!(
+        delta.fault_kinds,
+        vec![open_circuit_engine::FaultKind::Leak]
+    );
     assert_eq!(
         catalog_parameter(delta, ParameterId::LineVoltageRmsVolts).default_value,
         400.0

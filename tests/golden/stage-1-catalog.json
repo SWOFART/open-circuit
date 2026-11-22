@@ -21,7 +21,7 @@
           "initialCondition": false
         }
       ],
-      "faultKinds": ["open", "short", "parameter"]
+      "faultKinds": ["open", "short", "parameter", "leak"]
     },
     {
       "typeId": "dc_voltage_source",
@@ -53,7 +53,7 @@
           "initialCondition": false
         }
       ],
-      "faultKinds": ["open", "parameter"]
+      "faultKinds": ["open", "parameter", "leak"]
     },
     {
       "typeId": "capacitor",
@@ -85,7 +85,7 @@
           "initialCondition": true
         }
       ],
-      "faultKinds": ["open", "short", "parameter"]
+      "faultKinds": ["open", "short", "parameter", "leak"]
     },
     {
       "typeId": "inductor",
@@ -117,7 +117,7 @@
           "initialCondition": true
         }
       ],
-      "faultKinds": ["open", "short", "parameter"]
+      "faultKinds": ["open", "short", "parameter", "leak"]
     },
     {
       "typeId": "relay_spdt",
@@ -297,7 +297,7 @@
           "initialCondition": true
         }
       ],
-      "faultKinds": ["parameter"]
+      "faultKinds": ["parameter", "leak"]
     },
     {
       "typeId": "voltmeter",
@@ -672,7 +672,7 @@
           "initialCondition": false
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "three_phase_source_star",
@@ -741,7 +741,7 @@
           "maximumValue": 1.0
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "three_phase_source_delta",
@@ -809,7 +809,7 @@
           "maximumValue": 1.0
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "ac_voltmeter",
@@ -1020,7 +1020,7 @@
           "maximumValue": 10.0
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "breaker_three_pole",
@@ -1074,7 +1074,7 @@
           "initialCondition": true
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "thermal_overload_three_pole",
@@ -1180,7 +1180,7 @@
           "maximumValue": 0.99
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "induction_motor_three_phase",
@@ -1302,7 +1302,7 @@
           "maximumValue": 1000.0
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "transformer_three_phase",
@@ -1400,7 +1400,7 @@
           "maximumValue": 10.0
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "three_phase_load_star",
@@ -1487,7 +1487,7 @@
           "maximumValue": 10.0
         }
       ],
-      "faultKinds": []
+      "faultKinds": ["leak"]
     },
     {
       "typeId": "three_phase_load_delta",
@@ -1571,6 +1571,61 @@
           "initialCondition": false,
           "minimumValue": 0.0,
           "maximumValue": 10.0
+        }
+      ],
+      "faultKinds": ["leak"]
+    },
+    {
+      "typeId": "earth_electrode",
+      "displayNameKey": "component.earthElectrode.name",
+      "category": "protection",
+      "searchKeywordKeys": ["component.earthElectrode.keywords"],
+      "designatorPrefix": "X",
+      "pins": [{ "id": "pe", "role": "unpolarized" }],
+      "parameters": [
+        {
+          "id": "earthResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 10.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.earthElectrode.earthResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "exposed_part",
+      "displayNameKey": "component.exposedPart.name",
+      "category": "measurement",
+      "searchKeywordKeys": ["component.exposedPart.keywords"],
+      "designatorPrefix": "P",
+      "pins": [{ "id": "ep", "role": "unpolarized" }],
+      "parameters": [
+        {
+          "id": "frequencyHz",
+          "unit": "hertz",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.exposedPart.frequency",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 400.0
+        },
+        {
+          "id": "touchVoltageLimitVolts",
+          "unit": "volt",
+          "defaultValue": 50.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.exposedPart.touchVoltageLimit",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 1.0,
+          "maximumValue": 1000.0
         }
       ],
       "faultKinds": []

@@ -259,6 +259,9 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 PositiveRotationWithPositivePin1Current,
             ),
         ],
+        // The earth electrode and the exposed part have no results yet (the exposed part's
+        // touch voltage and hazard come with issue #201).
+        ComponentTypeId::EarthElectrode | ComponentTypeId::ExposedPart => Vec::new(),
         ComponentTypeId::Diode
         | ComponentTypeId::Resistor
         | ComponentTypeId::DcVoltageSource
