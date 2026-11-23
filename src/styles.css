@@ -240,6 +240,27 @@ input {
   color: #9ca3af;
 }
 
+.drawing-documentation fieldset {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 10px 0;
+}
+
+.drawing-documentation label {
+  display: grid;
+  gap: 3px;
+}
+
+.drawing-documentation input {
+  min-width: 0;
+}
+
+.drawing-preview {
+  display: block;
+  width: 100%;
+}
+
 .parameter-field {
   display: flex;
   flex-direction: column;

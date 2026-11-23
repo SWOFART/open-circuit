@@ -1,6 +1,12 @@
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
+import type { BillOfMaterials } from "../generated/BillOfMaterials";
 import type { CompileRequest } from "../generated/CompileRequest";
 import type { CompileResult } from "../generated/CompileResult";
+import type { Diagnostic } from "../generated/Diagnostic";
+import type { GeometryEnvelope } from "../generated/GeometryEnvelope";
+import type { Schematic } from "../generated/Schematic";
+import type { SheetComponentBounds } from "../generated/SheetComponentBounds";
+import type { WireNumberEntry } from "../generated/WireNumberEntry";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ResultSnapshot } from "../generated/ResultSnapshot";
 import type { SetOperatorStateRequest } from "../generated/SetOperatorStateRequest";
@@ -187,6 +193,36 @@ async function call<T>(
   } catch (error) {
     throw new EngineUnavailableError(describeError(error));
   }
+}
+
+type DocumentationReply<T> = { Ok: T } | { Err: Diagnostic[] };
+
+export const tauriWireDocumentation = {
+  diagnostics(schematic: Schematic, geometry: GeometryEnvelope) {
+    return call<DocumentationReply<Diagnostic[]>>("documentation_diagnostics", {
+      schematic,
+      geometry,
+    });
+  },
+  number(schematic: Schematic, geometry: GeometryEnvelope) {
+    return call<DocumentationReply<WireNumberEntry[]>>("number_wires", {
+      schematic,
+      geometry,
+    });
+  },
+};
+
+export function loadBillOfMaterials(
+  schematic: Schematic,
+): Promise<BillOfMaterials> {
+  return call<BillOfMaterials>("bill_of_materials", { schematic });
+}
+
+export function loadSheetDiagnostics(
+  schematic: Schematic,
+  geometry: readonly SheetComponentBounds[],
+): Promise<Diagnostic[]> {
+  return call<Diagnostic[]>("sheet_diagnostics", { schematic, geometry });
 }
 
 /**

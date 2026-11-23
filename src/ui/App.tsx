@@ -14,6 +14,9 @@ import type { ParameterId } from "../generated/ParameterId";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import { EditorCore } from "../editor/EditorCore";
+import { WireDocumentationPanel } from "./WireDocumentationPanel";
+import { DrawingDocumentationPanel } from "./DrawingDocumentationPanel";
+import { sheetBounds } from "../editor/sheetRules";
 import type { EditorStatus, OperateAction } from "../editor/interaction";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
@@ -504,6 +507,13 @@ export function App({
         setEditError(noteUnavailable);
         return;
       }
+      if (
+        (command.kind === "addTerminal" || command.kind === "deleteTerminal") &&
+        !documentationAvailable
+      ) {
+        setEditError("Terminals are not available in an assignment.");
+        return;
+      }
       const knownNotes = new Set(
         documentStore
           .getState()
@@ -528,6 +538,13 @@ export function App({
             );
           if (created)
             editorRef.current?.select({ kind: "note", id: created.id });
+        }
+        if (verdict.allowed && command.kind === "addTerminal") {
+          const terminal = documentStore
+            .getState()
+            .schematic.documentation.terminals.at(-1);
+          if (terminal)
+            editorRef.current?.select({ kind: "terminal", id: terminal.id });
         }
       } catch (error) {
         setEditError(error instanceof Error ? error.message : String(error));
@@ -1003,6 +1020,31 @@ export function App({
         </section>
 
         <aside className="side">
+          {documentationAvailable && (
+            <DrawingDocumentationPanel
+              schematic={document.schematic}
+              store={documentStore}
+              disabled={projectOperationLocked}
+              onFitSheet={(sheet) =>
+                editorRef.current?.fitToBounds(sheetBounds(sheet))
+              }
+            />
+          )}
+          {documentationAvailable && (
+            <WireDocumentationPanel
+              schematic={document.schematic}
+              store={documentStore}
+              wireId={
+                status.selection?.kind === "wire" ? status.selection.id : null
+              }
+              terminalId={
+                status.selection?.kind === "terminal"
+                  ? status.selection.id
+                  : null
+              }
+              disabled={projectOperationLocked}
+            />
+          )}
           <Inspector
             state={state}
             schematic={document.schematic}

@@ -3,6 +3,39 @@ import type { DraftEvaluation } from "./units";
 
 // User-facing prose lives in the UI. The Engine sends only stable keys.
 const messages: Readonly<Record<string, string>> = {
+  "drawing.documentation": "Drawing documentation",
+  "drawing.titleBlock": "Title block",
+  "drawing.title": "Title",
+  "drawing.number": "Drawing number",
+  "drawing.revision": "Revision",
+  "drawing.author": "Author",
+  "drawing.company": "Company",
+  "drawing.date": "Date",
+  "drawing.useToday": "Use today's date",
+  "drawing.export": "Export drawing",
+  "drawing.pageSize": "Page size",
+  "drawing.autoSize": "Automatic",
+  "drawing.preview": "Drawing and title block preview",
+  "drawing.materials": "Bill of materials",
+  "drawing.emptyMaterials": "The drawing has no components.",
+  "drawing.terminalStrips": "Terminal strips",
+  "drawing.unset": "Unset",
+  "drawing.sheets": "Sheets",
+  "drawing.activeSheet": "Current sheet",
+  "drawing.fitSheet": "Fit sheet",
+  "drawing.moveSheetEarlier": "Move sheet earlier",
+  "drawing.moveSheetLater": "Move sheet later",
+  "drawing.removeSheet": "Remove sheet",
+  "drawing.addSheet": "Add sheet",
+  "drawing.applySheet": "Apply sheet",
+  "drawing.cancelSheet": "Cancel",
+  "drawing.sheetName": "Sheet name",
+  "drawing.sheetX": "Origin X (grid units)",
+  "drawing.sheetY": "Origin Y (grid units)",
+  "drawing.exportFolder": "Sheets exported to",
+  "diagnostic.objectOutsideSheets": "An object is outside all sheets.",
+  "diagnostic.objectCrossesSheetEdge":
+    "A component crosses the printable border of its sheet.",
   "component.resistor.keywords": "resistance ohm load",
   "component.dcVoltageSource.keywords":
     "battery supply power source direct current dc",
@@ -281,10 +314,16 @@ const messages: Readonly<Record<string, string>> = {
   "diagnostic.duplicateDesignator": "Two components share the same designator.",
   "diagnostic.invalidWireNumber":
     "A wire number must be 1–16 ASCII letters, digits or + . _ - characters.",
+  "diagnostic.wireNumberOnDifferentNets":
+    "The same wire number appears on separate conductors.",
+  "diagnostic.netHasTwoWireNumbers":
+    "One conductor carries more than one wire number.",
+  "diagnostic.wireNumberOnUnconnectedWire":
+    "A numbered conductor does not connect to any component pin.",
   "diagnostic.invalidTerminal":
     "A terminal needs a strip name such as X1 and a label of 1–8 ASCII letters, digits or + . _ - characters.",
   "diagnostic.duplicateTerminal":
-    "Two terminals share the same strip and label.",
+    "Two terminals share a strip and label or the same point.",
   "diagnostic.invalidNote":
     "A note must be 1–500 characters on at most 10 lines, without control characters.",
   "diagnostic.invalidTitleBlock":

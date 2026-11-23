@@ -9,6 +9,46 @@ import { fitView, MAX_SCALE_PX_PER_UNIT, toScreen } from "./view";
 
 const schematic = schematicFixture as Schematic;
 
+it("draws the number by the longest segment and labels a terminal at its attachment", () => {
+  const wireId = "00000000-0000-4000-8000-000000000091";
+  const terminalId = "00000000-0000-4000-8000-000000000092";
+  const drawing: Schematic = {
+    ...schematic,
+    wires: [
+      {
+        id: wireId,
+        points: [
+          { x: 0, y: 10 },
+          { x: 1, y: 10 },
+          { x: 1, y: 16 },
+        ],
+      },
+    ],
+    documentation: {
+      ...schematic.documentation,
+      wireNumbers: [{ wireId, number: "17" }],
+      terminals: [
+        { id: terminalId, strip: "X1", label: "3", position: { x: 1, y: 13 } },
+      ],
+    },
+  };
+  const { shapes } = buildScene(drawing, symbols);
+  expect(shapes).toContainEqual(
+    expect.objectContaining({
+      kind: "label",
+      text: "17",
+      position: { x: 1.9, y: 13 },
+    }),
+  );
+  expect(shapes).toContainEqual(
+    expect.objectContaining({
+      kind: "label",
+      owner: { kind: "terminal", id: terminalId },
+      text: "X1:3",
+    }),
+  );
+});
+
 function count(
   shapes: readonly SceneShape[],
   kind: SceneShape["kind"],

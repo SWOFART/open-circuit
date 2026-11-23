@@ -25,6 +25,7 @@ const PRIORITY: Readonly<Record<SelectableKind, number>> = {
   wire: 3,
   // Documentation never shadows the circuit: a note is picked only where nothing electrical is.
   note: 4,
+  terminal: 5,
 };
 
 function distance(a: ScenePoint, b: ScenePoint): number {

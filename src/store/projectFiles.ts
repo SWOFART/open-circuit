@@ -47,3 +47,20 @@ export const tauriProjectFiles: ProjectFilePort = {
     invokeProject<boolean>("save_project_as", { schematic }),
   clearPath: () => invokeProject<void>("clear_project_path"),
 };
+
+export function saveDrawing(
+  format: "svg" | "png" | "pdf",
+  data: unknown,
+): Promise<boolean> {
+  return invokeProject<boolean>("export_drawing", { format, data });
+}
+
+export function saveSheetDrawings(
+  format: "svg" | "png",
+  pages: readonly unknown[],
+): Promise<string | null> {
+  return invokeProject<string | null>("export_sheet_drawings", {
+    format,
+    pages,
+  });
+}

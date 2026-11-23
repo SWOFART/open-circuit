@@ -1,6 +1,7 @@
 //! Transport-independent Stage 1 types and catalog for the circuit engine.
 
 pub mod assignment;
+mod bill_of_materials;
 pub mod catalog;
 pub mod checks;
 mod devices;
@@ -29,6 +30,9 @@ pub use assignment::{
     Restrictions, RevealPolicy, check_diagnosis, decode_assignment_json, encode_assignment_json,
     validate_assignment, validate_assignment_draft_value, validate_assignment_value,
 };
+pub use bill_of_materials::{
+    BillOfMaterials, MaterialParameter, MaterialRow, TerminalStripRow, bill_of_materials,
+};
 pub use catalog::{
     CategoryId, ComponentCatalog, ComponentCatalogEntry, ComponentTypeId, NumericDomain,
     ParameterDefinition, ParameterId, PinDefinition, PinGroupDefinition, PinId, PinRole, Unit,
@@ -42,8 +46,9 @@ pub use checks::{
 pub use diagnostics::{Diagnostic, DiagnosticCode, DiagnosticReference, DiagnosticSeverity};
 pub use documentation::{
     DESIGNATOR_FIRST_LETTERS, DesignatorEntry, MAX_DESIGNATORS, MAX_NOTES, MAX_SHEETS,
-    MAX_TERMINALS, MAX_WIRE_NUMBERS, NoteSpec, ProjectDocumentation, SheetSize, SheetSpec,
-    TerminalSpec, TitleBlock, WireNumberEntry, is_valid_designator,
+    MAX_TERMINALS, MAX_WIRE_NUMBERS, NoteSpec, ProjectDocumentation, SheetComponentBounds,
+    SheetSize, SheetSpec, TerminalSpec, TitleBlock, WireNumberEntry, documentation_diagnostics,
+    is_valid_designator, number_wires, sheet_diagnostics,
 };
 pub use engine::Engine;
 pub use faults::{FaultKind, FaultSpec, SHORT_FAULT_RESISTANCE_OHMS, supported_fault_kinds};

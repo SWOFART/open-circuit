@@ -159,6 +159,23 @@ export function applyEditorCommand(
     case "addNote":
       store.addNote(command.position, DEFAULT_NOTE_TEXT);
       return;
+    case "addTerminal": {
+      const used = new Set(
+        store
+          .getState()
+          .schematic.documentation.terminals.filter(
+            (terminal) => terminal.strip === "X1",
+          )
+          .map((terminal) => terminal.label),
+      );
+      let number = 1;
+      while (used.has(String(number))) number += 1;
+      store.addTerminal(command.position, "X1", String(number));
+      return;
+    }
+    case "deleteTerminal":
+      store.removeTerminal(command.id);
+      return;
     case "moveNote":
       store.moveNote(command.id, command.position);
       return;

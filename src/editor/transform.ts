@@ -73,7 +73,7 @@ export function simplifyPath(points: readonly GridPoint[]): GridPoint[] {
 }
 
 /** The extent of a placed component's symbol drawing, in grid units. */
-function bodyBounds(
+export function bodyBounds(
   component: ComponentSpec,
   registry: SymbolRegistry,
 ): Bounds {

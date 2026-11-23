@@ -7,6 +7,7 @@ import { SchematicDocumentStore, type StableIdFactory } from "./document";
 import { createDividerFixtureAdapter } from "./mockEngineAdapter";
 import { SimulationController } from "./simulation";
 import { symbols } from "../symbols";
+import { resolvePinPositions } from "../editor/geometry";
 
 const catalog = catalogFixture as ComponentCatalog;
 const R1 = "00000000-0000-4000-8000-000000000002";
@@ -25,6 +26,145 @@ function createStore(): SchematicDocumentStore {
 }
 
 describe("SchematicDocumentStore", () => {
+  it("edits and reorders sheet inputs in undo history and reloads them in order", () => {
+    const store = createStore();
+    const first = store.saveSheet({
+      name: "Power",
+      origin: { x: 0, y: 0 },
+      size: "a4",
+    });
+    const second = store.saveSheet({
+      name: "Control",
+      origin: { x: 59, y: 0 },
+      size: "a3",
+    });
+    expect(() =>
+      store.saveSheet({ name: "Overlap", origin: { x: 58, y: 0 }, size: "a4" }),
+    ).toThrow("overlap");
+    const read = () => store.getState().schematic.documentation.sheets;
+    store.saveSheet({ ...read()[1], name: "Controls" }, second);
+    store.reorderSheet(second, -1);
+    expect(read().map(({ name }) => name)).toEqual(["Controls", "Power"]);
+    store.undo();
+    expect(read().map(({ id }) => id)).toEqual([first, second]);
+    store.redo();
+    store.removeSheet(first);
+    store.undo();
+    const reopened = new SchematicDocumentStore(
+      JSON.parse(JSON.stringify(store.getState().schematic)),
+    );
+    expect(reopened.getState().schematic.documentation.sheets).toEqual(read());
+  });
+
+  it("follows a relocated pin and restores the terminal when its component deletion is undone", () => {
+    const store = createStore();
+    const read = () => store.getState().schematic;
+    const component = read().components.find(({ id }) => id === R1)!;
+    const pin = resolvePinPositions(component, symbols)[0];
+    const terminalId = store.addTerminal(pin.position, "X1", "3");
+    store.moveComponent(R1, {
+      x: component.position.x + 2,
+      y: component.position.y + 4,
+    });
+    const moved = { x: pin.position.x + 2, y: pin.position.y + 4 };
+    expect(read().documentation.terminals[0]?.position).toEqual(moved);
+    store.removeComponent(R1);
+    expect(read().documentation.terminals).toEqual([]);
+    store.undo();
+    expect(read().documentation.terminals[0]).toMatchObject({
+      id: terminalId,
+      position: moved,
+    });
+  });
+
+  it("applies all automatically assigned numbers in one undo entry", () => {
+    const store = createStore();
+    const first = store.addWire({
+      points: [
+        { x: 20, y: 20 },
+        { x: 21, y: 20 },
+      ],
+    });
+    const second = store.addWire({
+      points: [
+        { x: 21, y: 20 },
+        { x: 22, y: 20 },
+      ],
+    });
+    const entries = () => store.getState().schematic.documentation.wireNumbers;
+    store.addWireNumbers([
+      { wireId: first, number: "1" },
+      { wireId: second, number: "1" },
+    ]);
+    expect(entries()).toHaveLength(2);
+    store.undo();
+    expect(entries()).toEqual([]);
+    store.redo();
+    expect(entries()).toHaveLength(2);
+  });
+
+  it("keeps a terminal attached while its wire moves and restores it with undo", () => {
+    const store = createStore();
+    const id = store.addWire({
+      points: [
+        { x: 20, y: 20 },
+        { x: 24, y: 20 },
+      ],
+    });
+    expect(() => store.addTerminal({ x: 21, y: 21 }, "X1", "1")).toThrow();
+    const terminal = store.addTerminal({ x: 21, y: 20 }, "X1", "1");
+    expect(() => store.addTerminal({ x: 22, y: 20 }, "X1", "1")).toThrow();
+    expect(() => store.addTerminal({ x: 21, y: 20 }, "X1", "2")).toThrow();
+    store.setTerminalName(terminal, "X2", "L+");
+    store.editWire(id, [
+      { x: 20, y: 22 },
+      { x: 24, y: 22 },
+    ]);
+    const entries = () => store.getState().schematic.documentation.terminals;
+    expect(entries()).toEqual([
+      { id: terminal, strip: "X2", label: "L+", position: { x: 21, y: 22 } },
+    ]);
+    const reopened = new SchematicDocumentStore(
+      JSON.parse(JSON.stringify(store.getState().schematic)),
+      ids(),
+    );
+    expect(reopened.getState().schematic.documentation.terminals).toEqual(
+      entries(),
+    );
+    store.removeWire(id);
+    expect(entries()).toEqual([]);
+    store.undo();
+    expect(entries()[0]?.position).toEqual({ x: 21, y: 22 });
+    store.undo();
+    expect(entries()[0]?.position).toEqual({ x: 21, y: 20 });
+  });
+
+  it("keeps wire number edits and deletion in document history", () => {
+    const store = createStore();
+    const wireId = store.addWire({
+      points: [
+        { x: 20, y: 20 },
+        { x: 21, y: 20 },
+      ],
+    });
+    const numbers = () => store.getState().schematic.documentation.wireNumbers;
+    expect(() => store.setWireNumber(wireId, "bad label")).toThrow();
+    expect(numbers()).toEqual([]);
+    store.setWireNumber(wireId, "X1-3");
+    expect(numbers()).toEqual([{ wireId, number: "X1-3" }]);
+    store.setWireNumber(wireId, "");
+    expect(numbers()).toEqual([]);
+    store.undo();
+    store.removeWire(wireId);
+    expect(numbers()).toEqual([]);
+    store.undo();
+    expect(numbers()).toEqual([{ wireId, number: "X1-3" }]);
+    expect(
+      store.getState().schematic.wires.some((wire) => wire.id === wireId),
+    ).toBe(true);
+    store.redo();
+    expect(numbers()).toEqual([]);
+  });
   it("preserves normalized rail inputs through unrelated edits and undo/redo", () => {
     const rails = [
       {

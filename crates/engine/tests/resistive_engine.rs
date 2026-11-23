@@ -19,6 +19,38 @@ fn divider_request() -> CompileRequest {
     }
 }
 
+#[test]
+fn terminal_and_wire_labels_do_not_change_divider_results() {
+    let bare = divider_request();
+    let mut documented = bare.clone();
+    documented.schematic.documentation.wire_numbers =
+        open_circuit_engine::number_wires(&bare.schematic, &bare.geometry).unwrap();
+    assert!(!documented.schematic.documentation.wire_numbers.is_empty());
+    documented
+        .schematic
+        .documentation
+        .terminals
+        .push(open_circuit_engine::TerminalSpec {
+            id: StableId::parse("00000000-0000-4000-8000-000000009192").unwrap(),
+            strip: "X1".to_owned(),
+            label: "1".to_owned(),
+            position: bare.geometry.components[0].pins[0].position,
+        });
+    let solve = |request| {
+        let CompileResult::Success {
+            layout,
+            initial_snapshot,
+            diagnostics,
+            ..
+        } = open_circuit_engine::Engine::default().compile(request)
+        else {
+            panic!("divider must compile");
+        };
+        (layout, initial_snapshot.values, diagnostics)
+    };
+    assert_eq!(solve(documented), solve(bare));
+}
+
 fn component_value(
     layout: &ResultLayout,
     snapshot: &ResultSnapshot,

@@ -20,7 +20,13 @@ export interface Bounds {
 }
 
 export type SelectableKind =
-  "component" | "wire" | "junction" | "referenceMarker" | "rail" | "note";
+  | "component"
+  | "wire"
+  | "junction"
+  | "referenceMarker"
+  | "rail"
+  | "note"
+  | "terminal";
 
 /** The schematic object a shape belongs to; selection and hit tests use it. */
 export interface SceneOwner {
@@ -191,6 +197,12 @@ export function buildScene(
 ): SceneModel {
   const shapes: SceneShape[] = [];
 
+  const numbers = new Map(
+    schematic.documentation.wireNumbers.map(({ wireId, number }) => [
+      wireId,
+      number,
+    ]),
+  );
   for (const wire of schematic.wires) {
     shapes.push({
       kind: "polyline",
@@ -198,6 +210,21 @@ export function buildScene(
       owner: { kind: "wire", id: wire.id },
       points: wire.points.map((point) => ({ x: point.x, y: point.y })),
     });
+    const number = numbers.get(wire.id);
+    if (number !== undefined) {
+      const { width, height } = noteExtent(number);
+      const position = wireNumberPosition(wire.points, width / 2);
+      if (position) {
+        shapes.push({
+          kind: "label",
+          owner: { kind: "wire", id: wire.id },
+          text: number,
+          position,
+          halfWidth: width / 2,
+          halfHeight: height / 2,
+        });
+      }
+    }
   }
 
   for (const rail of schematic.rails) {
@@ -300,6 +327,32 @@ export function buildScene(
     );
   }
 
+  for (const terminal of schematic.documentation.terminals) {
+    const owner = { kind: "terminal", id: terminal.id } as const;
+    const text = `${terminal.strip}:${terminal.label}`;
+    const { width, height } = noteExtent(text);
+    shapes.push(
+      {
+        kind: "circle",
+        owner,
+        center: terminal.position,
+        radius: 0.23,
+        role: "symbol",
+      },
+      {
+        kind: "label",
+        owner,
+        text,
+        position: {
+          x: terminal.position.x + width / 2 + 0.4,
+          y: terminal.position.y - 0.6,
+        },
+        halfWidth: width / 2,
+        halfHeight: height / 2,
+      },
+    );
+  }
+
   // A note is drawn last, on top. Its position is the top-left corner of its text; the label
   // shape is centred, so it is put at the middle of the text's box.
   for (const note of schematic.documentation.notes) {
@@ -325,4 +378,25 @@ export function buildScene(
       y: point.y,
     })),
   };
+}
+
+/** Place a wire number beside the first longest segment, for canvas and export. */
+export function wireNumberPosition(
+  points: readonly GridPoint[],
+  halfWidth: number,
+): ScenePoint | undefined {
+  let longest = 0;
+  let position: ScenePoint | undefined;
+  for (let index = 1; index < points.length; index += 1) {
+    const a = points[index - 1];
+    const b = points[index];
+    const length = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    if (length <= longest) continue;
+    longest = length;
+    position = {
+      x: (a.x + b.x) / 2 + (a.x === b.x ? 0.4 + halfWidth : 0),
+      y: (a.y + b.y) / 2 - (a.y === b.y ? 0.75 : 0),
+    };
+  }
+  return position;
 }

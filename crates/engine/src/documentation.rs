@@ -4,7 +4,7 @@
 //! terminals, notes, a title block and sheets, all keyed by the stable IDs of the drawing. Nothing
 //! derived is stored here.
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -287,6 +287,7 @@ impl Schematic {
         }
 
         let mut named = BTreeMap::<(&str, &str), Vec<&TerminalSpec>>::new();
+        let mut positioned = BTreeMap::<(i32, i32), Vec<&TerminalSpec>>::new();
         for terminal in &documentation.terminals {
             let reference = DiagnosticReference::Terminal {
                 terminal_id: terminal.id.clone(),
@@ -301,8 +302,16 @@ impl Schematic {
                 .entry((&terminal.strip, &terminal.label))
                 .or_default()
                 .push(terminal);
+            positioned
+                .entry((terminal.position.x, terminal.position.y))
+                .or_default()
+                .push(terminal);
         }
-        for terminals in named.values().filter(|terminals| terminals.len() > 1) {
+        for terminals in named
+            .values()
+            .chain(positioned.values())
+            .filter(|terminals| terminals.len() > 1)
+        {
             diagnostics.push(Diagnostic::error(
                 DiagnosticCode::DuplicateTerminal,
                 sorted(
@@ -384,9 +393,271 @@ fn sheets_overlap(a: &SheetSpec, b: &SheetSpec) -> bool {
     ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah
 }
 
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "SheetComponentBounds.ts")]
+pub struct SheetComponentBounds {
+    pub component_id: StableId,
+    pub min_x: f64,
+    pub min_y: f64,
+    pub max_x: f64,
+    pub max_y: f64,
+}
+
+fn sheet_at(sheets: &[SheetSpec], position: GridPoint) -> Option<&SheetSpec> {
+    sheets.iter().find(|sheet| {
+        let (width, height) = sheet.size.grid_units();
+        let x = i64::from(position.x) - i64::from(sheet.origin.x);
+        let y = i64::from(position.y) - i64::from(sheet.origin.y);
+        (0..width).contains(&x) && (0..height).contains(&y)
+    })
+}
+
+/// Sheet membership uses the saved origins; symbol extents come from Application's drawing.
+pub fn sheet_diagnostics(
+    schematic: &Schematic,
+    geometry: &[SheetComponentBounds],
+) -> Vec<Diagnostic> {
+    let sheets = &schematic.documentation.sheets;
+    if sheets.is_empty() {
+        return Vec::new();
+    }
+    let bounds: HashMap<_, _> = geometry
+        .iter()
+        .map(|entry| (&entry.component_id, entry))
+        .collect();
+    let mut warnings = Vec::new();
+    for component in &schematic.components {
+        let reference = DiagnosticReference::Component {
+            component_id: component.id().clone(),
+        };
+        let Some(sheet) = sheet_at(sheets, component.position()) else {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::ObjectOutsideSheets,
+                vec![reference],
+            ));
+            continue;
+        };
+        let Some(body) = bounds.get(component.id()) else {
+            continue;
+        };
+        let (width, height) = sheet.size.grid_units();
+        let (x, y) = (f64::from(sheet.origin.x), f64::from(sheet.origin.y));
+        if body.min_x < x + 2.0
+            || body.min_y < y + 2.0
+            || body.max_x > x + width as f64 - 2.0
+            || body.max_y > y + height as f64 - 2.0
+        {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::ObjectCrossesSheetEdge,
+                vec![
+                    reference,
+                    DiagnosticReference::Sheet {
+                        sheet_id: sheet.id.clone(),
+                    },
+                ],
+            ));
+        }
+    }
+    let notes = schematic.documentation.notes.iter().map(|note| {
+        (
+            note.position,
+            DiagnosticReference::Note {
+                note_id: note.id.clone(),
+            },
+        )
+    });
+    let terminals = schematic.documentation.terminals.iter().map(|terminal| {
+        (
+            terminal.position,
+            DiagnosticReference::Terminal {
+                terminal_id: terminal.id.clone(),
+            },
+        )
+    });
+    for (position, reference) in notes.chain(terminals) {
+        if sheet_at(sheets, position).is_none() {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::ObjectOutsideSheets,
+                vec![reference],
+            ));
+        }
+    }
+    warnings
+}
+
+/// Check wire labels against the same conductor connectivity used by the solver.
+pub fn documentation_diagnostics(
+    schematic: &Schematic,
+    geometry: &crate::GeometryEnvelope,
+) -> Result<Vec<Diagnostic>, Vec<Diagnostic>> {
+    let netlist =
+        crate::netlist::derive_document_connectivity(schematic, geometry, &HashSet::new())?;
+    let numbers: HashMap<_, _> = schematic
+        .documentation
+        .wire_numbers
+        .iter()
+        .map(|entry| (&entry.wire_id, entry.number.as_str()))
+        .collect();
+    let mut by_number = BTreeMap::<&str, BTreeMap<usize, Vec<DiagnosticReference>>>::new();
+    let mut warnings = Vec::new();
+    for node in &netlist.nodes {
+        let mut labels = HashSet::new();
+        let mut references = Vec::new();
+        for wire in &node.wire_ids {
+            let Some(number) = numbers.get(wire) else {
+                continue;
+            };
+            let reference = DiagnosticReference::Wire {
+                wire_id: wire.clone(),
+            };
+            labels.insert(*number);
+            references.push(reference.clone());
+            by_number
+                .entry(number)
+                .or_default()
+                .entry(node.index)
+                .or_default()
+                .push(reference);
+        }
+        if labels.len() > 1 {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::NetHasTwoWireNumbers,
+                references.clone(),
+            ));
+        }
+        if node.pins.is_empty() && !references.is_empty() {
+            warnings.push(Diagnostic::warning(
+                DiagnosticCode::WireNumberOnUnconnectedWire,
+                references,
+            ));
+        }
+    }
+    for nodes in by_number.into_values().filter(|nodes| nodes.len() > 1) {
+        warnings.push(Diagnostic::warning(
+            DiagnosticCode::WireNumberOnDifferentNets,
+            nodes.into_values().flatten().collect(),
+        ));
+    }
+    Ok(warnings)
+}
+
+/// Return the new entries for nets whose wires currently have no number.
+pub fn number_wires(
+    schematic: &Schematic,
+    geometry: &crate::GeometryEnvelope,
+) -> Result<Vec<WireNumberEntry>, Vec<Diagnostic>> {
+    let netlist =
+        crate::netlist::derive_document_connectivity(schematic, geometry, &HashSet::new())?;
+    let existing = &schematic.documentation.wire_numbers;
+    let numbered: HashSet<_> = existing.iter().map(|entry| &entry.wire_id).collect();
+    let used: HashSet<_> = existing.iter().map(|entry| entry.number.as_str()).collect();
+    let mut origins: HashMap<_, _> = schematic
+        .wires
+        .iter()
+        .map(|wire| {
+            (
+                &wire.id,
+                wire.points
+                    .iter()
+                    .map(|p| (p.y, p.x))
+                    .min()
+                    .expect("validated wire"),
+            )
+        })
+        .collect();
+    origins.extend(schematic.rails.iter().map(|rail| {
+        (
+            &rail.id,
+            (rail.start.y, rail.start.x).min((rail.end.y, rail.end.x)),
+        )
+    }));
+    let mut nodes: Vec<_> = netlist
+        .nodes
+        .iter()
+        .filter(|node| {
+            !node.wire_ids.is_empty() && node.wire_ids.iter().all(|wire| !numbered.contains(wire))
+        })
+        .collect();
+    nodes.sort_by_key(|node| {
+        (
+            node.wire_ids
+                .iter()
+                .chain(&node.rail_ids)
+                .map(|id| origins[id])
+                .min(),
+            node.index,
+        )
+    });
+    if existing.len() + nodes.iter().map(|node| node.wire_ids.len()).sum::<usize>()
+        > MAX_WIRE_NUMBERS
+    {
+        return Err(vec![Diagnostic::error(
+            DiagnosticCode::DocumentationLimitExceeded,
+            Vec::new(),
+        )]);
+    }
+    let mut serial = 1;
+    let mut result = Vec::new();
+    for node in nodes {
+        let number = loop {
+            let candidate = serial.to_string();
+            serial += 1;
+            if !used.contains(candidate.as_str()) {
+                break candidate;
+            }
+        };
+        result.extend(node.wire_ids.iter().map(|wire_id| WireNumberEntry {
+            wire_id: wire_id.clone(),
+            number: number.clone(),
+        }));
+    }
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::is_valid_designator;
+    use super::*;
+
+    #[test]
+    fn numbering_uses_conductor_geometry_and_reports_conflicting_labels() {
+        let id = |n| StableId::parse(format!("00000000-0000-4000-8000-{n:012}")).unwrap();
+        let wire = |n, y, x| crate::WireSpec {
+            id: id(n),
+            points: vec![GridPoint { x, y }, GridPoint { x: x + 2, y }],
+        };
+        let mut schematic = Schematic {
+            schema_version: 3,
+            components: vec![],
+            wires: vec![wire(1, 10, 0), wire(2, 10, 2), wire(3, 5, 0), wire(4, 2, 0)],
+            junctions: vec![],
+            reference_markers: vec![],
+            rails: vec![],
+            documentation: ProjectDocumentation::default(),
+        };
+        let geometry = crate::GeometryEnvelope { components: vec![] };
+        let entry = |n, number: &str| WireNumberEntry {
+            wire_id: id(n),
+            number: number.to_owned(),
+        };
+        schematic.documentation.wire_numbers.push(entry(4, "1"));
+        let expected = vec![entry(3, "2"), entry(1, "3"), entry(2, "3")];
+        assert_eq!(number_wires(&schematic, &geometry).unwrap(), expected);
+        schematic.wires.reverse();
+        assert_eq!(number_wires(&schematic, &geometry).unwrap(), expected);
+        schematic
+            .documentation
+            .wire_numbers
+            .extend([entry(1, "1"), entry(2, "2")]);
+        let warnings = documentation_diagnostics(&schematic, &geometry).unwrap();
+        for code in [
+            DiagnosticCode::WireNumberOnDifferentNets,
+            DiagnosticCode::NetHasTwoWireNumbers,
+            DiagnosticCode::WireNumberOnUnconnectedWire,
+        ] {
+            assert!(warnings.iter().any(|diagnostic| diagnostic.code == code));
+        }
+    }
 
     #[test]
     fn designators_follow_the_contract_grammar() {

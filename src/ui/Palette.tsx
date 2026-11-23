@@ -116,6 +116,15 @@ export function Palette({
       >
         Note
       </button>
+      <button
+        type="button"
+        className="toolbar-button"
+        disabled={disabled || noteUnavailable !== null}
+        aria-pressed={tool.kind === "terminal"}
+        onClick={() => onSelectTool({ kind: "terminal" })}
+      >
+        Terminal
+      </button>
     </div>
   );
 }
@@ -128,6 +137,11 @@ export function toolHint(status: EditorStatus): {
   const { tool } = status;
 
   switch (tool.kind) {
+    case "terminal":
+      return {
+        text: "Click a pin or wire to place a terminal.",
+        warning: false,
+      };
     case "select":
       return {
         text: "Click an object to select it. Drag to move it. Delete removes it. Space or the middle button pans. While a simulation runs, click a switch lever or hold a push button to operate it.",

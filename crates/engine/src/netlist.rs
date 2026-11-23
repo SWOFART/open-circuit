@@ -73,6 +73,20 @@ pub fn derive_netlist_with_open(
     geometry: &GeometryEnvelope,
     open: &HashSet<StableId>,
 ) -> Result<Netlist, Vec<Diagnostic>> {
+    let netlist = derive_document_connectivity(schematic, geometry, open)?;
+    if has_errors(&netlist.diagnostics) {
+        Err(netlist.diagnostics)
+    } else {
+        Ok(netlist)
+    }
+}
+
+/// Retain connectivity for a valid drawing even when its circuit cannot run.
+pub(crate) fn derive_document_connectivity(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
+) -> Result<Netlist, Vec<Diagnostic>> {
     let mut diagnostics = schematic.validate();
     diagnostics.extend(geometry.validate_for(schematic));
     if has_errors(&diagnostics) {
@@ -365,16 +379,12 @@ pub fn derive_netlist_with_open(
     islands.sort_by_key(|island| island.node_indices.first().copied().unwrap_or(usize::MAX));
     nodes.shrink_to_fit();
     sort_diagnostics(&mut diagnostics);
-    if has_errors(&diagnostics) {
-        Err(diagnostics)
-    } else {
-        Ok(Netlist {
-            nodes,
-            islands,
-            diagnostics,
-            earth_node,
-        })
-    }
+    Ok(Netlist {
+        nodes,
+        islands,
+        diagnostics,
+        earth_node,
+    })
 }
 
 #[derive(Clone)]

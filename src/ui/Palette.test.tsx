@@ -35,10 +35,11 @@ describe("editor tools", () => {
       "Junction",
       "Ground",
       "Note",
+      "Terminal",
     ]) {
       expect(markup).toContain(`>${label}<`);
     }
-    expect(markup.match(/<button/g)).toHaveLength(7);
+    expect(markup.match(/<button/g)).toHaveLength(8);
     expect(markup).not.toContain("Resistor");
     expect(pressed(markup)).toEqual(["Select"]);
   });
@@ -56,7 +57,7 @@ describe("editor tools", () => {
   it("disables every tool while a project operation is pending", () => {
     expect(
       render({ kind: "select" }, false, true).match(/disabled=""/g),
-    ).toHaveLength(7);
+    ).toHaveLength(8);
   });
 
   it("keeps the Note tool visible but disabled, with the reason, when it is unavailable", () => {

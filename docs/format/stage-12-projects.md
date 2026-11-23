@@ -1,5 +1,23 @@
 # Stage 12 project format (schema version 3)
 
+The desktop application's Drawing documentation panel edits the title block, shows
+the derived bill of materials, and exports a drawing at A4 or A3 landscape.
+Automatic sizing tries A4 first and keeps the drawing clear of the title block.
+Drawings that need more room require sheets. PDF adds the parts and terminal-strip list
+after the drawing. PNG uses 300 dpi, and SVG keeps text editable. The exported
+files reflect the static drawing, including its designators, terminals, wire
+numbers, and notes. Export leaves the project and its save location intact.
+
+Add sheets in Drawing documentation. Each sheet has a name, landscape size,
+and a top-left origin in grid units. Select a sheet to navigate to its frame.
+The sheet order controls the numbers printed in each title block. Changing
+sheet fields, order, or presence participates in undo and project saves.
+Wires that cross a sheet end at its printable border in the export.
+If drawing marks cover a sheet's title block, export names the affected sheet
+so the marks or the sheet can be moved before saving a copy.
+PDF combines the sheets and materials list. For a project with multiple
+sheets, PNG and SVG create numbered files together in a new folder.
+
 Contract: [`docs/contracts/stage-12-cabinet-documentation.md`](../contracts/stage-12-cabinet-documentation.md)
 sections 2 and 3. This file records what issue #189 implemented.
 
@@ -15,9 +33,17 @@ Projects of version 1 and 2 are decoded by their frozen shapes (`LegacySchematic
 `documentation` field is malformed, not accepted. Opening a legacy file does not rewrite it;
 saving writes v3, which an older reader rejects.
 
-The Engine validates `documentation` with the document and otherwise ignores it: it changes no
-compile, run or result. Terminal attachment to a pin or wire is checked with the drawing in
-issue #192.
+The Engine validates `documentation` with the document and otherwise ignores it during circuit
+solving. Wire numbering and its warnings use derived conductor connectivity on demand.
+
+In the editor, the Terminal tool places a marker on a pin or wire. Select its label to edit the
+strip and terminal name. At a pin, the terminal follows that pin. On a wire, it follows its
+distance along the route, limited to the new end if the route becomes shorter. Moving or
+deleting the attachment and updating the terminal share one undo entry.
+
+Select a wire to edit its number, or use **Number the wires** to number fully unnumbered
+conductors. The same number is assigned to each wire on that conductor. Saved numbers on
+other conductors are kept. Undo reverses the whole numbering operation.
 
 ## Validation
 
