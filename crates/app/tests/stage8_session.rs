@@ -732,7 +732,18 @@ fn the_service_runs_a_rail_circuit_with_live_operator_and_parameter_updates() {
         SetOperatorStateResult::Success { .. }
     ));
     assert!(started.elapsed() < Duration::from_secs(5));
-    std::thread::sleep(Duration::from_millis(60));
+    // Stop only once a frame for the acknowledged final revision has been delivered: a fixed
+    // sleep can end before it arrives on a slow runner. The wait is bounded.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !capture.frames.lock().unwrap().iter().any(|bytes| {
+        decode_frame(bytes).is_ok_and(|frame| frame.metadata.document_revision == "rev-4")
+    }) {
+        assert!(
+            Instant::now() < deadline,
+            "no frame for the final revision arrived within 10 s"
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
     service.stop(Some(run_id)).unwrap();
 
     let frames = capture
