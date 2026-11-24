@@ -493,6 +493,89 @@ describe("stale results", () => {
     ).toBe(false);
   });
 
+  it("expects a switch record for each residual-current device and none for the earth devices", () => {
+    const rcdId = "00000000-0000-4000-8000-000000000020";
+    const schematic: Schematic = {
+      ...dividerSchematic,
+      components: [
+        ...dividerSchematic.components,
+        {
+          typeId: "rcd_two_pole",
+          id: rcdId,
+          position: { x: 10, y: 0 },
+          rotationDeg: 0,
+          parameters: {
+            ratedResidualCurrentAmps: 0.03,
+            tripTimeAtRatedSeconds: 0.1,
+            residualSenseSeconds: 0.02,
+            closedContactResistanceOhms: 0.01,
+          },
+        },
+        {
+          typeId: "earth_electrode",
+          id: "00000000-0000-4000-8000-000000000021",
+          position: { x: 20, y: 0 },
+          rotationDeg: 0,
+          parameters: { earthResistanceOhms: 10 },
+        },
+        {
+          typeId: "exposed_part",
+          id: "00000000-0000-4000-8000-000000000022",
+          position: { x: 30, y: 0 },
+          rotationDeg: 0,
+          parameters: { frequencyHz: 50, touchVoltageLimitVolts: 50 },
+        },
+      ],
+    };
+    const withRcd: ResultSnapshot = {
+      ...frame({}),
+      states: [
+        {
+          componentId: rcdId,
+          kind: "switch",
+          position: "closed",
+          conducting: true,
+        },
+      ],
+    };
+
+    // The device has a record; the electrode and the exposed part have none.
+    expect(isSnapshotCurrent(run, null, frame({}), schematic)).toBe(false);
+    expect(isSnapshotCurrent(run, null, withRcd, schematic)).toBe(true);
+    // A latched record is still a switch record: open and not conducting.
+    expect(
+      isSnapshotCurrent(
+        run,
+        null,
+        {
+          ...withRcd,
+          states: [
+            {
+              componentId: rcdId,
+              kind: "switch",
+              position: "open",
+              conducting: false,
+              lastTransitionTimeSeconds: 0,
+            },
+          ],
+        },
+        schematic,
+      ),
+    ).toBe(true);
+    // Any other kind of record for the device is refused.
+    expect(
+      isSnapshotCurrent(
+        run,
+        null,
+        {
+          ...withRcd,
+          states: [{ componentId: rcdId, kind: "fuse", state: "tripped" }],
+        },
+        schematic,
+      ),
+    ).toBe(false);
+  });
+
   it.each([
     ["a different run ID", { runId: "00000000-0000-4000-8000-0000000000b1" }],
     ["a different document revision", { documentRevision: "rev-4" }],

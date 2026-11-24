@@ -166,6 +166,10 @@ const STATE_KIND_OF_TYPE: Readonly<
   contactor: "contactor",
   contactor_three_pole: "contactor",
   breaker_three_pole: "switch",
+  // The Stage 13 residual-current devices report a switch record, like the breaker. The earth
+  // electrode and the exposed part have no state.
+  rcd_two_pole: "switch",
+  rcd_four_pole: "switch",
   thermal_overload_three_pole: "fuse",
 };
 
