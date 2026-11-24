@@ -3,7 +3,8 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const cargoCommand = process.platform === "win32" ? "cargo.exe" : "cargo";
-const result = spawnSync(cargoCommand, ["test", "-p", "open-circuit-engine"], {
+const args = ["test", "-p", "open-circuit-engine", ...process.argv.slice(2)];
+const result = spawnSync(cargoCommand, args, {
   cwd: repositoryRoot,
   env: {
     ...process.env,
