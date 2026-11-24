@@ -1,6 +1,6 @@
 # Stage 14 proposed contract for additional parts
 
-This proposal for [#207](https://github.com/SWOFART/open-circuit/issues/207) needs review by the Engine and Application workstreams and owner acceptance before the device implementations. It extends [the architecture](../../ARCHITECTURE.md) and the [control circuits](stage-6-control-circuits.md), [nonlinear circuits](stage-7-nonlinear-circuits.md) and [three-phase](stage-9-three-phase-foundation.md) contracts.
+The owner accepted the contract proposed in [PR #298](https://github.com/SWOFART/open-circuit/pull/298) for [#207](https://github.com/SWOFART/open-circuit/issues/207). It extends [the architecture](../../ARCHITECTURE.md) and the [control circuits](stage-6-control-circuits.md), [nonlinear circuits](stage-7-nonlinear-circuits.md) and [three-phase](stage-9-three-phase-foundation.md) contracts.
 
 ## Shared conventions
 

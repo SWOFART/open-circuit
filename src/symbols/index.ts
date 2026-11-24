@@ -24,6 +24,7 @@ import {
 } from "./protection";
 import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
+import { offDelayRelaySymbol, onDelayRelaySymbol } from "./timeRelay";
 import { resistorSymbol } from "./resistor";
 import { switchSpstSymbol } from "./switch";
 import {
@@ -65,6 +66,8 @@ export const symbols: SymbolRegistry = {
   capacitor: capacitorSymbol,
   inductor: inductorSymbol,
   relay_spdt: relaySpdtSymbol,
+  relay_on_delay: onDelayRelaySymbol,
+  relay_off_delay: offDelayRelaySymbol,
   fuse: fuseSymbol,
   pmdc_motor: pmdcMotorSymbol,
   contactor_three_pole: contactorThreePoleSymbol,

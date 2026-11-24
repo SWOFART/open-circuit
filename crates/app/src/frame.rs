@@ -167,6 +167,31 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
     let mut previous = None;
     for state in states {
         let (component_id, kind, value, transition, conducting) = match state {
+            DeviceState::RelayOnDelay {
+                component_id,
+                energized,
+                output_on,
+                timing,
+                last_transition_time_seconds,
+            }
+            | DeviceState::RelayOffDelay {
+                component_id,
+                energized,
+                output_on,
+                timing,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                if matches!(state, DeviceState::RelayOnDelay { .. }) {
+                    6
+                } else {
+                    7
+                },
+                u8::from(*energized) | u8::from(*output_on) << 1 | u8::from(*timing) << 2,
+                *last_transition_time_seconds,
+                false,
+            ),
+
             DeviceState::Relay {
                 component_id,
                 state,
@@ -414,6 +439,21 @@ fn decode_states(
             .map_err(|_| FrameError::InvalidState)?;
         let transition = has_time.then_some(time);
         states.push(match (kind, value) {
+            (6, 0..=7) => DeviceState::RelayOnDelay {
+                component_id,
+                energized: value & 1 != 0,
+                output_on: value & 2 != 0,
+                timing: value & 4 != 0,
+                last_transition_time_seconds: transition,
+            },
+            (7, 0..=7) => DeviceState::RelayOffDelay {
+                component_id,
+                energized: value & 1 != 0,
+                output_on: value & 2 != 0,
+                timing: value & 4 != 0,
+                last_transition_time_seconds: transition,
+            },
+
             (1, 0) => DeviceState::Relay {
                 component_id,
                 state: RelayContactState::Released,

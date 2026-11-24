@@ -202,6 +202,11 @@ enum DeviceModel {
     Fuse {
         intact_resistance_ohms: f64,
     },
+    TimeRelay {
+        coil_resistance: f64,
+        contact_resistance: f64,
+        poles: [LinkedPole; 2],
+    },
     Contactor {
         coil_resistance_ohms: f64,
         coil_inductance_henries: f64,
@@ -1056,6 +1061,7 @@ fn resolve_switchgear_actions(
         &mut results,
         Vec::new(),
         time,
+        Some((time / SIMULATION_TIMESTEP_SECONDS).round() as u64),
         &mut diagnostics,
     )?;
     resolved.measurements = states.measurements;
@@ -1198,6 +1204,7 @@ fn initialize_circuit(
         &mut results,
         Vec::new(),
         0.0,
+        Some(0),
         &mut diagnostics,
     )?;
     states.measurements = measurements::seed(schematic, &mut results, 0.0);
@@ -1780,6 +1787,21 @@ fn local_adjacency(
                 };
                 connect(common_node, active);
             }
+            DeviceModel::TimeRelay { poles, .. } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                let active = mode
+                    .states()
+                    .and_then(|s| s.timers.get(&spec.component_id))
+                    .is_some_and(|(_, timer)| timer.output_on);
+                for terminals in (LinkedContacts {
+                    poles: &poles,
+                    active,
+                })
+                .conducting()
+                {
+                    connect(terminals.pin1, terminals.pin2);
+                }
+            }
             DeviceModel::Contactor { poles, .. } => {
                 let coil_has_conductance = match mode {
                     SolveMode::OperatingPoint | SolveMode::Transient { .. } => true,
@@ -1943,7 +1965,10 @@ fn build_device_specs(
             (PinId::CoilPositive, PinId::CoilNegative)
         } else if matches!(
             component,
-            ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. }
+            ComponentSpec::Contactor { .. }
+                | ComponentSpec::ContactorThreePole { .. }
+                | ComponentSpec::RelayOnDelay { .. }
+                | ComponentSpec::RelayOffDelay { .. }
         ) {
             (PinId::A1, PinId::A2)
         } else if matches!(
@@ -2329,6 +2354,33 @@ fn build_device_specs(
                     contact_resistance: parameters.closed_contact_resistance_ohms,
                 }
             }
+            ComponentSpec::RelayOnDelay { parameters, .. }
+            | ComponentSpec::RelayOffDelay { parameters, .. } => {
+                let Some(poles) = resolve_linked_auxiliaries(
+                    [
+                        PinGroup {
+                            id: "no",
+                            pins: [PinId::TimerNo1, PinId::TimerNo2],
+                        },
+                        PinGroup {
+                            id: "nc",
+                            pins: [PinId::TimerNc1, PinId::TimerNc2],
+                        },
+                    ],
+                    node_for_pin,
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::TimeRelay {
+                    coil_resistance: parameters.coil_resistance_ohms,
+                    contact_resistance: parameters.closed_resistance_ohms,
+                    poles,
+                }
+            }
             ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. } => {
                 let (coil_resistance, coil_inductance, closed_resistance) = match component {
                     ComponentSpec::Contactor { parameters, .. } => (
@@ -2566,7 +2618,13 @@ fn winding_mode(
 }
 
 fn resolve_auxiliaries(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<[LinkedPole; 2]> {
-    let [no, nc] = CONTACTOR_AUXILIARIES;
+    resolve_linked_auxiliaries(CONTACTOR_AUXILIARIES, node_for_pin)
+}
+
+fn resolve_linked_auxiliaries(
+    [no, nc]: [PinGroup; 2],
+    node_for_pin: impl Fn(PinId) -> Option<usize>,
+) -> Option<[LinkedPole; 2]> {
     Some([
         LinkedPole {
             group: no,
@@ -2838,6 +2896,32 @@ fn make_device(
                 contact_state,
                 last_transition_time_seconds,
                 coil_mode,
+            ))
+        }
+        DeviceModel::TimeRelay {
+            coil_resistance,
+            contact_resistance,
+            poles,
+        } => {
+            let active = mode
+                .states()
+                .and_then(|s| s.timers.get(&spec.component_id))
+                .is_some_and(|(_, timer)| timer.output_on);
+            Box::new(ContactorDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                ContactorPoles::Auxiliaries(poles),
+                coil_resistance,
+                0.0,
+                contact_resistance,
+                if active {
+                    RelayContactState::Picked
+                } else {
+                    RelayContactState::Released
+                },
+                None,
+                RelayCoilMode::OperatingPoint,
+                None,
             ))
         }
         DeviceModel::Contactor {
@@ -3674,7 +3758,8 @@ fn values_for_layout(
                 | ResultQuantity::MeanSquareCurrent
                 | ResultQuantity::ThermalDose
                 | ResultQuantity::ElectromagneticTorque
-                | ResultQuantity::Valid => f64::NAN,
+                | ResultQuantity::Valid
+                | ResultQuantity::ElapsedTime => f64::NAN,
             });
         if value.is_finite() {
             values[slot.offset as usize] = value;
@@ -3706,6 +3791,7 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
+        ComponentSpec::RelayOnDelay { .. } | ComponentSpec::RelayOffDelay { .. } => return false,
         ComponentSpec::ContactorThreePole { parameters, .. } => match parameter_id {
             ParameterId::PickupCurrentAmps => parameters.pickup_current_amps = value,
             ParameterId::DropoutCurrentAmps => parameters.dropout_current_amps = value,

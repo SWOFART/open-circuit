@@ -87,6 +87,8 @@ fn parts_are_assigned_to_the_categories_of_the_stage_11_contract() {
         (PushButtonNo, CategoryId::Switching),
         (PushButtonNc, CategoryId::Switching),
         (RelaySpdt, CategoryId::Switching),
+        (RelayOnDelay, CategoryId::Switching),
+        (RelayOffDelay, CategoryId::Switching),
         (Contactor, CategoryId::Switching),
         (ContactorThreePole, CategoryId::Switching),
         (BreakerThreePole, CategoryId::Protection),

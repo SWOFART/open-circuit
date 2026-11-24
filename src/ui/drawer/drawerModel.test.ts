@@ -32,6 +32,8 @@ describe("the drawer list", () => {
       "switch_spst",
       "push_button_no",
       "push_button_nc",
+      "relay_on_delay",
+      "relay_off_delay",
       "contactor",
       "contactor_three_pole",
     ]);

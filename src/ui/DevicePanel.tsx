@@ -23,6 +23,8 @@ export interface DevicePanelProps {
 /** The Stage 4 and Stage 6 devices this panel reports on. */
 const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "relay_spdt",
+  "relay_on_delay",
+  "relay_off_delay",
   "fuse",
   "contactor_three_pole",
   "breaker_three_pole",
@@ -138,6 +140,41 @@ function describe(
   };
 
   switch (component.typeId) {
+    case "relay_on_delay":
+    case "relay_off_delay": {
+      const onDelay = component.typeId === "relay_on_delay";
+      const state = stateOf(
+        snapshot,
+        id,
+        onDelay ? "relayOnDelay" : "relayOffDelay",
+      );
+      const timer =
+        state?.kind === "relayOnDelay" || state?.kind === "relayOffDelay"
+          ? state
+          : undefined;
+      return {
+        id,
+        title: `${name} ${message(onDelay ? "component.onDelayRelay.name" : "component.offDelayRelay.name")}`,
+        badge: timer && {
+          text: timer.outputOn ? "Picked" : "Released",
+          tone: timer.outputOn ? "on" : "off",
+        },
+        rows: [
+          ...(timer
+            ? [{ name: "Coil energized", value: yesNo(timer.energized) }]
+            : []),
+          { name: "Coil current", value: show(`${id}/coilCurrentAmps`, "amp") },
+          ...(timer?.timing
+            ? [
+                {
+                  name: "Elapsed delay",
+                  value: show(`${id}/timerElapsedSeconds`, "second"),
+                },
+              ]
+            : []),
+        ],
+      };
+    }
     case "relay_spdt": {
       const state = stateOf(snapshot, id, "relay");
       const since = transition(state);

@@ -449,6 +449,8 @@ fn every_catalog_part_has_a_valid_default_designator_prefix() {
         ("switch_spst", "S"),
         ("push_button_no", "S"),
         ("push_button_nc", "S"),
+        ("relay_on_delay", "K"),
+        ("relay_off_delay", "K"),
         ("pmdc_motor", "M"),
         ("induction_motor_three_phase", "M"),
         ("transformer_three_phase", "T"),

@@ -410,7 +410,7 @@ describe("choosing between a live update and a recompile", () => {
   });
 });
 
-describe("which edits of the Stage 10 devices are live", () => {
+describe("which edits of devices with explicit live-update limits are live", () => {
   // The contract's list (stage-10-three-phase-equipment.md section 7). The same list is pinned
   // against the real Engine in crates/app/tests/stage10_session.rs.
   const LIVE: Readonly<Record<string, readonly string[]>> = {
@@ -421,6 +421,8 @@ describe("which edits of the Stage 10 devices are live", () => {
     transformer_three_phase: [],
     three_phase_load_star: [],
     three_phase_load_delta: [],
+    relay_on_delay: [],
+    relay_off_delay: [],
   };
 
   it.each(Object.keys(LIVE))(

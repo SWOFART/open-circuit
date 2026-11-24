@@ -211,7 +211,7 @@ describe("refusing corrupted frames", () => {
     const fixture = new Uint8Array(fromHex(stateFrameFixture.hex));
     const stateOffset = payloadOffset(11) + 16;
     for (const [relativeOffset, value] of [
-      [16, 6],
+      [16, 22],
       [17, 2],
     ] as const) {
       const bytes = fixture.slice();
@@ -268,8 +268,31 @@ describe("refusing corrupted frames", () => {
     badValue[records + 64 + 17] = 2;
     decodingFails(badValue, /unknown kind or value/);
     const badKind = fixture.slice();
-    badKind[records + 64 + 16] = 6;
+    badKind[records + 64 + 16] = 22;
     decodingFails(badKind, /unknown kind or value/);
+  });
+
+  it("decodes timer flags in the state value and rejects reserved bits", () => {
+    const bytes = new Uint8Array(fromHex(stage6FrameFixture.hex));
+    const offset = payloadOffset(9) + 16 + 64;
+    bytes[offset + 16] = 6;
+    bytes[offset + 17] = 5;
+    expect(decodeFrame(bytes.buffer).states[2]).toMatchObject({
+      kind: "relayOnDelay",
+      energized: true,
+      outputOn: false,
+      timing: true,
+    });
+    bytes[offset + 16] = 7;
+    bytes[offset + 17] = 6;
+    expect(decodeFrame(bytes.buffer).states[2]).toMatchObject({
+      kind: "relayOffDelay",
+      energized: false,
+      outputOn: true,
+      timing: true,
+    });
+    bytes[offset + 17] = 14;
+    decodingFails(bytes, /unknown kind or value/);
   });
 
   it("renders any 16 bytes as a lowercase hyphenated run ID", () => {

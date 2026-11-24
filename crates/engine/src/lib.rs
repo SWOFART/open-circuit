@@ -21,6 +21,7 @@ pub mod results;
 pub mod schematic;
 mod slots;
 pub mod solver;
+mod time_relay;
 
 pub use assignment::{
     ASSIGNMENT_SCHEMA_VERSION, Assignment, AssignmentDecoded, AssignmentError, AssignmentErrorCode,

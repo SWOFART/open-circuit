@@ -183,6 +183,39 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
             .chain(CONTACTOR_AUXILIARIES)
             .flat_map(group_slots)
             .collect(),
+        ComponentTypeId::RelayOnDelay | ComponentTypeId::RelayOffDelay => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "coilVoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "coilCurrentAmps", CurrentIntoPin1),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "noVoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "noCurrentAmps", CurrentIntoPin1),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "ncVoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "ncCurrentAmps", CurrentIntoPin1),
+            slot(
+                ResultQuantity::ElapsedTime,
+                Unit::Second,
+                '/',
+                "timerElapsedSeconds",
+                Unsigned,
+            ),
+        ],
         ComponentTypeId::ContactorThreePole => group_slots(CONTACTOR_COIL)
             .into_iter()
             .chain(std::iter::once(slot(

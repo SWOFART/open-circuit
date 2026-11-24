@@ -20,6 +20,8 @@ pub enum ComponentTypeId {
     Capacitor,
     Inductor,
     RelaySpdt,
+    RelayOnDelay,
+    RelayOffDelay,
     Fuse,
     PmdcMotor,
     Voltmeter,
@@ -101,6 +103,14 @@ pub enum PinId {
     Ep,
     L4,
     T4,
+    #[serde(rename = "no1")]
+    TimerNo1,
+    #[serde(rename = "no2")]
+    TimerNo2,
+    #[serde(rename = "nc1")]
+    TimerNc1,
+    #[serde(rename = "nc2")]
+    TimerNc2,
 }
 
 impl PinId {
@@ -131,9 +141,13 @@ impl PinId {
             Self::NormallyClosed => "normally_closed",
             Self::A1 => "a1",
             Self::A2 => "a2",
+            Self::TimerNo1 => "no1",
             Self::No1 => "no_1",
+            Self::TimerNo2 => "no2",
             Self::No2 => "no_2",
+            Self::TimerNc1 => "nc1",
             Self::Nc1 => "nc_1",
+            Self::TimerNc2 => "nc2",
             Self::Nc2 => "nc_2",
             Self::U1 => "u1",
             Self::U2 => "u2",
@@ -182,6 +196,7 @@ pub enum ParameterId {
     DropoutCurrentAmps,
     ClosedContactResistanceOhms,
     CoilSenseSeconds,
+    DelaySeconds,
     InstantaneousTripAmps,
     SenseResistanceOhms,
     RatedCurrentAmps,
@@ -450,6 +465,87 @@ fn transistor_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEnt
         .to_vec(),
         pin_groups: None,
         fault_kinds: vec![],
+    }
+}
+
+fn timed_relay_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEntry {
+    let parameter =
+        |id, unit, default_value, minimum_value, maximum_value, label: &str| ParameterDefinition {
+            id,
+            unit,
+            default_value,
+            minimum_value: Some(minimum_value),
+            maximum_value: Some(maximum_value),
+            domain: if minimum_value > 0.0 {
+                NumericDomain::StrictlyPositive
+            } else {
+                NumericDomain::NonNegative
+            },
+            description_key: format!("component.timeRelay.{label}"),
+            optional: false,
+            initial_condition: false,
+        };
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: CategoryId::Switching,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        designator_prefix: "K".into(),
+        pins: [
+            (PinId::A1, PinRole::Positive),
+            (PinId::A2, PinRole::Negative),
+            (PinId::TimerNo1, PinRole::Unpolarized),
+            (PinId::TimerNo2, PinRole::Unpolarized),
+            (PinId::TimerNc1, PinRole::Unpolarized),
+            (PinId::TimerNc2, PinRole::Unpolarized),
+        ]
+        .into_iter()
+        .map(|(id, role)| PinDefinition { id, role })
+        .collect(),
+        parameters: vec![
+            parameter(
+                ParameterId::CoilResistanceOhms,
+                Unit::Ohm,
+                240.0,
+                1.0,
+                1e6,
+                "coilResistance",
+            ),
+            parameter(
+                ParameterId::PickupCurrentAmps,
+                Unit::Amp,
+                0.08,
+                1e-6,
+                100.0,
+                "pickupCurrent",
+            ),
+            parameter(
+                ParameterId::DropoutCurrentAmps,
+                Unit::Amp,
+                0.04,
+                0.0,
+                100.0,
+                "dropoutCurrent",
+            ),
+            parameter(
+                ParameterId::ClosedResistanceOhms,
+                Unit::Ohm,
+                0.01,
+                1e-6,
+                100.0,
+                "closedResistance",
+            ),
+            parameter(
+                ParameterId::DelaySeconds,
+                Unit::Second,
+                0.1,
+                0.0,
+                3600.0,
+                "delay",
+            ),
+        ],
+        pin_groups: None,
+        fault_kinds: Vec::new(),
     }
 }
 
@@ -951,6 +1047,8 @@ pub fn component_catalog() -> ComponentCatalog {
                 pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
             },
+            timed_relay_entry(ComponentTypeId::RelayOnDelay, "onDelayRelay"),
+            timed_relay_entry(ComponentTypeId::RelayOffDelay, "offDelayRelay"),
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Contactor,
                 display_name_key: "component.contactor.name".to_owned(),

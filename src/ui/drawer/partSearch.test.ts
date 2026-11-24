@@ -74,6 +74,8 @@ describe("part search", () => {
     // "relay": a word of "SPDT relay" (3) ranks before the contactor, where it is a keyword (4).
     expect(find("relay")).toEqual([
       "relay_spdt",
+      "relay_on_delay",
+      "relay_off_delay",
       "thermal_overload_three_pole",
       "contactor",
     ]);

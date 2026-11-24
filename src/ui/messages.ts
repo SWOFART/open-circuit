@@ -3,6 +3,15 @@ import type { DraftEvaluation } from "./units";
 
 // User-facing prose lives in the UI. The Engine sends only stable keys.
 const messages: Readonly<Record<string, string>> = {
+  "component.onDelayRelay.name": "On-delay relay",
+  "component.offDelayRelay.name": "Off-delay relay",
+  "component.onDelayRelay.keywords": "timer on delay relay",
+  "component.offDelayRelay.keywords": "timer off delay relay",
+  "component.timeRelay.coilResistance": "Coil resistance",
+  "component.timeRelay.pickupCurrent": "Pickup current",
+  "component.timeRelay.dropoutCurrent": "Dropout current",
+  "component.timeRelay.closedResistance": "Closed contact resistance",
+  "component.timeRelay.delay": "Delay",
   "drawing.documentation": "Drawing documentation",
   "drawing.titleBlock": "Title block",
   "drawing.title": "Title",

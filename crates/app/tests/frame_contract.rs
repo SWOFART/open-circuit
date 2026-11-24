@@ -398,6 +398,35 @@ fn the_conducting_flag_is_defined_only_for_switches_and_push_buttons() {
     unknown_bit[flags] = 4;
     assert_eq!(decode_frame(&unknown_bit), Err(FrameError::InvalidState));
     let mut unknown_kind = bytes;
-    unknown_kind[flags - 2] = 6;
+    unknown_kind[flags - 2] = 22;
     assert_eq!(decode_frame(&unknown_kind), Err(FrameError::InvalidState));
+}
+
+#[test]
+fn time_relays_round_trip_and_reject_reserved_state_bits() {
+    let mut frame = snapshot("rev", vec![]);
+    frame.states = vec![
+        DeviceState::RelayOnDelay {
+            component_id: StableId::parse("00000000-0000-4000-8000-000000000001").unwrap(),
+            energized: true,
+            output_on: false,
+            timing: true,
+            last_transition_time_seconds: None,
+        },
+        DeviceState::RelayOffDelay {
+            component_id: StableId::parse("00000000-0000-4000-8000-000000000002").unwrap(),
+            energized: false,
+            output_on: true,
+            timing: true,
+            last_transition_time_seconds: Some(0.004),
+        },
+    ];
+    let bytes = encode_frame(&frame).unwrap();
+    assert_eq!(decode_frame(&bytes).unwrap(), frame);
+    let offset = payload_offset("rev".len());
+    assert_eq!(&bytes[offset + 16..offset + 20], &[6, 5, 0, 0]);
+    assert_eq!(&bytes[offset + 48..offset + 52], &[7, 6, 1, 0]);
+    let mut invalid = bytes;
+    invalid[offset + 17] |= 8;
+    assert_eq!(decode_frame(&invalid), Err(FrameError::InvalidState));
 }
