@@ -23,8 +23,9 @@
 use std::fmt;
 
 use open_circuit_engine::{
-    DeviceState, FrameMetadata, FuseState, PushButtonPosition, RelayContactState, ResultSnapshot,
-    StableId, SwitchPosition,
+    DeviceState, EmergencyStopPosition, FrameMetadata, FuseState, KeySwitchPosition,
+    PushButtonPosition, RelayContactState, ResultSnapshot, SelectorPosition, StableId,
+    SwitchPosition,
 };
 use uuid::Uuid;
 
@@ -167,6 +168,64 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
     let mut previous = None;
     for state in states {
         let (component_id, kind, value, transition, conducting) = match state {
+            DeviceState::LimitSwitch {
+                component_id,
+                position,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                8,
+                match position {
+                    PushButtonPosition::Released => 0,
+                    PushButtonPosition::Pressed => 1,
+                },
+                *last_transition_time_seconds,
+                false,
+            ),
+            DeviceState::EmergencyStop {
+                component_id,
+                position,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                9,
+                match position {
+                    EmergencyStopPosition::Armed => 0,
+                    EmergencyStopPosition::Latched => 1,
+                },
+                *last_transition_time_seconds,
+                false,
+            ),
+            DeviceState::SelectorSwitch {
+                component_id,
+                position,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                10,
+                match position {
+                    SelectorPosition::Left => 0,
+                    SelectorPosition::Center => 1,
+                    SelectorPosition::Right => 2,
+                },
+                *last_transition_time_seconds,
+                false,
+            ),
+            DeviceState::KeySwitch {
+                component_id,
+                position,
+                last_transition_time_seconds,
+            } => (
+                component_id,
+                11,
+                match position {
+                    KeySwitchPosition::Off => 0,
+                    KeySwitchPosition::On => 1,
+                },
+                *last_transition_time_seconds,
+                false,
+            ),
+
             DeviceState::RelayOnDelay {
                 component_id,
                 energized,
@@ -439,6 +498,52 @@ fn decode_states(
             .map_err(|_| FrameError::InvalidState)?;
         let transition = has_time.then_some(time);
         states.push(match (kind, value) {
+            (8, 0) => DeviceState::LimitSwitch {
+                component_id,
+                position: PushButtonPosition::Released,
+                last_transition_time_seconds: transition,
+            },
+            (8, 1) => DeviceState::LimitSwitch {
+                component_id,
+                position: PushButtonPosition::Pressed,
+                last_transition_time_seconds: transition,
+            },
+            (9, 0) => DeviceState::EmergencyStop {
+                component_id,
+                position: EmergencyStopPosition::Armed,
+                last_transition_time_seconds: transition,
+            },
+            (9, 1) => DeviceState::EmergencyStop {
+                component_id,
+                position: EmergencyStopPosition::Latched,
+                last_transition_time_seconds: transition,
+            },
+            (10, 0) => DeviceState::SelectorSwitch {
+                component_id,
+                position: SelectorPosition::Left,
+                last_transition_time_seconds: transition,
+            },
+            (10, 1) => DeviceState::SelectorSwitch {
+                component_id,
+                position: SelectorPosition::Center,
+                last_transition_time_seconds: transition,
+            },
+            (10, 2) => DeviceState::SelectorSwitch {
+                component_id,
+                position: SelectorPosition::Right,
+                last_transition_time_seconds: transition,
+            },
+            (11, 0) => DeviceState::KeySwitch {
+                component_id,
+                position: KeySwitchPosition::Off,
+                last_transition_time_seconds: transition,
+            },
+            (11, 1) => DeviceState::KeySwitch {
+                component_id,
+                position: KeySwitchPosition::On,
+                last_transition_time_seconds: transition,
+            },
+
             (6, 0..=7) => DeviceState::RelayOnDelay {
                 component_id,
                 energized: value & 1 != 0,

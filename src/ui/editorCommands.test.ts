@@ -423,6 +423,10 @@ describe("which edits of devices with explicit live-update limits are live", () 
     three_phase_load_delta: [],
     relay_on_delay: [],
     relay_off_delay: [],
+    limit_switch: [],
+    emergency_stop: [],
+    selector_switch: [],
+    key_switch: [],
   };
 
   it.each(Object.keys(LIVE))(

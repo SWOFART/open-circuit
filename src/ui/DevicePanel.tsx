@@ -23,6 +23,10 @@ export interface DevicePanelProps {
 /** The Stage 4 and Stage 6 devices this panel reports on. */
 const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "relay_spdt",
+  "limit_switch",
+  "emergency_stop",
+  "selector_switch",
+  "key_switch",
   "relay_on_delay",
   "relay_off_delay",
   "fuse",
@@ -100,6 +104,11 @@ interface Device {
   readonly badge?: { readonly text: string; readonly tone: string };
   readonly rows: readonly Row[];
   readonly resettable?: boolean;
+  readonly actions?: readonly {
+    action: OperateAction;
+    label: string;
+    selected?: boolean;
+  }[];
   /** A switch or push button the user can operate, with the position the Engine reported. */
   readonly control?: {
     readonly kind: "switch" | "pushButton";
@@ -140,6 +149,64 @@ function describe(
   };
 
   switch (component.typeId) {
+    case "limit_switch":
+    case "emergency_stop":
+    case "selector_switch":
+    case "key_switch": {
+      const kind = {
+        limit_switch: "limitSwitch",
+        emergency_stop: "emergencyStop",
+        selector_switch: "selectorSwitch",
+        key_switch: "keySwitch",
+      }[component.typeId] as
+        "limitSwitch" | "emergencyStop" | "selectorSwitch" | "keySwitch";
+      const contact = stateOf(snapshot, id, kind);
+      const position =
+        contact && "position" in contact ? contact.position : undefined;
+      const actions =
+        kind === "selectorSwitch"
+          ? (["left", "center", "right"] as const).map((positionName) => ({
+              action: positionName,
+              label: positionName,
+              selected: position === positionName,
+            }))
+          : kind === "emergencyStop"
+            ? [
+                { action: "press" as const, label: "Latch" },
+                { action: "reset" as const, label: "Reset" },
+              ]
+            : undefined;
+      return {
+        id,
+        title: `${name} ${message(`component.${kind}.name`)}`,
+        badge: position ? { text: position, tone: "off" } : undefined,
+        actions,
+        control:
+          kind === "limitSwitch"
+            ? { kind: "pushButton", name, actuated: position === "pressed" }
+            : kind === "keySwitch"
+              ? {
+                  kind: "switch",
+                  name,
+                  noun: "key switch",
+                  actuated: position === "on",
+                }
+              : undefined,
+        rows:
+          kind === "selectorSwitch"
+            ? [
+                {
+                  name: "Throw 1 current",
+                  value: show(`${id}/throw1CurrentAmps`, "amp"),
+                },
+                {
+                  name: "Throw 2 current",
+                  value: show(`${id}/throw2CurrentAmps`, "amp"),
+                },
+              ]
+            : [{ name: "Current", value: show(`${id}/currentAmps`, "amp") }],
+      };
+    }
     case "relay_on_delay":
     case "relay_off_delay": {
       const onDelay = component.typeId === "relay_on_delay";
@@ -752,6 +819,20 @@ export function DevicePanel({
                   Reset overload
                 </button>
               )}
+              {device.actions?.map(({ action, label, selected }) => (
+                <button
+                  key={action}
+                  type="button"
+                  aria-label={`${device.title} ${label}`}
+                  aria-pressed={selected}
+                  disabled={
+                    state.status !== "ready" || state.run === null || !onOperate
+                  }
+                  onClick={() => onOperate?.(device.id, action)}
+                >
+                  {label}
+                </button>
+              ))}
               <dl className="readings">
                 {device.rows.map((row) => (
                   <div key={row.name} className="reading">

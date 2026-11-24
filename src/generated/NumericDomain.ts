@@ -3,4 +3,4 @@
 /**
  * Every domain includes the finite-f64 requirement from the Stage 1 contract.
  */
-export type NumericDomain = "finite" | "strictly_positive" | "non_negative" | "zero_or_one" | "integer";
+export type NumericDomain = "finite" | "strictly_positive" | "non_negative" | "zero_or_one" | "zero_one_or_two" | "integer";

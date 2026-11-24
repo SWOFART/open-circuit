@@ -8,8 +8,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    ComponentSpec, DeviceState, OperatorPosition, PushButtonPosition, Schematic, StableId,
-    SwitchPosition,
+    ComponentSpec, DeviceState, EmergencyStopPosition, KeySwitchPosition, OperatorPosition,
+    PushButtonPosition, Schematic, SelectorPosition, StableId, SwitchPosition,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,6 +40,21 @@ impl Contact {
 #[derive(Clone, Debug, Default)]
 pub(crate) struct OperatorState {
     contacts: HashMap<StableId, Contact>,
+    additional: HashMap<StableId, AdditionalContact>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum AdditionalPosition {
+    Limit(PushButtonPosition),
+    Emergency(EmergencyStopPosition),
+    Selector(SelectorPosition),
+    Key(KeySwitchPosition),
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AdditionalContact {
+    position: AdditionalPosition,
+    last_transition_time_seconds: Option<f64>,
 }
 
 impl OperatorState {
@@ -74,7 +89,46 @@ impl OperatorState {
                 ))
             })
             .collect();
-        Self { contacts }
+        let additional = schematic
+            .components
+            .iter()
+            .filter_map(|component| {
+                let position = match component {
+                    ComponentSpec::LimitSwitch { .. } => {
+                        AdditionalPosition::Limit(PushButtonPosition::Released)
+                    }
+                    ComponentSpec::EmergencyStop { .. } => {
+                        AdditionalPosition::Emergency(EmergencyStopPosition::Armed)
+                    }
+                    ComponentSpec::SelectorSwitch { parameters, .. } => {
+                        AdditionalPosition::Selector(match parameters.initial_position {
+                            Some(0.0) => SelectorPosition::Left,
+                            Some(2.0) => SelectorPosition::Right,
+                            _ => SelectorPosition::Center,
+                        })
+                    }
+                    ComponentSpec::KeySwitch { parameters, .. } => {
+                        AdditionalPosition::Key(if parameters.initial_position == Some(1.0) {
+                            KeySwitchPosition::On
+                        } else {
+                            KeySwitchPosition::Off
+                        })
+                    }
+                    _ => return None,
+                };
+                Some((
+                    component.id().clone(),
+                    AdditionalContact {
+                        position,
+                        last_transition_time_seconds: None,
+                    },
+                ))
+            })
+            .collect();
+        Self {
+            contacts,
+            additional,
+        }
     }
 
     /// The components whose branch the solver leaves out: `fault_open` plus every contact
@@ -87,7 +141,40 @@ impl OperatorState {
                 .filter(|(_, contact)| !contact.conducting())
                 .map(|(id, _)| id.clone()),
         );
+        open.extend(
+            self.additional
+                .iter()
+                .filter_map(|(id, contact)| match contact.position {
+                    AdditionalPosition::Limit(PushButtonPosition::Released)
+                    | AdditionalPosition::Emergency(EmergencyStopPosition::Latched)
+                    | AdditionalPosition::Key(KeySwitchPosition::Off) => Some(id.clone()),
+                    _ => None,
+                }),
+        );
         open
+    }
+
+    pub(crate) fn is_additional(&self, id: &StableId) -> bool {
+        self.additional.contains_key(id)
+    }
+
+    /// Update the throw represented by the transient solver's private schematic copy.
+    /// The authored schematic and initial position are left untouched.
+    pub(crate) fn project_selectors(&self, solver_schematic: &mut Schematic) {
+        for component in &mut solver_schematic.components {
+            if let ComponentSpec::SelectorSwitch { id, parameters, .. } = component
+                && let Some(AdditionalContact {
+                    position: AdditionalPosition::Selector(position),
+                    ..
+                }) = self.additional.get(id)
+            {
+                parameters.initial_position = Some(match position {
+                    SelectorPosition::Left => 0.0,
+                    SelectorPosition::Center => 1.0,
+                    SelectorPosition::Right => 2.0,
+                });
+            }
+        }
     }
 
     /// Moves one device to `position` at `time_seconds`. Returns whether the position changed,
@@ -98,6 +185,45 @@ impl OperatorState {
         position: OperatorPosition,
         time_seconds: f64,
     ) -> Result<bool, ()> {
+        if let Some(contact) = self.additional.get_mut(component_id) {
+            let next = match (contact.position, position) {
+                (AdditionalPosition::Limit(_), OperatorPosition::Pressed) => {
+                    AdditionalPosition::Limit(PushButtonPosition::Pressed)
+                }
+                (AdditionalPosition::Limit(_), OperatorPosition::Released) => {
+                    AdditionalPosition::Limit(PushButtonPosition::Released)
+                }
+                (AdditionalPosition::Emergency(_), OperatorPosition::Pressed) => {
+                    AdditionalPosition::Emergency(EmergencyStopPosition::Latched)
+                }
+                (AdditionalPosition::Emergency(_), OperatorPosition::Released) => return Ok(false),
+                (AdditionalPosition::Emergency(_), OperatorPosition::Reset) => {
+                    AdditionalPosition::Emergency(EmergencyStopPosition::Armed)
+                }
+                (AdditionalPosition::Selector(_), OperatorPosition::Left) => {
+                    AdditionalPosition::Selector(SelectorPosition::Left)
+                }
+                (AdditionalPosition::Selector(_), OperatorPosition::Center) => {
+                    AdditionalPosition::Selector(SelectorPosition::Center)
+                }
+                (AdditionalPosition::Selector(_), OperatorPosition::Right) => {
+                    AdditionalPosition::Selector(SelectorPosition::Right)
+                }
+                (AdditionalPosition::Key(_), OperatorPosition::Open) => {
+                    AdditionalPosition::Key(KeySwitchPosition::Off)
+                }
+                (AdditionalPosition::Key(_), OperatorPosition::Closed) => {
+                    AdditionalPosition::Key(KeySwitchPosition::On)
+                }
+                _ => return Err(()),
+            };
+            let changed = contact.position != next;
+            if changed {
+                contact.position = next;
+                contact.last_transition_time_seconds = Some(time_seconds);
+            }
+            return Ok(changed);
+        }
         let contact = self.contacts.get_mut(component_id).ok_or(())?;
         let actuated = match (contact.kind, position) {
             (ContactKind::Switch, OperatorPosition::Closed)
@@ -146,6 +272,32 @@ impl OperatorState {
                 },
             })
             .collect::<Vec<_>>();
+        states.extend(self.additional.iter().map(|(id, contact)| {
+            let component_id = id.clone();
+            let last_transition_time_seconds = contact.last_transition_time_seconds;
+            match contact.position {
+                AdditionalPosition::Limit(position) => DeviceState::LimitSwitch {
+                    component_id,
+                    position,
+                    last_transition_time_seconds,
+                },
+                AdditionalPosition::Emergency(position) => DeviceState::EmergencyStop {
+                    component_id,
+                    position,
+                    last_transition_time_seconds,
+                },
+                AdditionalPosition::Selector(position) => DeviceState::SelectorSwitch {
+                    component_id,
+                    position,
+                    last_transition_time_seconds,
+                },
+                AdditionalPosition::Key(position) => DeviceState::KeySwitch {
+                    component_id,
+                    position,
+                    last_transition_time_seconds,
+                },
+            }
+        }));
         states.sort_by(|left, right| {
             left.component_id()
                 .as_str()

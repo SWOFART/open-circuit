@@ -295,6 +295,27 @@ describe("refusing corrupted frames", () => {
     decodingFails(bytes, /unknown kind or value/);
   });
 
+  it.each([
+    [8, 1, "limitSwitch", "pressed"],
+    [9, 1, "emergencyStop", "latched"],
+    [10, 2, "selectorSwitch", "right"],
+    [11, 0, "keySwitch", "off"],
+  ] as const)(
+    "decodes Stage 14 state kind %i",
+    (kind, value, name, position) => {
+      const bytes = new Uint8Array(fromHex(stage6FrameFixture.hex));
+      const offset = payloadOffset(9) + 16 + 64;
+      bytes[offset + 16] = kind;
+      bytes[offset + 17] = value;
+      expect(decodeFrame(bytes.buffer).states[2]).toMatchObject({
+        kind: name,
+        position,
+      });
+      bytes[offset + 17] = 3;
+      decodingFails(bytes, /unknown kind or value/);
+    },
+  );
+
   it("renders any 16 bytes as a lowercase hyphenated run ID", () => {
     const bytes = golden();
     bytes.fill(0xab, 32, 48);

@@ -7,8 +7,8 @@ use open_circuit_app_lib::frame::{
     decode_frame, encode_frame, payload_offset,
 };
 use open_circuit_engine::{
-    DeviceState, FrameMetadata, PushButtonPosition, RelayContactState, ResultSnapshot, StableId,
-    SwitchPosition,
+    DeviceState, EmergencyStopPosition, FrameMetadata, KeySwitchPosition, PushButtonPosition,
+    RelayContactState, ResultSnapshot, SelectorPosition, StableId, SwitchPosition,
 };
 use serde::Deserialize;
 
@@ -429,4 +429,47 @@ fn time_relays_round_trip_and_reject_reserved_state_bits() {
     let mut invalid = bytes;
     invalid[offset + 17] |= 8;
     assert_eq!(decode_frame(&invalid), Err(FrameError::InvalidState));
+}
+
+#[test]
+fn operator_contacts_use_the_stage_14_state_record_table() {
+    let id = |number| StableId::parse(format!("00000000-0000-4000-8000-{number:012}")).unwrap();
+    let mut frame = snapshot("rev", vec![]);
+    frame.states = vec![
+        DeviceState::LimitSwitch {
+            component_id: id(1),
+            position: PushButtonPosition::Pressed,
+            last_transition_time_seconds: None,
+        },
+        DeviceState::EmergencyStop {
+            component_id: id(2),
+            position: EmergencyStopPosition::Latched,
+            last_transition_time_seconds: None,
+        },
+        DeviceState::SelectorSwitch {
+            component_id: id(3),
+            position: SelectorPosition::Right,
+            last_transition_time_seconds: Some(0.004),
+        },
+        DeviceState::KeySwitch {
+            component_id: id(4),
+            position: KeySwitchPosition::Off,
+            last_transition_time_seconds: None,
+        },
+    ];
+    let bytes = encode_frame(&frame).unwrap();
+    assert_eq!(decode_frame(&bytes).unwrap(), frame);
+    let start = payload_offset("rev".len());
+    for (index, expected) in [[8, 1, 0, 0], [9, 1, 0, 0], [10, 2, 1, 0], [11, 0, 0, 0]]
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(
+            &bytes[start + index * 32 + 16..start + index * 32 + 20],
+            expected
+        );
+    }
+    let mut malformed = bytes;
+    malformed[start + 64 + 17] = 3;
+    assert_eq!(decode_frame(&malformed), Err(FrameError::InvalidState));
 }

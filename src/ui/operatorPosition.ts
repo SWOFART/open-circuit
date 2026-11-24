@@ -14,18 +14,31 @@ export function operatorPosition(
 ): OperatorPosition | null {
   switch (action) {
     case "toggle":
+      if (state?.kind === "keySwitch")
+        return state.position === "on" ? "open" : "closed";
       return state?.kind === "switch"
         ? state.position === "closed"
           ? "open"
           : "closed"
         : null;
     case "press":
-      return state?.kind === "pushButton" ? "pressed" : null;
+      return state?.kind === "pushButton" ||
+        state?.kind === "limitSwitch" ||
+        state?.kind === "emergencyStop"
+        ? "pressed"
+        : null;
     case "release":
-      return state?.kind === "pushButton" ? "released" : null;
+      return state?.kind === "pushButton" || state?.kind === "limitSwitch"
+        ? "released"
+        : null;
     case "reset":
+      if (state?.kind === "emergencyStop") return "reset";
       return state?.kind === "fuse" && state.state === "tripped"
         ? "pressed"
         : null;
+    case "left":
+    case "center":
+    case "right":
+      return state?.kind === "selectorSwitch" ? action : null;
   }
 }

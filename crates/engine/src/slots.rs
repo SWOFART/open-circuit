@@ -183,6 +183,48 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
             .chain(CONTACTOR_AUXILIARIES)
             .flat_map(group_slots)
             .collect(),
+        ComponentTypeId::LimitSwitch
+        | ComponentTypeId::EmergencyStop
+        | ComponentTypeId::KeySwitch => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "voltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "currentAmps", CurrentIntoPin1),
+        ],
+        ComponentTypeId::SelectorSwitch => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "throw1VoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Current,
+                Unit::Amp,
+                '/',
+                "throw1CurrentAmps",
+                CurrentIntoPin1,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "throw2VoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Current,
+                Unit::Amp,
+                '/',
+                "throw2CurrentAmps",
+                CurrentIntoPin1,
+            ),
+        ],
         ComponentTypeId::RelayOnDelay | ComponentTypeId::RelayOffDelay => vec![
             slot(
                 Voltage,

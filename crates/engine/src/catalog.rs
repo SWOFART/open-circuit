@@ -20,6 +20,10 @@ pub enum ComponentTypeId {
     Capacitor,
     Inductor,
     RelaySpdt,
+    LimitSwitch,
+    EmergencyStop,
+    SelectorSwitch,
+    KeySwitch,
     RelayOnDelay,
     RelayOffDelay,
     Fuse,
@@ -105,6 +109,10 @@ pub enum PinId {
     T4,
     #[serde(rename = "no1")]
     TimerNo1,
+    P,
+    Com,
+    Throw1,
+    Throw2,
     #[serde(rename = "no2")]
     TimerNo2,
     #[serde(rename = "nc1")]
@@ -117,6 +125,10 @@ impl PinId {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Pin1 => "pin1",
+            Self::P => "p",
+            Self::Com => "com",
+            Self::Throw1 => "throw1",
+            Self::Throw2 => "throw2",
             Self::Pin2 => "pin2",
             Self::L1 => "l1",
             Self::L2 => "l2",
@@ -197,6 +209,7 @@ pub enum ParameterId {
     ClosedContactResistanceOhms,
     CoilSenseSeconds,
     DelaySeconds,
+    InitialPosition,
     InstantaneousTripAmps,
     SenseResistanceOhms,
     RatedCurrentAmps,
@@ -290,6 +303,7 @@ pub enum NumericDomain {
     StrictlyPositive,
     NonNegative,
     ZeroOrOne,
+    ZeroOneOrTwo,
     Integer,
 }
 
@@ -304,6 +318,7 @@ impl NumericDomain {
             Self::StrictlyPositive => value > 0.0,
             Self::NonNegative => value >= 0.0,
             Self::ZeroOrOne => value == 0.0 || value == 1.0,
+            Self::ZeroOneOrTwo => value == 0.0 || value == 1.0 || value == 2.0,
             Self::Integer => value.trunc() == value,
         }
     }
@@ -465,6 +480,60 @@ fn transistor_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEnt
         .to_vec(),
         pin_groups: None,
         fault_kinds: vec![],
+    }
+}
+
+fn operator_contact_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEntry {
+    let selector = type_id == ComponentTypeId::SelectorSwitch;
+    let pins: &[PinId] = if selector {
+        &[PinId::Com, PinId::Throw1, PinId::Throw2]
+    } else {
+        &[PinId::P, PinId::N]
+    };
+    let mut parameters = vec![ParameterDefinition {
+        id: ParameterId::ClosedResistanceOhms,
+        unit: Unit::Ohm,
+        default_value: 0.01,
+        domain: NumericDomain::StrictlyPositive,
+        description_key: "component.operatorContact.closedResistance".into(),
+        optional: false,
+        initial_condition: false,
+        minimum_value: Some(1e-6),
+        maximum_value: Some(100.0),
+    }];
+    if selector || type_id == ComponentTypeId::KeySwitch {
+        parameters.push(ParameterDefinition {
+            id: ParameterId::InitialPosition,
+            unit: Unit::Dimensionless,
+            default_value: f64::from(selector),
+            domain: if selector {
+                NumericDomain::ZeroOneOrTwo
+            } else {
+                NumericDomain::ZeroOrOne
+            },
+            description_key: "component.operatorContact.initialPosition".into(),
+            optional: true,
+            initial_condition: true,
+            minimum_value: None,
+            maximum_value: None,
+        });
+    }
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: CategoryId::Switching,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        designator_prefix: "S".into(),
+        pins: pins
+            .iter()
+            .map(|&id| PinDefinition {
+                id,
+                role: PinRole::Unpolarized,
+            })
+            .collect(),
+        parameters,
+        pin_groups: None,
+        fault_kinds: Vec::new(),
     }
 }
 
@@ -1047,6 +1116,10 @@ pub fn component_catalog() -> ComponentCatalog {
                 pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
             },
+            operator_contact_entry(ComponentTypeId::LimitSwitch, "limitSwitch"),
+            operator_contact_entry(ComponentTypeId::EmergencyStop, "emergencyStop"),
+            operator_contact_entry(ComponentTypeId::SelectorSwitch, "selectorSwitch"),
+            operator_contact_entry(ComponentTypeId::KeySwitch, "keySwitch"),
             timed_relay_entry(ComponentTypeId::RelayOnDelay, "onDelayRelay"),
             timed_relay_entry(ComponentTypeId::RelayOffDelay, "offDelayRelay"),
             ComponentCatalogEntry {

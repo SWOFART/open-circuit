@@ -60,6 +60,10 @@ const LIVE_PARAMETERS_BY_TYPE: Readonly<
   rcd_four_pole: ["ratedResidualCurrentAmps", "tripTimeAtRatedSeconds"],
   // The earth electrode is compile-only; the exposed part's inputs are live.
   earth_electrode: [],
+  limit_switch: [],
+  emergency_stop: [],
+  selector_switch: [],
+  key_switch: [],
   relay_on_delay: [],
   relay_off_delay: [],
 };

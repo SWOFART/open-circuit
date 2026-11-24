@@ -1311,6 +1311,18 @@ fn estimate_transient_rate_bound(
             let variable1 = root_to_variable.get(&pin1).copied();
             let variable2 = root_to_variable.get(&pin2).copied();
             match spec.model {
+                DeviceModel::Selector {
+                    throws, resistance, ..
+                } => {
+                    for terminals in throws {
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / resistance,
+                        )?;
+                    }
+                }
                 DeviceModel::TimeRelay {
                     coil_resistance,
                     contact_resistance,

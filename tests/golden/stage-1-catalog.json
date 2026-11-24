@@ -424,6 +424,152 @@
       "faultKinds": []
     },
     {
+      "typeId": "limit_switch",
+      "displayNameKey": "component.limitSwitch.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.limitSwitch.keywords"],
+      "designatorPrefix": "S",
+      "pins": [
+        {
+          "id": "p",
+          "role": "unpolarized"
+        },
+        {
+          "id": "n",
+          "role": "unpolarized"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "closedResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.operatorContact.closedResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 100
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "emergency_stop",
+      "displayNameKey": "component.emergencyStop.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.emergencyStop.keywords"],
+      "designatorPrefix": "S",
+      "pins": [
+        {
+          "id": "p",
+          "role": "unpolarized"
+        },
+        {
+          "id": "n",
+          "role": "unpolarized"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "closedResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.operatorContact.closedResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 100
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "selector_switch",
+      "displayNameKey": "component.selectorSwitch.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.selectorSwitch.keywords"],
+      "designatorPrefix": "S",
+      "pins": [
+        {
+          "id": "com",
+          "role": "unpolarized"
+        },
+        {
+          "id": "throw1",
+          "role": "unpolarized"
+        },
+        {
+          "id": "throw2",
+          "role": "unpolarized"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "closedResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.operatorContact.closedResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 100
+        },
+        {
+          "id": "initialPosition",
+          "unit": "dimensionless",
+          "defaultValue": 1,
+          "domain": "zero_one_or_two",
+          "descriptionKey": "component.operatorContact.initialPosition",
+          "optional": true,
+          "initialCondition": true
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "key_switch",
+      "displayNameKey": "component.keySwitch.name",
+      "category": "switching",
+      "searchKeywordKeys": ["component.keySwitch.keywords"],
+      "designatorPrefix": "S",
+      "pins": [
+        {
+          "id": "p",
+          "role": "unpolarized"
+        },
+        {
+          "id": "n",
+          "role": "unpolarized"
+        }
+      ],
+      "parameters": [
+        {
+          "id": "closedResistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 0.01,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.operatorContact.closedResistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 100
+        },
+        {
+          "id": "initialPosition",
+          "unit": "dimensionless",
+          "defaultValue": 0,
+          "domain": "zero_or_one",
+          "descriptionKey": "component.operatorContact.initialPosition",
+          "optional": true,
+          "initialCondition": true
+        }
+      ],
+      "faultKinds": []
+    },
+    {
       "typeId": "relay_on_delay",
       "displayNameKey": "component.onDelayRelay.name",
       "category": "switching",

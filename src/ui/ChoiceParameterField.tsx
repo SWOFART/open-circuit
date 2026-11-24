@@ -6,7 +6,7 @@ export interface ChoiceParameterFieldProps {
   /** The component's display name, such as `S1`. */
   readonly label: string;
   readonly definition: ParameterDefinition;
-  /** The stored value (0 or 1), or undefined while the parameter is not stored. */
+  /** The stored value, or undefined while the parameter is not stored. */
   readonly committedValue: number | undefined;
   readonly disabled: boolean;
   readonly onCommit: (value: number) => void;
@@ -30,6 +30,34 @@ export function ChoiceParameterField({
 }: ChoiceParameterFieldProps) {
   const id = useId();
   const name = `${label} ${message(definition.descriptionKey).toLowerCase()}`;
+
+  if (definition.id === "initialPosition") {
+    const positions =
+      definition.domain === "zero_one_or_two"
+        ? ["Left", "Center", "Right"]
+        : ["Off", "On"];
+    return (
+      <div className="parameter-field">
+        <label htmlFor={id}>{name}</label>
+        <select
+          id={id}
+          value={committedValue ?? definition.defaultValue}
+          disabled={disabled}
+          onChange={(event) => {
+            const next = Number(event.currentTarget.value);
+            if (next === definition.defaultValue) onClear();
+            else onCommit(next);
+          }}
+        >
+          {positions.map((position, index) => (
+            <option key={position} value={index}>
+              {position}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
 
   const isPhaseSequence = definition.id === "reversedSequence";
   const off = isPhaseSequence ? "standard" : "open";

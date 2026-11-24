@@ -198,6 +198,30 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
         position: value === 0 ? "released" : "pressed",
         conducting,
       });
+    } else if (kind === 8 && value <= 1) {
+      states.push({
+        ...common,
+        kind: "limitSwitch",
+        position: value === 0 ? "released" : "pressed",
+      });
+    } else if (kind === 9 && value <= 1) {
+      states.push({
+        ...common,
+        kind: "emergencyStop",
+        position: value === 0 ? "armed" : "latched",
+      });
+    } else if (kind === 10 && value <= 2) {
+      states.push({
+        ...common,
+        kind: "selectorSwitch",
+        position: value === 0 ? "left" : value === 1 ? "center" : "right",
+      });
+    } else if (kind === 11 && value <= 1) {
+      states.push({
+        ...common,
+        kind: "keySwitch",
+        position: value === 0 ? "off" : "on",
+      });
     } else if ((kind === 6 || kind === 7) && value <= 7) {
       states.push({
         ...common,

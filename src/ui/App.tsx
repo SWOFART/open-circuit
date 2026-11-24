@@ -471,17 +471,19 @@ export function App({
   // sent for one of them, even if the snapshot on screen no longer has the device's state.
   const pressedButtons = useRef(new Set<StableId>());
   operateHandler.current = (componentId, action) => {
+    const deviceState = state.snapshot?.states.find(
+      (entry) => entry.componentId === componentId,
+    );
     const position =
       action === "release" && pressedButtons.current.has(componentId)
         ? "released"
-        : operatorPosition(
-            action,
-            state.snapshot?.states.find(
-              (entry) => entry.componentId === componentId,
-            ),
-          );
+        : operatorPosition(action, deviceState);
 
-    if (action === "press" && position === "pressed") {
+    if (
+      action === "press" &&
+      position === "pressed" &&
+      deviceState?.kind !== "emergencyStop"
+    ) {
       pressedButtons.current.add(componentId);
     } else if (position === "released") {
       pressedButtons.current.delete(componentId);

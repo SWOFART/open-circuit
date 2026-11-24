@@ -3,6 +3,16 @@ import type { DraftEvaluation } from "./units";
 
 // User-facing prose lives in the UI. The Engine sends only stable keys.
 const messages: Readonly<Record<string, string>> = {
+  "component.limitSwitch.name": "Limit switch",
+  "component.limitSwitch.keywords": "travel limit sensor momentary",
+  "component.emergencyStop.name": "Emergency stop",
+  "component.emergencyStop.keywords": "mushroom latch reset",
+  "component.selectorSwitch.name": "Selector switch",
+  "component.selectorSwitch.keywords": "selector three position center off",
+  "component.keySwitch.name": "Key switch",
+  "component.keySwitch.keywords": "key maintained contact",
+  "component.operatorContact.closedResistance": "Closed contact resistance",
+  "component.operatorContact.initialPosition": "Initial position",
   "component.onDelayRelay.name": "On-delay relay",
   "component.offDelayRelay.name": "Off-delay relay",
   "component.onDelayRelay.keywords": "timer on delay relay",
