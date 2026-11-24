@@ -26,6 +26,9 @@ const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "fuse",
   "contactor_three_pole",
   "breaker_three_pole",
+  "rcd_two_pole",
+  "rcd_four_pole",
+  "exposed_part",
   "thermal_overload_three_pole",
   "induction_motor_three_phase",
   "transformer_three_phase",
@@ -214,7 +217,101 @@ function describe(
             ? [{ name: "Conducting", value: yesNo(state.conducting) }]
             : []),
           ...(since === null ? [] : [{ name: "Last change", value: since }]),
+          // A breaker with a trip class (B, C, D) also reports its thermal dose.
+          ...(reading(run, snapshot, `${id}/thermal_dose`) === undefined
+            ? []
+            : [
+                {
+                  name: "Thermal dose",
+                  value: show(`${id}/thermal_dose`, "dimensionless"),
+                },
+              ]),
           ...poleRows(id, show),
+        ],
+      };
+    }
+    case "rcd_two_pole":
+    case "rcd_four_pole": {
+      const state = stateOf(snapshot, id, "switch");
+      const since = transition(state);
+      const closed = state?.kind === "switch" && state.position === "closed";
+      const tripped = reading(run, snapshot, `${id}/tripped`) === 1;
+      const poles =
+        component.typeId === "rcd_two_pole"
+          ? ["L", "N"]
+          : ["L1", "L2", "L3", "N"];
+
+      return {
+        id,
+        title: `${name} ${message(
+          component.typeId === "rcd_two_pole"
+            ? "component.rcdTwoPole.name"
+            : "component.rcdFourPole.name",
+        )}`,
+        badge:
+          state?.kind === "switch"
+            ? tripped
+              ? { text: "Tripped", tone: "fault" }
+              : {
+                  text: closed ? "Closed" : "Open",
+                  tone: closed ? "on" : "off",
+                }
+            : undefined,
+        control: {
+          kind: "switch",
+          name,
+          actuated: closed,
+          noun: "residual-current device",
+        },
+        rows: [
+          ...(tripped ? [{ name: "To reset", value: "Open the device" }] : []),
+          ...(state?.kind === "switch"
+            ? [{ name: "Conducting", value: yesNo(state.conducting) }]
+            : []),
+          ...(since === null ? [] : [{ name: "Last change", value: since }]),
+          {
+            name: "Residual current (detector RMS)",
+            value: show(`${id}/residual_rms`, "amp"),
+          },
+          {
+            name: "Trip dose",
+            value: show(`${id}/trip_dose`, "dimensionless"),
+          },
+          ...poles.map((pole, index) => ({
+            name: `Pole ${pole} current`,
+            value: show(`${id}/pole${index + 1}/current`, "amp"),
+          })),
+        ],
+      };
+    }
+    case "exposed_part": {
+      // The Engine reads the voltage of the frame against the earth node over one period and
+      // says whether it is above the limit; this only shows it (contract section 7).
+      const valid = reading(run, snapshot, `${id}/valid`) === 1;
+      const hazard = reading(run, snapshot, `${id}/hazard`) === 1;
+      const unavailable = "Not yet valid";
+      const touch = (suffix: string) =>
+        valid ? show(`${id}/${suffix}`, "volt") : unavailable;
+
+      return {
+        id,
+        title: `${name} ${message("component.exposedPart.name")}`,
+        badge: !valid
+          ? { text: unavailable, tone: "off" }
+          : hazard
+            ? { text: "Hazard", tone: "fault" }
+            : { text: "Below the limit", tone: "on" },
+        rows: [
+          { name: "Touch voltage (RMS)", value: touch("touch_voltage_rms") },
+          { name: "Touch voltage (peak)", value: touch("touch_voltage_peak") },
+          {
+            name: "Limit",
+            value: formatSi(
+              component.parameters.touchVoltageLimitVolts,
+              "volt",
+            ),
+          },
+          { name: "Note", value: message("safety.teachingNote") },
         ],
       };
     }
