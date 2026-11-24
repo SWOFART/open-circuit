@@ -73,6 +73,19 @@ pub(super) fn update(
         push_sample(state, sample_at(time_seconds, result));
         trim_history(state, time_seconds);
 
+        // A touch voltage is read against the earth node: an exposed part whose island is not
+        // joined to it has no reading (docs/contracts/stage-13-protection-and-safety.md 7.2).
+        if matches!(component, ComponentSpec::ExposedPart { .. })
+            && result
+                .extra_values
+                .iter()
+                .find(|(key, _)| key.ends_with("/earth_joined"))
+                .is_none_or(|(_, joined)| *joined != 1.0)
+        {
+            write_invalid(component, result);
+            continue;
+        }
+
         let period_seconds = 1.0 / frequency_hz;
         if !period_seconds.is_finite() || period_seconds <= 0.0 {
             diagnostics.push(component_diagnostic(
@@ -128,6 +141,21 @@ pub(super) fn update(
                 ("rms_current", current_stats.rms),
                 ("mean_current", current_stats.mean),
                 ("peak_current", current_stats.peak),
+            ]);
+        } else if let ComponentSpec::ExposedPart { parameters, .. } = component {
+            // The touch voltage is the RMS of the voltage against the earth node over one
+            // period; it is hazardous above the limit (a plain comparison, no time curve).
+            values.extend([
+                ("touch_voltage_rms", voltage_stats.rms),
+                ("touch_voltage_peak", voltage_stats.peak),
+                (
+                    "hazard",
+                    if voltage_stats.rms > parameters.touch_voltage_limit_volts {
+                        1.0
+                    } else {
+                        0.0
+                    },
+                ),
             ]);
         } else {
             let Some(real_power) = integrate_product(&samples, window_start, time_seconds, 0.0)
@@ -226,6 +254,7 @@ fn is_measurement(component: &ComponentSpec) -> bool {
         ComponentSpec::AcVoltmeter { .. }
             | ComponentSpec::AcAmmeter { .. }
             | ComponentSpec::Wattmeter { .. }
+            | ComponentSpec::ExposedPart { .. }
     )
 }
 
@@ -234,6 +263,7 @@ fn frequency_hz(component: &ComponentSpec) -> Option<f64> {
         ComponentSpec::AcVoltmeter { parameters, .. } => Some(parameters.frequency_hz),
         ComponentSpec::AcAmmeter { parameters, .. } => Some(parameters.frequency_hz),
         ComponentSpec::Wattmeter { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::ExposedPart { parameters, .. } => Some(parameters.frequency_hz),
         _ => None,
     }
 }
@@ -501,6 +531,9 @@ fn write_invalid(component: &ComponentSpec, result: &mut DeviceResult) {
             "phase_angle",
             "valid",
         ],
+        ComponentSpec::ExposedPart { .. } => {
+            &["touch_voltage_rms", "touch_voltage_peak", "hazard", "valid"]
+        }
         _ => return,
     };
     for suffix in keys {

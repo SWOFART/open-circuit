@@ -66,3 +66,49 @@ impl Device for ResistorDevice {
         })
     }
 }
+
+/// The exposed part: a resistor to the reference of its island (docs/contracts/
+/// stage-13-protection-and-safety.md section 7.1) whose result also says whether that reference is
+/// the earth node, so the touch voltage measurement knows whether it can be read.
+pub(crate) struct ExposedPartDevice {
+    resistor: ResistorDevice,
+    earth_joined: bool,
+}
+
+impl ExposedPartDevice {
+    pub(crate) fn new(
+        component_id: StableId,
+        terminals: Terminals,
+        resistance_ohms: f64,
+        earth_joined: bool,
+    ) -> Self {
+        Self {
+            resistor: ResistorDevice::new(component_id, terminals, resistance_ohms),
+            earth_joined,
+        }
+    }
+}
+
+impl Device for ExposedPartDevice {
+    fn stamp(
+        &self,
+        system: &mut MnaSystem,
+        variables: &NodeVariables,
+    ) -> Result<(), crate::Diagnostic> {
+        self.resistor.stamp(system, variables)
+    }
+
+    fn result(
+        &self,
+        node_voltages: &[f64],
+        solution_values: &[f64],
+    ) -> Result<DeviceResult, crate::Diagnostic> {
+        let mut result = self.resistor.result(node_voltages, solution_values)?;
+        // Read by the measurement update, which has no netlist; not a layout slot.
+        result.extra_values.push((
+            format!("{}/earth_joined", result.component_id.as_str()),
+            f64::from(self.earth_joined),
+        ));
+        Ok(result)
+    }
+}
