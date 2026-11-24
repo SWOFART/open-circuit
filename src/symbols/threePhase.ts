@@ -5,12 +5,12 @@ import type { LocalPoint, SymbolDefinition, SymbolPrimitive } from "./types";
 // Every pin sits on an integer grid point and carries the ID of the Rust catalog; a drawing
 // follows the discrete state the Engine reported and decides nothing by itself.
 
-const line = (...points: [number, number][]): SymbolPrimitive => ({
+export const line = (...points: [number, number][]): SymbolPrimitive => ({
   kind: "polyline",
   points: points.map(([x, y]) => ({ x, y })),
 });
 
-const dot = (x: number, y: number, radius = 0.08): SymbolPrimitive => ({
+export const dot = (x: number, y: number, radius = 0.08): SymbolPrimitive => ({
   kind: "circle",
   center: { x, y },
   radius,
@@ -21,7 +21,7 @@ const dot = (x: number, y: number, radius = 0.08): SymbolPrimitive => ({
  * on them when the contact is closed and swings away when it is open. A normally closed contact
  * carries a bar across the blade, and a power switching device a small cross on its lead.
  */
-function contact(
+export function contact(
   x: number,
   closed: boolean,
   options: { readonly normallyClosed?: boolean; readonly cross?: boolean } = {},
@@ -43,7 +43,7 @@ function contact(
 }
 
 /** A dashed horizontal mechanical link from `from` to `to` at height `y`. */
-function dashedLink(from: number, to: number, y = 0): SymbolPrimitive[] {
+export function dashedLink(from: number, to: number, y = 0): SymbolPrimitive[] {
   const dashes: SymbolPrimitive[] = [];
 
   for (let x = from; x + 0.4 <= to + 1e-9; x += 0.7) {

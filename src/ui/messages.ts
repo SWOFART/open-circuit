@@ -163,6 +163,8 @@ const messages: Readonly<Record<string, string>> = {
   "component.transformerThreePhase.secondaryLeakage":
     "Secondary leakage inductance",
   "component.transformerThreePhase.magnetizing": "Magnetizing inductance",
+  "safety.teachingNote":
+    "A simulation for teaching, not a safety statement or a claim of compliance with any standard.",
   "component.rcdTwoPole.name": "Residual-current device, 2 poles",
   "component.rcdTwoPole.keywords": "RCD RCCB GFCI FI fault current protection",
   "component.rcdTwoPole.ratedResidualCurrent": "Rated residual current",

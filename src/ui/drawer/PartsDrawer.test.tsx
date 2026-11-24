@@ -148,18 +148,14 @@ describe("the parts drawer", () => {
   it("shows a symbol preview for every catalog part and no placeholder", () => {
     const markup = render();
 
-    expect(markup.match(/<svg/g)).toHaveLength(
-      catalog.componentTypes.length - 4,
-    );
-    expect(markup.match(/part-preview-placeholder/g)).toHaveLength(4);
+    expect(markup.match(/<svg/g)).toHaveLength(catalog.componentTypes.length);
+    expect(markup.match(/part-preview-placeholder/g)).toBeNull();
   });
 
-  it("keeps the Stage 13 parts without editor symbols unavailable", () => {
+  it("offers every part, because every part has an editor symbol", () => {
     const markup = render();
 
-    // The earth electrode and the exposed part get their symbols with issue #204.
-    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(4);
-    expect(markup).toContain("The editor has no symbol for this part yet");
+    expect(markup.match(/aria-disabled="true"/g)).toBeNull();
     expect(markup.match(/role="option"/g)).toHaveLength(
       catalog.componentTypes.length,
     );

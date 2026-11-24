@@ -16,6 +16,12 @@ import { diodeSymbol } from "./diode";
 import { fuseSymbol } from "./fuse";
 import { inductorSymbol } from "./inductor";
 import { pmdcMotorSymbol } from "./motor";
+import {
+  earthElectrodeSymbol,
+  exposedPartSymbol,
+  rcdFourPoleSymbol,
+  rcdTwoPoleSymbol,
+} from "./protection";
 import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
 import { resistorSymbol } from "./resistor";
@@ -63,6 +69,10 @@ export const symbols: SymbolRegistry = {
   pmdc_motor: pmdcMotorSymbol,
   contactor_three_pole: contactorThreePoleSymbol,
   breaker_three_pole: breakerThreePoleSymbol,
+  earth_electrode: earthElectrodeSymbol,
+  exposed_part: exposedPartSymbol,
+  rcd_two_pole: rcdTwoPoleSymbol,
+  rcd_four_pole: rcdFourPoleSymbol,
   thermal_overload_three_pole: thermalOverloadThreePoleSymbol,
   induction_motor_three_phase: inductionMotorThreePhaseSymbol,
   transformer_three_phase: transformerThreePhaseSymbol,
