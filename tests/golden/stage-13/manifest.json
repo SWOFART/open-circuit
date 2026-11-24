@@ -1,0 +1,20 @@
+{
+  "generator": "node scripts/stage13-references.mjs --write",
+  "tools": {
+    "node": {
+      "generatedWith": "22.20.0",
+      "supported": ">=20"
+    },
+    "dependencies": "none (IEEE-754 arithmetic with Math.exp, Math.sqrt and Math.sin only; closed forms and a 1 microsecond integration)"
+  },
+  "analyticalSha256": "fb4ca3b5573c39d38c47d58e8094deaa42c8791019fe280c72c528fa82fdf7f0",
+  "fixtureCount": 49,
+  "families": {
+    "earth-fault": 14,
+    "touch-voltage": 2,
+    "rcd": 13,
+    "breaker": 13,
+    "short-circuit": 7
+  },
+  "wrongVariants": 19
+}
