@@ -18,6 +18,7 @@ use crate::{
     ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, Schematic, SetOperatorStateRequest,
     SetOperatorStateResult, SetParameterRequest, SetParameterResult, StableId, TraceBatch,
     TraceRequest,
+    devices::SelectorDevice,
     devices::{
         BreakerDevice, BreakerState, CapacitorDevice, CapacitorMode, ContactorDevice,
         ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
@@ -201,6 +202,16 @@ enum DeviceModel {
     },
     Fuse {
         intact_resistance_ohms: f64,
+    },
+    Selector {
+        throws: [Terminals; 2],
+        selected: Option<usize>,
+        resistance: f64,
+    },
+    TimeRelay {
+        coil_resistance: f64,
+        contact_resistance: f64,
+        poles: [LinkedPole; 2],
     },
     Contactor {
         coil_resistance_ohms: f64,
@@ -390,11 +401,14 @@ impl Engine {
 
         // A parameter a fault overrides keeps the fault's value: the overlay is built again
         // from the edited schematic and the same faults, so such an update changes nothing.
-        let candidate_overlay =
+        let mut candidate_overlay =
             match FaultOverlay::new(&candidate, Some(&active.geometry), &active.faults) {
                 Ok(overlay) => overlay,
                 Err(diagnostics) => return SetParameterResult::Failure { diagnostics },
             };
+        active
+            .operator
+            .project_selectors(&mut candidate_overlay.schematic);
         let candidate_open = active.operator.effective_open(&candidate_overlay.open);
         let geometry = candidate_overlay.geometry.clone();
         let run_id = active.run_id.clone();
@@ -584,6 +598,12 @@ impl Engine {
         if !simulation_time_seconds.is_finite() {
             return invalid();
         }
+        let additional = active.operator.is_additional(&request.component_id);
+        let transition_time_seconds = if additional {
+            simulation_time_seconds
+        } else {
+            transition_time_seconds
+        };
         let mut operator = active.operator.clone();
         let Ok(changed) = operator.set_position(
             &request.component_id,
@@ -594,10 +614,17 @@ impl Engine {
         };
 
         let geometry = active.overlay.geometry.clone();
+        let mut projected = None;
+        if additional && changed {
+            let mut schematic = active.overlay.schematic.clone();
+            operator.project_selectors(&mut schematic);
+            projected = Some(schematic);
+        }
+        let solver_schematic = projected.as_ref().unwrap_or(&active.overlay.schematic);
         let layout = active.layout.clone();
         let open = operator.effective_open(&active.overlay.open);
         let (internal_substeps, limited) =
-            choose_internal_substeps(&active.overlay.schematic, &geometry, &open);
+            choose_internal_substeps(solver_schematic, &geometry, &open);
         let (values, states, mut diagnostics) = if !changed {
             // The position is the one it already has: nothing is recomputed.
             (
@@ -606,15 +633,25 @@ impl Engine {
                 Vec::new(),
             )
         } else {
-            let computed = if simulation_step == 0 {
-                initialize_circuit(&active.overlay.schematic, &geometry, &open)
+            let computed = if additional {
+                let mut states = active.states.clone();
+                states.backward_euler_next_step = true;
+                resolve_switchgear_actions(
+                    solver_schematic,
+                    &geometry,
+                    &open,
+                    states,
+                    &HashMap::new(),
+                )
+            } else if simulation_step == 0 {
+                initialize_circuit(solver_schematic, &geometry, &open)
             } else {
                 // The circuit changed, so the first internal step that advances time is a
                 // backward-Euler step, as after a relay transition.
                 let mut previous_step_states = active.step_start_states.clone();
                 previous_step_states.backward_euler_next_step = true;
                 advance_public_steps(
-                    &active.overlay.schematic,
+                    solver_schematic,
                     &geometry,
                     &open,
                     previous_step_states,
@@ -631,9 +668,9 @@ impl Engine {
                 Err(diagnostics) => return SetOperatorStateResult::Failure { diagnostics },
             };
             let switchgear_settings = active.switchgear_replay_settings();
-            if !switchgear_settings.is_empty() {
+            if !additional && !switchgear_settings.is_empty() {
                 match resolve_switchgear_actions(
-                    &active.overlay.schematic,
+                    solver_schematic,
                     &geometry,
                     &open,
                     states,
@@ -687,6 +724,9 @@ impl Engine {
             .is_err()
         {
             return invalid();
+        }
+        if let Some(schematic) = projected {
+            active.overlay.schematic = schematic;
         }
         active.operator = operator;
         active.open = open;
@@ -1056,6 +1096,7 @@ fn resolve_switchgear_actions(
         &mut results,
         Vec::new(),
         time,
+        Some((time / SIMULATION_TIMESTEP_SECONDS).round() as u64),
         &mut diagnostics,
     )?;
     resolved.measurements = states.measurements;
@@ -1198,6 +1239,7 @@ fn initialize_circuit(
         &mut results,
         Vec::new(),
         0.0,
+        Some(0),
         &mut diagnostics,
     )?;
     states.measurements = measurements::seed(schematic, &mut results, 0.0);
@@ -1780,6 +1822,29 @@ fn local_adjacency(
                 };
                 connect(common_node, active);
             }
+            DeviceModel::Selector {
+                throws, selected, ..
+            } => {
+                if let Some(index) = selected {
+                    let pins = throws[index];
+                    connect(pins.pin1, pins.pin2);
+                }
+            }
+            DeviceModel::TimeRelay { poles, .. } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                let active = mode
+                    .states()
+                    .and_then(|s| s.timers.get(&spec.component_id))
+                    .is_some_and(|(_, timer)| timer.output_on);
+                for terminals in (LinkedContacts {
+                    poles: &poles,
+                    active,
+                })
+                .conducting()
+                {
+                    connect(terminals.pin1, terminals.pin2);
+                }
+            }
             DeviceModel::Contactor { poles, .. } => {
                 let coil_has_conductance = match mode {
                     SolveMode::OperatingPoint | SolveMode::Transient { .. } => true,
@@ -1943,7 +2008,10 @@ fn build_device_specs(
             (PinId::CoilPositive, PinId::CoilNegative)
         } else if matches!(
             component,
-            ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. }
+            ComponentSpec::Contactor { .. }
+                | ComponentSpec::ContactorThreePole { .. }
+                | ComponentSpec::RelayOnDelay { .. }
+                | ComponentSpec::RelayOffDelay { .. }
         ) {
             (PinId::A1, PinId::A2)
         } else if matches!(
@@ -1962,6 +2030,15 @@ fn build_device_specs(
             (PinId::L1, PinId::N)
         } else if matches!(component, ComponentSpec::ThreePhaseLoadDelta { .. }) {
             (PinId::L1, PinId::L2)
+        } else if matches!(
+            component,
+            ComponentSpec::LimitSwitch { .. }
+                | ComponentSpec::EmergencyStop { .. }
+                | ComponentSpec::KeySwitch { .. }
+        ) {
+            (PinId::P, PinId::N)
+        } else if matches!(component, ComponentSpec::SelectorSwitch { .. }) {
+            (PinId::Com, PinId::Throw1)
         } else if matches!(component, ComponentSpec::EarthElectrode { .. }) {
             (PinId::Pe, PinId::Pe)
         } else if matches!(component, ComponentSpec::ExposedPart { .. }) {
@@ -2329,6 +2406,33 @@ fn build_device_specs(
                     contact_resistance: parameters.closed_contact_resistance_ohms,
                 }
             }
+            ComponentSpec::RelayOnDelay { parameters, .. }
+            | ComponentSpec::RelayOffDelay { parameters, .. } => {
+                let Some(poles) = resolve_linked_auxiliaries(
+                    [
+                        PinGroup {
+                            id: "no",
+                            pins: [PinId::TimerNo1, PinId::TimerNo2],
+                        },
+                        PinGroup {
+                            id: "nc",
+                            pins: [PinId::TimerNc1, PinId::TimerNc2],
+                        },
+                    ],
+                    node_for_pin,
+                ) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::TimeRelay {
+                    coil_resistance: parameters.coil_resistance_ohms,
+                    contact_resistance: parameters.closed_resistance_ohms,
+                    poles,
+                }
+            }
             ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. } => {
                 let (coil_resistance, coil_inductance, closed_resistance) = match component {
                     ComponentSpec::Contactor { parameters, .. } => (
@@ -2375,6 +2479,32 @@ fn build_device_specs(
                     poles,
                 }
             }
+            ComponentSpec::SelectorSwitch { parameters, .. } => {
+                let Some(pin) = node_for_pin(PinId::Throw2) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                let selected = match parameters.initial_position {
+                    Some(0.0) => Some(0),
+                    Some(2.0) => Some(1),
+                    _ => None,
+                };
+                DeviceModel::Selector {
+                    throws: [terminals, Terminals { pin1, pin2: pin }],
+                    selected,
+                    resistance: parameters.closed_resistance_ohms,
+                }
+            }
+            ComponentSpec::LimitSwitch { parameters, .. }
+            | ComponentSpec::EmergencyStop { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.closed_resistance_ohms,
+            },
+            ComponentSpec::KeySwitch { parameters, .. } => DeviceModel::Resistor {
+                resistance_ohms: parameters.closed_resistance_ohms,
+            },
             ComponentSpec::SwitchSpst { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.closed_resistance_ohms,
             },
@@ -2566,7 +2696,13 @@ fn winding_mode(
 }
 
 fn resolve_auxiliaries(node_for_pin: impl Fn(PinId) -> Option<usize>) -> Option<[LinkedPole; 2]> {
-    let [no, nc] = CONTACTOR_AUXILIARIES;
+    resolve_linked_auxiliaries(CONTACTOR_AUXILIARIES, node_for_pin)
+}
+
+fn resolve_linked_auxiliaries(
+    [no, nc]: [PinGroup; 2],
+    node_for_pin: impl Fn(PinId) -> Option<usize>,
+) -> Option<[LinkedPole; 2]> {
     Some([
         LinkedPole {
             group: no,
@@ -2838,6 +2974,42 @@ fn make_device(
                 contact_state,
                 last_transition_time_seconds,
                 coil_mode,
+            ))
+        }
+        DeviceModel::Selector {
+            throws,
+            selected,
+            resistance,
+        } => Box::new(SelectorDevice {
+            id: spec.component_id.clone(),
+            throws,
+            selected,
+            resistance,
+        }),
+        DeviceModel::TimeRelay {
+            coil_resistance,
+            contact_resistance,
+            poles,
+        } => {
+            let active = mode
+                .states()
+                .and_then(|s| s.timers.get(&spec.component_id))
+                .is_some_and(|(_, timer)| timer.output_on);
+            Box::new(ContactorDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                ContactorPoles::Auxiliaries(poles),
+                coil_resistance,
+                0.0,
+                contact_resistance,
+                if active {
+                    RelayContactState::Picked
+                } else {
+                    RelayContactState::Released
+                },
+                None,
+                RelayCoilMode::OperatingPoint,
+                None,
             ))
         }
         DeviceModel::Contactor {
@@ -3674,7 +3846,8 @@ fn values_for_layout(
                 | ResultQuantity::MeanSquareCurrent
                 | ResultQuantity::ThermalDose
                 | ResultQuantity::ElectromagneticTorque
-                | ResultQuantity::Valid => f64::NAN,
+                | ResultQuantity::Valid
+                | ResultQuantity::ElapsedTime => f64::NAN,
             });
         if value.is_finite() {
             values[slot.offset as usize] = value;
@@ -3706,6 +3879,12 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
+        ComponentSpec::RelayOnDelay { .. }
+        | ComponentSpec::RelayOffDelay { .. }
+        | ComponentSpec::LimitSwitch { .. }
+        | ComponentSpec::EmergencyStop { .. }
+        | ComponentSpec::SelectorSwitch { .. }
+        | ComponentSpec::KeySwitch { .. } => return false,
         ComponentSpec::ContactorThreePole { parameters, .. } => match parameter_id {
             ParameterId::PickupCurrentAmps => parameters.pickup_current_amps = value,
             ParameterId::DropoutCurrentAmps => parameters.dropout_current_amps = value,

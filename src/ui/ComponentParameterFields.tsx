@@ -46,7 +46,10 @@ export function ComponentParameterFields({
         const value = values[definition.id];
         const key = `${component.id}:${definition.id}`;
 
-        if (definition.domain === "zero_or_one") {
+        if (
+          definition.domain === "zero_or_one" ||
+          definition.domain === "zero_one_or_two"
+        ) {
           return (
             <ChoiceParameterField
               key={key}

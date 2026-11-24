@@ -1,5 +1,6 @@
 //! Transient-state handling and deterministic internal-step selection.
 
+use crate::time_relay::{DelayMode, TimerState, delay_steps};
 use std::collections::{HashMap, HashSet};
 
 use crate::{
@@ -113,6 +114,7 @@ pub(super) struct CircuitStates {
     pub(super) capacitors: HashMap<StableId, CapacitorState>,
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
+    pub(super) timers: HashMap<StableId, (DelayMode, TimerState)>,
     pub(super) breakers: HashMap<StableId, BreakerState>,
     pub(super) overloads: HashMap<StableId, OverloadState>,
     pub(super) rcds: HashMap<StableId, RcdState>,
@@ -150,6 +152,31 @@ impl CircuitStates {
                 }
             })
             .collect::<Vec<_>>();
+        states.extend(self.timers.iter().map(|(id, (mode, timer))| {
+            let component_id = id.clone();
+            let energized = timer.energized;
+            let output_on = timer.output_on;
+            let timing = timer.timing();
+            let last_transition_time_seconds = timer
+                .transition_step
+                .map(|step| step as f64 * SIMULATION_TIMESTEP_SECONDS);
+            match mode {
+                DelayMode::On => DeviceState::RelayOnDelay {
+                    component_id,
+                    energized,
+                    output_on,
+                    timing,
+                    last_transition_time_seconds,
+                },
+                DelayMode::Off => DeviceState::RelayOffDelay {
+                    component_id,
+                    energized,
+                    output_on,
+                    timing,
+                    last_transition_time_seconds,
+                },
+            }
+        }));
         states.extend(self.breakers.iter().map(|(id, state)| DeviceState::Switch {
             component_id: id.clone(),
             position: state.position,
@@ -191,6 +218,15 @@ pub(super) enum SolveMode<'a> {
         integration_method: IntegrationMethod,
         phase_advance_fraction: f64,
     },
+}
+
+impl<'a> SolveMode<'a> {
+    pub(super) fn states(self) -> Option<&'a CircuitStates> {
+        match self {
+            Self::OperatingPoint => None,
+            Self::InitialState(states) | Self::Transient { states, .. } => Some(states),
+        }
+    }
 }
 
 pub(super) fn circuit_states_from_results(
@@ -450,6 +486,23 @@ pub(super) fn circuit_states_from_results(
         capacitors,
         inductors,
         relays,
+        timers: schematic
+            .components
+            .iter()
+            .filter_map(|component| {
+                let mode = match component {
+                    ComponentSpec::RelayOnDelay { .. } => DelayMode::On,
+                    ComponentSpec::RelayOffDelay { .. } => DelayMode::Off,
+                    _ => return None,
+                };
+                let id = component.id();
+                let timer = previous
+                    .timers
+                    .get(id)
+                    .map_or(TimerState::default(), |(_, timer)| *timer);
+                Some((id.clone(), (mode, timer)))
+            })
+            .collect(),
         breakers,
         overloads,
         rcds,
@@ -705,6 +758,7 @@ pub(super) fn advance_public_steps(
                 &mut step_results,
                 trips,
                 step_end_time,
+                (internal_step_index + 1 == internal_substeps).then_some(public_step_index),
                 &mut diagnostics,
             )?;
             candidate.measurements = states.measurements.clone();
@@ -816,6 +870,7 @@ pub(super) fn settle_discrete_events(
     results: &mut Vec<DeviceResult>,
     mut pending_trips: Vec<StableId>,
     event_time_seconds: f64,
+    timer_step: Option<u64>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> Result<(), Vec<Diagnostic>> {
     let CircuitInput {
@@ -884,7 +939,51 @@ pub(super) fn settle_discrete_events(
                 relay_changes.push((id.clone(), next_state));
             }
         }
-        if relay_changes.is_empty() && breaker_changes.is_empty() && pending_trips.is_empty() {
+        let mut timer_changes = Vec::new();
+        for component in &schematic.components {
+            let (ComponentSpec::RelayOnDelay { parameters, .. }
+            | ComponentSpec::RelayOffDelay { parameters, .. }) = component
+            else {
+                continue;
+            };
+            let id = component.id();
+            let Some((mode, timer)) = states.timers.get_mut(id) else {
+                continue;
+            };
+            let result = results
+                .iter_mut()
+                .find(|result| result.component_id == *id)
+                .expect("timer coil result");
+            if let Some(step) = timer_step.filter(|_| {
+                relay_changes.is_empty() && breaker_changes.is_empty() && pending_trips.is_empty()
+            }) && timer.sample(
+                *mode,
+                result.current_amps,
+                parameters.pickup_current_amps,
+                parameters.dropout_current_amps,
+                delay_steps(parameters.delay_seconds),
+                step,
+            ) {
+                timer_changes.push(id.clone());
+            }
+            let step = timer_step.unwrap_or_else(|| {
+                (event_time_seconds / SIMULATION_TIMESTEP_SECONDS).floor() as u64
+            });
+            let elapsed = timer.elapsed_steps(step) as f64 * SIMULATION_TIMESTEP_SECONDS;
+            let slots = crate::slots::component_slot_definitions(component);
+            result.extra_values.truncate(6);
+            for ((key, _), slot) in result.extra_values.iter_mut().zip(&slots) {
+                *key = slot.key(id.as_str());
+            }
+            result
+                .extra_values
+                .push((slots[6].key(id.as_str()), elapsed));
+        }
+        if relay_changes.is_empty()
+            && timer_changes.is_empty()
+            && breaker_changes.is_empty()
+            && pending_trips.is_empty()
+        {
             return Ok(());
         }
         relay_changes.sort_by(|left, right| left.0.as_str().cmp(right.0.as_str()));
@@ -893,6 +992,7 @@ pub(super) fn settle_discrete_events(
             .map(|(component_id, _)| component_id.clone())
             .collect::<Vec<_>>();
         changed_ids.extend(breaker_changes.iter().map(|(id, _)| id.clone()));
+        changed_ids.extend(timer_changes);
         changed_ids.append(&mut pending_trips);
         changed_ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
         changed_ids.dedup();
@@ -960,6 +1060,12 @@ fn discrete_state_vector(states: &CircuitStates, pending_trips: &[StableId]) -> 
             )
         })
         .collect::<Vec<_>>();
+    vector.extend(states.timers.iter().map(|(id, (_, timer))| {
+        (
+            id.as_str().to_owned(),
+            u8::from(timer.output_on) | (u8::from(timer.energized) << 1),
+        )
+    }));
     vector.extend(states.fuses.iter().map(|(id, fuse)| {
         let pending = pending_trips.iter().any(|pending| pending == id);
         (
@@ -1205,6 +1311,39 @@ fn estimate_transient_rate_bound(
             let variable1 = root_to_variable.get(&pin1).copied();
             let variable2 = root_to_variable.get(&pin2).copied();
             match spec.model {
+                DeviceModel::Selector {
+                    throws, resistance, ..
+                } => {
+                    for terminals in throws {
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / resistance,
+                        )?;
+                    }
+                }
+                DeviceModel::TimeRelay {
+                    coil_resistance,
+                    contact_resistance,
+                    poles,
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / coil_resistance,
+                    )?;
+                    for pole in poles {
+                        let terminals = pole.terminals;
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(terminals.pin1)).copied(),
+                            root_to_variable.get(&sets.find(terminals.pin2)).copied(),
+                            1.0 / contact_resistance,
+                        )?;
+                    }
+                }
                 DeviceModel::Resistor { resistance_ohms } => {
                     add_laplacian(
                         &mut conductance,

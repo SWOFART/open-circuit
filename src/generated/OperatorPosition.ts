@@ -3,4 +3,4 @@
 /**
  * A position the operator can put a switch or a push button in (Stage 6 contract section 4.2).
  */
-export type OperatorPosition = "open" | "closed" | "released" | "pressed";
+export type OperatorPosition = "left" | "center" | "right" | "reset" | "open" | "closed" | "released" | "pressed";

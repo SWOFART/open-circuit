@@ -250,6 +250,8 @@ export function domainAccepts(domain: NumericDomain, value: number): boolean {
       return value >= 0;
     case "zero_or_one":
       return value === 0 || value === 1;
+    case "zero_one_or_two":
+      return value === 0 || value === 1 || value === 2;
     case "integer":
       return Number.isInteger(value);
   }

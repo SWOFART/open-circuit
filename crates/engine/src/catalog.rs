@@ -20,6 +20,12 @@ pub enum ComponentTypeId {
     Capacitor,
     Inductor,
     RelaySpdt,
+    LimitSwitch,
+    EmergencyStop,
+    SelectorSwitch,
+    KeySwitch,
+    RelayOnDelay,
+    RelayOffDelay,
     Fuse,
     PmdcMotor,
     Voltmeter,
@@ -101,12 +107,28 @@ pub enum PinId {
     Ep,
     L4,
     T4,
+    #[serde(rename = "no1")]
+    TimerNo1,
+    P,
+    Com,
+    Throw1,
+    Throw2,
+    #[serde(rename = "no2")]
+    TimerNo2,
+    #[serde(rename = "nc1")]
+    TimerNc1,
+    #[serde(rename = "nc2")]
+    TimerNc2,
 }
 
 impl PinId {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Pin1 => "pin1",
+            Self::P => "p",
+            Self::Com => "com",
+            Self::Throw1 => "throw1",
+            Self::Throw2 => "throw2",
             Self::Pin2 => "pin2",
             Self::L1 => "l1",
             Self::L2 => "l2",
@@ -131,9 +153,13 @@ impl PinId {
             Self::NormallyClosed => "normally_closed",
             Self::A1 => "a1",
             Self::A2 => "a2",
+            Self::TimerNo1 => "no1",
             Self::No1 => "no_1",
+            Self::TimerNo2 => "no2",
             Self::No2 => "no_2",
+            Self::TimerNc1 => "nc1",
             Self::Nc1 => "nc_1",
+            Self::TimerNc2 => "nc2",
             Self::Nc2 => "nc_2",
             Self::U1 => "u1",
             Self::U2 => "u2",
@@ -182,6 +208,8 @@ pub enum ParameterId {
     DropoutCurrentAmps,
     ClosedContactResistanceOhms,
     CoilSenseSeconds,
+    DelaySeconds,
+    InitialPosition,
     InstantaneousTripAmps,
     SenseResistanceOhms,
     RatedCurrentAmps,
@@ -275,6 +303,7 @@ pub enum NumericDomain {
     StrictlyPositive,
     NonNegative,
     ZeroOrOne,
+    ZeroOneOrTwo,
     Integer,
 }
 
@@ -289,6 +318,7 @@ impl NumericDomain {
             Self::StrictlyPositive => value > 0.0,
             Self::NonNegative => value >= 0.0,
             Self::ZeroOrOne => value == 0.0 || value == 1.0,
+            Self::ZeroOneOrTwo => value == 0.0 || value == 1.0 || value == 2.0,
             Self::Integer => value.trunc() == value,
         }
     }
@@ -450,6 +480,141 @@ fn transistor_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEnt
         .to_vec(),
         pin_groups: None,
         fault_kinds: vec![],
+    }
+}
+
+fn operator_contact_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEntry {
+    let selector = type_id == ComponentTypeId::SelectorSwitch;
+    let pins: &[PinId] = if selector {
+        &[PinId::Com, PinId::Throw1, PinId::Throw2]
+    } else {
+        &[PinId::P, PinId::N]
+    };
+    let mut parameters = vec![ParameterDefinition {
+        id: ParameterId::ClosedResistanceOhms,
+        unit: Unit::Ohm,
+        default_value: 0.01,
+        domain: NumericDomain::StrictlyPositive,
+        description_key: "component.operatorContact.closedResistance".into(),
+        optional: false,
+        initial_condition: false,
+        minimum_value: Some(1e-6),
+        maximum_value: Some(100.0),
+    }];
+    if selector || type_id == ComponentTypeId::KeySwitch {
+        parameters.push(ParameterDefinition {
+            id: ParameterId::InitialPosition,
+            unit: Unit::Dimensionless,
+            default_value: f64::from(selector),
+            domain: if selector {
+                NumericDomain::ZeroOneOrTwo
+            } else {
+                NumericDomain::ZeroOrOne
+            },
+            description_key: "component.operatorContact.initialPosition".into(),
+            optional: true,
+            initial_condition: true,
+            minimum_value: None,
+            maximum_value: None,
+        });
+    }
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: CategoryId::Switching,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        designator_prefix: "S".into(),
+        pins: pins
+            .iter()
+            .map(|&id| PinDefinition {
+                id,
+                role: PinRole::Unpolarized,
+            })
+            .collect(),
+        parameters,
+        pin_groups: None,
+        fault_kinds: Vec::new(),
+    }
+}
+
+fn timed_relay_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEntry {
+    let parameter =
+        |id, unit, default_value, minimum_value, maximum_value, label: &str| ParameterDefinition {
+            id,
+            unit,
+            default_value,
+            minimum_value: Some(minimum_value),
+            maximum_value: Some(maximum_value),
+            domain: if minimum_value > 0.0 {
+                NumericDomain::StrictlyPositive
+            } else {
+                NumericDomain::NonNegative
+            },
+            description_key: format!("component.timeRelay.{label}"),
+            optional: false,
+            initial_condition: false,
+        };
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: CategoryId::Switching,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        designator_prefix: "K".into(),
+        pins: [
+            (PinId::A1, PinRole::Positive),
+            (PinId::A2, PinRole::Negative),
+            (PinId::TimerNo1, PinRole::Unpolarized),
+            (PinId::TimerNo2, PinRole::Unpolarized),
+            (PinId::TimerNc1, PinRole::Unpolarized),
+            (PinId::TimerNc2, PinRole::Unpolarized),
+        ]
+        .into_iter()
+        .map(|(id, role)| PinDefinition { id, role })
+        .collect(),
+        parameters: vec![
+            parameter(
+                ParameterId::CoilResistanceOhms,
+                Unit::Ohm,
+                240.0,
+                1.0,
+                1e6,
+                "coilResistance",
+            ),
+            parameter(
+                ParameterId::PickupCurrentAmps,
+                Unit::Amp,
+                0.08,
+                1e-6,
+                100.0,
+                "pickupCurrent",
+            ),
+            parameter(
+                ParameterId::DropoutCurrentAmps,
+                Unit::Amp,
+                0.04,
+                0.0,
+                100.0,
+                "dropoutCurrent",
+            ),
+            parameter(
+                ParameterId::ClosedResistanceOhms,
+                Unit::Ohm,
+                0.01,
+                1e-6,
+                100.0,
+                "closedResistance",
+            ),
+            parameter(
+                ParameterId::DelaySeconds,
+                Unit::Second,
+                0.1,
+                0.0,
+                3600.0,
+                "delay",
+            ),
+        ],
+        pin_groups: None,
+        fault_kinds: Vec::new(),
     }
 }
 
@@ -951,6 +1116,12 @@ pub fn component_catalog() -> ComponentCatalog {
                 pin_groups: None,
                 fault_kinds: supported_fault_kinds(ComponentTypeId::PushButtonNc).to_vec(),
             },
+            operator_contact_entry(ComponentTypeId::LimitSwitch, "limitSwitch"),
+            operator_contact_entry(ComponentTypeId::EmergencyStop, "emergencyStop"),
+            operator_contact_entry(ComponentTypeId::SelectorSwitch, "selectorSwitch"),
+            operator_contact_entry(ComponentTypeId::KeySwitch, "keySwitch"),
+            timed_relay_entry(ComponentTypeId::RelayOnDelay, "onDelayRelay"),
+            timed_relay_entry(ComponentTypeId::RelayOffDelay, "offDelayRelay"),
             ComponentCatalogEntry {
                 type_id: ComponentTypeId::Contactor,
                 display_name_key: "component.contactor.name".to_owned(),

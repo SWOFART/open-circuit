@@ -21,6 +21,7 @@ pub mod results;
 pub mod schematic;
 mod slots;
 pub mod solver;
+mod time_relay;
 
 pub use assignment::{
     ASSIGNMENT_SCHEMA_VERSION, Assignment, AssignmentDecoded, AssignmentError, AssignmentErrorCode,
@@ -56,12 +57,12 @@ pub use ids::{InvalidStableId, StableId};
 pub use project::{ProjectDocumentError, decode_project_json, validate_project_schematic};
 pub use rails::{MAX_RAIL_CONTACT_WORK, MAX_RAIL_COUNT, RailSpec};
 pub use results::{
-    AdvanceRequest, CompileRequest, CompileResult, DeviceState, FrameMetadata, FuseState,
-    OperatorPosition, PushButtonPosition, RelayContactState, ResultLayout, ResultQuantity,
-    ResultSignConvention, ResultSlot, ResultSnapshot, SIMULATION_TIMESTEP_SECONDS,
-    SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
-    StreamNotice, SwitchPosition, TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery,
-    TraceRequest, TraceSignal,
+    AdvanceRequest, CompileRequest, CompileResult, DeviceState, EmergencyStopPosition,
+    FrameMetadata, FuseState, KeySwitchPosition, OperatorPosition, PushButtonPosition,
+    RelayContactState, ResultLayout, ResultQuantity, ResultSignConvention, ResultSlot,
+    ResultSnapshot, SIMULATION_TIMESTEP_SECONDS, SelectorPosition, SetOperatorStateRequest,
+    SetOperatorStateResult, SetParameterRequest, SetParameterResult, StreamNotice, SwitchPosition,
+    TraceBatch, TraceBatchMetadata, TracePoint, TraceQuery, TraceRequest, TraceSignal,
 };
 pub use schematic::{
     AcAmmeterParameters, AcVoltageSourceParameters, AcVoltmeterParameters, AmmeterParameters,

@@ -173,6 +173,17 @@ pub struct InductorParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "TimeRelayParameters.ts")]
+pub struct TimeRelayParameters {
+    pub coil_resistance_ohms: f64,
+    pub pickup_current_amps: f64,
+    pub dropout_current_amps: f64,
+    pub closed_resistance_ohms: f64,
+    pub delay_seconds: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "RelayParameters.ts")]
 pub struct RelayParameters {
     pub coil_resistance_ohms: f64,
@@ -505,6 +516,20 @@ pub struct PushButtonParameters {
     pub closed_resistance_ohms: f64,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "PositionContactParameters.ts")]
+pub struct PositionContactParameters {
+    pub closed_resistance_ohms: f64,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_non_null_f64"
+    )]
+    #[ts(optional)]
+    pub initial_position: Option<f64>,
+}
+
 /// A typed component understood by the current Engine. Persisted project versions and
 /// assignment support have their own compatibility boundaries.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
@@ -607,6 +632,50 @@ pub enum ComponentSpec {
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
         parameters: InductorParameters,
+    },
+    LimitSwitch {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: PushButtonParameters,
+    },
+    EmergencyStop {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: PushButtonParameters,
+    },
+    SelectorSwitch {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: PositionContactParameters,
+    },
+    KeySwitch {
+        id: StableId,
+        position: GridPoint,
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: PositionContactParameters,
+    },
+    RelayOnDelay {
+        id: StableId,
+        position: GridPoint,
+        #[serde(rename = "rotationDeg")]
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: TimeRelayParameters,
+    },
+    RelayOffDelay {
+        id: StableId,
+        position: GridPoint,
+        #[serde(rename = "rotationDeg")]
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: TimeRelayParameters,
     },
     RelaySpdt {
         id: StableId,
@@ -766,6 +835,12 @@ impl ComponentSpec {
             | Self::Wattmeter { id, .. }
             | Self::Capacitor { id, .. }
             | Self::Inductor { id, .. }
+            | Self::LimitSwitch { id, .. }
+            | Self::EmergencyStop { id, .. }
+            | Self::SelectorSwitch { id, .. }
+            | Self::KeySwitch { id, .. }
+            | Self::RelayOnDelay { id, .. }
+            | Self::RelayOffDelay { id, .. }
             | Self::RelaySpdt { id, .. }
             | Self::Fuse { id, .. }
             | Self::PmdcMotor { id, .. }
@@ -804,6 +879,12 @@ impl ComponentSpec {
             | Self::Wattmeter { position, .. }
             | Self::Capacitor { position, .. }
             | Self::Inductor { position, .. }
+            | Self::LimitSwitch { position, .. }
+            | Self::EmergencyStop { position, .. }
+            | Self::SelectorSwitch { position, .. }
+            | Self::KeySwitch { position, .. }
+            | Self::RelayOnDelay { position, .. }
+            | Self::RelayOffDelay { position, .. }
             | Self::RelaySpdt { position, .. }
             | Self::Fuse { position, .. }
             | Self::PmdcMotor { position, .. }
@@ -842,6 +923,12 @@ impl ComponentSpec {
             | Self::Wattmeter { rotation_deg, .. }
             | Self::Capacitor { rotation_deg, .. }
             | Self::Inductor { rotation_deg, .. }
+            | Self::LimitSwitch { rotation_deg, .. }
+            | Self::EmergencyStop { rotation_deg, .. }
+            | Self::SelectorSwitch { rotation_deg, .. }
+            | Self::KeySwitch { rotation_deg, .. }
+            | Self::RelayOnDelay { rotation_deg, .. }
+            | Self::RelayOffDelay { rotation_deg, .. }
             | Self::RelaySpdt { rotation_deg, .. }
             | Self::Fuse { rotation_deg, .. }
             | Self::PmdcMotor { rotation_deg, .. }
@@ -881,6 +968,12 @@ impl ComponentSpec {
             Self::Capacitor { .. } => ComponentTypeId::Capacitor,
             Self::Inductor { .. } => ComponentTypeId::Inductor,
             Self::RelaySpdt { .. } => ComponentTypeId::RelaySpdt,
+            Self::LimitSwitch { .. } => ComponentTypeId::LimitSwitch,
+            Self::EmergencyStop { .. } => ComponentTypeId::EmergencyStop,
+            Self::SelectorSwitch { .. } => ComponentTypeId::SelectorSwitch,
+            Self::KeySwitch { .. } => ComponentTypeId::KeySwitch,
+            Self::RelayOnDelay { .. } => ComponentTypeId::RelayOnDelay,
+            Self::RelayOffDelay { .. } => ComponentTypeId::RelayOffDelay,
             Self::Fuse { .. } => ComponentTypeId::Fuse,
             Self::PmdcMotor { .. } => ComponentTypeId::PmdcMotor,
             Self::Voltmeter { .. } => ComponentTypeId::Voltmeter,
@@ -1226,6 +1319,41 @@ impl ComponentSpec {
                 }
                 values
             }
+            Self::LimitSwitch { parameters, .. } | Self::EmergencyStop { parameters, .. } => {
+                vec![(
+                    ParameterId::ClosedResistanceOhms,
+                    parameters.closed_resistance_ohms,
+                )]
+            }
+            Self::SelectorSwitch { parameters, .. } | Self::KeySwitch { parameters, .. } => {
+                let mut values = vec![(
+                    ParameterId::ClosedResistanceOhms,
+                    parameters.closed_resistance_ohms,
+                )];
+                if let Some(position) = parameters.initial_position {
+                    values.push((ParameterId::InitialPosition, position));
+                }
+                values
+            }
+            Self::RelayOnDelay { parameters, .. } | Self::RelayOffDelay { parameters, .. } => vec![
+                (
+                    ParameterId::CoilResistanceOhms,
+                    parameters.coil_resistance_ohms,
+                ),
+                (
+                    ParameterId::PickupCurrentAmps,
+                    parameters.pickup_current_amps,
+                ),
+                (
+                    ParameterId::DropoutCurrentAmps,
+                    parameters.dropout_current_amps,
+                ),
+                (
+                    ParameterId::ClosedResistanceOhms,
+                    parameters.closed_resistance_ohms,
+                ),
+                (ParameterId::DelaySeconds, parameters.delay_seconds),
+            ],
             Self::RelaySpdt { parameters, .. } | Self::Contactor { parameters, .. } => vec![
                 (
                     ParameterId::CoilResistanceOhms,
@@ -1432,6 +1560,12 @@ impl Schematic {
             | ComponentSpec::Wattmeter { rotation_deg, .. }
             | ComponentSpec::Capacitor { rotation_deg, .. }
             | ComponentSpec::Inductor { rotation_deg, .. }
+            | ComponentSpec::LimitSwitch { rotation_deg, .. }
+            | ComponentSpec::EmergencyStop { rotation_deg, .. }
+            | ComponentSpec::SelectorSwitch { rotation_deg, .. }
+            | ComponentSpec::KeySwitch { rotation_deg, .. }
+            | ComponentSpec::RelayOnDelay { rotation_deg, .. }
+            | ComponentSpec::RelayOffDelay { rotation_deg, .. }
             | ComponentSpec::RelaySpdt { rotation_deg, .. }
             | ComponentSpec::Fuse { rotation_deg, .. }
             | ComponentSpec::PmdcMotor { rotation_deg, .. }
@@ -1501,6 +1635,11 @@ impl Schematic {
             }
 
             let thresholds = match component {
+                ComponentSpec::RelayOnDelay { parameters, .. }
+                | ComponentSpec::RelayOffDelay { parameters, .. } => Some((
+                    parameters.dropout_current_amps,
+                    parameters.pickup_current_amps,
+                )),
                 ComponentSpec::RelaySpdt { parameters, .. }
                 | ComponentSpec::Contactor { parameters, .. } => Some((
                     parameters.dropout_current_amps,

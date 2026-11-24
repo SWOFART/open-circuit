@@ -161,6 +161,7 @@ fn divider_matches_golden_values_signs_kcl_and_power_balance() {
         ResultQuantity::MeanSquareCurrent => slot.unit == Unit::AmpereSquared,
         ResultQuantity::ThermalDose => slot.unit == Unit::Dimensionless,
         ResultQuantity::ElectromagneticTorque => slot.unit == Unit::NewtonMeter,
+        ResultQuantity::ElapsedTime => slot.unit == Unit::Second,
     }));
 
     let source_current = component_value(

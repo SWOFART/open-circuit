@@ -159,6 +159,12 @@ const STATE_KIND_OF_TYPE: Readonly<
   >
 > = {
   relay_spdt: "relay",
+  limit_switch: "limitSwitch",
+  emergency_stop: "emergencyStop",
+  selector_switch: "selectorSwitch",
+  key_switch: "keySwitch",
+  relay_on_delay: "relayOnDelay",
+  relay_off_delay: "relayOffDelay",
   fuse: "fuse",
   switch_spst: "switch",
   push_button_no: "pushButton",
@@ -179,6 +185,25 @@ function hasKnownValue(state: DeviceState): boolean {
     case "relay":
     case "contactor":
       return state.state === "released" || state.state === "picked";
+    case "limitSwitch":
+      return state.position === "released" || state.position === "pressed";
+    case "emergencyStop":
+      return state.position === "armed" || state.position === "latched";
+    case "selectorSwitch":
+      return (
+        state.position === "left" ||
+        state.position === "center" ||
+        state.position === "right"
+      );
+    case "keySwitch":
+      return state.position === "off" || state.position === "on";
+    case "relayOnDelay":
+    case "relayOffDelay":
+      return (
+        typeof state.energized === "boolean" &&
+        typeof state.outputOn === "boolean" &&
+        typeof state.timing === "boolean"
+      );
     case "fuse":
       return state.state === "intact" || state.state === "tripped";
     case "switch":

@@ -45,7 +45,7 @@ export function defaultParameters(
  * overload relay, the transformer and the three-phase loads, is compile-only: the Engine refuses
  * a live update of it, so it must start a new run.
  */
-const LIVE_PARAMETERS_OF_STAGE_10: Readonly<
+const LIVE_PARAMETERS_BY_TYPE: Readonly<
   Partial<Record<ComponentTypeId, readonly ParameterId[]>>
 > = {
   induction_motor_three_phase: ["loadTorqueNewtonMeters"],
@@ -60,12 +60,18 @@ const LIVE_PARAMETERS_OF_STAGE_10: Readonly<
   rcd_four_pole: ["ratedResidualCurrentAmps", "tripTimeAtRatedSeconds"],
   // The earth electrode is compile-only; the exposed part's inputs are live.
   earth_electrode: [],
+  limit_switch: [],
+  emergency_stop: [],
+  selector_switch: [],
+  key_switch: [],
+  relay_on_delay: [],
+  relay_off_delay: [],
 };
 
 /**
  * The lightweight Engine update for a committed parameter edit, or undefined
  * when the edit must recompile the circuit. Initial conditions always start a
- * new run, and so does every Stage 10 input that is not listed as live above.
+ * new run, as do inputs outside the live list for devices with explicit limits.
  */
 export function liveParameterUpdate(
   catalog: ComponentCatalog,
@@ -80,7 +86,7 @@ export function liveParameterUpdate(
   const definition = catalog.componentTypes
     .find((entry) => entry.typeId === component?.typeId)
     ?.parameters.find((item) => item.id === parameterId);
-  const live = component && LIVE_PARAMETERS_OF_STAGE_10[component.typeId];
+  const live = component && LIVE_PARAMETERS_BY_TYPE[component.typeId];
 
   return definition &&
     !definition.initialCondition &&

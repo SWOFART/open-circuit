@@ -29,6 +29,7 @@ pub enum ResultQuantity {
     PowerFactor,
     PhaseAngle,
     Valid,
+    ElapsedTime,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -57,10 +58,39 @@ pub enum RelayContactState {
 #[serde(rename_all = "lowercase")]
 #[ts(export, export_to = "OperatorPosition.ts")]
 pub enum OperatorPosition {
+    Left,
+    Center,
+    Right,
+    Reset,
     Open,
     Closed,
     Released,
     Pressed,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "EmergencyStopPosition.ts")]
+pub enum EmergencyStopPosition {
+    Armed,
+    Latched,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "SelectorPosition.ts")]
+pub enum SelectorPosition {
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "KeySwitchPosition.ts")]
+pub enum KeySwitchPosition {
+    Off,
+    On,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, TS)]
@@ -88,6 +118,53 @@ pub enum PushButtonPosition {
 )]
 #[ts(export, export_to = "DeviceState.ts")]
 pub enum DeviceState {
+    LimitSwitch {
+        component_id: StableId,
+        position: PushButtonPosition,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+    EmergencyStop {
+        component_id: StableId,
+        position: EmergencyStopPosition,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+    SelectorSwitch {
+        component_id: StableId,
+        position: SelectorPosition,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+    KeySwitch {
+        component_id: StableId,
+        position: KeySwitchPosition,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+
+    RelayOnDelay {
+        component_id: StableId,
+        energized: bool,
+        output_on: bool,
+        timing: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
+    RelayOffDelay {
+        component_id: StableId,
+        energized: bool,
+        output_on: bool,
+        timing: bool,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        last_transition_time_seconds: Option<f64>,
+    },
     Relay {
         component_id: StableId,
         state: RelayContactState,
@@ -131,7 +208,13 @@ pub enum DeviceState {
 impl DeviceState {
     pub fn component_id(&self) -> &StableId {
         match self {
-            Self::Relay { component_id, .. }
+            Self::LimitSwitch { component_id, .. }
+            | Self::EmergencyStop { component_id, .. }
+            | Self::SelectorSwitch { component_id, .. }
+            | Self::KeySwitch { component_id, .. }
+            | Self::RelayOnDelay { component_id, .. }
+            | Self::RelayOffDelay { component_id, .. }
+            | Self::Relay { component_id, .. }
             | Self::Fuse { component_id, .. }
             | Self::Switch { component_id, .. }
             | Self::PushButton { component_id, .. }

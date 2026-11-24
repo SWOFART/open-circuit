@@ -13,6 +13,8 @@ mod linked_contacts;
 mod motor;
 mod relay;
 mod resistor;
+mod selector;
+pub(crate) use selector::SelectorDevice;
 mod source;
 mod switchgear;
 mod wattmeter;

@@ -22,8 +22,15 @@ import {
   rcdFourPoleSymbol,
   rcdTwoPoleSymbol,
 } from "./protection";
+import {
+  emergencyStopSymbol,
+  keySwitchSymbol,
+  limitSwitchSymbol,
+  selectorSwitchSymbol,
+} from "./operatorContacts";
 import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
+import { offDelayRelaySymbol, onDelayRelaySymbol } from "./timeRelay";
 import { resistorSymbol } from "./resistor";
 import { switchSpstSymbol } from "./switch";
 import {
@@ -65,6 +72,12 @@ export const symbols: SymbolRegistry = {
   capacitor: capacitorSymbol,
   inductor: inductorSymbol,
   relay_spdt: relaySpdtSymbol,
+  limit_switch: limitSwitchSymbol,
+  emergency_stop: emergencyStopSymbol,
+  selector_switch: selectorSwitchSymbol,
+  key_switch: keySwitchSymbol,
+  relay_on_delay: onDelayRelaySymbol,
+  relay_off_delay: offDelayRelaySymbol,
   fuse: fuseSymbol,
   pmdc_motor: pmdcMotorSymbol,
   contactor_three_pole: contactorThreePoleSymbol,

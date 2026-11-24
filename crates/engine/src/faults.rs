@@ -110,7 +110,13 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::EarthElectrode
         | ComponentTypeId::ExposedPart
         | ComponentTypeId::RcdTwoPole
-        | ComponentTypeId::RcdFourPole => &[],
+        | ComponentTypeId::RcdFourPole
+        | ComponentTypeId::RelayOnDelay
+        | ComponentTypeId::LimitSwitch
+        | ComponentTypeId::EmergencyStop
+        | ComponentTypeId::SelectorSwitch
+        | ComponentTypeId::KeySwitch
+        | ComponentTypeId::RelayOffDelay => &[],
     }
 }
 
