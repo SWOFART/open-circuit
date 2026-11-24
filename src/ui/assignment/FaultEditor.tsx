@@ -4,18 +4,25 @@ import type { ComponentCatalog } from "../../generated/ComponentCatalog";
 import type { FaultKind } from "../../generated/FaultKind";
 import type { FaultSpec } from "../../generated/FaultSpec";
 import type { ParameterId } from "../../generated/ParameterId";
+import type { PinId } from "../../generated/PinId";
 import type { Schematic } from "../../generated/Schematic";
 import type { StableId } from "../../generated/StableId";
 import { message } from "../messages";
 import { formatSi, parseSi, unitSymbols } from "../units";
 import {
   describeAssignmentError,
+  exposedPartsOf,
   faultKindsFor,
   faultKindWords,
   faultParametersFor,
+  faultPinsFor,
   hasErrorAt,
+  pinWords,
 } from "./assignmentView";
 import { NumberField } from "./NumberField";
+
+/** The leakage resistance a new leak fault starts with: 1 kΩ. */
+const DEFAULT_LEAK_OHMS = 1000;
 
 export interface FaultEditorProps {
   readonly fault: FaultSpec;
@@ -54,9 +61,23 @@ export function FaultEditor({
     (definition) => definition.id === fault.parameterId,
   );
 
-  /** The fault with the kind another part or kind needs: only a parameter fault has a value. */
+  const pins = part ? faultPinsFor(catalog, part.typeId) : [];
+  const frames = exposedPartsOf(startingCircuit);
+
+  /** The fault with the fields another part or kind needs. */
   function withKind(kind: FaultKind, componentId: StableId): FaultSpec {
     const base = { id: fault.id, kind, componentId };
+    if (kind === "leak") {
+      const next = parts.find((component) => component.id === componentId);
+      const pin = next ? faultPinsFor(catalog, next.typeId)[0] : undefined;
+      const frame = frames[0];
+      return {
+        ...base,
+        ...(pin === undefined ? {} : { pinId: pin }),
+        ...(frame === undefined ? {} : { frameId: frame }),
+        value: DEFAULT_LEAK_OHMS,
+      };
+    }
     if (kind !== "parameter") return base;
 
     const next = parts.find((component) => component.id === componentId);
@@ -171,6 +192,67 @@ export function FaultEditor({
               onCommit={(value) => onChange({ ...fault, value })}
             />
           )}
+        </>
+      )}
+      {fault.kind === "leak" && (
+        <>
+          <div className="parameter-field">
+            <label htmlFor={`${id}-pin`}>Pin that leaks</label>
+            <select
+              id={`${id}-pin`}
+              value={fault.pinId ?? ""}
+              disabled={disabled}
+              aria-invalid={invalid("pinId")}
+              onChange={(event) =>
+                onChange({ ...fault, pinId: event.target.value as PinId })
+              }
+            >
+              {fault.pinId === undefined && (
+                <option value="">(choose a pin)</option>
+              )}
+              {pins.map((pin) => (
+                <option key={pin} value={pin}>
+                  {pinWords(pin)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="parameter-field">
+            <label htmlFor={`${id}-frame`}>Leaks to the frame</label>
+            <select
+              id={`${id}-frame`}
+              value={fault.frameId ?? ""}
+              disabled={disabled}
+              aria-invalid={invalid("frameId")}
+              onChange={(event) =>
+                onChange({ ...fault, frameId: event.target.value })
+              }
+            >
+              {!frames.includes(fault.frameId ?? "") && (
+                <option value={fault.frameId ?? ""}>
+                  {frames.length === 0
+                    ? "(add an exposed part to the starting circuit)"
+                    : "(choose a frame)"}
+                </option>
+              )}
+              {frames.map((frame) => (
+                <option key={frame} value={frame}>
+                  {labels.get(frame) ?? "exposed part"}
+                </option>
+              ))}
+            </select>
+          </div>
+          <NumberField
+            label={`Leakage resistance (${unitSymbols.ohm})`}
+            value={fault.value ?? DEFAULT_LEAK_OHMS}
+            parse={(text) => parseSi(text, "ohm")}
+            format={(value) => formatSi(value, "ohm")}
+            formatKey="leak"
+            hint="From 1 mΩ (a bolted fault) to 1 GΩ. The frame and the faulty part must both be locked."
+            engineError={invalid("value")}
+            disabled={disabled}
+            onCommit={(value) => onChange({ ...fault, value })}
+          />
         </>
       )}
       {errors.length > 0 && (

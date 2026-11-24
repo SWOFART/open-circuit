@@ -3,6 +3,7 @@ import type { AssignmentError } from "../../generated/AssignmentError";
 import type { ComponentCatalog } from "../../generated/ComponentCatalog";
 import type { DiagnosisEntry } from "../../generated/DiagnosisEntry";
 import type { FaultKind } from "../../generated/FaultKind";
+import type { PinId } from "../../generated/PinId";
 import type { Schematic } from "../../generated/Schematic";
 import type { StableId } from "../../generated/StableId";
 import { message } from "../messages";
@@ -10,6 +11,8 @@ import {
   faultKindsFor,
   faultKindWords,
   faultParametersFor,
+  faultPinsFor,
+  pinWords,
 } from "./assignmentView";
 
 export interface DiagnosisEditorProps {
@@ -43,6 +46,7 @@ export function DiagnosisEditor({
   );
   const kinds = part ? faultKindsFor(catalog, part.typeId) : [entry.kind];
   const parameters = part ? faultParametersFor(catalog, part.typeId) : [];
+  const pins = part ? faultPinsFor(catalog, part.typeId) : [];
   const invalid = (field: string): boolean =>
     errors.some((error) => error.path === `/${index}/${field}`);
 
@@ -53,6 +57,12 @@ export function DiagnosisEditor({
     const first = next
       ? faultParametersFor(catalog, next.typeId)[0]
       : undefined;
+    const pin = next ? faultPinsFor(catalog, next.typeId)[0] : undefined;
+    if (kind === "leak") {
+      return pin === undefined
+        ? { componentId, kind }
+        : { componentId, kind, pinId: pin };
+    }
     return kind === "parameter" && first
       ? { componentId, kind, parameterId: first.id }
       : { componentId, kind };
@@ -135,6 +145,29 @@ export function DiagnosisEditor({
             {parameters.map((definition) => (
               <option key={definition.id} value={definition.id}>
                 {message(definition.descriptionKey)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {entry.kind === "leak" && (
+        <div className="parameter-field">
+          <label htmlFor={`${id}-pin`}>Which pin leaks</label>
+          <select
+            id={`${id}-pin`}
+            value={entry.pinId ?? ""}
+            disabled={disabled}
+            aria-invalid={invalid("pinId")}
+            onChange={(event) =>
+              onChange({ ...entry, pinId: event.target.value as PinId })
+            }
+          >
+            {entry.pinId === undefined && (
+              <option value="">(choose a pin)</option>
+            )}
+            {pins.map((pin) => (
+              <option key={pin} value={pin}>
+                {pinWords(pin)}
               </option>
             ))}
           </select>

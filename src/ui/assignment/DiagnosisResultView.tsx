@@ -4,7 +4,7 @@ import type { RevealPolicy } from "../../generated/RevealPolicy";
 import type { StableId } from "../../generated/StableId";
 import { revealDiagnosis } from "../../store/studentAssignment";
 import { message } from "../messages";
-import { faultKindWords } from "./assignmentView";
+import { faultKindWords, pinWords } from "./assignmentView";
 
 export interface DiagnosisResultViewProps {
   readonly result: DiagnosisResult;
@@ -45,6 +45,8 @@ export function DiagnosisResultView({
               <span className="check-detail">
                 {labels.get(entry.entry.componentId) ?? "A part"},{" "}
                 {faultKindWords[entry.entry.kind]}
+                {entry.entry.pinId !== undefined &&
+                  `, ${pinWords(entry.entry.pinId)}`}
               </span>
             </li>
           ))}
@@ -66,6 +68,7 @@ export function DiagnosisResultView({
                   <span className="check-detail">
                     {labels.get(spec.componentId) ?? "A part"},{" "}
                     {faultKindWords[spec.kind]}
+                    {spec.pinId !== undefined && `, ${pinWords(spec.pinId)}`}
                   </span>
                 )}
               </li>

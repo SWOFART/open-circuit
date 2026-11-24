@@ -27,6 +27,8 @@ export interface EditorRestrictions {
   /** `null`: every component type supported by assignment mode. */
   readonly allowedTypes: readonly ComponentTypeId[] | null;
   readonly locked: ReadonlySet<StableId>;
+  /** A fault-finding task, which may also use the Stage 9, 10 and 13 devices. */
+  readonly findFault: boolean;
 }
 
 // Stage 9 extends the project catalog, while assignment support remains at Stage 1–8.
@@ -50,14 +52,43 @@ const ASSIGNMENT_COMPONENT_TYPES: ReadonlySet<ComponentTypeId> = new Set([
   "bjt_pnp",
 ]);
 
-function assignmentSupports(typeId: ComponentTypeId): boolean {
-  return ASSIGNMENT_COMPONENT_TYPES.has(typeId);
+// The devices of Stages 9, 10 and 13 are open to a fault-finding task only, which may carry a
+// `leak` fault on them (docs/contracts/stage-13-protection-and-safety.md section 8.1).
+const FIND_FAULT_COMPONENT_TYPES: ReadonlySet<ComponentTypeId> = new Set([
+  "ac_voltage_source",
+  "three_phase_source_star",
+  "three_phase_source_delta",
+  "ac_voltmeter",
+  "ac_ammeter",
+  "wattmeter",
+  "contactor_three_pole",
+  "breaker_three_pole",
+  "thermal_overload_three_pole",
+  "induction_motor_three_phase",
+  "transformer_three_phase",
+  "three_phase_load_star",
+  "three_phase_load_delta",
+  "earth_electrode",
+  "exposed_part",
+  "rcd_two_pole",
+  "rcd_four_pole",
+]);
+
+function assignmentSupports(
+  typeId: ComponentTypeId,
+  findFault: boolean,
+): boolean {
+  return (
+    ASSIGNMENT_COMPONENT_TYPES.has(typeId) ||
+    (findFault && FIND_FAULT_COMPONENT_TYPES.has(typeId))
+  );
 }
 
 export function restrictionsOf(assignment: Assignment): EditorRestrictions {
   return {
     allowedTypes: assignment.restrictions?.allowedComponentTypes ?? null,
     locked: new Set(assignment.restrictions?.lockedComponents ?? []),
+    findFault: assignment.task.kind === "findFault",
   };
 }
 
@@ -81,7 +112,7 @@ export function commandVerdict(
 
   switch (command.kind) {
     case "placeComponent":
-      return assignmentSupports(command.typeId) &&
+      return assignmentSupports(command.typeId, restrictions.findFault) &&
         (restrictions.allowedTypes === null ||
           restrictions.allowedTypes.includes(command.typeId))
         ? ALLOWED
@@ -134,7 +165,7 @@ export function allowedCatalog(
     ...catalog,
     componentTypes: catalog.componentTypes.filter(
       (entry) =>
-        assignmentSupports(entry.typeId) &&
+        assignmentSupports(entry.typeId, restrictions.findFault) &&
         (allowed === null || allowed.includes(entry.typeId)),
     ),
   };

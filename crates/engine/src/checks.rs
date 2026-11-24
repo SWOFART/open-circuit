@@ -385,7 +385,9 @@ pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
             schematic
                 .components
                 .iter()
-                .filter(|component| !assignment_component_type_supported(component.type_id()))
+                .filter(|component| {
+                    !assignment_component_type_supported(component.type_id(), false)
+                })
                 .map(|component| DiagnosticReference::Component {
                     component_id: component.id().clone(),
                 })
@@ -395,7 +397,7 @@ pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
         matches!(
             criterion,
             CheckCriterion::ComponentCount { type_id, .. }
-                if !assignment_component_type_supported(*type_id)
+                if !assignment_component_type_supported(*type_id, false)
         )
     });
     if !unsupported_references.is_empty() || has_unsupported_count {
@@ -744,7 +746,7 @@ fn plan(criterion: &CheckCriterion) -> Plan {
         } => {
             let bounded = *min <= MAX_COMPONENT_COUNT
                 && max.is_none_or(|max| max >= *min && max <= MAX_COMPONENT_COUNT);
-            if bounded && assignment_component_type_supported(*type_id) {
+            if bounded && assignment_component_type_supported(*type_id, false) {
                 Plan::Schematic
             } else {
                 Plan::Unevaluable

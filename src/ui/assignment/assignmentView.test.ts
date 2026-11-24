@@ -161,10 +161,12 @@ describe("what the catalog says about a part", () => {
       "open",
       "short",
       "parameter",
+      "leak",
     ]);
     expect(faultKindsFor(catalog, "dc_voltage_source")).toEqual([
       "open",
       "parameter",
+      "leak",
     ]);
     expect(faultKindsFor(catalog, "fuse")).toEqual(["parameter"]);
     expect(faultKindsFor(null, "resistor")).toEqual([]);

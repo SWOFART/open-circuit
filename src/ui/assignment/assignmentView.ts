@@ -4,6 +4,7 @@ import type { ComponentCatalog } from "../../generated/ComponentCatalog";
 import type { ComponentTypeId } from "../../generated/ComponentTypeId";
 import type { DeviceStateName } from "../../generated/DeviceStateName";
 import type { FaultKind } from "../../generated/FaultKind";
+import type { PinId } from "../../generated/PinId";
 import type { ParameterDefinition } from "../../generated/ParameterDefinition";
 import type { ResultLayout } from "../../generated/ResultLayout";
 import type { ResultSlot } from "../../generated/ResultSlot";
@@ -78,9 +79,29 @@ export function faultKindsFor(
   typeId: ComponentTypeId,
 ): FaultKind[] {
   const entry = catalog?.componentTypes.find((type) => type.typeId === typeId);
-  // A `leak` needs a pin and a frame the authoring panel cannot name yet (issue #205 adds
-  // them), so it is not offered here.
-  return entry ? entry.faultKinds.filter((kind) => kind !== "leak") : [];
+  return entry ? [...entry.faultKinds] : [];
+}
+
+/** The pins of a type, in catalog order: what a `leak` fault or finding can name. */
+export function faultPinsFor(
+  catalog: ComponentCatalog | null,
+  typeId: ComponentTypeId,
+): PinId[] {
+  const entry = catalog?.componentTypes.find((type) => type.typeId === typeId);
+  return entry ? entry.pins.map((pin) => pin.id) : [];
+}
+
+/** A pin as a person reads it: `pin1` is "Pin 1", `l1` is "L1". */
+export function pinWords(pin: PinId): string {
+  const numbered = /^pin(\d+)$/.exec(pin);
+  return numbered ? `Pin ${numbered[1]}` : pin.toUpperCase();
+}
+
+/** The exposed parts of a circuit: the frames a `leak` fault can leak to. */
+export function exposedPartsOf(schematic: Schematic | null): StableId[] {
+  return (schematic?.components ?? [])
+    .filter((component) => component.typeId === "exposed_part")
+    .map((component) => component.id);
 }
 
 /** The parameters a `parameter` fault may name: the catalog's, without initial conditions. */
@@ -185,6 +206,8 @@ const FAULT_FIELDS: Readonly<Record<string, string>> = {
   componentId: "part",
   parameterId: "parameter",
   value: "value",
+  pinId: "pin",
+  frameId: "frame",
 };
 
 /** Where a JSON pointer of an Engine error points, in words and as a section and field. */
@@ -253,6 +276,13 @@ export function describeAssignmentError(error: AssignmentError): string {
     location.field === "componentId"
   ) {
     return "A part with a fault must be locked, so a student cannot change or delete it.";
+  }
+  if (
+    error.code === "TaskMismatch" &&
+    location.section === "faults" &&
+    location.field === "frameId"
+  ) {
+    return "The frame of a leak must be locked, so a student cannot delete it.";
   }
 
   return message(error.messageKey);

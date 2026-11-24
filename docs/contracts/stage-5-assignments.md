@@ -194,6 +194,8 @@ Every check evaluates, without being authored, that each `lockedComponents` entr
 
 ### 5.1 The fault list
 
+**Stage 13 amendment:** a fourth kind, `leak`, with the fields `pinId` and `frameId`, is added by [stage-13-protection-and-safety.md](stage-13-protection-and-safety.md) sections 3.1 and 3.4, which also give the diagnosis entry for it and lift the device exclusion for fault-finding tasks. The text below describes kinds `open`, `short` and `parameter`.
+
 A fault is `{ "id": <stable ID>, "kind": "open" | "short" | "parameter", "componentId": <stable ID>, "parameterId"?: <ParameterId>, "value"?: <number> }`. `parameterId` and `value` are required for `parameter` and absent otherwise. At most one fault applies to a component.
 
 ### 5.2 What each kind means
