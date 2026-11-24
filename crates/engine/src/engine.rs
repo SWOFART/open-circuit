@@ -138,7 +138,7 @@ impl CompiledRun {
 }
 
 /// The fixed resistance of an exposed part to the reference of its island.
-const EXPOSED_PART_RESISTANCE_OHMS: f64 = 1.0e9;
+pub(crate) const EXPOSED_PART_RESISTANCE_OHMS: f64 = 1.0e9;
 
 #[derive(Clone)]
 struct DeviceSpec {
@@ -162,6 +162,11 @@ enum DeviceModel {
     },
     Resistor {
         resistance_ohms: f64,
+    },
+    /// A resistor to the reference of the island; `earth_joined` says whether that reference is
+    /// the earth node.
+    ExposedPart {
+        earth_joined: bool,
     },
     DcVoltageSource {
         voltage_volts: f64,
@@ -1702,6 +1707,7 @@ fn local_adjacency(
             }
             DeviceModel::Diode { .. }
             | DeviceModel::Resistor { .. }
+            | DeviceModel::ExposedPart { .. }
             | DeviceModel::DcVoltageSource { .. } => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
             }
@@ -2014,8 +2020,14 @@ fn build_device_specs(
             },
             // A fixed 1 gigaohm to the reference of its island keeps an unbonded frame from
             // being a floating net (docs/contracts/stage-13-protection-and-safety.md 7.1).
-            ComponentSpec::ExposedPart { .. } => DeviceModel::Resistor {
-                resistance_ohms: EXPOSED_PART_RESISTANCE_OHMS,
+            ComponentSpec::ExposedPart { .. } => DeviceModel::ExposedPart {
+                earth_joined: netlist
+                    .islands
+                    .iter()
+                    .find(|island| island.node_indices.contains(&pin1))
+                    .is_some_and(|island| {
+                        island.reference_kind == Some(crate::netlist::ReferenceKind::ExplicitMarker)
+                    }),
             },
             ComponentSpec::Voltmeter { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.input_resistance_ohms,
@@ -2649,6 +2661,14 @@ fn make_device(
             spec.terminals,
             resistance_ohms,
         )),
+        DeviceModel::ExposedPart { earth_joined } => {
+            Box::new(crate::devices::ExposedPartDevice::new(
+                spec.component_id.clone(),
+                spec.terminals,
+                EXPOSED_PART_RESISTANCE_OHMS,
+                earth_joined,
+            ))
+        }
         DeviceModel::DcVoltageSource {
             voltage_volts,
             internal_resistance_ohms,
@@ -3596,6 +3616,7 @@ fn component_frequency_hz(component: &ComponentSpec) -> Option<f64> {
         ComponentSpec::AcVoltmeter { parameters, .. } => Some(parameters.frequency_hz),
         ComponentSpec::AcAmmeter { parameters, .. } => Some(parameters.frequency_hz),
         ComponentSpec::Wattmeter { parameters, .. } => Some(parameters.frequency_hz),
+        ComponentSpec::ExposedPart { parameters, .. } => Some(parameters.frequency_hz),
         _ => None,
     }
 }
@@ -3606,6 +3627,7 @@ fn is_measurement_component(component: &ComponentSpec) -> bool {
         ComponentSpec::AcVoltmeter { .. }
             | ComponentSpec::AcAmmeter { .. }
             | ComponentSpec::Wattmeter { .. }
+            | ComponentSpec::ExposedPart { .. }
     )
 }
 

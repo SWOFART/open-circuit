@@ -304,9 +304,16 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 PositiveRotationWithPositivePin1Current,
             ),
         ],
-        // The earth electrode and the exposed part have no results yet (the exposed part's
-        // touch voltage and hazard come with issue #201).
-        ComponentTypeId::EarthElectrode | ComponentTypeId::ExposedPart => Vec::new(),
+        // The earth electrode has no results. The exposed part reports the touch voltage over the
+        // window of its frequency, the hazard flag and one validity flag (docs/contracts/
+        // stage-13-protection-and-safety.md section 7.3); it has no instantaneous slot.
+        ComponentTypeId::EarthElectrode => Vec::new(),
+        ComponentTypeId::ExposedPart => vec![
+            slot(RmsVoltage, Unit::Volt, '/', "touch_voltage_rms", Unsigned),
+            slot(PeakVoltage, Unit::Volt, '/', "touch_voltage_peak", Unsigned),
+            slot(Valid, Unit::Dimensionless, '/', "hazard", Flag),
+            slot(Valid, Unit::Dimensionless, '/', "valid", Flag),
+        ],
         ComponentTypeId::Diode
         | ComponentTypeId::Resistor
         | ComponentTypeId::DcVoltageSource

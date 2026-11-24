@@ -39,3 +39,17 @@ rebuilding the overlay after a live parameter update.
 At the end of `derive_netlist`, for each exposed part: `NoEarthPath` when its island's reference is
 not explicit (no electrode and no ground marker in the island), and `ExposedPartNotBonded` when its
 net holds no electrode pin. Both are warnings and never stop a run.
+
+## Touch voltage and the hazard flag (issue #201)
+
+The exposed part's device (`ExposedPartDevice`, `DeviceModel::ExposedPart`) is the 1 GΩ resistor to
+the reference of its island, and its result carries the voltage across it (the voltage of the frame
+against that reference) and an `earth_joined` marker (the island's reference is explicit: an
+electrode or a ground marker). The measurement update (`measurements.rs`, shared with the Stage 9
+AC meters) treats the part as a voltage meter with its own `frequencyHz` window: over one period
+it writes `touch_voltage_rms` and `touch_voltage_peak` from the internal-substep samples, and
+`hazard` as the plain comparison `rms > touchVoltageLimitVolts`, then `valid`. Before the first
+full window, and whenever the island is not joined to the earth node, all four are written as 0
+(not valid, never hazardous). A new frequency starts a new window (`measurement_ids_invalidated_by_
+frequency_change`). The layout has these four slots only, in this order; there is no instantaneous
+voltage or current slot.

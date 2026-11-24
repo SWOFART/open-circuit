@@ -1213,6 +1213,14 @@ fn estimate_transient_rate_bound(
                         1.0 / resistance_ohms,
                     )?;
                 }
+                DeviceModel::ExposedPart { .. } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / crate::engine::EXPOSED_PART_RESISTANCE_OHMS,
+                    )?;
+                }
                 DeviceModel::Wattmeter {
                     current_terminals,
                     input_resistance_ohms,
@@ -1421,6 +1429,7 @@ fn estimate_transient_rate_bound(
                     spec.model,
                     DeviceModel::InductionMotor { .. }
                         | DeviceModel::Resistor { .. }
+                        | DeviceModel::ExposedPart { .. }
                         | DeviceModel::DcVoltageSource { .. }
                         | DeviceModel::ThreePhaseSource { .. }
                         | DeviceModel::Wattmeter { .. }
