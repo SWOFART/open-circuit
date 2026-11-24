@@ -393,7 +393,11 @@ describe("rail commands", () => {
 
     expect(commandVerdict(command, null)).toEqual({ allowed: true });
     expect(
-      commandVerdict(command, { allowedTypes: null, locked: new Set() }),
+      commandVerdict(command, {
+        allowedTypes: null,
+        locked: new Set(),
+        findFault: false,
+      }),
     ).toMatchObject({ allowed: false });
   });
 });

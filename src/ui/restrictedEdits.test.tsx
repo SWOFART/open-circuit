@@ -27,6 +27,7 @@ const CAPACITOR = "00000000-0000-4000-8000-000000000003";
 const restrictions: EditorRestrictions = {
   allowedTypes: ["resistor"],
   locked: new Set([R1]),
+  findFault: false,
 };
 
 describe("commands under an assignment's restrictions", () => {
@@ -189,7 +190,7 @@ describe("parameter edits under an assignment's restrictions", () => {
       CAPACITOR,
       "initialVoltageVolts",
       catalog,
-      { allowedTypes: null, locked: new Set([CAPACITOR]) },
+      { allowedTypes: null, locked: new Set([CAPACITOR]), findFault: false },
     );
     expect(locked.allowed).toBe(false);
     expect(store.getState()).toBe(before);

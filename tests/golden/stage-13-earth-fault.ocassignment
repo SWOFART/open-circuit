@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "id": "00000000-0000-4000-8000-000000005a13",
+  "title": "Find the earth fault",
+  "instructions": "A person touching the frame of the load gets a shock. Find the insulation fault.",
+  "task": {
+    "kind": "findFault",
+    "reveal": "afterCheck"
+  },
+  "startingCircuit": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "typeId": "three_phase_source_star",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "phaseVoltageRmsVolts": 230,
+          "frequencyHz": 50,
+          "phaseOffsetDegrees": 0,
+          "internalResistanceOhms": 0.1,
+          "reversedSequence": 0
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "typeId": "three_phase_load_star",
+        "position": {
+          "x": 10,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "phase1ResistanceOhms": 100,
+          "phase2ResistanceOhms": 100,
+          "phase3ResistanceOhms": 100,
+          "phase1InductanceHenries": 0,
+          "phase2InductanceHenries": 0,
+          "phase3InductanceHenries": 0
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "typeId": "exposed_part",
+        "position": {
+          "x": 20,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "frequencyHz": 50,
+          "touchVoltageLimitVolts": 50
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "typeId": "earth_electrode",
+        "position": {
+          "x": 24,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "earthResistanceOhms": 10
+        }
+      }
+    ],
+    "wires": [],
+    "junctions": [],
+    "referenceMarkers": []
+  },
+  "restrictions": {
+    "allowedComponentTypes": [
+      "ac_voltmeter",
+      "ac_ammeter"
+    ],
+    "lockedComponents": [
+      "00000000-0000-4000-8000-000000000001",
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000003",
+      "00000000-0000-4000-8000-000000000004"
+    ]
+  },
+  "faults": [
+    {
+      "id": "00000000-0000-4000-8000-0000000000a1",
+      "kind": "leak",
+      "componentId": "00000000-0000-4000-8000-000000000002",
+      "pinId": "l1",
+      "frameId": "00000000-0000-4000-8000-000000000003",
+      "value": 500
+    }
+  ]
+}

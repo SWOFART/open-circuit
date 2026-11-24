@@ -95,6 +95,7 @@ describe("the drawer list", () => {
     const limited = allowedCatalog(catalog, {
       allowedTypes: ["resistor", "dc_voltage_source"],
       locked: new Set(),
+      findFault: false,
     });
     const preferences = {
       ...DEFAULT_DRAWER_PREFERENCES,

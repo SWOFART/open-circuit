@@ -20,10 +20,11 @@ use ts_rs::TS;
 
 use crate::checks::{MAX_COMPONENT_COUNT, step_of};
 use crate::faults::FaultOverlay;
+use crate::faults::{MAX_LEAK_RESISTANCE_OHMS, MIN_LEAK_RESISTANCE_OHMS};
 use crate::slots::slot_for_key_rest;
 use crate::{
     CheckCriterion, ComponentTypeId, DiagnosticCode, DiagnosticReference, FaultKind, FaultSpec,
-    MAX_CHECK_CRITERIA, ParameterId, Schematic, StableId, Unit, component_catalog,
+    MAX_CHECK_CRITERIA, ParameterId, PinId, Schematic, StableId, Unit, component_catalog,
 };
 
 /// The only supported `schemaVersion`.
@@ -59,12 +60,44 @@ const ASSIGNMENT_COMPONENT_TYPES: &[ComponentTypeId] = &[
     ComponentTypeId::BjtPnp,
 ];
 
-pub(crate) fn assignment_component_type_supported(type_id: ComponentTypeId) -> bool {
+// The Stage 9, 10 and 13 devices a fault-finding task may use (docs/contracts/
+// stage-13-protection-and-safety.md section 3.4). A build task and its checks keep the type set
+// above: the checks are not defined for these devices.
+const FIND_FAULT_COMPONENT_TYPES: &[ComponentTypeId] = &[
+    ComponentTypeId::AcVoltageSource,
+    ComponentTypeId::ThreePhaseSourceStar,
+    ComponentTypeId::ThreePhaseSourceDelta,
+    ComponentTypeId::AcVoltmeter,
+    ComponentTypeId::AcAmmeter,
+    ComponentTypeId::Wattmeter,
+    ComponentTypeId::ContactorThreePole,
+    ComponentTypeId::BreakerThreePole,
+    ComponentTypeId::ThermalOverloadThreePole,
+    ComponentTypeId::InductionMotorThreePhase,
+    ComponentTypeId::TransformerThreePhase,
+    ComponentTypeId::ThreePhaseLoadStar,
+    ComponentTypeId::ThreePhaseLoadDelta,
+    ComponentTypeId::EarthElectrode,
+    ComponentTypeId::ExposedPart,
+    ComponentTypeId::RcdTwoPole,
+    ComponentTypeId::RcdFourPole,
+];
+
+/// Whether an assignment of this task kind may use the type. `find_fault` is the task kind.
+pub(crate) fn assignment_component_type_supported(
+    type_id: ComponentTypeId,
+    find_fault: bool,
+) -> bool {
     ASSIGNMENT_COMPONENT_TYPES.contains(&type_id)
+        || (find_fault && FIND_FAULT_COMPONENT_TYPES.contains(&type_id))
 }
 
-const fn assignment_component_type_count() -> usize {
-    ASSIGNMENT_COMPONENT_TYPES.len()
+const fn assignment_component_type_count(find_fault: bool) -> usize {
+    if find_fault {
+        ASSIGNMENT_COMPONENT_TYPES.len() + FIND_FAULT_COMPONENT_TYPES.len()
+    } else {
+        ASSIGNMENT_COMPONENT_TYPES.len()
+    }
 }
 
 /// What the application shows of a fault-finding result (section 5.7). A presentation policy
@@ -300,6 +333,7 @@ fn validate_assignment_for_format(
         },
     );
     let kind = report.task(root.get("task"));
+    report.find_fault = kind == Some(TaskKind::FindFault);
 
     let starting = root.get("startingCircuit");
     let starting_ids = starting.map(|schematic| report.schematic(schematic, "/startingCircuit"));
@@ -316,6 +350,7 @@ fn validate_assignment_for_format(
     // faults, so it is read first into a report of its own that is appended at the end.
     let mut reference_report = Report {
         legacy_schematics,
+        find_fault: report.find_fault,
         ..Report::default()
     };
     let reference_ids = root
@@ -492,6 +527,8 @@ struct TextLimits {
 struct Report {
     errors: Vec<AssignmentError>,
     legacy_schematics: bool,
+    // The task is a fault-finding task, which may use the Stage 9, 10 and 13 devices.
+    find_fault: bool,
 }
 
 impl Report {
@@ -696,7 +733,7 @@ impl Report {
             }
         };
         for (index, component) in schematic.components.iter().enumerate() {
-            if !assignment_component_type_supported(component.type_id()) {
+            if !assignment_component_type_supported(component.type_id(), self.find_fault) {
                 self.push(
                     AssignmentErrorCode::InvalidField,
                     child(&child(path, "components"), index),
@@ -744,7 +781,7 @@ impl Report {
             None | Some(Value::Null) => {}
             Some(Value::Array(types)) => {
                 let path = "/restrictions/allowedComponentTypes";
-                if types.len() > assignment_component_type_count() {
+                if types.len() > assignment_component_type_count(self.find_fault) {
                     self.push(AssignmentErrorCode::TooLarge, path);
                 } else {
                     for (index, type_id) in types.iter().enumerate() {
@@ -752,7 +789,11 @@ impl Report {
                         match type_id.as_str() {
                             None => self.push(AssignmentErrorCode::InvalidField, item),
                             Some(text) => match parse_enum::<ComponentTypeId>(text) {
-                                Some(type_id) if assignment_component_type_supported(type_id) => {}
+                                Some(type_id)
+                                    if assignment_component_type_supported(
+                                        type_id,
+                                        self.find_fault,
+                                    ) => {}
                                 _ => self.push(AssignmentErrorCode::UnknownReference, item),
                             },
                         }
@@ -918,7 +959,7 @@ impl Report {
                 match criterion.get("typeId").and_then(Value::as_str) {
                     None => self.push(AssignmentErrorCode::InvalidField, at("typeId")),
                     Some(text) => match parse_enum::<ComponentTypeId>(text) {
-                        Some(type_id) if assignment_component_type_supported(type_id) => {}
+                        Some(type_id) if assignment_component_type_supported(type_id, false) => {}
                         _ => self.push(AssignmentErrorCode::UnknownReference, at("typeId")),
                     },
                 }
@@ -1075,7 +1116,15 @@ impl Report {
         };
         self.unknown_fields(
             fault,
-            &["id", "kind", "componentId", "parameterId", "value"],
+            &[
+                "id",
+                "kind",
+                "componentId",
+                "parameterId",
+                "value",
+                "pinId",
+                "frameId",
+            ],
             base,
         );
         self.authored_id(
@@ -1085,21 +1134,24 @@ impl Report {
             authored_ids,
         );
         let component_path = child(base, "componentId");
+        let mut component_type = None;
         match fault.get("componentId") {
             None => self.push(AssignmentErrorCode::InvalidField, component_path),
             Some(id) => {
-                if let Some(id) = self.stable_id(id, &component_path)
-                    && context.type_of(id.as_str()).is_none()
-                {
-                    self.push(AssignmentErrorCode::UnknownReference, component_path);
+                if let Some(id) = self.stable_id(id, &component_path) {
+                    component_type = context.type_of(id.as_str());
+                    if component_type.is_none() {
+                        self.push(AssignmentErrorCode::UnknownReference, component_path);
+                    }
                 }
             }
         }
         let kind = fault.get("kind").and_then(Value::as_str);
-        if !matches!(kind, Some("open" | "short" | "parameter")) {
+        if !matches!(kind, Some("open" | "short" | "parameter" | "leak")) {
             self.push(AssignmentErrorCode::InvalidField, child(base, "kind"));
         }
         let parameter = kind == Some("parameter");
+        let leak = kind == Some("leak");
         let parameter_path = child(base, "parameterId");
         match (parameter, fault.get("parameterId")) {
             (true, Some(id)) => {
@@ -1113,14 +1165,61 @@ impl Report {
             (false, None) => {}
         }
         let value_path = child(base, "value");
-        match (parameter, fault.get("value")) {
+        match (parameter || leak, fault.get("value")) {
             (true, value) => {
-                self.finite(value, &value_path, true);
+                let number = self.finite(value, &value_path, true);
+                if leak
+                    && number.is_some_and(|number| {
+                        !(MIN_LEAK_RESISTANCE_OHMS..=MAX_LEAK_RESISTANCE_OHMS).contains(&number)
+                    })
+                {
+                    self.push(AssignmentErrorCode::InvalidField, value_path);
+                }
             }
             (false, Some(_)) => self.push(AssignmentErrorCode::InvalidField, value_path),
             (false, None) => {}
         }
+        // A leak names the pin whose insulation fails and the frame it leaks to; no other kind
+        // does (docs/contracts/stage-13-protection-and-safety.md section 3.1).
+        let pin_path = child(base, "pinId");
+        match (leak, fault.get("pinId")) {
+            (true, Some(pin)) => {
+                let pin = pin.as_str().and_then(parse_enum::<PinId>);
+                let on_part = pin.is_some_and(|pin| {
+                    component_type.is_none_or(|type_id| type_has_pin(type_id, pin))
+                });
+                if !on_part {
+                    self.push(AssignmentErrorCode::UnknownReference, pin_path);
+                }
+            }
+            (true, None) | (false, Some(_)) => {
+                self.push(AssignmentErrorCode::InvalidField, pin_path);
+            }
+            (false, None) => {}
+        }
+        let frame_path = child(base, "frameId");
+        match (leak, fault.get("frameId")) {
+            (true, Some(frame)) => {
+                if let Some(frame) = self.stable_id(frame, &frame_path)
+                    && context.type_of(frame.as_str()) != Some(ComponentTypeId::ExposedPart)
+                {
+                    self.push(AssignmentErrorCode::UnknownReference, frame_path);
+                }
+            }
+            (true, None) | (false, Some(_)) => {
+                self.push(AssignmentErrorCode::InvalidField, frame_path);
+            }
+            (false, None) => {}
+        }
     }
+}
+
+fn type_has_pin(type_id: ComponentTypeId, pin: PinId) -> bool {
+    component_catalog()
+        .component_types
+        .iter()
+        .find(|entry| entry.type_id == type_id)
+        .is_some_and(|entry| entry.pins.iter().any(|definition| definition.id == pin))
 }
 
 /// The checks that need the typed assignment: each fault is valid on the starting circuit
@@ -1160,6 +1259,15 @@ fn check_faults_against_the_circuit(assignment: &Assignment) -> Result<(), Vec<A
                 child(&child("/faults", index), "componentId"),
             );
         }
+        // The frame of a leak is locked as well: a student who deleted it would dodge the fault.
+        if let Some(frame_id) = &fault.frame_id
+            && !locked.contains(frame_id)
+        {
+            report.push(
+                AssignmentErrorCode::TaskMismatch,
+                child(&child("/faults", index), "frameId"),
+            );
+        }
     }
     if report.errors.is_empty() {
         Ok(())
@@ -1181,15 +1289,20 @@ pub struct DiagnosisEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub parameter_id: Option<ParameterId>,
+    // Required for a `leak` entry and absent otherwise: the pin whose insulation fails. The
+    // frame is not named (stage-13 contract section 3.4).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub pin_id: Option<PinId>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "DiagnosisEntryVerdict.ts")]
 pub enum DiagnosisEntryVerdict {
-    /// A fault with the same component, kind, and, for `parameter`, parameter.
+    /// A fault with the same component, kind and, for `parameter`, parameter or, for `leak`, pin.
     Correct,
-    /// A fault on that component of another kind, or on another parameter.
+    /// A fault on that component of another kind, or on another parameter or pin.
     WrongKind,
     /// No fault on that component.
     Incorrect,
@@ -1373,6 +1486,7 @@ fn matches_entry(fault: &FaultSpec, entry: &DiagnosisEntry) -> bool {
     fault.component_id == entry.component_id
         && fault.kind == entry.kind
         && (fault.kind != FaultKind::Parameter || fault.parameter_id == entry.parameter_id)
+        && (fault.kind != FaultKind::Leak || fault.pin_id == entry.pin_id)
 }
 
 fn decode_diagnosis(
@@ -1407,7 +1521,11 @@ fn decode_diagnosis(
             report.push(AssignmentErrorCode::InvalidField, base);
             continue;
         };
-        report.unknown_fields(object, &["componentId", "kind", "parameterId"], &base);
+        report.unknown_fields(
+            object,
+            &["componentId", "kind", "parameterId", "pinId"],
+            &base,
+        );
         let component_path = child(&base, "componentId");
         let type_id = match object.get("componentId") {
             None => {
@@ -1452,8 +1570,25 @@ fn decode_diagnosis(
                 }
             }
             (Some(FaultKind::Parameter), None)
-            | (Some(FaultKind::Open | FaultKind::Short), Some(_)) => {
+            | (Some(FaultKind::Open | FaultKind::Short | FaultKind::Leak), Some(_)) => {
                 report.push(AssignmentErrorCode::InvalidField, parameter_path);
+            }
+            _ => {}
+        }
+        // A leak entry names the pin whose insulation fails (stage-13 contract section 3.4).
+        let pin_path = child(&base, "pinId");
+        match (kind, object.get("pinId")) {
+            (Some(FaultKind::Leak), Some(pin)) => {
+                let pin = pin.as_str().and_then(parse_enum::<PinId>);
+                let on_part =
+                    pin.is_some_and(|pin| type_id.is_none_or(|type_id| type_has_pin(type_id, pin)));
+                if !on_part {
+                    report.push(AssignmentErrorCode::InvalidField, pin_path);
+                }
+            }
+            (Some(FaultKind::Leak), None)
+            | (Some(FaultKind::Open | FaultKind::Short | FaultKind::Parameter), Some(_)) => {
+                report.push(AssignmentErrorCode::InvalidField, pin_path);
             }
             _ => {}
         }

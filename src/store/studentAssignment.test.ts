@@ -146,6 +146,7 @@ describe("the editor restrictions of an assignment", () => {
     expect(restrictionsOf(bare)).toEqual({
       allowedTypes: null,
       locked: new Set(),
+      findFault: false,
     });
   });
 
@@ -166,6 +167,7 @@ describe("the editor restrictions of an assignment", () => {
     const unrestrictedAssignment = {
       allowedTypes: null,
       locked: new Set<string>(),
+      findFault: false,
     };
 
     expect(commandVerdict(place("resistor"), unrestrictedAssignment)).toEqual({
@@ -182,6 +184,7 @@ describe("the editor restrictions of an assignment", () => {
       commandVerdict(place("ac_voltage_source"), {
         allowedTypes: ["ac_voltage_source"],
         locked: new Set<string>(),
+        findFault: false,
       }).allowed,
     ).toBe(false);
   });
@@ -252,6 +255,7 @@ describe("the editor restrictions of an assignment", () => {
     const allAssignmentTypes = allowedCatalog(catalog, {
       allowedTypes: null,
       locked: new Set<string>(),
+      findFault: false,
     });
     expect(allAssignmentTypes?.componentTypes).toHaveLength(
       catalog.componentTypes.length - 17,
