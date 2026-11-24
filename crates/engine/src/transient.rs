@@ -355,12 +355,24 @@ pub(super) fn circuit_states_from_results(
                 .extra_values
                 .iter()
                 .any(|(key, value)| key.ends_with("/tripped") && *value == 1.0);
+            // The thermal detector and dose are state of the run, carried from the committed
+            // predecessor; the result only reports the dose. The pole currents sit at
+            // `1, 3, 5` of the extra values.
+            let carried = previous.breakers.get(id).copied();
+            let peak_amps = [1, 3, 5]
+                .into_iter()
+                .filter_map(|index| result.extra_values.get(index))
+                .map(|(_, value)| value.abs())
+                .fold(0.0_f64, f64::max);
             Some((
                 id.clone(),
                 BreakerState {
                     position: *position,
                     tripped,
                     last_transition_time_seconds: *last_transition_time_seconds,
+                    detector: carried.map_or(0.0, |state| state.detector),
+                    dose: carried.map_or(0.0, |state| state.dose),
+                    peak_amps,
                 },
             ))
         })
@@ -610,6 +622,43 @@ pub(super) fn advance_public_steps(
                 result.extra_values.last_mut().expect("thermal dose slot").1 = next.dose;
             }
             for component in &schematic.components {
+                let ComponentSpec::BreakerThreePole { id, parameters, .. } = component else {
+                    continue;
+                };
+                if !parameters.thermal_magnetic() {
+                    continue;
+                }
+                let (Some(start), Some(end)) = (
+                    interval_start_states.breakers.get(id),
+                    candidate.breakers.get_mut(id),
+                ) else {
+                    continue;
+                };
+                let Some(next) = end.advance_thermal(
+                    start.peak_amps,
+                    end.peak_amps,
+                    internal_step_seconds,
+                    step_end_time,
+                    parameters,
+                ) else {
+                    return Err(vec![component_diagnostic(
+                        DiagnosticCode::NonFiniteState,
+                        id,
+                    )]);
+                };
+                if next.tripped && !end.tripped {
+                    trips.push(id.clone());
+                }
+                *end = next;
+                let result = step_results
+                    .iter_mut()
+                    .find(|result| result.component_id == *id)
+                    .expect("breaker result");
+                let slots = result.extra_values.len();
+                result.extra_values[slots - 2].1 = f64::from(next.tripped);
+                result.extra_values[slots - 1].1 = next.dose;
+            }
+            for component in &schematic.components {
                 let (ComponentSpec::RcdTwoPole { id, parameters, .. }
                 | ComponentSpec::RcdFourPole { id, parameters, .. }) = component
                 else {
@@ -797,7 +846,7 @@ pub(super) fn settle_discrete_events(
                 let currents = [1, 3, 5].map(|index| result.extra_values[index].1);
                 let next = state.trip_if_needed(
                     currents,
-                    parameters.instantaneous_trip_amps,
+                    parameters.magnetic_threshold_amps(),
                     event_time_seconds,
                 );
                 if next != state {
@@ -918,12 +967,10 @@ fn discrete_state_vector(states: &CircuitStates, pending_trips: &[StableId]) -> 
             u8::from(!pending && fuse.state == FuseState::Tripped),
         )
     }));
-    vector.extend(
-        states
-            .breakers
-            .iter()
-            .map(|(id, state)| (id.as_str().to_owned(), u8::from(state.tripped))),
-    );
+    vector.extend(states.breakers.iter().map(|(id, state)| {
+        let pending = pending_trips.contains(id);
+        (id.as_str().to_owned(), u8::from(!pending && state.tripped))
+    }));
     vector.extend(states.overloads.iter().map(|(id, state)| {
         let pending = pending_trips.contains(id);
         (id.as_str().to_owned(), u8::from(!pending && state.tripped))

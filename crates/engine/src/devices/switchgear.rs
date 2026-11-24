@@ -177,6 +177,12 @@ pub(crate) struct BreakerState {
     pub(crate) position: SwitchPosition,
     pub(crate) tripped: bool,
     pub(crate) last_transition_time_seconds: Option<f64>,
+    /// The thermal detector (mean-square pole current, A^2) and dose of a breaker with a trip
+    /// class; zero and unused for the instantaneous breaker.
+    pub(crate) detector: f64,
+    pub(crate) dose: f64,
+    /// The largest absolute pole current of the last solve.
+    pub(crate) peak_amps: f64,
 }
 
 impl BreakerState {
@@ -204,6 +210,41 @@ impl BreakerState {
         Some(self)
     }
 
+    /// One internal step of the thermal part of a breaker with a trip class: the detector and
+    /// the dose of the thermal overload law (docs/contracts/stage-13-protection-and-safety.md
+    /// section 5.1), cooling whether the breaker conducts or not; at a dose of 1 the breaker
+    /// latches while it conducts.
+    pub(crate) fn advance_thermal(
+        mut self,
+        start_amps: f64,
+        end_amps: f64,
+        step_seconds: f64,
+        end_time_seconds: f64,
+        parameters: &crate::schematic::BreakerThreePoleParameters,
+    ) -> Option<Self> {
+        self.detector = detector_step(
+            self.detector,
+            start_amps,
+            end_amps,
+            step_seconds,
+            parameters.thermal_sense(),
+        )?;
+        let ratio = self.detector / parameters.rated_current().powi(2);
+        if !ratio.is_finite() {
+            return None;
+        }
+        self.dose = if ratio > 1.0 {
+            (self.dose + step_seconds * (ratio - 1.0) / parameters.trip_scale()).min(1.0)
+        } else {
+            self.dose * (-step_seconds / parameters.cool()).exp()
+        };
+        if self.dose == 1.0 && self.conducting() {
+            self.tripped = true;
+            self.last_transition_time_seconds = Some(end_time_seconds);
+        }
+        Some(self)
+    }
+
     pub(crate) fn trip_if_needed(
         mut self,
         currents_amps: [f64; 3],
@@ -227,6 +268,8 @@ pub(crate) struct BreakerDevice {
     pub(crate) poles: [super::LinkedPole; 3],
     pub(crate) resistance: f64,
     pub(crate) state: BreakerState,
+    /// The breaker has a trip class, so its thermal dose is a result.
+    pub(crate) reports_dose: bool,
 }
 
 impl super::Device for BreakerDevice {
@@ -258,6 +301,12 @@ impl super::Device for BreakerDevice {
             format!("{}/tripped", self.id.as_str()),
             f64::from(self.state.tripped),
         ));
+        if self.reports_dose {
+            extra_values.push((
+                format!("{}/thermal_dose", self.id.as_str()),
+                self.state.dose,
+            ));
+        }
         Ok(super::DeviceResult {
             component_id: self.id.clone(),
             voltage_volts: 0.0,
@@ -506,6 +555,9 @@ mod tests {
             position: SwitchPosition::Open,
             tripped: false,
             last_transition_time_seconds: None,
+            detector: 0.0,
+            dose: 0.0,
+            peak_amps: 0.0,
         };
         let closed = open.actuated(OperatorPosition::Closed, 0.005).unwrap();
         assert!(closed.conducting());

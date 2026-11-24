@@ -207,6 +207,96 @@ pub struct BreakerThreePoleParameters {
     )]
     #[ts(optional)]
     pub initial_closed: Option<f64>,
+    /// 0 (absent) is the Stage 10 instantaneous breaker; 1, 2 and 3 are the thermal-magnetic
+    /// classes B, C and D (docs/contracts/stage-13-protection-and-safety.md section 5).
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null_f64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub curve_class: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null_f64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub rated_current_amps: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null_f64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub thermal_sense_seconds: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null_f64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub trip_scale_seconds: Option<f64>,
+    #[serde(
+        default,
+        deserialize_with = "deserialize_optional_non_null_f64",
+        skip_serializing_if = "Option::is_none"
+    )]
+    #[ts(optional)]
+    pub cool_seconds: Option<f64>,
+}
+
+/// The defaults of the optional thermal-magnetic parameters of a breaker, as the catalog lists
+/// them (the same as the thermal overload relay's).
+pub(crate) const DEFAULT_BREAKER_RATED_CURRENT_AMPS: f64 = 10.0;
+pub(crate) const DEFAULT_BREAKER_THERMAL_SENSE_SECONDS: f64 = 0.02;
+pub(crate) const DEFAULT_BREAKER_TRIP_SCALE_SECONDS: f64 = 10.0;
+pub(crate) const DEFAULT_BREAKER_COOL_SECONDS: f64 = 30.0;
+
+impl BreakerThreePoleParameters {
+    /// The trip class: 0 instantaneous only, 1 B, 2 C, 3 D.
+    pub(crate) fn class(&self) -> u8 {
+        match self.curve_class {
+            Some(1.0) => 1,
+            Some(2.0) => 2,
+            Some(3.0) => 3,
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn thermal_magnetic(&self) -> bool {
+        self.class() != 0
+    }
+
+    pub(crate) fn rated_current(&self) -> f64 {
+        self.rated_current_amps
+            .unwrap_or(DEFAULT_BREAKER_RATED_CURRENT_AMPS)
+    }
+
+    pub(crate) fn thermal_sense(&self) -> f64 {
+        self.thermal_sense_seconds
+            .unwrap_or(DEFAULT_BREAKER_THERMAL_SENSE_SECONDS)
+    }
+
+    pub(crate) fn trip_scale(&self) -> f64 {
+        self.trip_scale_seconds
+            .unwrap_or(DEFAULT_BREAKER_TRIP_SCALE_SECONDS)
+    }
+
+    pub(crate) fn cool(&self) -> f64 {
+        self.cool_seconds.unwrap_or(DEFAULT_BREAKER_COOL_SECONDS)
+    }
+
+    /// The current at which the magnetic part trips: the classes B, C and D are 5, 10 and 20 times
+    /// the rated current; a breaker of class 0 trips at `instantaneousTripAmps`.
+    pub(crate) fn magnetic_threshold_amps(&self) -> f64 {
+        match self.class() {
+            1 => 5.0 * self.rated_current(),
+            2 => 10.0 * self.rated_current(),
+            3 => 20.0 * self.rated_current(),
+            _ => self.instantaneous_trip_amps,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
@@ -981,6 +1071,31 @@ impl ComponentSpec {
                 parameters
                     .initial_closed
                     .map(|value| (ParameterId::InitialClosed, value)),
+            )
+            .chain(
+                parameters
+                    .curve_class
+                    .map(|value| (ParameterId::CurveClass, value)),
+            )
+            .chain(
+                parameters
+                    .rated_current_amps
+                    .map(|value| (ParameterId::RatedCurrentAmps, value)),
+            )
+            .chain(
+                parameters
+                    .thermal_sense_seconds
+                    .map(|value| (ParameterId::ThermalSenseSeconds, value)),
+            )
+            .chain(
+                parameters
+                    .trip_scale_seconds
+                    .map(|value| (ParameterId::TripScaleSeconds, value)),
+            )
+            .chain(
+                parameters
+                    .cool_seconds
+                    .map(|value| (ParameterId::CoolSeconds, value)),
             )
             .collect(),
             Self::BjtNpn { parameters, .. } | Self::BjtPnp { parameters, .. } => vec![
