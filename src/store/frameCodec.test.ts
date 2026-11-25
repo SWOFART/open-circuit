@@ -323,6 +323,8 @@ describe("refusing corrupted frames", () => {
     [15, 0, { kind: "valve", position: "closed" }],
     [15, 1, { kind: "valve", position: "open" }],
     [16, 1, { kind: "buzzer", active: true }],
+    [21, 1, { kind: "frequencyConverter", enabled: true }],
+    [21, 0, { kind: "frequencyConverter", enabled: false }],
   ] as const)(
     "decodes the Stage 14 load state kind %i with value %i",
     (kind, value, expected) => {

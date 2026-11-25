@@ -121,6 +121,7 @@ fn parts_are_assigned_to_the_categories_of_the_stage_11_contract() {
         (Solenoid, CategoryId::MotorsAndLoads),
         (Valve, CategoryId::MotorsAndLoads),
         (Buzzer, CategoryId::MotorsAndLoads),
+        (FrequencyConverter, CategoryId::MotorsAndLoads),
     ];
     let catalog = component_catalog();
     assert_eq!(catalog.component_types.len(), expected.len());

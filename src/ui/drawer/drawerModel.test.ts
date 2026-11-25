@@ -95,6 +95,7 @@ describe("the drawer list", () => {
       "solenoid",
       "valve",
       "buzzer",
+      "frequency_converter",
       "transformer_three_phase",
       "three_phase_load_star",
       "three_phase_load_delta",

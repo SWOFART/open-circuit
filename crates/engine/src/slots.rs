@@ -225,6 +225,21 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 CurrentIntoPin1,
             ),
         ],
+        ComponentTypeId::FrequencyConverter => ["input", "u", "v", "w"]
+            .into_iter()
+            .flat_map(|branch| {
+                let (voltage_key, current_key) = match branch {
+                    "input" => ("inputVoltageVolts", "inputCurrentAmps"),
+                    "u" => ("uVoltageVolts", "uCurrentAmps"),
+                    "v" => ("vVoltageVolts", "vCurrentAmps"),
+                    _ => ("wVoltageVolts", "wCurrentAmps"),
+                };
+                [
+                    slot(Voltage, Unit::Volt, '/', voltage_key, VoltagePin1MinusPin2),
+                    slot(Current, Unit::Amp, '/', current_key, CurrentIntoPin1),
+                ]
+            })
+            .collect(),
         ComponentTypeId::Lamp => vec![
             slot(
                 Voltage,

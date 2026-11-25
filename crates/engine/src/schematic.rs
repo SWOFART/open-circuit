@@ -173,6 +173,17 @@ pub struct InductorParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "FrequencyConverterParameters.ts")]
+pub struct FrequencyConverterParameters {
+    pub input_resistance_ohms: f64,
+    pub enable_volts: f64,
+    pub output_rms_volts: f64,
+    pub frequency_hz: f64,
+    pub output_resistance_ohms: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "LampParameters.ts")]
 pub struct LampParameters {
     pub resistance_ohms: f64,
@@ -686,6 +697,14 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: PositionContactParameters,
     },
+    FrequencyConverter {
+        id: StableId,
+        position: GridPoint,
+        #[serde(rename = "rotationDeg")]
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: FrequencyConverterParameters,
+    },
     Lamp {
         id: StableId,
         position: GridPoint,
@@ -904,6 +923,7 @@ impl ComponentSpec {
             | Self::EmergencyStop { id, .. }
             | Self::SelectorSwitch { id, .. }
             | Self::KeySwitch { id, .. }
+            | Self::FrequencyConverter { id, .. }
             | Self::Lamp { id, .. }
             | Self::Indicator { id, .. }
             | Self::Solenoid { id, .. }
@@ -953,6 +973,7 @@ impl ComponentSpec {
             | Self::EmergencyStop { position, .. }
             | Self::SelectorSwitch { position, .. }
             | Self::KeySwitch { position, .. }
+            | Self::FrequencyConverter { position, .. }
             | Self::Lamp { position, .. }
             | Self::Indicator { position, .. }
             | Self::Solenoid { position, .. }
@@ -1002,6 +1023,7 @@ impl ComponentSpec {
             | Self::EmergencyStop { rotation_deg, .. }
             | Self::SelectorSwitch { rotation_deg, .. }
             | Self::KeySwitch { rotation_deg, .. }
+            | Self::FrequencyConverter { rotation_deg, .. }
             | Self::Lamp { rotation_deg, .. }
             | Self::Indicator { rotation_deg, .. }
             | Self::Solenoid { rotation_deg, .. }
@@ -1052,6 +1074,7 @@ impl ComponentSpec {
             Self::EmergencyStop { .. } => ComponentTypeId::EmergencyStop,
             Self::SelectorSwitch { .. } => ComponentTypeId::SelectorSwitch,
             Self::KeySwitch { .. } => ComponentTypeId::KeySwitch,
+            Self::FrequencyConverter { .. } => ComponentTypeId::FrequencyConverter,
             Self::Lamp { .. } => ComponentTypeId::Lamp,
             Self::Indicator { .. } => ComponentTypeId::Indicator,
             Self::Solenoid { .. } => ComponentTypeId::Solenoid,
@@ -1420,6 +1443,19 @@ impl ComponentSpec {
                 }
                 values
             }
+            Self::FrequencyConverter { parameters, .. } => vec![
+                (
+                    ParameterId::InputResistanceOhms,
+                    parameters.input_resistance_ohms,
+                ),
+                (ParameterId::EnableVolts, parameters.enable_volts),
+                (ParameterId::OutputRmsVolts, parameters.output_rms_volts),
+                (ParameterId::FrequencyHz, parameters.frequency_hz),
+                (
+                    ParameterId::OutputResistanceOhms,
+                    parameters.output_resistance_ohms,
+                ),
+            ],
             Self::Lamp { parameters, .. } => {
                 vec![(ParameterId::ResistanceOhms, parameters.resistance_ohms)]
             }
@@ -1671,6 +1707,7 @@ impl Schematic {
             | ComponentSpec::EmergencyStop { rotation_deg, .. }
             | ComponentSpec::SelectorSwitch { rotation_deg, .. }
             | ComponentSpec::KeySwitch { rotation_deg, .. }
+            | ComponentSpec::FrequencyConverter { rotation_deg, .. }
             | ComponentSpec::Lamp { rotation_deg, .. }
             | ComponentSpec::Indicator { rotation_deg, .. }
             | ComponentSpec::Solenoid { rotation_deg, .. }

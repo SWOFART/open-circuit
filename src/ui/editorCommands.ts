@@ -69,6 +69,7 @@ const LIVE_PARAMETERS_BY_TYPE: Readonly<
   solenoid: [],
   valve: [],
   buzzer: [],
+  frequency_converter: [],
   relay_on_delay: [],
   relay_off_delay: [],
 };

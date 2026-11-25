@@ -251,6 +251,10 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
                 false,
             ),
 
+            DeviceState::FrequencyConverter {
+                component_id,
+                enabled,
+            } => (component_id, 21, u8::from(*enabled), None, false),
             DeviceState::Lamp { component_id, lit } => {
                 (component_id, 12, u8::from(*lit), None, false)
             }
@@ -591,6 +595,10 @@ fn decode_states(
                 last_transition_time_seconds: transition,
             },
 
+            (21, 0 | 1) => DeviceState::FrequencyConverter {
+                component_id,
+                enabled: value == 1,
+            },
             (12, 0 | 1) => DeviceState::Lamp {
                 component_id,
                 lit: value == 1,

@@ -537,3 +537,31 @@ fn indicators_and_actuators_use_the_stage_14_state_record_table() {
         assert_eq!(decode_frame(&flagged), Err(FrameError::InvalidState));
     }
 }
+
+#[test]
+fn a_frequency_converter_uses_state_record_kind_21_with_zero_flags() {
+    let id = |number| StableId::parse(format!("00000000-0000-4000-8000-{number:012}")).unwrap();
+    let mut frame = snapshot("rev", vec![]);
+    frame.states = vec![
+        DeviceState::FrequencyConverter {
+            component_id: id(1),
+            enabled: true,
+        },
+        DeviceState::FrequencyConverter {
+            component_id: id(2),
+            enabled: false,
+        },
+    ];
+    let bytes = encode_frame(&frame).unwrap();
+    assert_eq!(decode_frame(&bytes).unwrap(), frame);
+    let start = payload_offset("rev".len());
+    assert_eq!(&bytes[start + 16..start + 20], [21, 1, 0, 0]);
+    assert_eq!(&bytes[start + 48..start + 52], [21, 0, 0, 0]);
+
+    let mut malformed = bytes.clone();
+    malformed[start + 17] = 2;
+    assert_eq!(decode_frame(&malformed), Err(FrameError::InvalidState));
+    let mut flagged = bytes;
+    flagged[start + 18] = 2;
+    assert_eq!(decode_frame(&flagged), Err(FrameError::InvalidState));
+}

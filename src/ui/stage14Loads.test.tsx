@@ -221,3 +221,48 @@ describe("the solenoid and valve readouts", () => {
     expect(html).toContain(text);
   });
 });
+
+describe("the frequency converter readout", () => {
+  const readings: Reading[] = [
+    ["inputVoltageVolts", "volt", 24],
+    ["inputCurrentAmps", "amp", 0.0024],
+    ["uVoltageVolts", "volt", 0],
+    ["uCurrentAmps", "amp", 0],
+    ["vVoltageVolts", "volt", -58.7],
+    ["vCurrentAmps", "amp", 0.58],
+    ["wVoltageVolts", "volt", 58.7],
+    ["wCurrentAmps", "amp", -0.58],
+  ];
+
+  it.each([
+    [true, ">Enabled<"],
+    [false, ">Disabled<"],
+  ])(
+    "shows enabled=%s as %s with the input and the three outputs",
+    (enabled, text) => {
+      const { document, id } = drawn("frequency_converter");
+      const html = panel(
+        document,
+        stateWith(id, readings, [
+          { kind: "frequencyConverter", componentId: id, enabled },
+        ]),
+      );
+
+      expect(html).toContain(text);
+      expect(html).toContain("Input voltage");
+      for (const phase of ["U", "V", "W"]) {
+        expect(html).toContain(`Output ${phase} voltage`);
+        expect(html).toContain(`Output ${phase} current`);
+      }
+    },
+  );
+
+  it("shows a dash for a missing reading and no badge without a state", () => {
+    const { document, id } = drawn("frequency_converter");
+    const html = panel(document, stateWith(id, []));
+
+    expect(html).toContain("—");
+    expect(html).not.toContain(">Enabled<");
+    expect(html).not.toContain(">Disabled<");
+  });
+});

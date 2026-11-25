@@ -118,6 +118,10 @@ pub enum PushButtonPosition {
 )]
 #[ts(export, export_to = "DeviceState.ts")]
 pub enum DeviceState {
+    FrequencyConverter {
+        component_id: StableId,
+        enabled: bool,
+    },
     Lamp {
         component_id: StableId,
         lit: bool,
@@ -232,6 +236,7 @@ impl DeviceState {
             | Self::EmergencyStop { component_id, .. }
             | Self::SelectorSwitch { component_id, .. }
             | Self::KeySwitch { component_id, .. }
+            | Self::FrequencyConverter { component_id, .. }
             | Self::Lamp { component_id, .. }
             | Self::Indicator { component_id, .. }
             | Self::Solenoid { component_id, .. }

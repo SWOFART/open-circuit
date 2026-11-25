@@ -174,6 +174,7 @@ const STATE_KIND_OF_TYPE: Readonly<
   solenoid: "solenoid",
   valve: "valve",
   buzzer: "buzzer",
+  frequency_converter: "frequencyConverter",
   fuse: "fuse",
   switch_spst: "switch",
   push_button_no: "pushButton",
@@ -222,6 +223,8 @@ function hasKnownValue(state: DeviceState): boolean {
       return state.position === "closed" || state.position === "open";
     case "buzzer":
       return typeof state.active === "boolean";
+    case "frequencyConverter":
+      return typeof state.enabled === "boolean";
     case "fuse":
       return state.state === "intact" || state.state === "tripped";
     case "switch":
