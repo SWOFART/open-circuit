@@ -316,6 +316,33 @@ describe("refusing corrupted frames", () => {
     },
   );
 
+  it.each([
+    [12, 1, { kind: "lamp", lit: true }],
+    [13, 0, { kind: "indicator", lit: false }],
+    [14, 1, { kind: "solenoid", energized: true }],
+    [15, 0, { kind: "valve", position: "closed" }],
+    [15, 1, { kind: "valve", position: "open" }],
+    [16, 1, { kind: "buzzer", active: true }],
+  ] as const)(
+    "decodes the Stage 14 load state kind %i with value %i",
+    (kind, value, expected) => {
+      const bytes = new Uint8Array(fromHex(stage6FrameFixture.hex));
+      const offset = payloadOffset(9) + 16 + 64;
+      bytes[offset + 16] = kind;
+      bytes[offset + 17] = value;
+      // These records carry no flags and no transition time.
+      bytes.fill(0, offset + 18, offset + 20);
+      bytes.fill(0, offset + 24, offset + 32);
+      expect(decodeFrame(bytes.buffer).states[2]).toMatchObject(expected);
+      // A value outside the table, or any flag bit, is refused.
+      bytes[offset + 17] = 2;
+      decodingFails(bytes, /unknown kind or value/);
+      bytes[offset + 17] = value;
+      bytes[offset + 18] = 1;
+      decodingFails(bytes, /flag bits/);
+    },
+  );
+
   it("renders any 16 bytes as a lowercase hyphenated run ID", () => {
     const bytes = golden();
     bytes.fill(0xab, 32, 48);

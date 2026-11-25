@@ -230,6 +230,30 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
         outputOn: (value & 2) !== 0,
         timing: (value & 4) !== 0,
       });
+    } else if (kind >= 12 && kind <= 16 && value <= 1) {
+      // Kinds 12 to 21 have zero flags and no transition time (stage-14-more-parts.md).
+      if (flags !== 0) {
+        throw new FrameDecodeError(
+          "A device-state record contains unknown flag bits.",
+        );
+      }
+      const on = value === 1;
+      const id = common.componentId;
+      states.push(
+        kind === 12
+          ? { componentId: id, kind: "lamp", lit: on }
+          : kind === 13
+            ? { componentId: id, kind: "indicator", lit: on }
+            : kind === 14
+              ? { componentId: id, kind: "solenoid", energized: on }
+              : kind === 15
+                ? {
+                    componentId: id,
+                    kind: "valve",
+                    position: on ? "open" : "closed",
+                  }
+                : { componentId: id, kind: "buzzer", active: on },
+      );
     } else if (kind === 5 && (value === 0 || value === 1)) {
       states.push({
         ...common,

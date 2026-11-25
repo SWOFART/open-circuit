@@ -64,6 +64,11 @@ const LIVE_PARAMETERS_BY_TYPE: Readonly<
   emergency_stop: [],
   selector_switch: [],
   key_switch: [],
+  lamp: [],
+  indicator: [],
+  solenoid: [],
+  valve: [],
+  buzzer: [],
   relay_on_delay: [],
   relay_off_delay: [],
 };

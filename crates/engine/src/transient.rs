@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     ComponentSpec, DeviceState, Diagnostic, DiagnosticCode, FuseState, GeometryEnvelope,
-    RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId,
+    RelayContactState, SIMULATION_TIMESTEP_SECONDS, Schematic, StableId, SwitchPosition,
     devices::{
         BreakerState, DeviceResult, IntegrationMethod, OverloadState, RcdState, coil_contact_state,
         component_diagnostic, detector_step,
@@ -84,13 +84,21 @@ pub(super) struct InductorState {
 
 #[derive(Clone, Copy, Debug)]
 pub(super) struct RelayState {
-    /// The state belongs to a contactor, which is reported as its own kind of device state.
-    pub(super) contactor: bool,
+    /// What the coil belongs to; each kind is reported as its own kind of device state.
+    pub(super) kind: RelayKind,
     pub(super) detector: Option<f64>,
     pub(super) current_amps: f64,
     pub(super) voltage_volts: f64,
     pub(super) state: RelayContactState,
     pub(super) last_transition_time_seconds: Option<f64>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum RelayKind {
+    Relay,
+    Contactor,
+    Solenoid,
+    Valve,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -115,6 +123,8 @@ pub(super) struct CircuitStates {
     pub(super) inductors: HashMap<StableId, InductorState>,
     pub(super) relays: HashMap<StableId, RelayState>,
     pub(super) timers: HashMap<StableId, (DelayMode, TimerState)>,
+    /// The reported state of each lamp, indicator and buzzer, read from the settled endpoint.
+    pub(super) indicators: HashMap<StableId, DeviceState>,
     pub(super) breakers: HashMap<StableId, BreakerState>,
     pub(super) overloads: HashMap<StableId, OverloadState>,
     pub(super) rcds: HashMap<StableId, RcdState>,
@@ -137,18 +147,29 @@ impl CircuitStates {
             .map(|(component_id, relay)| {
                 let (component_id, state) = (component_id.clone(), relay.state);
                 let last_transition_time_seconds = relay.last_transition_time_seconds;
-                if relay.contactor {
-                    DeviceState::Contactor {
+                match relay.kind {
+                    RelayKind::Contactor => DeviceState::Contactor {
                         component_id,
                         state,
                         last_transition_time_seconds,
-                    }
-                } else {
-                    DeviceState::Relay {
+                    },
+                    RelayKind::Relay => DeviceState::Relay {
                         component_id,
                         state,
                         last_transition_time_seconds,
-                    }
+                    },
+                    RelayKind::Solenoid => DeviceState::Solenoid {
+                        component_id,
+                        energized: state == RelayContactState::Picked,
+                    },
+                    RelayKind::Valve => DeviceState::Valve {
+                        component_id,
+                        position: if state == RelayContactState::Picked {
+                            SwitchPosition::Open
+                        } else {
+                            SwitchPosition::Closed
+                        },
+                    },
                 }
             })
             .collect::<Vec<_>>();
@@ -177,6 +198,7 @@ impl CircuitStates {
                 },
             }
         }));
+        states.extend(self.indicators.values().cloned());
         states.extend(self.breakers.iter().map(|(id, state)| DeviceState::Switch {
             component_id: id.clone(),
             position: state.position,
@@ -333,6 +355,8 @@ pub(super) fn circuit_states_from_results(
         .filter_map(|component| {
             let (ComponentSpec::RelaySpdt { id, .. }
             | ComponentSpec::Contactor { id, .. }
+            | ComponentSpec::Solenoid { id, .. }
+            | ComponentSpec::Valve { id, .. }
             | ComponentSpec::ContactorThreePole { id, .. }) = component
             else {
                 return None;
@@ -354,10 +378,13 @@ pub(super) fn circuit_states_from_results(
             Some((
                 id.clone(),
                 RelayState {
-                    contactor: matches!(
-                        component,
-                        ComponentSpec::Contactor { .. } | ComponentSpec::ContactorThreePole { .. }
-                    ),
+                    kind: match component {
+                        ComponentSpec::Contactor { .. }
+                        | ComponentSpec::ContactorThreePole { .. } => RelayKind::Contactor,
+                        ComponentSpec::Solenoid { .. } => RelayKind::Solenoid,
+                        ComponentSpec::Valve { .. } => RelayKind::Valve,
+                        _ => RelayKind::Relay,
+                    },
                     detector: result
                         .extra_values
                         .iter()
@@ -486,6 +513,15 @@ pub(super) fn circuit_states_from_results(
         capacitors,
         inductors,
         relays,
+        indicators: results
+            .iter()
+            .filter_map(|result| match result.state.as_ref()? {
+                state @ (DeviceState::Lamp { .. }
+                | DeviceState::Indicator { .. }
+                | DeviceState::Buzzer { .. }) => Some((result.component_id.clone(), state.clone())),
+                _ => None,
+            })
+            .collect(),
         timers: schematic
             .components
             .iter()
@@ -927,6 +963,20 @@ pub(super) fn settle_discrete_events(
                     }
                     _ => relay.state,
                 },
+                ComponentSpec::Solenoid { parameters, .. }
+                | ComponentSpec::Valve { parameters, .. } => match relay.state {
+                    RelayContactState::Released
+                        if relay.current_amps.abs() >= parameters.pickup_current_amps =>
+                    {
+                        RelayContactState::Picked
+                    }
+                    RelayContactState::Picked
+                        if relay.current_amps.abs() <= parameters.dropout_current_amps =>
+                    {
+                        RelayContactState::Released
+                    }
+                    _ => relay.state,
+                },
                 ComponentSpec::ContactorThreePole { parameters, .. } => coil_contact_state(
                     relay.state,
                     relay.detector.unwrap_or(0.0),
@@ -1344,7 +1394,10 @@ fn estimate_transient_rate_bound(
                         )?;
                     }
                 }
-                DeviceModel::Resistor { resistance_ohms } => {
+                DeviceModel::Resistor { resistance_ohms }
+                | DeviceModel::Indicator {
+                    resistance_ohms, ..
+                } => {
                     add_laplacian(
                         &mut conductance,
                         variable1,
@@ -1568,6 +1621,7 @@ fn estimate_transient_rate_bound(
                     spec.model,
                     DeviceModel::InductionMotor { .. }
                         | DeviceModel::Resistor { .. }
+                        | DeviceModel::Indicator { .. }
                         | DeviceModel::ExposedPart { .. }
                         | DeviceModel::DcVoltageSource { .. }
                         | DeviceModel::ThreePhaseSource { .. }

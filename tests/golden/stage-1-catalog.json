@@ -570,6 +570,229 @@
       "faultKinds": []
     },
     {
+      "typeId": "lamp",
+      "displayNameKey": "component.lamp.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": [
+        "component.lamp.keywords"
+      ],
+      "designatorPrefix": "H",
+      "pins": [
+        { "id": "p", "role": "unpolarized" },
+        { "id": "n", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "resistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 120.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000000.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "indicator",
+      "displayNameKey": "component.indicator.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": [
+        "component.indicator.keywords"
+      ],
+      "designatorPrefix": "H",
+      "pins": [
+        { "id": "p", "role": "unpolarized" },
+        { "id": "n", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "resistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 2400.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000000.0
+        },
+        {
+          "id": "thresholdVolts",
+          "unit": "volt",
+          "defaultValue": 12.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.threshold",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 1000.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "solenoid",
+      "displayNameKey": "component.solenoid.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": [
+        "component.solenoid.keywords"
+      ],
+      "designatorPrefix": "M",
+      "pins": [
+        { "id": "p", "role": "unpolarized" },
+        { "id": "n", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "resistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 24.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "inductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.05,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "pickupCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.4,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.pickupCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 100.0
+        },
+        {
+          "id": "dropoutCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.2,
+          "domain": "non_negative",
+          "descriptionKey": "component.load.dropoutCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 100.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "valve",
+      "displayNameKey": "component.valve.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": [
+        "component.valve.keywords"
+      ],
+      "designatorPrefix": "M",
+      "pins": [
+        { "id": "p", "role": "unpolarized" },
+        { "id": "n", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "resistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 24.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 1000000.0
+        },
+        {
+          "id": "inductanceHenries",
+          "unit": "henry",
+          "defaultValue": 0.05,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.inductance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 10.0
+        },
+        {
+          "id": "pickupCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.4,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.pickupCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.000001,
+          "maximumValue": 100.0
+        },
+        {
+          "id": "dropoutCurrentAmps",
+          "unit": "amp",
+          "defaultValue": 0.2,
+          "domain": "non_negative",
+          "descriptionKey": "component.load.dropoutCurrent",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.0,
+          "maximumValue": 100.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
+      "typeId": "buzzer",
+      "displayNameKey": "component.buzzer.name",
+      "category": "motors_and_loads",
+      "searchKeywordKeys": [
+        "component.buzzer.keywords"
+      ],
+      "designatorPrefix": "H",
+      "pins": [
+        { "id": "p", "role": "unpolarized" },
+        { "id": "n", "role": "unpolarized" }
+      ],
+      "parameters": [
+        {
+          "id": "resistanceOhms",
+          "unit": "ohm",
+          "defaultValue": 240.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.resistance",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.001,
+          "maximumValue": 1000000000.0
+        },
+        {
+          "id": "thresholdVolts",
+          "unit": "volt",
+          "defaultValue": 6.0,
+          "domain": "strictly_positive",
+          "descriptionKey": "component.load.threshold",
+          "optional": false,
+          "initialCondition": false,
+          "minimumValue": 0.01,
+          "maximumValue": 1000.0
+        }
+      ],
+      "faultKinds": []
+    },
+    {
       "typeId": "relay_on_delay",
       "displayNameKey": "component.onDelayRelay.name",
       "category": "switching",

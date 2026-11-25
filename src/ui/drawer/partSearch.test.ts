@@ -79,8 +79,13 @@ describe("part search", () => {
       "thermal_overload_three_pole",
       "contactor",
     ]);
-    // "coil" is a keyword (4) of three parts, which keep the catalog order.
-    expect(find("coil")).toEqual(["inductor", "relay_spdt", "contactor"]);
+    // "coil" is a keyword (4) of four parts, which keep the catalog order.
+    expect(find("coil")).toEqual([
+      "inductor",
+      "relay_spdt",
+      "solenoid",
+      "contactor",
+    ]);
     // "ode" is only a substring (5) of "diode".
     expect(find("ode")).toContain("diode");
   });

@@ -7,6 +7,7 @@ pub(crate) use diode::DiodeDevice;
 mod capacitor;
 mod contactor;
 mod fuse;
+mod indicator;
 mod induction_motor;
 mod inductor;
 mod linked_contacts;
@@ -27,6 +28,7 @@ use super::mna::{MnaSystem, NodeVariables};
 pub(crate) use capacitor::{CapacitorDevice, CapacitorMode};
 pub(crate) use contactor::{ContactorDevice, ContactorPoles};
 pub(crate) use fuse::FuseDevice;
+pub(crate) use indicator::{IndicatorDevice, IndicatorRule};
 pub(crate) use induction_motor::{
     InductionMotorDevice, MotorHistory, MotorInterval, MotorParameters, motor_history,
 };

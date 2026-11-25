@@ -29,6 +29,11 @@ const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "key_switch",
   "relay_on_delay",
   "relay_off_delay",
+  "lamp",
+  "indicator",
+  "solenoid",
+  "valve",
+  "buzzer",
   "fuse",
   "contactor_three_pole",
   "breaker_three_pole",
@@ -87,9 +92,11 @@ function stateOf(
 }
 
 function transition(state: DeviceState | undefined): string | null {
-  return state?.lastTransitionTimeSeconds === undefined
-    ? null
-    : `since ${formatWithSymbol(state.lastTransitionTimeSeconds, "s")}`;
+  const time =
+    state && "lastTransitionTimeSeconds" in state
+      ? state.lastTransitionTimeSeconds
+      : undefined;
+  return time === undefined ? null : `since ${formatWithSymbol(time, "s")}`;
 }
 
 interface Row {
@@ -205,6 +212,83 @@ function describe(
                 },
               ]
             : [{ name: "Current", value: show(`${id}/currentAmps`, "amp") }],
+      };
+    }
+    // The indicators and actuators of Stage 14 show the state the Engine reported: the drawing
+    // and the readout never decide whether a lamp is lit or a valve is open.
+    case "lamp":
+    case "indicator": {
+      const lamp = component.typeId === "lamp";
+      const state = stateOf(snapshot, id, lamp ? "lamp" : "indicator");
+      const lit =
+        state?.kind === "lamp" || state?.kind === "indicator"
+          ? state.lit
+          : undefined;
+      return {
+        id,
+        title: `${name} ${message(lamp ? "component.lamp.name" : "component.indicator.name")}`,
+        badge:
+          lit === undefined
+            ? undefined
+            : { text: lit ? "Lit" : "Dark", tone: lit ? "on" : "off" },
+        rows: [
+          { name: "Voltage", value: show(`${id}/voltageVolts`, "volt") },
+          { name: "Current", value: show(`${id}/currentAmps`, "amp") },
+          ...(lamp
+            ? [{ name: "Power", value: show(`${id}/powerWatts`, "watt") }]
+            : []),
+        ],
+      };
+    }
+    case "buzzer": {
+      const state = stateOf(snapshot, id, "buzzer");
+      const active = state?.kind === "buzzer" ? state.active : undefined;
+      return {
+        id,
+        title: `${name} ${message("component.buzzer.name")}`,
+        badge:
+          active === undefined
+            ? undefined
+            : {
+                text: active ? "Sounding" : "Silent",
+                tone: active ? "on" : "off",
+              },
+        rows: [
+          { name: "Voltage", value: show(`${id}/voltageVolts`, "volt") },
+          { name: "Current", value: show(`${id}/currentAmps`, "amp") },
+        ],
+      };
+    }
+    case "solenoid":
+    case "valve": {
+      const valve = component.typeId === "valve";
+      const state = stateOf(snapshot, id, valve ? "valve" : "solenoid");
+      const pulledIn =
+        state?.kind === "solenoid"
+          ? state.energized
+          : state?.kind === "valve"
+            ? state.position === "open"
+            : undefined;
+      return {
+        id,
+        title: `${name} ${message(valve ? "component.valve.name" : "component.solenoid.name")}`,
+        badge:
+          pulledIn === undefined
+            ? undefined
+            : {
+                text: valve
+                  ? pulledIn
+                    ? "Open"
+                    : "Closed"
+                  : pulledIn
+                    ? "Energized"
+                    : "Released",
+                tone: pulledIn ? "on" : "off",
+              },
+        rows: [
+          { name: "Coil current", value: show(`${id}/currentAmps`, "amp") },
+          { name: "Coil voltage", value: show(`${id}/voltageVolts`, "volt") },
+        ],
       };
     }
     case "relay_on_delay":

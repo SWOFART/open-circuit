@@ -137,12 +137,16 @@ function statesMatchSchematic(
     const expectedKind = expected.get(state.componentId);
     if (!expectedKind || state.kind !== expectedKind) return false;
     if (!hasKnownValue(state)) return false;
+    // The indicators and actuators of Stage 14 carry no transition time.
+    const transition =
+      "lastTransitionTimeSeconds" in state
+        ? state.lastTransitionTimeSeconds
+        : undefined;
     if (
-      state.lastTransitionTimeSeconds !== undefined &&
-      (!Number.isFinite(state.lastTransitionTimeSeconds) ||
-        state.lastTransitionTimeSeconds < 0 ||
-        state.lastTransitionTimeSeconds >
-          snapshot.metadata.simulationTimeSeconds)
+      transition !== undefined &&
+      (!Number.isFinite(transition) ||
+        transition < 0 ||
+        transition > snapshot.metadata.simulationTimeSeconds)
     ) {
       return false;
     }
@@ -165,6 +169,11 @@ const STATE_KIND_OF_TYPE: Readonly<
   key_switch: "keySwitch",
   relay_on_delay: "relayOnDelay",
   relay_off_delay: "relayOffDelay",
+  lamp: "lamp",
+  indicator: "indicator",
+  solenoid: "solenoid",
+  valve: "valve",
+  buzzer: "buzzer",
   fuse: "fuse",
   switch_spst: "switch",
   push_button_no: "pushButton",
@@ -204,6 +213,15 @@ function hasKnownValue(state: DeviceState): boolean {
         typeof state.outputOn === "boolean" &&
         typeof state.timing === "boolean"
       );
+    case "lamp":
+    case "indicator":
+      return typeof state.lit === "boolean";
+    case "solenoid":
+      return typeof state.energized === "boolean";
+    case "valve":
+      return state.position === "closed" || state.position === "open";
+    case "buzzer":
+      return typeof state.active === "boolean";
     case "fuse":
       return state.state === "intact" || state.state === "tripped";
     case "switch":

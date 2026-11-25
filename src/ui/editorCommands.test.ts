@@ -50,7 +50,7 @@ describe("catalog defaults", () => {
 
   it("refuses a type that is not in the catalog", () => {
     expect(() =>
-      defaultParameters(catalog, "lamp" as ComponentTypeId),
+      defaultParameters(catalog, "thermocouple" as ComponentTypeId),
     ).toThrow();
   });
 });

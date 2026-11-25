@@ -21,9 +21,9 @@ use crate::{
     devices::SelectorDevice,
     devices::{
         BreakerDevice, BreakerState, CapacitorDevice, CapacitorMode, ContactorDevice,
-        ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice,
-        InductionMotorDevice, InductorDevice, InductorMode, LinkedContacts, LinkedPole,
-        MotorInterval, MotorParameters, OverloadDevice, OverloadState, PmdcMotorDevice,
+        ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice, IndicatorDevice,
+        IndicatorRule, InductionMotorDevice, InductorDevice, InductorMode, LinkedContacts,
+        LinkedPole, MotorInterval, MotorParameters, OverloadDevice, OverloadState, PmdcMotorDevice,
         PmdcMotorMode, RcdDevice, RcdState, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
         ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic, motor_history,
     },
@@ -202,6 +202,11 @@ enum DeviceModel {
     },
     Fuse {
         intact_resistance_ohms: f64,
+    },
+    /// A lamp, an indicator or a buzzer: a resistor whose state is read from its endpoint.
+    Indicator {
+        resistance_ohms: f64,
+        rule: IndicatorRule,
     },
     Selector {
         throws: [Terminals; 2],
@@ -1749,6 +1754,7 @@ fn local_adjacency(
             }
             DeviceModel::Diode { .. }
             | DeviceModel::Resistor { .. }
+            | DeviceModel::Indicator { .. }
             | DeviceModel::ExposedPart { .. }
             | DeviceModel::DcVoltageSource { .. } => {
                 connect(spec.terminals.pin1, spec.terminals.pin2);
@@ -2035,6 +2041,11 @@ fn build_device_specs(
             ComponentSpec::LimitSwitch { .. }
                 | ComponentSpec::EmergencyStop { .. }
                 | ComponentSpec::KeySwitch { .. }
+                | ComponentSpec::Lamp { .. }
+                | ComponentSpec::Indicator { .. }
+                | ComponentSpec::Solenoid { .. }
+                | ComponentSpec::Valve { .. }
+                | ComponentSpec::Buzzer { .. }
         ) {
             (PinId::P, PinId::N)
         } else if matches!(component, ComponentSpec::SelectorSwitch { .. }) {
@@ -2498,6 +2509,26 @@ fn build_device_specs(
                     resistance: parameters.closed_resistance_ohms,
                 }
             }
+            ComponentSpec::Lamp { parameters, .. } => DeviceModel::Indicator {
+                resistance_ohms: parameters.resistance_ohms,
+                rule: IndicatorRule::LampPower,
+            },
+            ComponentSpec::Indicator { parameters, .. } => DeviceModel::Indicator {
+                resistance_ohms: parameters.resistance_ohms,
+                rule: IndicatorRule::IndicatorVoltage(parameters.threshold_volts),
+            },
+            ComponentSpec::Buzzer { parameters, .. } => DeviceModel::Indicator {
+                resistance_ohms: parameters.resistance_ohms,
+                rule: IndicatorRule::BuzzerVoltage(parameters.threshold_volts),
+            },
+            // A series R and L with a pull-in detector: the coil of a contactor without contacts.
+            ComponentSpec::Solenoid { parameters, .. }
+            | ComponentSpec::Valve { parameters, .. } => DeviceModel::Contactor {
+                coil_resistance_ohms: parameters.resistance_ohms,
+                coil_inductance_henries: parameters.inductance_henries,
+                closed_contact_resistance_ohms: 1.0,
+                poles: ContactorPoles::None,
+            },
             ComponentSpec::LimitSwitch { parameters, .. }
             | ComponentSpec::EmergencyStop { parameters, .. } => DeviceModel::Resistor {
                 resistance_ohms: parameters.closed_resistance_ohms,
@@ -2796,6 +2827,15 @@ fn make_device(
             spec.component_id.clone(),
             spec.terminals,
             resistance_ohms,
+        )),
+        DeviceModel::Indicator {
+            resistance_ohms,
+            rule,
+        } => Box::new(IndicatorDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            resistance_ohms,
+            rule,
         )),
         DeviceModel::ExposedPart { earth_joined } => {
             Box::new(crate::devices::ExposedPartDevice::new(
@@ -3879,7 +3919,12 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
-        ComponentSpec::RelayOnDelay { .. }
+        ComponentSpec::Lamp { .. }
+        | ComponentSpec::Indicator { .. }
+        | ComponentSpec::Solenoid { .. }
+        | ComponentSpec::Valve { .. }
+        | ComponentSpec::Buzzer { .. }
+        | ComponentSpec::RelayOnDelay { .. }
         | ComponentSpec::RelayOffDelay { .. }
         | ComponentSpec::LimitSwitch { .. }
         | ComponentSpec::EmergencyStop { .. }

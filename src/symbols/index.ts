@@ -30,6 +30,13 @@ import {
 } from "./operatorContacts";
 import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
+import {
+  buzzerSymbol,
+  indicatorSymbol,
+  lampSymbol,
+  solenoidSymbol,
+  valveSymbol,
+} from "./loads";
 import { offDelayRelaySymbol, onDelayRelaySymbol } from "./timeRelay";
 import { resistorSymbol } from "./resistor";
 import { switchSpstSymbol } from "./switch";
@@ -76,6 +83,11 @@ export const symbols: SymbolRegistry = {
   emergency_stop: emergencyStopSymbol,
   selector_switch: selectorSwitchSymbol,
   key_switch: keySwitchSymbol,
+  lamp: lampSymbol,
+  indicator: indicatorSymbol,
+  solenoid: solenoidSymbol,
+  valve: valveSymbol,
+  buzzer: buzzerSymbol,
   relay_on_delay: onDelayRelaySymbol,
   relay_off_delay: offDelayRelaySymbol,
   fuse: fuseSymbol,

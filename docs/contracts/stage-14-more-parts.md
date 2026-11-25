@@ -70,6 +70,8 @@ saved parameter for selector and key switch is `initialPosition`.
 
 Indicator states use the settled endpoint; they have no feedback into the circuit. The actuator detector starts off and evaluates the operating point; current initializes under the existing inductor rules. Tests cover DC Ohm's law, threshold equality, an RL step against the analytic exponential, hysteresis in both directions and reset. Inputs are compile-only; the symbols display reported state only.
 
+**Implementation notes (#210).** The pins are `p` and `n` (the common two-pin layout), and the result keys are `<id>/voltageVolts`, `<id>/currentAmps` and, for the lamp, `<id>/powerWatts`. A solenoid or valve with no initial-current input takes its coil current from the DC operating point, as every inductor without one does, so one wired straight across a source above its pickup current is energized at step zero; the starting-off rule applies to the detector before that first evaluation, and a coil switched on later starts at zero current. A topology change makes the first internal step backward Euler (Stage 3), which keeps the transient RL current within 2 % of the exponential for the first steps and within the shared tolerance once settled. The default designator letters are `H` (lamp, indicator, buzzer) and `M` (solenoid, valve), the nearest of the Stage 12 letters.
+
 ## Semiconductor and controlled sources
 
 | Type and pins | Model and inputs | Results, state and omissions |

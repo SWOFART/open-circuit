@@ -93,7 +93,7 @@ describe("the parts drawer", () => {
   it("shows ranked, ungrouped results and their count for a search", () => {
     const markup = render({ initialQuery: "coil" });
 
-    expect(markup).toContain("3 parts found.");
+    expect(markup).toContain("4 parts found.");
     expect(markup).not.toContain(">Sources<");
     expect(markup.indexOf(">Inductor<")).toBeLessThan(
       markup.indexOf(">SPDT relay<"),

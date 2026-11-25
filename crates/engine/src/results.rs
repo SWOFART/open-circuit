@@ -118,6 +118,26 @@ pub enum PushButtonPosition {
 )]
 #[ts(export, export_to = "DeviceState.ts")]
 pub enum DeviceState {
+    Lamp {
+        component_id: StableId,
+        lit: bool,
+    },
+    Indicator {
+        component_id: StableId,
+        lit: bool,
+    },
+    Solenoid {
+        component_id: StableId,
+        energized: bool,
+    },
+    Valve {
+        component_id: StableId,
+        position: SwitchPosition,
+    },
+    Buzzer {
+        component_id: StableId,
+        active: bool,
+    },
     LimitSwitch {
         component_id: StableId,
         position: PushButtonPosition,
@@ -212,6 +232,11 @@ impl DeviceState {
             | Self::EmergencyStop { component_id, .. }
             | Self::SelectorSwitch { component_id, .. }
             | Self::KeySwitch { component_id, .. }
+            | Self::Lamp { component_id, .. }
+            | Self::Indicator { component_id, .. }
+            | Self::Solenoid { component_id, .. }
+            | Self::Valve { component_id, .. }
+            | Self::Buzzer { component_id, .. }
             | Self::RelayOnDelay { component_id, .. }
             | Self::RelayOffDelay { component_id, .. }
             | Self::Relay { component_id, .. }

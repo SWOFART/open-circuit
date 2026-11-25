@@ -24,6 +24,11 @@ pub enum ComponentTypeId {
     EmergencyStop,
     SelectorSwitch,
     KeySwitch,
+    Lamp,
+    Indicator,
+    Solenoid,
+    Valve,
+    Buzzer,
     RelayOnDelay,
     RelayOffDelay,
     Fuse,
@@ -210,6 +215,7 @@ pub enum ParameterId {
     CoilSenseSeconds,
     DelaySeconds,
     InitialPosition,
+    ThresholdVolts,
     InstantaneousTripAmps,
     SenseResistanceOhms,
     RatedCurrentAmps,
@@ -535,6 +541,116 @@ fn operator_contact_entry(type_id: ComponentTypeId, name: &str) -> ComponentCata
         pin_groups: None,
         fault_kinds: Vec::new(),
     }
+}
+
+fn load_parameter(
+    id: ParameterId,
+    unit: Unit,
+    default_value: f64,
+    minimum_value: f64,
+    maximum_value: f64,
+    label: &str,
+) -> ParameterDefinition {
+    ParameterDefinition {
+        id,
+        unit,
+        default_value,
+        minimum_value: Some(minimum_value),
+        maximum_value: Some(maximum_value),
+        domain: if minimum_value > 0.0 {
+            NumericDomain::StrictlyPositive
+        } else {
+            NumericDomain::NonNegative
+        },
+        description_key: format!("component.load.{label}"),
+        optional: false,
+        initial_condition: false,
+    }
+}
+
+/// An indicator or actuator load of Stage 14 (docs/contracts/stage-14-more-parts.md,
+/// "Indicators and actuators"): two unpolarized pins and compile-only parameters.
+fn load_entry(
+    type_id: ComponentTypeId,
+    name: &str,
+    designator_prefix: &str,
+    parameters: Vec<ParameterDefinition>,
+) -> ComponentCatalogEntry {
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: CategoryId::MotorsAndLoads,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        designator_prefix: designator_prefix.into(),
+        pins: [PinId::P, PinId::N]
+            .into_iter()
+            .map(|id| PinDefinition {
+                id,
+                role: PinRole::Unpolarized,
+            })
+            .collect(),
+        parameters,
+        pin_groups: None,
+        fault_kinds: Vec::new(),
+    }
+}
+
+fn actuator_parameters() -> Vec<ParameterDefinition> {
+    vec![
+        load_parameter(
+            ParameterId::ResistanceOhms,
+            Unit::Ohm,
+            24.0,
+            0.01,
+            1e6,
+            "resistance",
+        ),
+        load_parameter(
+            ParameterId::InductanceHenries,
+            Unit::Henry,
+            0.05,
+            1e-6,
+            10.0,
+            "inductance",
+        ),
+        load_parameter(
+            ParameterId::PickupCurrentAmps,
+            Unit::Amp,
+            0.4,
+            1e-6,
+            100.0,
+            "pickupCurrent",
+        ),
+        load_parameter(
+            ParameterId::DropoutCurrentAmps,
+            Unit::Amp,
+            0.2,
+            0.0,
+            100.0,
+            "dropoutCurrent",
+        ),
+    ]
+}
+
+fn threshold_load_parameters(resistance: f64, threshold: f64) -> Vec<ParameterDefinition> {
+    vec![
+        load_parameter(
+            ParameterId::ResistanceOhms,
+            Unit::Ohm,
+            resistance,
+            1e-3,
+            1e9,
+            "resistance",
+        ),
+        load_parameter(
+            ParameterId::ThresholdVolts,
+            Unit::Volt,
+            threshold,
+            0.01,
+            1000.0,
+            "threshold",
+        ),
+    ]
 }
 
 fn timed_relay_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEntry {
@@ -1120,6 +1236,38 @@ pub fn component_catalog() -> ComponentCatalog {
             operator_contact_entry(ComponentTypeId::EmergencyStop, "emergencyStop"),
             operator_contact_entry(ComponentTypeId::SelectorSwitch, "selectorSwitch"),
             operator_contact_entry(ComponentTypeId::KeySwitch, "keySwitch"),
+            load_entry(
+                ComponentTypeId::Lamp,
+                "lamp",
+                "H",
+                vec![load_parameter(
+                    ParameterId::ResistanceOhms,
+                    Unit::Ohm,
+                    120.0,
+                    1e-3,
+                    1e9,
+                    "resistance",
+                )],
+            ),
+            load_entry(
+                ComponentTypeId::Indicator,
+                "indicator",
+                "H",
+                threshold_load_parameters(2400.0, 12.0),
+            ),
+            load_entry(
+                ComponentTypeId::Solenoid,
+                "solenoid",
+                "M",
+                actuator_parameters(),
+            ),
+            load_entry(ComponentTypeId::Valve, "valve", "M", actuator_parameters()),
+            load_entry(
+                ComponentTypeId::Buzzer,
+                "buzzer",
+                "H",
+                threshold_load_parameters(240.0, 6.0),
+            ),
             timed_relay_entry(ComponentTypeId::RelayOnDelay, "onDelayRelay"),
             timed_relay_entry(ComponentTypeId::RelayOffDelay, "offDelayRelay"),
             ComponentCatalogEntry {
