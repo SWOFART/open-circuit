@@ -323,6 +323,12 @@ describe("refusing corrupted frames", () => {
     [15, 0, { kind: "valve", position: "closed" }],
     [15, 1, { kind: "valve", position: "open" }],
     [16, 1, { kind: "buzzer", active: true }],
+    [17, 1, { kind: "led", lit: true }],
+    [18, 1, { kind: "zenerDiode", inBreakdown: true }],
+    [19, 0, { kind: "mosfetN", conducting: false }],
+    [20, 0, { kind: "operationalAmplifier", state: "linear" }],
+    [20, 1, { kind: "operationalAmplifier", state: "clippedLow" }],
+    [20, 2, { kind: "operationalAmplifier", state: "clippedHigh" }],
     [21, 1, { kind: "frequencyConverter", enabled: true }],
     [21, 0, { kind: "frequencyConverter", enabled: false }],
   ] as const)(
@@ -337,7 +343,7 @@ describe("refusing corrupted frames", () => {
       bytes.fill(0, offset + 24, offset + 32);
       expect(decodeFrame(bytes.buffer).states[2]).toMatchObject(expected);
       // A value outside the table, or any flag bit, is refused.
-      bytes[offset + 17] = 2;
+      bytes[offset + 17] = 3;
       decodingFails(bytes, /unknown kind or value/);
       bytes[offset + 17] = value;
       bytes[offset + 18] = 1;

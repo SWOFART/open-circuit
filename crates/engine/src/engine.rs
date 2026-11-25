@@ -23,10 +23,10 @@ use crate::{
         BreakerDevice, BreakerState, CapacitorDevice, CapacitorMode, ContactorDevice,
         ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FrequencyConverterDevice,
         FuseDevice, IndicatorDevice, IndicatorRule, InductionMotorDevice, InductorDevice,
-        InductorMode, LinkedContacts, LinkedPole, MotorInterval, MotorParameters, OverloadDevice,
-        OverloadState, PmdcMotorDevice, PmdcMotorMode, RcdDevice, RcdState, RelayCoilMode,
-        RelayDevice, ResistorDevice, Terminals, ThreePhaseSourceDevice, WattmeterDevice,
-        component_diagnostic, motor_history,
+        InductorMode, LedDevice, LinkedContacts, LinkedPole, MosfetDevice, MotorInterval,
+        MotorParameters, OpAmpDevice, OverloadDevice, OverloadState, PmdcMotorDevice,
+        PmdcMotorMode, RcdDevice, RcdState, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
+        ThreePhaseSourceDevice, WattmeterDevice, ZenerDevice, component_diagnostic, motor_history,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
@@ -179,6 +179,31 @@ enum DeviceModel {
         winding_voltages: [f64; 3],
         internal_resistance_ohms: f64,
         star: bool,
+    },
+    Led {
+        saturation_current_amps: f64,
+        ideality_factor: f64,
+        lit_current_amps: f64,
+    },
+    Zener {
+        saturation_current_amps: f64,
+        ideality_factor: f64,
+        breakdown_volts: f64,
+        breakdown_resistance_ohms: f64,
+    },
+    /// The terminals are the drain and the source; the gate is a node of its own.
+    Mosfet {
+        gate_node: usize,
+        threshold_volts: f64,
+        gain: f64,
+    },
+    /// The terminals are the output and its reference.
+    OpAmp {
+        plus_node: usize,
+        minus_node: usize,
+        open_loop_gain: f64,
+        limit_volts: f64,
+        output_resistance_ohms: f64,
     },
     /// The simplified frequency converter: a DC enable path and, while enabled, three
     /// Thevenin outputs to the neutral.
@@ -1780,6 +1805,22 @@ fn local_adjacency(
                     connect(winding.pin1, winding.pin2);
                 }
             }
+            DeviceModel::Led { .. } | DeviceModel::Zener { .. } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+            }
+            DeviceModel::Mosfet { gate_node, .. } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                connect(gate_node, spec.terminals.pin2);
+            }
+            DeviceModel::OpAmp {
+                plus_node,
+                minus_node,
+                ..
+            } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                connect(plus_node, minus_node);
+                connect(minus_node, spec.terminals.pin2);
+            }
             DeviceModel::FrequencyConverter {
                 outputs, enabled, ..
             } => {
@@ -2072,6 +2113,15 @@ fn build_device_specs(
             (PinId::Com, PinId::Throw1)
         } else if matches!(component, ComponentSpec::FrequencyConverter { .. }) {
             (PinId::InP, PinId::InN)
+        } else if matches!(
+            component,
+            ComponentSpec::Led { .. } | ComponentSpec::ZenerDiode { .. }
+        ) {
+            (PinId::P, PinId::N)
+        } else if matches!(component, ComponentSpec::MosfetN { .. }) {
+            (PinId::D, PinId::S)
+        } else if matches!(component, ComponentSpec::OperationalAmplifier { .. }) {
+            (PinId::Out, PinId::Ref)
         } else if matches!(component, ComponentSpec::EarthElectrode { .. }) {
             (PinId::Pe, PinId::Pe)
         } else if matches!(component, ComponentSpec::ExposedPart { .. }) {
@@ -2341,6 +2391,49 @@ fn build_device_specs(
                     winding_voltages,
                     internal_resistance_ohms: resistance,
                     star,
+                }
+            }
+            ComponentSpec::Led { parameters, .. } => DeviceModel::Led {
+                saturation_current_amps: parameters.saturation_current_amps,
+                ideality_factor: parameters.ideality_factor,
+                lit_current_amps: parameters.lit_current_amps,
+            },
+            ComponentSpec::ZenerDiode { parameters, .. } => DeviceModel::Zener {
+                saturation_current_amps: parameters.saturation_current_amps,
+                ideality_factor: parameters.ideality_factor,
+                breakdown_volts: parameters.breakdown_volts,
+                breakdown_resistance_ohms: parameters.breakdown_resistance_ohms,
+            },
+            ComponentSpec::MosfetN { parameters, .. } => {
+                let Some(gate_node) = node_for_pin(PinId::G) else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::Mosfet {
+                    gate_node,
+                    threshold_volts: parameters.threshold_volts,
+                    gain: parameters.gain_amps_per_volt_squared,
+                }
+            }
+            ComponentSpec::OperationalAmplifier { parameters, .. } => {
+                let (Some(plus_node), Some(minus_node)) =
+                    (node_for_pin(PinId::Plus), node_for_pin(PinId::Minus))
+                else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::OpAmp {
+                    plus_node,
+                    minus_node,
+                    open_loop_gain: parameters.open_loop_gain,
+                    limit_volts: parameters.limit_volts,
+                    output_resistance_ohms: parameters.output_resistance_ohms,
                 }
             }
             ComponentSpec::FrequencyConverter { id, parameters, .. } => {
@@ -2962,6 +3055,58 @@ fn make_device(
             internal_resistance_ohms,
             star,
             three_phase_ideal_branch_variables,
+        )),
+        DeviceModel::Led {
+            saturation_current_amps,
+            ideality_factor,
+            lit_current_amps,
+        } => Box::new(LedDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            saturation_current_amps,
+            ideality_factor,
+            lit_current_amps,
+        )),
+        DeviceModel::Zener {
+            saturation_current_amps,
+            ideality_factor,
+            breakdown_volts,
+            breakdown_resistance_ohms,
+        } => Box::new(ZenerDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            saturation_current_amps,
+            ideality_factor,
+            breakdown_volts,
+            breakdown_resistance_ohms,
+        )),
+        DeviceModel::Mosfet {
+            gate_node,
+            threshold_volts,
+            gain,
+        } => Box::new(MosfetDevice::new(
+            spec.component_id.clone(),
+            [gate_node, spec.terminals.pin1, spec.terminals.pin2],
+            threshold_volts,
+            gain,
+        )),
+        DeviceModel::OpAmp {
+            plus_node,
+            minus_node,
+            open_loop_gain,
+            limit_volts,
+            output_resistance_ohms,
+        } => Box::new(OpAmpDevice::new(
+            spec.component_id.clone(),
+            [
+                plus_node,
+                minus_node,
+                spec.terminals.pin1,
+                spec.terminals.pin2,
+            ],
+            open_loop_gain,
+            limit_volts,
+            output_resistance_ohms,
         )),
         DeviceModel::FrequencyConverter {
             input_resistance,
@@ -4028,7 +4173,11 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
-        ComponentSpec::FrequencyConverter { .. }
+        ComponentSpec::Led { .. }
+        | ComponentSpec::ZenerDiode { .. }
+        | ComponentSpec::MosfetN { .. }
+        | ComponentSpec::OperationalAmplifier { .. }
+        | ComponentSpec::FrequencyConverter { .. }
         | ComponentSpec::Lamp { .. }
         | ComponentSpec::Indicator { .. }
         | ComponentSpec::Solenoid { .. }

@@ -86,6 +86,7 @@ impl NonlinearDevice for BjtDevice {
                     negative,
                     thermal_voltage: THERMAL_VOLTAGE,
                     saturation_current: self.saturation,
+                    exponential: true,
                 }
             })
             .to_vec()

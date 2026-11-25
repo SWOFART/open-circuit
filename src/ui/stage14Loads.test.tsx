@@ -266,3 +266,105 @@ describe("the frequency converter readout", () => {
     expect(html).not.toContain(">Disabled<");
   });
 });
+
+describe("the LED, zener diode, MOSFET and amplifier readouts", () => {
+  it.each([
+    [true, ">Lit<"],
+    [false, ">Dark<"],
+  ])("shows an LED lit=%s as %s", (lit, text) => {
+    const { document, id } = drawn("led");
+    const html = panel(
+      document,
+      stateWith(
+        id,
+        [
+          ["voltageVolts", "volt", 2],
+          ["currentAmps", "amp", 0.005],
+        ],
+        [{ kind: "led", componentId: id, lit }],
+      ),
+    );
+
+    expect(html).toContain(text);
+    expect(html).toContain("Voltage");
+  });
+
+  it.each([
+    [true, ">In breakdown<"],
+    [false, ">Not in breakdown<"],
+  ])("shows a zener diode inBreakdown=%s as %s", (inBreakdown, text) => {
+    const { document, id } = drawn("zener_diode");
+    const html = panel(
+      document,
+      stateWith(
+        id,
+        [
+          ["voltageVolts", "volt", -5.2],
+          ["currentAmps", "amp", -0.014],
+        ],
+        [{ kind: "zenerDiode", componentId: id, inBreakdown }],
+      ),
+    );
+
+    expect(html).toContain(text);
+  });
+
+  it.each([
+    [true, ">Conducting<"],
+    [false, ">Off<"],
+  ])(
+    "shows a MOSFET conducting=%s as %s with its three readings",
+    (conducting, text) => {
+      const { document, id } = drawn("mosfet_n");
+      const html = panel(
+        document,
+        stateWith(
+          id,
+          [
+            ["gateSourceVoltageVolts", "volt", 5],
+            ["drainSourceVoltageVolts", "volt", 3],
+            ["drainCurrentAmps", "amp", 0.2],
+          ],
+          [{ kind: "mosfetN", componentId: id, conducting }],
+        ),
+      );
+
+      expect(html).toContain(text);
+      expect(html).toContain("Gate-source voltage");
+      expect(html).toContain("Drain-source voltage");
+      expect(html).toContain("Drain current");
+    },
+  );
+
+  it.each([
+    ["linear", ">Linear<"],
+    ["clippedLow", ">Clipped low<"],
+    ["clippedHigh", ">Clipped high<"],
+  ] as const)("shows an amplifier at %s as %s", (position, text) => {
+    const { document, id } = drawn("operational_amplifier");
+    const html = panel(
+      document,
+      stateWith(
+        id,
+        [
+          ["differentialVoltageVolts", "volt", 0.003],
+          ["outputVoltageVolts", "volt", 3],
+          ["outputCurrentAmps", "amp", -0.003],
+        ],
+        [{ kind: "operationalAmplifier", componentId: id, state: position }],
+      ),
+    );
+
+    expect(html).toContain(text);
+    expect(html).toContain("Differential input");
+  });
+
+  it("shows a dash and no badge while there is no state or reading", () => {
+    const { document, id } = drawn("mosfet_n");
+    const html = panel(document, stateWith(id, []));
+
+    expect(html).toContain("—");
+    expect(html).not.toContain(">Conducting<");
+    expect(html).not.toContain(">Off<");
+  });
+});

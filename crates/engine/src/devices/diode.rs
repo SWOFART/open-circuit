@@ -47,6 +47,7 @@ impl NonlinearDevice for DiodeDevice {
             negative: self.terminals.pin2,
             thermal_voltage: self.thermal_voltage,
             saturation_current: self.saturation_current,
+            exponential: true,
         }]
     }
     fn evaluate(&self, voltages: &[f64]) -> Evaluation {

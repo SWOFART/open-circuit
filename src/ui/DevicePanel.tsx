@@ -35,6 +35,10 @@ const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "valve",
   "buzzer",
   "frequency_converter",
+  "led",
+  "zener_diode",
+  "mosfet_n",
+  "operational_amplifier",
   "fuse",
   "contactor_three_pole",
   "breaker_three_pole",
@@ -274,6 +278,107 @@ function describe(
               value: show(`${id}/${phase}CurrentAmps`, "amp"),
             },
           ]),
+        ],
+      };
+    }
+    case "led": {
+      const state = stateOf(snapshot, id, "led");
+      const lit = state?.kind === "led" ? state.lit : undefined;
+      return {
+        id,
+        title: `${name} ${message("component.led.name")}`,
+        badge:
+          lit === undefined
+            ? undefined
+            : { text: lit ? "Lit" : "Dark", tone: lit ? "on" : "off" },
+        rows: [
+          { name: "Voltage", value: show(`${id}/voltageVolts`, "volt") },
+          { name: "Current", value: show(`${id}/currentAmps`, "amp") },
+        ],
+      };
+    }
+    case "zener_diode": {
+      const state = stateOf(snapshot, id, "zenerDiode");
+      const breakdown =
+        state?.kind === "zenerDiode" ? state.inBreakdown : undefined;
+      return {
+        id,
+        title: `${name} ${message("component.zenerDiode.name")}`,
+        badge:
+          breakdown === undefined
+            ? undefined
+            : {
+                text: breakdown ? "In breakdown" : "Not in breakdown",
+                tone: breakdown ? "on" : "off",
+              },
+        rows: [
+          { name: "Voltage", value: show(`${id}/voltageVolts`, "volt") },
+          { name: "Current", value: show(`${id}/currentAmps`, "amp") },
+        ],
+      };
+    }
+    case "mosfet_n": {
+      const state = stateOf(snapshot, id, "mosfetN");
+      const conducting =
+        state?.kind === "mosfetN" ? state.conducting : undefined;
+      return {
+        id,
+        title: `${name} ${message("component.mosfetN.name")}`,
+        badge:
+          conducting === undefined
+            ? undefined
+            : {
+                text: conducting ? "Conducting" : "Off",
+                tone: conducting ? "on" : "off",
+              },
+        rows: [
+          {
+            name: "Gate-source voltage",
+            value: show(`${id}/gateSourceVoltageVolts`, "volt"),
+          },
+          {
+            name: "Drain-source voltage",
+            value: show(`${id}/drainSourceVoltageVolts`, "volt"),
+          },
+          {
+            name: "Drain current",
+            value: show(`${id}/drainCurrentAmps`, "amp"),
+          },
+        ],
+      };
+    }
+    case "operational_amplifier": {
+      const state = stateOf(snapshot, id, "operationalAmplifier");
+      const position =
+        state?.kind === "operationalAmplifier" ? state.state : undefined;
+      return {
+        id,
+        title: `${name} ${message("component.operationalAmplifier.name")}`,
+        badge:
+          position === undefined
+            ? undefined
+            : {
+                text:
+                  position === "linear"
+                    ? "Linear"
+                    : position === "clippedLow"
+                      ? "Clipped low"
+                      : "Clipped high",
+                tone: position === "linear" ? "on" : "off",
+              },
+        rows: [
+          {
+            name: "Differential input",
+            value: show(`${id}/differentialVoltageVolts`, "volt"),
+          },
+          {
+            name: "Output voltage",
+            value: show(`${id}/outputVoltageVolts`, "volt"),
+          },
+          {
+            name: "Output current",
+            value: show(`${id}/outputCurrentAmps`, "amp"),
+          },
         ],
       };
     }

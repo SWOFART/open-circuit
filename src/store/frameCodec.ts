@@ -230,36 +230,20 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
         outputOn: (value & 2) !== 0,
         timing: (value & 4) !== 0,
       });
-    } else if (((kind >= 12 && kind <= 16) || kind === 21) && value <= 1) {
+    } else if (kind >= 12 && kind <= 21) {
       // Kinds 12 to 21 have zero flags and no transition time (stage-14-more-parts.md).
+      const state = stage14State(kind, value, common.componentId);
+      if (state === undefined) {
+        throw new FrameDecodeError(
+          "A device-state record has an unknown kind or value.",
+        );
+      }
       if (flags !== 0) {
         throw new FrameDecodeError(
           "A device-state record contains unknown flag bits.",
         );
       }
-      const on = value === 1;
-      const id = common.componentId;
-      states.push(
-        kind === 12
-          ? { componentId: id, kind: "lamp", lit: on }
-          : kind === 13
-            ? { componentId: id, kind: "indicator", lit: on }
-            : kind === 14
-              ? { componentId: id, kind: "solenoid", energized: on }
-              : kind === 15
-                ? {
-                    componentId: id,
-                    kind: "valve",
-                    position: on ? "open" : "closed",
-                  }
-                : kind === 16
-                  ? { componentId: id, kind: "buzzer", active: on }
-                  : {
-                      componentId: id,
-                      kind: "frequencyConverter",
-                      enabled: on,
-                    },
-      );
+      states.push(state);
     } else if (kind === 5 && (value === 0 || value === 1)) {
       states.push({
         ...common,
@@ -285,6 +269,59 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
     values,
     states,
   };
+}
+
+/** The state of a Stage 14 part (kinds 12 to 21), or nothing if the value is not in its table. */
+function stage14State(
+  kind: number,
+  value: number,
+  componentId: string,
+): DeviceState | undefined {
+  const on = value === 1;
+  switch (kind) {
+    case 12:
+      return value <= 1 ? { componentId, kind: "lamp", lit: on } : undefined;
+    case 13:
+      return value <= 1
+        ? { componentId, kind: "indicator", lit: on }
+        : undefined;
+    case 14:
+      return value <= 1
+        ? { componentId, kind: "solenoid", energized: on }
+        : undefined;
+    case 15:
+      return value <= 1
+        ? { componentId, kind: "valve", position: on ? "open" : "closed" }
+        : undefined;
+    case 16:
+      return value <= 1
+        ? { componentId, kind: "buzzer", active: on }
+        : undefined;
+    case 17:
+      return value <= 1 ? { componentId, kind: "led", lit: on } : undefined;
+    case 18:
+      return value <= 1
+        ? { componentId, kind: "zenerDiode", inBreakdown: on }
+        : undefined;
+    case 19:
+      return value <= 1
+        ? { componentId, kind: "mosfetN", conducting: on }
+        : undefined;
+    case 20:
+      return value <= 2
+        ? {
+            componentId,
+            kind: "operationalAmplifier",
+            state: (["linear", "clippedLow", "clippedHigh"] as const)[value]!,
+          }
+        : undefined;
+    case 21:
+      return value <= 1
+        ? { componentId, kind: "frequencyConverter", enabled: on }
+        : undefined;
+    default:
+      return undefined;
+  }
 }
 
 function compareBytes(left: Uint8Array, right: Uint8Array): number {

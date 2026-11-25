@@ -122,6 +122,10 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::Valve
         | ComponentTypeId::Buzzer
         | ComponentTypeId::FrequencyConverter
+        | ComponentTypeId::Led
+        | ComponentTypeId::ZenerDiode
+        | ComponentTypeId::MosfetN
+        | ComponentTypeId::OperationalAmplifier
         | ComponentTypeId::RelayOffDelay => &[],
     }
 }

@@ -239,6 +239,7 @@ describe("the units of the Stage 4 signals", () => {
       watt: true,
       volt_ampere: true,
       volt_ampere_reactive: true,
+      ampere_per_volt_squared: true,
       dimensionless: true,
     };
 

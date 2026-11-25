@@ -258,7 +258,7 @@ describe("the editor restrictions of an assignment", () => {
       findFault: false,
     });
     expect(allAssignmentTypes?.componentTypes).toHaveLength(
-      catalog.componentTypes.length - 29,
+      catalog.componentTypes.length - 33,
     );
     expect(
       allAssignmentTypes?.componentTypes.some(
@@ -291,7 +291,11 @@ describe("the editor restrictions of an assignment", () => {
           entry.typeId === "solenoid" ||
           entry.typeId === "valve" ||
           entry.typeId === "buzzer" ||
-          entry.typeId === "frequency_converter",
+          entry.typeId === "frequency_converter" ||
+          entry.typeId === "led" ||
+          entry.typeId === "zener_diode" ||
+          entry.typeId === "mosfet_n" ||
+          entry.typeId === "operational_amplifier",
       ),
     ).toBe(false);
     expect(allowedCatalog(null, restrictions)).toBeNull();

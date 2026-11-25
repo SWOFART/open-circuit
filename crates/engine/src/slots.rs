@@ -240,6 +240,56 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 ]
             })
             .collect(),
+        ComponentTypeId::Led | ComponentTypeId::ZenerDiode => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "voltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "currentAmps", CurrentIntoPin1),
+        ],
+        ComponentTypeId::MosfetN => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "gateSourceVoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "drainSourceVoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "drainCurrentAmps", CurrentIntoPin1),
+        ],
+        ComponentTypeId::OperationalAmplifier => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "differentialVoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "outputVoltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(
+                Current,
+                Unit::Amp,
+                '/',
+                "outputCurrentAmps",
+                CurrentIntoPin1,
+            ),
+        ],
         ComponentTypeId::Lamp => vec![
             slot(
                 Voltage,

@@ -122,6 +122,10 @@ fn parts_are_assigned_to_the_categories_of_the_stage_11_contract() {
         (Valve, CategoryId::MotorsAndLoads),
         (Buzzer, CategoryId::MotorsAndLoads),
         (FrequencyConverter, CategoryId::MotorsAndLoads),
+        (Led, CategoryId::Semiconductors),
+        (ZenerDiode, CategoryId::Semiconductors),
+        (MosfetN, CategoryId::Semiconductors),
+        (OperationalAmplifier, CategoryId::Semiconductors),
     ];
     let catalog = component_catalog();
     assert_eq!(catalog.component_types.len(), expected.len());

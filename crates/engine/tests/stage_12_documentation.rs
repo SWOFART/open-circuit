@@ -473,6 +473,10 @@ fn every_catalog_part_has_a_valid_default_designator_prefix() {
         ("solenoid", "M"),
         ("valve", "M"),
         ("frequency_converter", "T"),
+        ("led", "H"),
+        ("zener_diode", "R"),
+        ("mosfet_n", "Q"),
+        ("operational_amplifier", "A"),
     ];
     let catalog = component_catalog();
     let prefixes: Vec<(String, String)> = catalog

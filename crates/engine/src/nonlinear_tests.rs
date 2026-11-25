@@ -67,6 +67,7 @@ impl NonlinearDevice for TestJunction {
             negative: self.terminals.pin2,
             thermal_voltage: newton::THERMAL_VOLTAGE,
             saturation_current: 1e-14,
+            exponential: true,
         }]
     }
     fn evaluate(&self, voltages: &[f64]) -> Evaluation {

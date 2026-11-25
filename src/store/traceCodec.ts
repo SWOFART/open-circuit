@@ -39,6 +39,7 @@ const UNITS: Readonly<Record<Unit, true>> = {
   watt: true,
   volt_ampere: true,
   volt_ampere_reactive: true,
+  ampere_per_volt_squared: true,
   dimensionless: true,
 };
 const STABLE_ID =

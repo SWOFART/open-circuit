@@ -565,3 +565,60 @@ fn a_frequency_converter_uses_state_record_kind_21_with_zero_flags() {
     flagged[start + 18] = 2;
     assert_eq!(decode_frame(&flagged), Err(FrameError::InvalidState));
 }
+
+#[test]
+fn semiconductors_use_state_record_kinds_17_to_20_with_zero_flags() {
+    use open_circuit_engine::OperationalAmplifierState;
+    let id = |number| StableId::parse(format!("00000000-0000-4000-8000-{number:012}")).unwrap();
+    let mut frame = snapshot("rev", vec![]);
+    frame.states = vec![
+        DeviceState::Led {
+            component_id: id(1),
+            lit: true,
+        },
+        DeviceState::ZenerDiode {
+            component_id: id(2),
+            in_breakdown: true,
+        },
+        DeviceState::MosfetN {
+            component_id: id(3),
+            conducting: false,
+        },
+        DeviceState::OperationalAmplifier {
+            component_id: id(4),
+            state: OperationalAmplifierState::ClippedLow,
+        },
+        DeviceState::OperationalAmplifier {
+            component_id: id(5),
+            state: OperationalAmplifierState::ClippedHigh,
+        },
+    ];
+    let bytes = encode_frame(&frame).unwrap();
+    assert_eq!(decode_frame(&bytes).unwrap(), frame);
+    let start = payload_offset("rev".len());
+    for (index, expected) in [
+        [17, 1, 0, 0],
+        [18, 1, 0, 0],
+        [19, 0, 0, 0],
+        [20, 1, 0, 0],
+        [20, 2, 0, 0],
+    ]
+    .iter()
+    .enumerate()
+    {
+        assert_eq!(
+            &bytes[start + index * 32 + 16..start + index * 32 + 20],
+            expected
+        );
+    }
+
+    // A value outside each table, and any flag, is refused.
+    for (index, bad) in [(0, 2), (1, 2), (2, 2), (3, 3)] {
+        let mut malformed = bytes.clone();
+        malformed[start + index * 32 + 17] = bad;
+        assert_eq!(decode_frame(&malformed), Err(FrameError::InvalidState));
+    }
+    let mut flagged = bytes;
+    flagged[start + 18] = 1;
+    assert_eq!(decode_frame(&flagged), Err(FrameError::InvalidState));
+}
