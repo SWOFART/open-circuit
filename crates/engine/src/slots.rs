@@ -225,6 +225,30 @@ pub(crate) fn slot_definitions(type_id: ComponentTypeId) -> Vec<SlotDefinition> 
                 CurrentIntoPin1,
             ),
         ],
+        ComponentTypeId::Lamp => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "voltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "currentAmps", CurrentIntoPin1),
+            slot(RealPower, Unit::Watt, '/', "powerWatts", LoadConvention),
+        ],
+        ComponentTypeId::Indicator
+        | ComponentTypeId::Solenoid
+        | ComponentTypeId::Valve
+        | ComponentTypeId::Buzzer => vec![
+            slot(
+                Voltage,
+                Unit::Volt,
+                '/',
+                "voltageVolts",
+                VoltagePin1MinusPin2,
+            ),
+            slot(Current, Unit::Amp, '/', "currentAmps", CurrentIntoPin1),
+        ],
         ComponentTypeId::RelayOnDelay | ComponentTypeId::RelayOffDelay => vec![
             slot(
                 Voltage,

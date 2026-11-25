@@ -116,6 +116,11 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::EmergencyStop
         | ComponentTypeId::SelectorSwitch
         | ComponentTypeId::KeySwitch
+        | ComponentTypeId::Lamp
+        | ComponentTypeId::Indicator
+        | ComponentTypeId::Solenoid
+        | ComponentTypeId::Valve
+        | ComponentTypeId::Buzzer
         | ComponentTypeId::RelayOffDelay => &[],
     }
 }

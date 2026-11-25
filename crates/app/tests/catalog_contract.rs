@@ -115,6 +115,12 @@ fn parts_are_assigned_to_the_categories_of_the_stage_11_contract() {
         (ExposedPart, CategoryId::Measurement),
         (RcdTwoPole, CategoryId::Protection),
         (RcdFourPole, CategoryId::Protection),
+        // Stage 14 indicators and actuators (docs/contracts/stage-14-more-parts.md).
+        (Lamp, CategoryId::MotorsAndLoads),
+        (Indicator, CategoryId::MotorsAndLoads),
+        (Solenoid, CategoryId::MotorsAndLoads),
+        (Valve, CategoryId::MotorsAndLoads),
+        (Buzzer, CategoryId::MotorsAndLoads),
     ];
     let catalog = component_catalog();
     assert_eq!(catalog.component_types.len(), expected.len());

@@ -251,6 +251,34 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
                 false,
             ),
 
+            DeviceState::Lamp { component_id, lit } => {
+                (component_id, 12, u8::from(*lit), None, false)
+            }
+            DeviceState::Indicator { component_id, lit } => {
+                (component_id, 13, u8::from(*lit), None, false)
+            }
+            DeviceState::Solenoid {
+                component_id,
+                energized,
+            } => (component_id, 14, u8::from(*energized), None, false),
+            DeviceState::Valve {
+                component_id,
+                position,
+            } => (
+                component_id,
+                15,
+                match position {
+                    SwitchPosition::Closed => 0,
+                    SwitchPosition::Open => 1,
+                },
+                None,
+                false,
+            ),
+            DeviceState::Buzzer {
+                component_id,
+                active,
+            } => (component_id, 16, u8::from(*active), None, false),
+
             DeviceState::Relay {
                 component_id,
                 state,
@@ -494,6 +522,10 @@ fn decode_states(
         {
             return Err(FrameError::InvalidTransitionTime);
         }
+        // Kinds 12 to 21 have zero flags and zero timestamp bytes (stage-14-more-parts.md).
+        if (12..=21).contains(&kind) && flags != 0 {
+            return Err(FrameError::InvalidState);
+        }
         let component_id = StableId::parse(Uuid::from_bytes(uuid_bytes).hyphenated().to_string())
             .map_err(|_| FrameError::InvalidState)?;
         let transition = has_time.then_some(time);
@@ -557,6 +589,31 @@ fn decode_states(
                 output_on: value & 2 != 0,
                 timing: value & 4 != 0,
                 last_transition_time_seconds: transition,
+            },
+
+            (12, 0 | 1) => DeviceState::Lamp {
+                component_id,
+                lit: value == 1,
+            },
+            (13, 0 | 1) => DeviceState::Indicator {
+                component_id,
+                lit: value == 1,
+            },
+            (14, 0 | 1) => DeviceState::Solenoid {
+                component_id,
+                energized: value == 1,
+            },
+            (15, 0 | 1) => DeviceState::Valve {
+                component_id,
+                position: if value == 0 {
+                    SwitchPosition::Closed
+                } else {
+                    SwitchPosition::Open
+                },
+            },
+            (16, 0 | 1) => DeviceState::Buzzer {
+                component_id,
+                active: value == 1,
             },
 
             (1, 0) => DeviceState::Relay {

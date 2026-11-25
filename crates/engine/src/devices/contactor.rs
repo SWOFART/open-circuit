@@ -7,6 +7,8 @@ use crate::{pin_groups::CONTACTOR_COIL, slots::group_slots};
 
 #[derive(Clone, Copy)]
 pub(crate) enum ContactorPoles {
+    /// A coil without contacts: a solenoid or a valve.
+    None,
     Auxiliaries([LinkedPole; 2]),
     PowerAndAuxiliaries([LinkedPole; 5]),
 }
@@ -14,6 +16,7 @@ pub(crate) enum ContactorPoles {
 impl ContactorPoles {
     pub(crate) fn as_slice(&self) -> &[LinkedPole] {
         match self {
+            Self::None => &[],
             Self::Auxiliaries(poles) => poles,
             Self::PowerAndAuxiliaries(poles) => poles,
         }

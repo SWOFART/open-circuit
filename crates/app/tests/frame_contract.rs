@@ -473,3 +473,67 @@ fn operator_contacts_use_the_stage_14_state_record_table() {
     malformed[start + 64 + 17] = 3;
     assert_eq!(decode_frame(&malformed), Err(FrameError::InvalidState));
 }
+
+#[test]
+fn indicators_and_actuators_use_the_stage_14_state_record_table() {
+    let id = |number| StableId::parse(format!("00000000-0000-4000-8000-{number:012}")).unwrap();
+    let mut frame = snapshot("rev", vec![]);
+    frame.states = vec![
+        DeviceState::Lamp {
+            component_id: id(1),
+            lit: true,
+        },
+        DeviceState::Indicator {
+            component_id: id(2),
+            lit: false,
+        },
+        DeviceState::Solenoid {
+            component_id: id(3),
+            energized: true,
+        },
+        DeviceState::Valve {
+            component_id: id(4),
+            position: SwitchPosition::Open,
+        },
+        DeviceState::Buzzer {
+            component_id: id(5),
+            active: true,
+        },
+    ];
+    let bytes = encode_frame(&frame).unwrap();
+    assert_eq!(decode_frame(&bytes).unwrap(), frame);
+    let start = payload_offset("rev".len());
+    // Kind, value, then zero flags: these records carry no transition time.
+    for (index, expected) in [
+        [12, 1, 0, 0],
+        [13, 0, 0, 0],
+        [14, 1, 0, 0],
+        [15, 1, 0, 0],
+        [16, 1, 0, 0],
+    ]
+    .iter()
+    .enumerate()
+    {
+        assert_eq!(
+            &bytes[start + index * 32 + 16..start + index * 32 + 20],
+            expected
+        );
+    }
+
+    // A closed valve is 0, and a value outside the table is refused.
+    frame.states[3] = DeviceState::Valve {
+        component_id: id(4),
+        position: SwitchPosition::Closed,
+    };
+    let closed = encode_frame(&frame).unwrap();
+    assert_eq!(closed[start + 3 * 32 + 17], 0);
+    let mut malformed = closed.clone();
+    malformed[start + 17] = 2;
+    assert_eq!(decode_frame(&malformed), Err(FrameError::InvalidState));
+    // Flags other than zero (a transition time or a conducting bit) are refused.
+    for flags in [1_u8, 2] {
+        let mut flagged = closed.clone();
+        flagged[start + 18] = flags;
+        assert_eq!(decode_frame(&flagged), Err(FrameError::InvalidState));
+    }
+}
