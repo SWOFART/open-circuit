@@ -21,11 +21,12 @@ use crate::{
     devices::SelectorDevice,
     devices::{
         BreakerDevice, BreakerState, CapacitorDevice, CapacitorMode, ContactorDevice,
-        ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FuseDevice, IndicatorDevice,
-        IndicatorRule, InductionMotorDevice, InductorDevice, InductorMode, LinkedContacts,
-        LinkedPole, MotorInterval, MotorParameters, OverloadDevice, OverloadState, PmdcMotorDevice,
-        PmdcMotorMode, RcdDevice, RcdState, RelayCoilMode, RelayDevice, ResistorDevice, Terminals,
-        ThreePhaseSourceDevice, WattmeterDevice, component_diagnostic, motor_history,
+        ContactorPoles, DcVoltageSourceDevice, Device, DeviceResult, FrequencyConverterDevice,
+        FuseDevice, IndicatorDevice, IndicatorRule, InductionMotorDevice, InductorDevice,
+        InductorMode, LinkedContacts, LinkedPole, MotorInterval, MotorParameters, OverloadDevice,
+        OverloadState, PmdcMotorDevice, PmdcMotorMode, RcdDevice, RcdState, RelayCoilMode,
+        RelayDevice, ResistorDevice, Terminals, ThreePhaseSourceDevice, WattmeterDevice,
+        component_diagnostic, motor_history,
     },
     faults::FaultOverlay,
     mna::{MnaSystem, NodeVariables},
@@ -178,6 +179,15 @@ enum DeviceModel {
         winding_voltages: [f64; 3],
         internal_resistance_ohms: f64,
         star: bool,
+    },
+    /// The simplified frequency converter: a DC enable path and, while enabled, three
+    /// Thevenin outputs to the neutral.
+    FrequencyConverter {
+        input_resistance: f64,
+        outputs: [Terminals; 3],
+        winding_voltages: [f64; 3],
+        output_resistance: f64,
+        enabled: bool,
     },
     Wattmeter {
         current_terminals: Terminals,
@@ -1770,6 +1780,16 @@ fn local_adjacency(
                     connect(winding.pin1, winding.pin2);
                 }
             }
+            DeviceModel::FrequencyConverter {
+                outputs, enabled, ..
+            } => {
+                connect(spec.terminals.pin1, spec.terminals.pin2);
+                if enabled {
+                    for output in outputs {
+                        connect(output.pin1, output.pin2);
+                    }
+                }
+            }
             DeviceModel::Fuse { .. } => {
                 let fuse_state = match mode {
                     SolveMode::OperatingPoint => FuseState::Intact,
@@ -2050,6 +2070,8 @@ fn build_device_specs(
             (PinId::P, PinId::N)
         } else if matches!(component, ComponentSpec::SelectorSwitch { .. }) {
             (PinId::Com, PinId::Throw1)
+        } else if matches!(component, ComponentSpec::FrequencyConverter { .. }) {
+            (PinId::InP, PinId::InN)
         } else if matches!(component, ComponentSpec::EarthElectrode { .. }) {
             (PinId::Pe, PinId::Pe)
         } else if matches!(component, ComponentSpec::ExposedPart { .. }) {
@@ -2319,6 +2341,78 @@ fn build_device_specs(
                     winding_voltages,
                     internal_resistance_ohms: resistance,
                     star,
+                }
+            }
+            ComponentSpec::FrequencyConverter { id, parameters, .. } => {
+                let (phase, phase_step_fraction) = match mode {
+                    SolveMode::OperatingPoint => (AccumulatedPhase::default(), 0.0),
+                    SolveMode::InitialState(states) => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        states.ac_source_step_fraction,
+                    ),
+                    SolveMode::Transient {
+                        states,
+                        phase_advance_fraction,
+                        ..
+                    } => (
+                        states.ac_source_phases.get(id).copied().unwrap_or_default(),
+                        phase_advance_fraction,
+                    ),
+                };
+                // The three outputs share one phase, accumulated from step zero, at 0, -120 and
+                // +120 degrees.
+                let voltages: Option<Vec<f64>> = [0.0, -120.0, 120.0]
+                    .into_iter()
+                    .map(|offset| {
+                        phase.instantaneous_voltage(
+                            parameters.output_rms_volts,
+                            parameters.frequency_hz,
+                            offset,
+                            phase_step_fraction,
+                        )
+                    })
+                    .collect();
+                let Some(winding_voltages) =
+                    voltages.and_then(|voltages| <[f64; 3]>::try_from(voltages).ok())
+                else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidParameter,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                let output_nodes = [PinId::U, PinId::V, PinId::W]
+                    .map(|pin| node_for_pin(pin).zip(node_for_pin(PinId::Neutral)));
+                let [Some((u, neutral)), Some((v, _)), Some((w, _))] = output_nodes else {
+                    diagnostics.push(component_diagnostic(
+                        DiagnosticCode::InvalidGeometry,
+                        component.id(),
+                    ));
+                    continue;
+                };
+                DeviceModel::FrequencyConverter {
+                    input_resistance: parameters.input_resistance_ohms,
+                    outputs: [
+                        Terminals {
+                            pin1: u,
+                            pin2: neutral,
+                        },
+                        Terminals {
+                            pin1: v,
+                            pin2: neutral,
+                        },
+                        Terminals {
+                            pin1: w,
+                            pin2: neutral,
+                        },
+                    ],
+                    winding_voltages,
+                    output_resistance: parameters.output_resistance_ohms,
+                    enabled: mode
+                        .states()
+                        .and_then(|states| states.converters.get(id))
+                        .copied()
+                        .unwrap_or(false),
                 }
             }
             ComponentSpec::Capacitor { parameters, .. } => DeviceModel::Capacitor {
@@ -2868,6 +2962,21 @@ fn make_device(
             internal_resistance_ohms,
             star,
             three_phase_ideal_branch_variables,
+        )),
+        DeviceModel::FrequencyConverter {
+            input_resistance,
+            outputs,
+            winding_voltages,
+            output_resistance,
+            enabled,
+        } => Box::new(FrequencyConverterDevice::new(
+            spec.component_id.clone(),
+            spec.terminals,
+            input_resistance,
+            outputs,
+            winding_voltages,
+            output_resistance,
+            enabled,
         )),
         DeviceModel::Wattmeter {
             current_terminals,
@@ -3919,7 +4028,8 @@ pub(crate) fn update_parameter(
         return false;
     };
     match component {
-        ComponentSpec::Lamp { .. }
+        ComponentSpec::FrequencyConverter { .. }
+        | ComponentSpec::Lamp { .. }
         | ComponentSpec::Indicator { .. }
         | ComponentSpec::Solenoid { .. }
         | ComponentSpec::Valve { .. }

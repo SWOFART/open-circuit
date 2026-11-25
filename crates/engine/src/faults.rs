@@ -121,6 +121,7 @@ pub fn supported_fault_kinds(type_id: ComponentTypeId) -> &'static [FaultKind] {
         | ComponentTypeId::Solenoid
         | ComponentTypeId::Valve
         | ComponentTypeId::Buzzer
+        | ComponentTypeId::FrequencyConverter
         | ComponentTypeId::RelayOffDelay => &[],
     }
 }

@@ -34,6 +34,7 @@ const DEVICE_TYPES: ReadonlySet<ComponentSpec["typeId"]> = new Set([
   "solenoid",
   "valve",
   "buzzer",
+  "frequency_converter",
   "fuse",
   "contactor_three_pole",
   "breaker_three_pole",
@@ -237,6 +238,42 @@ function describe(
           ...(lamp
             ? [{ name: "Power", value: show(`${id}/powerWatts`, "watt") }]
             : []),
+        ],
+      };
+    }
+    case "frequency_converter": {
+      const state = stateOf(snapshot, id, "frequencyConverter");
+      const enabled =
+        state?.kind === "frequencyConverter" ? state.enabled : undefined;
+      return {
+        id,
+        title: `${name} ${message("component.frequencyConverter.name")}`,
+        badge:
+          enabled === undefined
+            ? undefined
+            : {
+                text: enabled ? "Enabled" : "Disabled",
+                tone: enabled ? "on" : "off",
+              },
+        rows: [
+          {
+            name: "Input voltage",
+            value: show(`${id}/inputVoltageVolts`, "volt"),
+          },
+          {
+            name: "Input current",
+            value: show(`${id}/inputCurrentAmps`, "amp"),
+          },
+          ...(["u", "v", "w"] as const).flatMap((phase) => [
+            {
+              name: `Output ${phase.toUpperCase()} voltage`,
+              value: show(`${id}/${phase}VoltageVolts`, "volt"),
+            },
+            {
+              name: `Output ${phase.toUpperCase()} current`,
+              value: show(`${id}/${phase}CurrentAmps`, "amp"),
+            },
+          ]),
         ],
       };
     }

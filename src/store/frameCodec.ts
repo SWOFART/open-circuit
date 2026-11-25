@@ -230,7 +230,7 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
         outputOn: (value & 2) !== 0,
         timing: (value & 4) !== 0,
       });
-    } else if (kind >= 12 && kind <= 16 && value <= 1) {
+    } else if (((kind >= 12 && kind <= 16) || kind === 21) && value <= 1) {
       // Kinds 12 to 21 have zero flags and no transition time (stage-14-more-parts.md).
       if (flags !== 0) {
         throw new FrameDecodeError(
@@ -252,7 +252,13 @@ export function decodeFrame(buffer: ArrayBuffer): ResultSnapshot {
                     kind: "valve",
                     position: on ? "open" : "closed",
                   }
-                : { componentId: id, kind: "buzzer", active: on },
+                : kind === 16
+                  ? { componentId: id, kind: "buzzer", active: on }
+                  : {
+                      componentId: id,
+                      kind: "frequencyConverter",
+                      enabled: on,
+                    },
       );
     } else if (kind === 5 && (value === 0 || value === 1)) {
       states.push({

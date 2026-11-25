@@ -113,3 +113,55 @@ describe("the drawing follows the reported state", () => {
     }
   });
 });
+
+describe("the frequency converter symbol", () => {
+  const converter = symbols.frequency_converter!;
+
+  it("has the pins of the catalog on the contract layout", () => {
+    const entry = catalogFixture.componentTypes.find(
+      (candidate) => candidate.typeId === "frequency_converter",
+    )!;
+
+    expect(converter.pins.map((pin) => pin.id)).toEqual(
+      entry.pins.map((pin) => pin.id),
+    );
+    expect(converter.pins.map((pin) => [pin.local.x, pin.local.y])).toEqual([
+      [-3, -2],
+      [-3, 2],
+      [3, -2],
+      [3, 0],
+      [3, 2],
+      [1, 3],
+    ]);
+  });
+
+  it("reaches every pin and shows the enabled state only when reported", () => {
+    const ends = converter.primitives.flatMap((primitive) =>
+      primitive.kind === "polyline" ? primitive.points : [],
+    );
+    for (const pin of converter.pins) {
+      expect(
+        ends.some(
+          (point) => point.x === pin.local.x && point.y === pin.local.y,
+        ),
+      ).toBe(true);
+    }
+    const on = JSON.stringify(
+      converter.drawn?.({
+        kind: "frequencyConverter",
+        componentId: ID,
+        enabled: true,
+      }),
+    );
+    const off = JSON.stringify(
+      converter.drawn?.({
+        kind: "frequencyConverter",
+        componentId: ID,
+        enabled: false,
+      }),
+    );
+
+    expect(on).not.toBe(off);
+    expect(off).toBe(JSON.stringify(converter.drawn?.(undefined)));
+  });
+});

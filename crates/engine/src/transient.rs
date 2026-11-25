@@ -125,6 +125,8 @@ pub(super) struct CircuitStates {
     pub(super) timers: HashMap<StableId, (DelayMode, TimerState)>,
     /// The reported state of each lamp, indicator and buzzer, read from the settled endpoint.
     pub(super) indicators: HashMap<StableId, DeviceState>,
+    /// Whether each frequency converter is enabled: its DC input reached the enable voltage.
+    pub(super) converters: HashMap<StableId, bool>,
     pub(super) breakers: HashMap<StableId, BreakerState>,
     pub(super) overloads: HashMap<StableId, OverloadState>,
     pub(super) rcds: HashMap<StableId, RcdState>,
@@ -199,6 +201,12 @@ impl CircuitStates {
             }
         }));
         states.extend(self.indicators.values().cloned());
+        states.extend(self.converters.iter().map(|(id, enabled)| {
+            DeviceState::FrequencyConverter {
+                component_id: id.clone(),
+                enabled: *enabled,
+            }
+        }));
         states.extend(self.breakers.iter().map(|(id, state)| DeviceState::Switch {
             component_id: id.clone(),
             position: state.position,
@@ -502,7 +510,8 @@ pub(super) fn circuit_states_from_results(
             let id = match component {
                 ComponentSpec::AcVoltageSource { id, .. }
                 | ComponentSpec::ThreePhaseSourceStar { id, .. }
-                | ComponentSpec::ThreePhaseSourceDelta { id, .. } => id,
+                | ComponentSpec::ThreePhaseSourceDelta { id, .. }
+                | ComponentSpec::FrequencyConverter { id, .. } => id,
                 _ => return None,
             };
             Some((id.clone(), AccumulatedPhase::default()))
@@ -513,6 +522,15 @@ pub(super) fn circuit_states_from_results(
         capacitors,
         inductors,
         relays,
+        converters: results
+            .iter()
+            .filter_map(|result| match result.state.as_ref()? {
+                DeviceState::FrequencyConverter { enabled, .. } => {
+                    Some((result.component_id.clone(), *enabled))
+                }
+                _ => None,
+            })
+            .collect(),
         indicators: results
             .iter()
             .filter_map(|result| match result.state.as_ref()? {
@@ -828,6 +846,9 @@ fn advance_ac_source_phases(
             ComponentSpec::ThreePhaseSourceDelta { id, parameters, .. } => {
                 (id, parameters.frequency_hz)
             }
+            ComponentSpec::FrequencyConverter { id, parameters, .. } => {
+                (id, parameters.frequency_hz)
+            }
             _ => continue,
         };
         let Some(phase) = phases
@@ -1029,9 +1050,25 @@ pub(super) fn settle_discrete_events(
                 .extra_values
                 .push((slots[6].key(id.as_str()), elapsed));
         }
+        // A converter is enabled while its DC input is at or above the enable voltage, judged on
+        // the settled endpoint; a change is one output event.
+        let mut converter_changes = Vec::new();
+        for component in &schematic.components {
+            let ComponentSpec::FrequencyConverter { id, parameters, .. } = component else {
+                continue;
+            };
+            let Some(result) = results.iter().find(|result| result.component_id == *id) else {
+                continue;
+            };
+            let next = result.voltage_volts >= parameters.enable_volts;
+            if states.converters.get(id) != Some(&next) {
+                converter_changes.push((id.clone(), next));
+            }
+        }
         if relay_changes.is_empty()
             && timer_changes.is_empty()
             && breaker_changes.is_empty()
+            && converter_changes.is_empty()
             && pending_trips.is_empty()
         {
             return Ok(());
@@ -1043,6 +1080,7 @@ pub(super) fn settle_discrete_events(
             .collect::<Vec<_>>();
         changed_ids.extend(breaker_changes.iter().map(|(id, _)| id.clone()));
         changed_ids.extend(timer_changes);
+        changed_ids.extend(converter_changes.iter().map(|(id, _)| id.clone()));
         changed_ids.append(&mut pending_trips);
         changed_ids.sort_by(|left, right| left.as_str().cmp(right.as_str()));
         changed_ids.dedup();
@@ -1067,6 +1105,7 @@ pub(super) fn settle_discrete_events(
         }
         breaker_changes.sort_by(|a, b| a.0.as_str().cmp(b.0.as_str()));
         states.breakers.extend(breaker_changes);
+        states.converters.extend(converter_changes);
         pending_trips = Vec::new();
         states.backward_euler_next_step = true;
         let state_vector = discrete_state_vector(states, &[]);
@@ -1116,6 +1155,12 @@ fn discrete_state_vector(states: &CircuitStates, pending_trips: &[StableId]) -> 
             u8::from(timer.output_on) | (u8::from(timer.energized) << 1),
         )
     }));
+    vector.extend(
+        states
+            .converters
+            .iter()
+            .map(|(id, enabled)| (id.as_str().to_owned(), u8::from(*enabled))),
+    );
     vector.extend(states.fuses.iter().map(|(id, fuse)| {
         let pending = pending_trips.iter().any(|pending| pending == id);
         (
@@ -1157,6 +1202,9 @@ pub(super) fn choose_internal_substeps(
                 Some(std::f64::consts::TAU * parameters.frequency_hz)
             }
             ComponentSpec::ThreePhaseSourceDelta { parameters, .. } => {
+                Some(std::f64::consts::TAU * parameters.frequency_hz)
+            }
+            ComponentSpec::FrequencyConverter { parameters, .. } => {
                 Some(std::f64::consts::TAU * parameters.frequency_hz)
             }
             _ => None,
@@ -1394,6 +1442,27 @@ fn estimate_transient_rate_bound(
                         )?;
                     }
                 }
+                DeviceModel::FrequencyConverter {
+                    input_resistance,
+                    outputs,
+                    output_resistance,
+                    ..
+                } => {
+                    add_laplacian(
+                        &mut conductance,
+                        variable1,
+                        variable2,
+                        1.0 / input_resistance,
+                    )?;
+                    for output in outputs {
+                        add_laplacian(
+                            &mut conductance,
+                            root_to_variable.get(&sets.find(output.pin1)).copied(),
+                            root_to_variable.get(&sets.find(output.pin2)).copied(),
+                            1.0 / output_resistance,
+                        )?;
+                    }
+                }
                 DeviceModel::Resistor { resistance_ohms }
                 | DeviceModel::Indicator {
                     resistance_ohms, ..
@@ -1622,6 +1691,7 @@ fn estimate_transient_rate_bound(
                     DeviceModel::InductionMotor { .. }
                         | DeviceModel::Resistor { .. }
                         | DeviceModel::Indicator { .. }
+                        | DeviceModel::FrequencyConverter { .. }
                         | DeviceModel::ExposedPart { .. }
                         | DeviceModel::DcVoltageSource { .. }
                         | DeviceModel::ThreePhaseSource { .. }

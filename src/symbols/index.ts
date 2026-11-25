@@ -30,6 +30,7 @@ import {
 } from "./operatorContacts";
 import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
+import { frequencyConverterSymbol } from "./converter";
 import {
   buzzerSymbol,
   indicatorSymbol,
@@ -88,6 +89,7 @@ export const symbols: SymbolRegistry = {
   solenoid: solenoidSymbol,
   valve: valveSymbol,
   buzzer: buzzerSymbol,
+  frequency_converter: frequencyConverterSymbol,
   relay_on_delay: onDelayRelaySymbol,
   relay_off_delay: offDelayRelaySymbol,
   fuse: fuseSymbol,

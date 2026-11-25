@@ -29,6 +29,7 @@ pub enum ComponentTypeId {
     Solenoid,
     Valve,
     Buzzer,
+    FrequencyConverter,
     RelayOnDelay,
     RelayOffDelay,
     Fuse,
@@ -110,6 +111,14 @@ pub enum PinId {
     S3b,
     Pe,
     Ep,
+    #[serde(rename = "inP")]
+    InP,
+    #[serde(rename = "inN")]
+    InN,
+    U,
+    V,
+    W,
+    Neutral,
     L4,
     T4,
     #[serde(rename = "no1")]
@@ -184,6 +193,12 @@ impl PinId {
             Self::S3b => "s3b",
             Self::Pe => "pe",
             Self::Ep => "ep",
+            Self::InP => "inP",
+            Self::InN => "inN",
+            Self::U => "u",
+            Self::V => "v",
+            Self::W => "w",
+            Self::Neutral => "neutral",
             Self::L4 => "l4",
             Self::T4 => "t4",
         }
@@ -216,6 +231,9 @@ pub enum ParameterId {
     DelaySeconds,
     InitialPosition,
     ThresholdVolts,
+    EnableVolts,
+    OutputRmsVolts,
+    OutputResistanceOhms,
     InstantaneousTripAmps,
     SenseResistanceOhms,
     RatedCurrentAmps,
@@ -651,6 +669,71 @@ fn threshold_load_parameters(resistance: f64, threshold: f64) -> Vec<ParameterDe
             "threshold",
         ),
     ]
+}
+
+fn converter_entry() -> ComponentCatalogEntry {
+    ComponentCatalogEntry {
+        type_id: ComponentTypeId::FrequencyConverter,
+        display_name_key: "component.frequencyConverter.name".into(),
+        category: CategoryId::MotorsAndLoads,
+        search_keyword_keys: vec!["component.frequencyConverter.keywords".into()],
+        designator_prefix: "T".into(),
+        pins: [
+            (PinId::InP, PinRole::Positive),
+            (PinId::InN, PinRole::Negative),
+            (PinId::U, PinRole::Unpolarized),
+            (PinId::V, PinRole::Unpolarized),
+            (PinId::W, PinRole::Unpolarized),
+            (PinId::Neutral, PinRole::Unpolarized),
+        ]
+        .into_iter()
+        .map(|(id, role)| PinDefinition { id, role })
+        .collect(),
+        parameters: vec![
+            load_parameter(
+                ParameterId::InputResistanceOhms,
+                Unit::Ohm,
+                10_000.0,
+                1.0,
+                1e9,
+                "converterInputResistance",
+            ),
+            load_parameter(
+                ParameterId::EnableVolts,
+                Unit::Volt,
+                24.0,
+                0.1,
+                1000.0,
+                "converterEnable",
+            ),
+            load_parameter(
+                ParameterId::OutputRmsVolts,
+                Unit::Volt,
+                24.0,
+                0.0,
+                1000.0,
+                "converterOutput",
+            ),
+            load_parameter(
+                ParameterId::FrequencyHz,
+                Unit::Hertz,
+                50.0,
+                1.0,
+                100.0,
+                "converterFrequency",
+            ),
+            load_parameter(
+                ParameterId::OutputResistanceOhms,
+                Unit::Ohm,
+                1.0,
+                0.001,
+                1000.0,
+                "converterOutputResistance",
+            ),
+        ],
+        pin_groups: None,
+        fault_kinds: Vec::new(),
+    }
 }
 
 fn timed_relay_entry(type_id: ComponentTypeId, name: &str) -> ComponentCatalogEntry {
@@ -1268,6 +1351,7 @@ pub fn component_catalog() -> ComponentCatalog {
                 "H",
                 threshold_load_parameters(240.0, 6.0),
             ),
+            converter_entry(),
             timed_relay_entry(ComponentTypeId::RelayOnDelay, "onDelayRelay"),
             timed_relay_entry(ComponentTypeId::RelayOffDelay, "offDelayRelay"),
             ComponentCatalogEntry {

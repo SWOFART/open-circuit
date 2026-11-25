@@ -29,6 +29,7 @@ const PREFIXES: Readonly<Record<ComponentTypeId, string>> = {
   solenoid: "M",
   valve: "M",
   buzzer: "H",
+  frequency_converter: "T",
   fuse: "F",
   pmdc_motor: "M",
   voltmeter: "VM",
