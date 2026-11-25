@@ -536,7 +536,13 @@ pub(super) fn circuit_states_from_results(
             .filter_map(|result| match result.state.as_ref()? {
                 state @ (DeviceState::Lamp { .. }
                 | DeviceState::Indicator { .. }
-                | DeviceState::Buzzer { .. }) => Some((result.component_id.clone(), state.clone())),
+                | DeviceState::Buzzer { .. }
+                | DeviceState::Led { .. }
+                | DeviceState::ZenerDiode { .. }
+                | DeviceState::MosfetN { .. }
+                | DeviceState::OperationalAmplifier { .. }) => {
+                    Some((result.component_id.clone(), state.clone()))
+                }
                 _ => None,
             })
             .collect(),
@@ -1391,6 +1397,10 @@ fn estimate_transient_rate_bound(
                             | ComponentSpec::RcdTwoPole { .. }
                             | ComponentSpec::RcdFourPole { .. }
                             | ComponentSpec::Diode { .. }
+                            | ComponentSpec::Led { .. }
+                            | ComponentSpec::ZenerDiode { .. }
+                            | ComponentSpec::MosfetN { .. }
+                            | ComponentSpec::OperationalAmplifier { .. }
                             | ComponentSpec::BjtNpn { .. }
                             | ComponentSpec::BjtPnp { .. }
                     )
@@ -1673,6 +1683,10 @@ fn estimate_transient_rate_bound(
                 DeviceModel::DcVoltageSource { .. }
                 | DeviceModel::ThreePhaseSource { .. }
                 | DeviceModel::Diode { .. }
+                | DeviceModel::Led { .. }
+                | DeviceModel::Zener { .. }
+                | DeviceModel::Mosfet { .. }
+                | DeviceModel::OpAmp { .. }
                 | DeviceModel::Bjt { .. } => {}
             }
         }

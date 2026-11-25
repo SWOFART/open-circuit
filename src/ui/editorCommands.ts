@@ -70,6 +70,10 @@ const LIVE_PARAMETERS_BY_TYPE: Readonly<
   valve: [],
   buzzer: [],
   frequency_converter: [],
+  led: [],
+  zener_diode: [],
+  mosfet_n: [],
+  operational_amplifier: [],
   relay_on_delay: [],
   relay_off_delay: [],
 };

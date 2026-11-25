@@ -175,6 +175,10 @@ const STATE_KIND_OF_TYPE: Readonly<
   valve: "valve",
   buzzer: "buzzer",
   frequency_converter: "frequencyConverter",
+  led: "led",
+  zener_diode: "zenerDiode",
+  mosfet_n: "mosfetN",
+  operational_amplifier: "operationalAmplifier",
   fuse: "fuse",
   switch_spst: "switch",
   push_button_no: "pushButton",
@@ -225,6 +229,18 @@ function hasKnownValue(state: DeviceState): boolean {
       return typeof state.active === "boolean";
     case "frequencyConverter":
       return typeof state.enabled === "boolean";
+    case "led":
+      return typeof state.lit === "boolean";
+    case "zenerDiode":
+      return typeof state.inBreakdown === "boolean";
+    case "mosfetN":
+      return typeof state.conducting === "boolean";
+    case "operationalAmplifier":
+      return (
+        state.state === "linear" ||
+        state.state === "clippedLow" ||
+        state.state === "clippedHigh"
+      );
     case "fuse":
       return state.state === "intact" || state.state === "tripped";
     case "switch":

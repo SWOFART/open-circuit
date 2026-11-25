@@ -30,6 +30,7 @@ impl NonlinearDevice for Law {
             negative: 1,
             thermal_voltage: THERMAL_VOLTAGE,
             saturation_current: 1e-14,
+            exponential: true,
         }]
     }
     fn evaluate(&self, v: &[f64]) -> Evaluation {
@@ -305,6 +306,7 @@ fn cancellation_allowance_accepts_roundoff_but_rejects_a_physically_wrong_curren
                 negative: 2,
                 thermal_voltage: THERMAL_VOLTAGE,
                 saturation_current: 1e-14,
+                exponential: true,
             }]
         }
         fn evaluate(&self, _: &[f64]) -> Evaluation {
@@ -482,6 +484,7 @@ fn two_junction_three_terminal_law_uses_a_consistent_linearization_reference() {
                     negative,
                     thermal_voltage: THERMAL_VOLTAGE,
                     saturation_current: 1e-14,
+                    exponential: true,
                 })
                 .to_vec()
         }

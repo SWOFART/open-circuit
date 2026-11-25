@@ -16,6 +16,7 @@ mod motor;
 mod relay;
 mod resistor;
 mod selector;
+mod semiconductors;
 pub(crate) use selector::SelectorDevice;
 mod source;
 mod switchgear;
@@ -39,6 +40,7 @@ pub(crate) use linked_contacts::{LinkedContacts, LinkedPole};
 pub(crate) use motor::{PmdcMotorDevice, PmdcMotorMode};
 pub(crate) use relay::{RelayCoilMode, RelayDevice};
 pub(crate) use resistor::{ExposedPartDevice, ResistorDevice};
+pub(crate) use semiconductors::{LedDevice, MosfetDevice, OpAmpDevice, ZenerDevice};
 pub(crate) use source::{DcVoltageSourceDevice, ThreePhaseSourceDevice};
 pub(crate) use switchgear::{
     BreakerDevice, BreakerState, OverloadDevice, OverloadState, RcdDevice, RcdState,

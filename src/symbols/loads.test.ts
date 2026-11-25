@@ -165,3 +165,120 @@ describe("the frequency converter symbol", () => {
     expect(off).toBe(JSON.stringify(converter.drawn?.(undefined)));
   });
 });
+
+describe("the Stage 14 semiconductor symbols", () => {
+  const catalogPins = (typeId: string) =>
+    catalogFixture.componentTypes
+      .find((candidate) => candidate.typeId === typeId)!
+      .pins.map((pin) => pin.id);
+
+  const layouts: readonly [
+    "led" | "zener_diode" | "mosfet_n" | "operational_amplifier",
+    readonly (readonly [number, number])[],
+  ][] = [
+    [
+      "led",
+      [
+        [-1, 0],
+        [1, 0],
+      ],
+    ],
+    [
+      "zener_diode",
+      [
+        [-1, 0],
+        [1, 0],
+      ],
+    ],
+    [
+      "mosfet_n",
+      [
+        [-2, 0],
+        [2, -2],
+        [2, 2],
+      ],
+    ],
+    [
+      "operational_amplifier",
+      [
+        [-2, -1],
+        [-2, 1],
+        [2, 0],
+        [0, 2],
+      ],
+    ],
+  ];
+
+  it.each(layouts)(
+    "%s has the catalog pins on the contract layout",
+    (typeId, points) => {
+      const symbol = symbols[typeId]!;
+
+      expect(symbol.pins.map((pin) => pin.id)).toEqual(catalogPins(typeId));
+      expect(symbol.pins.map((pin) => [pin.local.x, pin.local.y])).toEqual(
+        points,
+      );
+      expect(symbol.operatingArea).toBeUndefined();
+    },
+  );
+
+  it.each(layouts)("%s draws a lead to every pin", (typeId) => {
+    const symbol = symbols[typeId]!;
+    const ends = symbol.primitives.flatMap((primitive) =>
+      primitive.kind === "polyline" ? primitive.points : [],
+    );
+    for (const pin of symbol.pins) {
+      expect(
+        ends.some(
+          (point) => point.x === pin.local.x && point.y === pin.local.y,
+        ),
+        `${typeId} ${pin.id}`,
+      ).toBe(true);
+    }
+  });
+
+  const states: readonly [
+    "led" | "zener_diode" | "mosfet_n" | "operational_amplifier",
+    DeviceState,
+    DeviceState,
+  ][] = [
+    [
+      "led",
+      { kind: "led", componentId: ID, lit: true },
+      { kind: "led", componentId: ID, lit: false },
+    ],
+    [
+      "zener_diode",
+      { kind: "zenerDiode", componentId: ID, inBreakdown: true },
+      { kind: "zenerDiode", componentId: ID, inBreakdown: false },
+    ],
+    [
+      "mosfet_n",
+      { kind: "mosfetN", componentId: ID, conducting: true },
+      { kind: "mosfetN", componentId: ID, conducting: false },
+    ],
+    [
+      "operational_amplifier",
+      { kind: "operationalAmplifier", componentId: ID, state: "clippedHigh" },
+      { kind: "operationalAmplifier", componentId: ID, state: "linear" },
+    ],
+  ];
+
+  it.each(states)(
+    "%s differs between its reported states and rests as off",
+    (typeId, on, off) => {
+      const drawnAs = (state?: DeviceState) =>
+        JSON.stringify(symbols[typeId]!.drawn?.(state));
+
+      expect(drawnAs(on)).not.toBe(drawnAs(off));
+      expect(drawnAs(off)).toBe(drawnAs(undefined));
+      expect(
+        drawnAs({
+          kind: "fuse",
+          componentId: ID,
+          state: "tripped",
+        } as DeviceState),
+      ).toBe(drawnAs(undefined));
+    },
+  );
+});

@@ -32,6 +32,12 @@ import { pushButtonNcSymbol, pushButtonNoSymbol } from "./pushButton";
 import { relaySpdtSymbol } from "./relay";
 import { frequencyConverterSymbol } from "./converter";
 import {
+  ledSymbol,
+  mosfetNSymbol,
+  operationalAmplifierSymbol,
+  zenerDiodeSymbol,
+} from "./semiconductors";
+import {
   buzzerSymbol,
   indicatorSymbol,
   lampSymbol,
@@ -90,6 +96,10 @@ export const symbols: SymbolRegistry = {
   valve: valveSymbol,
   buzzer: buzzerSymbol,
   frequency_converter: frequencyConverterSymbol,
+  led: ledSymbol,
+  zener_diode: zenerDiodeSymbol,
+  mosfet_n: mosfetNSymbol,
+  operational_amplifier: operationalAmplifierSymbol,
   relay_on_delay: onDelayRelaySymbol,
   relay_off_delay: offDelayRelaySymbol,
   fuse: fuseSymbol,

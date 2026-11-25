@@ -118,6 +118,22 @@ pub enum PushButtonPosition {
 )]
 #[ts(export, export_to = "DeviceState.ts")]
 pub enum DeviceState {
+    Led {
+        component_id: StableId,
+        lit: bool,
+    },
+    ZenerDiode {
+        component_id: StableId,
+        in_breakdown: bool,
+    },
+    MosfetN {
+        component_id: StableId,
+        conducting: bool,
+    },
+    OperationalAmplifier {
+        component_id: StableId,
+        state: OperationalAmplifierState,
+    },
     FrequencyConverter {
         component_id: StableId,
         enabled: bool,
@@ -237,6 +253,10 @@ impl DeviceState {
             | Self::SelectorSwitch { component_id, .. }
             | Self::KeySwitch { component_id, .. }
             | Self::FrequencyConverter { component_id, .. }
+            | Self::Led { component_id, .. }
+            | Self::ZenerDiode { component_id, .. }
+            | Self::MosfetN { component_id, .. }
+            | Self::OperationalAmplifier { component_id, .. }
             | Self::Lamp { component_id, .. }
             | Self::Indicator { component_id, .. }
             | Self::Solenoid { component_id, .. }
@@ -251,6 +271,16 @@ impl DeviceState {
             | Self::Contactor { component_id, .. } => component_id,
         }
     }
+}
+
+/// Where the output of an operational amplifier stands against its limits.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "OperationalAmplifierState.ts")]
+pub enum OperationalAmplifierState {
+    Linear,
+    ClippedLow,
+    ClippedHigh,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]

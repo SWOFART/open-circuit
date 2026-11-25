@@ -33,6 +33,23 @@ pub(crate) struct Junction {
     pub negative: usize,
     pub thermal_voltage: f64,
     pub saturation_current: f64,
+    /// A junction obeys an exponential law and is limited and range-checked. A port only
+    /// supplies the voltage between two nodes to a device whose law is not exponential
+    /// (the channel of a MOSFET, the controlled output of an amplifier).
+    pub exponential: bool,
+}
+
+impl Junction {
+    /// A voltage port: no limiting, no exponent range, no thermal voltage.
+    pub(crate) fn port(positive: usize, negative: usize) -> Self {
+        Self {
+            positive,
+            negative,
+            thermal_voltage: THERMAL_VOLTAGE,
+            saturation_current: 1.0,
+            exponential: false,
+        }
+    }
 }
 
 /// Terms are kept separate for the physical residual's rounding scale.
@@ -79,6 +96,9 @@ pub(crate) fn junction_exponential(x: f64) -> (f64, f64) {
 }
 
 pub(crate) fn limit_junction(new: f64, old: f64, j: Junction) -> f64 {
+    if !j.exponential {
+        return new;
+    }
     let t = j.thermal_voltage;
     let critical = t * (t / (std::f64::consts::SQRT_2 * j.saturation_current)).ln();
     if new > critical && (new - old).abs() > 2.0 * t {
@@ -146,11 +166,13 @@ pub(crate) fn solve(
             js.len() == v.len()
                 && v.iter().all(|x| x.is_finite())
                 && js.iter().all(|j| {
-                    j.thermal_voltage.is_finite()
-                        && j.thermal_voltage >= THERMAL_VOLTAGE
-                        && j.thermal_voltage <= 2.0 * THERMAL_VOLTAGE
-                        && j.saturation_current.is_finite()
-                        && j.saturation_current > 0.0
+                    !j.exponential
+                        || (j.thermal_voltage.is_finite()
+                            && j.thermal_voltage >= THERMAL_VOLTAGE
+                            // An ideality factor of up to 4 (the LED and the zener diode).
+                            && j.thermal_voltage <= 4.0 * THERMAL_VOLTAGE
+                            && j.saturation_current.is_finite()
+                            && j.saturation_current > 0.0)
                 })
         });
     if !initial_valid {
@@ -207,7 +229,12 @@ fn check_range(
     devices: &[&dyn NonlinearDevice],
 ) -> Result<(Vec<f64>, Vec<Vec<f64>>), SolveFailure> {
     for (d, voltages) in devices.iter().zip(&solution.1) {
-        for (j, v) in d.junctions().iter().zip(voltages) {
+        for (j, v) in d
+            .junctions()
+            .iter()
+            .zip(voltages)
+            .filter(|(j, _)| j.exponential)
+        {
             let (value, derivative) = junction_exponential(v / j.thermal_voltage);
             if !value.is_finite() || !derivative.is_finite() {
                 return Err(failure(DiagnosticCode::NonFiniteState, devices));
@@ -221,7 +248,7 @@ fn check_range(
             d.junctions()
                 .iter()
                 .zip(*v)
-                .any(|(j, v)| v / j.thermal_voltage > 80.0)
+                .any(|(j, v)| j.exponential && v / j.thermal_voltage > 80.0)
         })
         .map(|(d, _)| *d)
         .collect::<Vec<_>>();
@@ -282,11 +309,20 @@ fn stage(
                 }
             }
             let evaluation = d.evaluate(js);
-            let mut intercepts = evaluation
-                .currents
-                .iter()
-                .map(|c| (c.node, c.terms.iter().sum::<f64>()))
-                .collect::<Vec<_>>();
+            let mut intercepts = Vec::<(usize, f64)>::new();
+            // Two terminals of a device may sit on one node (a diode-connected transistor, an
+            // amplifier in a follower): their currents are one current of that node, or the
+            // Jacobian correction below would be applied to each of them.
+            for current in &evaluation.currents {
+                let sum = current.terms.iter().sum::<f64>();
+                match intercepts
+                    .iter_mut()
+                    .find(|(node, _)| *node == current.node)
+                {
+                    Some((_, total)) => *total += sum,
+                    None => intercepts.push((current.node, sum)),
+                }
+            }
             if !evaluation
                 .currents
                 .iter()

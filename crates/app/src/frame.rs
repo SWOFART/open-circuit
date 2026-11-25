@@ -24,8 +24,8 @@ use std::fmt;
 
 use open_circuit_engine::{
     DeviceState, EmergencyStopPosition, FrameMetadata, FuseState, KeySwitchPosition,
-    PushButtonPosition, RelayContactState, ResultSnapshot, SelectorPosition, StableId,
-    SwitchPosition,
+    OperationalAmplifierState, PushButtonPosition, RelayContactState, ResultSnapshot,
+    SelectorPosition, StableId, SwitchPosition,
 };
 use uuid::Uuid;
 
@@ -255,6 +255,31 @@ fn encode_states(states: &[DeviceState], simulation_time: f64) -> Result<Vec<u8>
                 component_id,
                 enabled,
             } => (component_id, 21, u8::from(*enabled), None, false),
+            DeviceState::Led { component_id, lit } => {
+                (component_id, 17, u8::from(*lit), None, false)
+            }
+            DeviceState::ZenerDiode {
+                component_id,
+                in_breakdown,
+            } => (component_id, 18, u8::from(*in_breakdown), None, false),
+            DeviceState::MosfetN {
+                component_id,
+                conducting,
+            } => (component_id, 19, u8::from(*conducting), None, false),
+            DeviceState::OperationalAmplifier {
+                component_id,
+                state,
+            } => (
+                component_id,
+                20,
+                match state {
+                    OperationalAmplifierState::Linear => 0,
+                    OperationalAmplifierState::ClippedLow => 1,
+                    OperationalAmplifierState::ClippedHigh => 2,
+                },
+                None,
+                false,
+            ),
             DeviceState::Lamp { component_id, lit } => {
                 (component_id, 12, u8::from(*lit), None, false)
             }
@@ -595,6 +620,26 @@ fn decode_states(
                 last_transition_time_seconds: transition,
             },
 
+            (17, 0 | 1) => DeviceState::Led {
+                component_id,
+                lit: value == 1,
+            },
+            (18, 0 | 1) => DeviceState::ZenerDiode {
+                component_id,
+                in_breakdown: value == 1,
+            },
+            (19, 0 | 1) => DeviceState::MosfetN {
+                component_id,
+                conducting: value == 1,
+            },
+            (20, 0..=2) => DeviceState::OperationalAmplifier {
+                component_id,
+                state: match value {
+                    0 => OperationalAmplifierState::Linear,
+                    1 => OperationalAmplifierState::ClippedLow,
+                    _ => OperationalAmplifierState::ClippedHigh,
+                },
+            },
             (21, 0 | 1) => DeviceState::FrequencyConverter {
                 component_id,
                 enabled: value == 1,

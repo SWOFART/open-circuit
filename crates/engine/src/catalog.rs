@@ -30,6 +30,10 @@ pub enum ComponentTypeId {
     Valve,
     Buzzer,
     FrequencyConverter,
+    Led,
+    ZenerDiode,
+    MosfetN,
+    OperationalAmplifier,
     RelayOnDelay,
     RelayOffDelay,
     Fuse,
@@ -113,6 +117,13 @@ pub enum PinId {
     Ep,
     #[serde(rename = "inP")]
     InP,
+    G,
+    D,
+    S,
+    Plus,
+    Minus,
+    Out,
+    Ref,
     #[serde(rename = "inN")]
     InN,
     U,
@@ -194,6 +205,13 @@ impl PinId {
             Self::Pe => "pe",
             Self::Ep => "ep",
             Self::InP => "inP",
+            Self::G => "g",
+            Self::D => "d",
+            Self::S => "s",
+            Self::Plus => "plus",
+            Self::Minus => "minus",
+            Self::Out => "out",
+            Self::Ref => "ref",
             Self::InN => "inN",
             Self::U => "u",
             Self::V => "v",
@@ -232,6 +250,13 @@ pub enum ParameterId {
     InitialPosition,
     ThresholdVolts,
     EnableVolts,
+    IdealityFactor,
+    LitCurrentAmps,
+    BreakdownVolts,
+    BreakdownResistanceOhms,
+    GainAmpsPerVoltSquared,
+    OpenLoopGain,
+    LimitVolts,
     OutputRmsVolts,
     OutputResistanceOhms,
     InstantaneousTripAmps,
@@ -304,6 +329,7 @@ pub enum Unit {
     NewtonMeterSecondPerRadian,
     RadianPerSecond,
     Watt,
+    AmperePerVoltSquared,
     VoltAmpere,
     VoltAmpereReactive,
     Dimensionless,
@@ -669,6 +695,176 @@ fn threshold_load_parameters(resistance: f64, threshold: f64) -> Vec<ParameterDe
             "threshold",
         ),
     ]
+}
+
+fn semiconductor_entry(
+    type_id: ComponentTypeId,
+    name: &str,
+    designator_prefix: &str,
+    pins: &[(PinId, PinRole)],
+    parameters: Vec<ParameterDefinition>,
+) -> ComponentCatalogEntry {
+    ComponentCatalogEntry {
+        type_id,
+        display_name_key: format!("component.{name}.name"),
+        category: CategoryId::Semiconductors,
+        search_keyword_keys: vec![format!("component.{name}.keywords")],
+        designator_prefix: designator_prefix.into(),
+        pins: pins
+            .iter()
+            .map(|&(id, role)| PinDefinition { id, role })
+            .collect(),
+        parameters,
+        pin_groups: None,
+        fault_kinds: Vec::new(),
+    }
+}
+
+fn junction_parameters(ideality_default: f64) -> [ParameterDefinition; 2] {
+    [
+        load_parameter(
+            ParameterId::SaturationCurrentAmps,
+            Unit::Amp,
+            1e-14,
+            1e-18,
+            1e-3,
+            "saturationCurrent",
+        ),
+        load_parameter(
+            ParameterId::IdealityFactor,
+            Unit::Dimensionless,
+            ideality_default,
+            1.0,
+            4.0,
+            "idealityFactor",
+        ),
+    ]
+}
+
+const TWO_PIN_POLARIZED: [(PinId, PinRole); 2] =
+    [(PinId::P, PinRole::Positive), (PinId::N, PinRole::Negative)];
+
+fn led_entry() -> ComponentCatalogEntry {
+    let [saturation, ideality] = junction_parameters(2.0);
+    semiconductor_entry(
+        ComponentTypeId::Led,
+        "led",
+        "H",
+        &TWO_PIN_POLARIZED,
+        vec![
+            saturation,
+            ideality,
+            load_parameter(
+                ParameterId::LitCurrentAmps,
+                Unit::Amp,
+                1e-3,
+                1e-6,
+                1.0,
+                "litCurrent",
+            ),
+        ],
+    )
+}
+
+fn zener_entry() -> ComponentCatalogEntry {
+    let [saturation, ideality] = junction_parameters(1.0);
+    semiconductor_entry(
+        ComponentTypeId::ZenerDiode,
+        "zenerDiode",
+        "R",
+        &TWO_PIN_POLARIZED,
+        vec![
+            saturation,
+            ideality,
+            load_parameter(
+                ParameterId::BreakdownVolts,
+                Unit::Volt,
+                5.1,
+                0.1,
+                1000.0,
+                "breakdownVoltage",
+            ),
+            load_parameter(
+                ParameterId::BreakdownResistanceOhms,
+                Unit::Ohm,
+                5.0,
+                0.001,
+                1e6,
+                "breakdownResistance",
+            ),
+        ],
+    )
+}
+
+fn mosfet_entry() -> ComponentCatalogEntry {
+    semiconductor_entry(
+        ComponentTypeId::MosfetN,
+        "mosfetN",
+        "Q",
+        &[
+            (PinId::G, PinRole::Unpolarized),
+            (PinId::D, PinRole::Unpolarized),
+            (PinId::S, PinRole::Unpolarized),
+        ],
+        vec![
+            load_parameter(
+                ParameterId::ThresholdVolts,
+                Unit::Volt,
+                2.0,
+                0.1,
+                20.0,
+                "gateThreshold",
+            ),
+            load_parameter(
+                ParameterId::GainAmpsPerVoltSquared,
+                Unit::AmperePerVoltSquared,
+                0.1,
+                1e-6,
+                100.0,
+                "mosfetGain",
+            ),
+        ],
+    )
+}
+
+fn operational_amplifier_entry() -> ComponentCatalogEntry {
+    semiconductor_entry(
+        ComponentTypeId::OperationalAmplifier,
+        "operationalAmplifier",
+        "A",
+        &[
+            (PinId::Plus, PinRole::Positive),
+            (PinId::Minus, PinRole::Negative),
+            (PinId::Out, PinRole::Unpolarized),
+            (PinId::Ref, PinRole::Unpolarized),
+        ],
+        vec![
+            load_parameter(
+                ParameterId::OpenLoopGain,
+                Unit::Dimensionless,
+                1000.0,
+                1.0,
+                1e6,
+                "openLoopGain",
+            ),
+            load_parameter(
+                ParameterId::LimitVolts,
+                Unit::Volt,
+                12.0,
+                0.1,
+                1000.0,
+                "outputLimit",
+            ),
+            load_parameter(
+                ParameterId::OutputResistanceOhms,
+                Unit::Ohm,
+                1.0,
+                1e-6,
+                1e6,
+                "amplifierOutputResistance",
+            ),
+        ],
+    )
 }
 
 fn converter_entry() -> ComponentCatalogEntry {
@@ -1352,6 +1548,11 @@ pub fn component_catalog() -> ComponentCatalog {
                 threshold_load_parameters(240.0, 6.0),
             ),
             converter_entry(),
+            // The LED, the zener diode, the MOSFET and the operational amplifier.
+            led_entry(),
+            zener_entry(),
+            mosfet_entry(),
+            operational_amplifier_entry(),
             timed_relay_entry(ComponentTypeId::RelayOnDelay, "onDelayRelay"),
             timed_relay_entry(ComponentTypeId::RelayOffDelay, "offDelayRelay"),
             ComponentCatalogEntry {

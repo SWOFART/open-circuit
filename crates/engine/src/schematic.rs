@@ -173,6 +173,42 @@ pub struct InductorParameters {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "LedParameters.ts")]
+pub struct LedParameters {
+    pub saturation_current_amps: f64,
+    pub ideality_factor: f64,
+    pub lit_current_amps: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "ZenerParameters.ts")]
+pub struct ZenerParameters {
+    pub saturation_current_amps: f64,
+    pub ideality_factor: f64,
+    pub breakdown_volts: f64,
+    pub breakdown_resistance_ohms: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "MosfetParameters.ts")]
+pub struct MosfetParameters {
+    pub threshold_volts: f64,
+    pub gain_amps_per_volt_squared: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export, export_to = "OpAmpParameters.ts")]
+pub struct OpAmpParameters {
+    pub open_loop_gain: f64,
+    pub limit_volts: f64,
+    pub output_resistance_ohms: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "FrequencyConverterParameters.ts")]
 pub struct FrequencyConverterParameters {
     pub input_resistance_ohms: f64,
@@ -697,6 +733,38 @@ pub enum ComponentSpec {
         rotation_deg: u16,
         parameters: PositionContactParameters,
     },
+    Led {
+        id: StableId,
+        position: GridPoint,
+        #[serde(rename = "rotationDeg")]
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: LedParameters,
+    },
+    ZenerDiode {
+        id: StableId,
+        position: GridPoint,
+        #[serde(rename = "rotationDeg")]
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: ZenerParameters,
+    },
+    MosfetN {
+        id: StableId,
+        position: GridPoint,
+        #[serde(rename = "rotationDeg")]
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: MosfetParameters,
+    },
+    OperationalAmplifier {
+        id: StableId,
+        position: GridPoint,
+        #[serde(rename = "rotationDeg")]
+        #[ts(type = "0 | 90 | 180 | 270")]
+        rotation_deg: u16,
+        parameters: OpAmpParameters,
+    },
     FrequencyConverter {
         id: StableId,
         position: GridPoint,
@@ -924,6 +992,10 @@ impl ComponentSpec {
             | Self::SelectorSwitch { id, .. }
             | Self::KeySwitch { id, .. }
             | Self::FrequencyConverter { id, .. }
+            | Self::Led { id, .. }
+            | Self::ZenerDiode { id, .. }
+            | Self::MosfetN { id, .. }
+            | Self::OperationalAmplifier { id, .. }
             | Self::Lamp { id, .. }
             | Self::Indicator { id, .. }
             | Self::Solenoid { id, .. }
@@ -974,6 +1046,10 @@ impl ComponentSpec {
             | Self::SelectorSwitch { position, .. }
             | Self::KeySwitch { position, .. }
             | Self::FrequencyConverter { position, .. }
+            | Self::Led { position, .. }
+            | Self::ZenerDiode { position, .. }
+            | Self::MosfetN { position, .. }
+            | Self::OperationalAmplifier { position, .. }
             | Self::Lamp { position, .. }
             | Self::Indicator { position, .. }
             | Self::Solenoid { position, .. }
@@ -1024,6 +1100,10 @@ impl ComponentSpec {
             | Self::SelectorSwitch { rotation_deg, .. }
             | Self::KeySwitch { rotation_deg, .. }
             | Self::FrequencyConverter { rotation_deg, .. }
+            | Self::Led { rotation_deg, .. }
+            | Self::ZenerDiode { rotation_deg, .. }
+            | Self::MosfetN { rotation_deg, .. }
+            | Self::OperationalAmplifier { rotation_deg, .. }
             | Self::Lamp { rotation_deg, .. }
             | Self::Indicator { rotation_deg, .. }
             | Self::Solenoid { rotation_deg, .. }
@@ -1075,6 +1155,10 @@ impl ComponentSpec {
             Self::SelectorSwitch { .. } => ComponentTypeId::SelectorSwitch,
             Self::KeySwitch { .. } => ComponentTypeId::KeySwitch,
             Self::FrequencyConverter { .. } => ComponentTypeId::FrequencyConverter,
+            Self::Led { .. } => ComponentTypeId::Led,
+            Self::ZenerDiode { .. } => ComponentTypeId::ZenerDiode,
+            Self::MosfetN { .. } => ComponentTypeId::MosfetN,
+            Self::OperationalAmplifier { .. } => ComponentTypeId::OperationalAmplifier,
             Self::Lamp { .. } => ComponentTypeId::Lamp,
             Self::Indicator { .. } => ComponentTypeId::Indicator,
             Self::Solenoid { .. } => ComponentTypeId::Solenoid,
@@ -1443,6 +1527,41 @@ impl ComponentSpec {
                 }
                 values
             }
+            Self::Led { parameters, .. } => vec![
+                (
+                    ParameterId::SaturationCurrentAmps,
+                    parameters.saturation_current_amps,
+                ),
+                (ParameterId::IdealityFactor, parameters.ideality_factor),
+                (ParameterId::LitCurrentAmps, parameters.lit_current_amps),
+            ],
+            Self::ZenerDiode { parameters, .. } => vec![
+                (
+                    ParameterId::SaturationCurrentAmps,
+                    parameters.saturation_current_amps,
+                ),
+                (ParameterId::IdealityFactor, parameters.ideality_factor),
+                (ParameterId::BreakdownVolts, parameters.breakdown_volts),
+                (
+                    ParameterId::BreakdownResistanceOhms,
+                    parameters.breakdown_resistance_ohms,
+                ),
+            ],
+            Self::MosfetN { parameters, .. } => vec![
+                (ParameterId::ThresholdVolts, parameters.threshold_volts),
+                (
+                    ParameterId::GainAmpsPerVoltSquared,
+                    parameters.gain_amps_per_volt_squared,
+                ),
+            ],
+            Self::OperationalAmplifier { parameters, .. } => vec![
+                (ParameterId::OpenLoopGain, parameters.open_loop_gain),
+                (ParameterId::LimitVolts, parameters.limit_volts),
+                (
+                    ParameterId::OutputResistanceOhms,
+                    parameters.output_resistance_ohms,
+                ),
+            ],
             Self::FrequencyConverter { parameters, .. } => vec![
                 (
                     ParameterId::InputResistanceOhms,
@@ -1708,6 +1827,10 @@ impl Schematic {
             | ComponentSpec::SelectorSwitch { rotation_deg, .. }
             | ComponentSpec::KeySwitch { rotation_deg, .. }
             | ComponentSpec::FrequencyConverter { rotation_deg, .. }
+            | ComponentSpec::Led { rotation_deg, .. }
+            | ComponentSpec::ZenerDiode { rotation_deg, .. }
+            | ComponentSpec::MosfetN { rotation_deg, .. }
+            | ComponentSpec::OperationalAmplifier { rotation_deg, .. }
             | ComponentSpec::Lamp { rotation_deg, .. }
             | ComponentSpec::Indicator { rotation_deg, .. }
             | ComponentSpec::Solenoid { rotation_deg, .. }
