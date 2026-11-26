@@ -15,6 +15,7 @@ pub mod netlist;
 mod newton;
 mod operator;
 mod pin_groups;
+pub mod probes;
 pub mod project;
 pub mod rails;
 pub mod results;
@@ -54,6 +55,7 @@ pub use documentation::{
 pub use engine::Engine;
 pub use faults::{FaultKind, FaultSpec, SHORT_FAULT_RESISTANCE_OHMS, supported_fault_kinds};
 pub use ids::{InvalidStableId, StableId};
+pub use probes::*;
 pub use project::{ProjectDocumentError, decode_project_json, validate_project_schematic};
 pub use rails::{MAX_RAIL_CONTACT_WORK, MAX_RAIL_COUNT, RailSpec};
 pub use results::{

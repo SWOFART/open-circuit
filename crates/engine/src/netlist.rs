@@ -3,6 +3,9 @@
 //! This module builds conductor nodes and electrical islands only. It does not solve the
 //! circuit, distribute current through individual wire segments, or serialize derived state.
 
+#[path = "probe_geometry.rs"]
+pub(crate) mod probe_geometry;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::{

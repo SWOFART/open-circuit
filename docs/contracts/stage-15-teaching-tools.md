@@ -25,7 +25,8 @@ sequence than the latest is allowed so a continuously advancing run can
 be measured. A sequence ahead of it, a mismatch in run or revision, and
 an absent run use the existing stale/invalid request diagnostics. The
 reply carries the actual run, revision, frame sequence and simulation step
-of the measurement. Every request specifies exactly one mode and its one
+when the request identifies a valid endpoint, including a measurement
+refused at that endpoint. Every request specifies exactly one mode and its one
 or two targets. The application coalesces repeated reads to at most one
 outstanding request and at most 20 requests per second. A probe query
 does not advance a run, change trace history or emit a frame.
@@ -60,7 +61,9 @@ A conductor target names a wire or rail by stable ID and a span by its two
 ordered grid endpoints. The Engine resolves spans from the effective
 compiled connectivity, splitting the routed conductor at corners and
 actual connections such as terminals, junctions, and rail attachments.
-Unjoined crossings create no connection. The endpoint order defines the
+Distinct wires at an unjoined crossing stay separate. A wire's
+self-crossing remains connected, as in the existing connectivity rules.
+The endpoint order defines the
 positive direction, and reversing it negates the answer. The app requests
 the Engine's selectable span descriptors for the current run and revision.
 Return at most 256 descriptors per page in stable order by conductor ID
@@ -77,7 +80,10 @@ connections, its sum is zero. The graph must preserve the compiled
 connectivity, including implicit reference connections and fault effects.
 If a required terminal current or implicit connection current cannot be
 accounted for, report `UnsupportedProbeTarget`. The computation is bounded
-by the existing circuit size limits.
+by the existing circuit size limits. The span graph also uses the rail
+contact-work budget for segment pairs and probe attachments. Exceeding
+that budget reports a model-range diagnostic for the probe without
+invalidating the simulation.
 
 ### Resistance
 

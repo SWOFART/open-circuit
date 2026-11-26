@@ -21,6 +21,9 @@ pub(crate) const THERMAL_VOLTAGE: f64 = 0.02586492578632875;
 #[derive(Clone, Default)]
 pub(crate) struct SolverMemory {
     pub nodes: std::collections::HashMap<usize, f64>,
+    /// Numerical gauge used by each node in the last successful solve.
+    pub reference_domains: std::collections::HashMap<usize, usize>,
+    pub probe_netlist: Option<std::sync::Arc<crate::netlist::Netlist>>,
     pub junctions: std::collections::HashMap<StableId, Vec<f64>>,
     pub induction_motors: std::collections::HashMap<StableId, crate::devices::MotorHistory>,
     pub windings: std::collections::HashMap<StableId, crate::devices::WindingHistory>,
