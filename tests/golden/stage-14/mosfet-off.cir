@@ -1,0 +1,20 @@
+Open Circuit Stage 14: mosfet-off
+.options reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27
+Vgate gate 0 1
+Vdrain input 0 2
+Vsense input d 0
+Mref d gate 0 0 Ref W=1u L=1u
+.model Ref NMOS(Level=1 Vto=2 Kp=0.1 Is=1e-30)
+.op
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+let sample0 = v(gate)
+let sample1 = v(d)
+let sample2 = i(vsense)
+wrdata values.out sample0 sample1 sample2
+quit
+.endc
+.end

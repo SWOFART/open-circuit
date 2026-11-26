@@ -368,3 +368,77 @@ describe("the LED, zener diode, MOSFET and amplifier readouts", () => {
     expect(html).not.toContain(">Off<");
   });
 });
+
+describe("Stage 14 controls and timer progress", () => {
+  it("offers the selector positions with the reported position selected", () => {
+    const { document, id } = drawn("selector_switch");
+    const html = panel(
+      document,
+      stateWith(
+        id,
+        [],
+        [{ kind: "selectorSwitch", componentId: id, position: "right" }],
+      ),
+      () => {},
+    );
+    expect(html).toMatch(/aria-pressed="false">left</);
+    expect(html).toMatch(/aria-pressed="false">center</);
+    expect(html).toMatch(/aria-pressed="true">right</);
+  });
+
+  it("shows the latched emergency stop with a separate reset control", () => {
+    const { document, id } = drawn("emergency_stop");
+    const html = panel(
+      document,
+      stateWith(
+        id,
+        [],
+        [{ kind: "emergencyStop", componentId: id, position: "latched" }],
+      ),
+      () => {},
+    );
+    expect(html).toContain(">latched<");
+    expect(html).toContain(">Latch<");
+    expect(html).toContain(">Reset<");
+  });
+
+  it.each([
+    "limit_switch",
+    "emergency_stop",
+    "selector_switch",
+    "key_switch",
+  ] as const)(
+    "hides %s controls until the Engine reports its state",
+    (typeId) => {
+      const { document, id } = drawn(typeId);
+      expect(panel(document, stateWith(id, []), () => {})).not.toContain(
+        "<button",
+      );
+    },
+  );
+
+  it("shows pending timer progress from the Engine and clears stale readouts while loading", () => {
+    const { document, id } = drawn("relay_on_delay");
+    const state = stateWith(
+      id,
+      [["timerElapsedSeconds", "second", 0.02]],
+      [
+        {
+          kind: "relayOnDelay",
+          componentId: id,
+          energized: true,
+          timing: true,
+          outputOn: false,
+        },
+      ],
+    );
+    const html = panel(document, state);
+    expect(html).toContain("Elapsed delay");
+    expect(html).toContain("20");
+    expect(html).toContain(">Released<");
+    const loading = panel(document, { ...state, status: "loading" });
+    expect(loading).toContain("Waiting for the engine");
+    expect(loading).not.toContain("Elapsed delay");
+    expect(loading).not.toContain(">Released<");
+  });
+});

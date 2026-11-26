@@ -1,0 +1,19 @@
+Open Circuit Stage 14: zener_diode-2
+.options reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27
+Vin input 0 -4
+Vsense input p 0
+Djunction p 0 Dref
+.model Dref D(Is=1e-14 N=1)
+Bbreak p 0 I=min(0,(v(p)+5.1)/5)
+.op
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+let sample0 = v(p)
+let sample1 = i(vsense)
+wrdata values.out sample0 sample1
+quit
+.endc
+.end

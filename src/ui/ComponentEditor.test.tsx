@@ -211,3 +211,16 @@ describe("the designator field", () => {
     expect(inspect(false)).not.toContain("designator");
   });
 });
+
+describe("the Stage 14 inspector inputs", () => {
+  it("offers the three selector positions and the two key switch positions", () => {
+    const document = drawn(["selector_switch", "key_switch"]);
+    const selector = render(document, 0);
+    expect(selector).toContain('<option value="0">Left</option>');
+    expect(selector).toContain('<option value="1" selected="">Center</option>');
+    expect(selector).toContain('<option value="2">Right</option>');
+    const key = render(document, 1);
+    expect(key).toContain('<option value="0" selected="">Off</option>');
+    expect(key).toContain('<option value="1">On</option>');
+  });
+});

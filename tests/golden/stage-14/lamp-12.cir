@@ -1,0 +1,18 @@
+Open Circuit Stage 14: lamp-12
+.options reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27
+Vin input 0 12
+Vsense input p 0
+Rpart p 0 120
+.op
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+let sample0 = v(p)
+let sample1 = i(vsense)
+let sample2 = v(p)*i(vsense)
+wrdata values.out sample0 sample1 sample2
+quit
+.endc
+.end

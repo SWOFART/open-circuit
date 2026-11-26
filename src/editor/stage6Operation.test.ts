@@ -61,7 +61,7 @@ const schematic: Schematic = {
   documentation: emptyDocumentation(),
 };
 
-function setUp(operable = true) {
+function setUp(operable = true, drawing = schematic) {
   const intents: InteractionIntent[] = [];
   const changes: InteractionChange[] = [];
   const interaction = new CanvasInteraction(
@@ -69,10 +69,10 @@ function setUp(operable = true) {
     (intent) => intents.push(intent),
   );
   interaction.setViewport({ width: 1200, height: 600 });
-  const scene = buildScene(schematic, symbols);
-  interaction.setScene(scene, analyzeGeometry(schematic, symbols));
+  const scene = buildScene(drawing, symbols);
+  interaction.setScene(scene, analyzeGeometry(drawing, symbols));
   // A view the tests know: fitting the circuit would move the origin.
-  interaction.setOperable(operable ? operatingTargets(schematic, symbols) : []);
+  interaction.setOperable(operable ? operatingTargets(drawing, symbols) : []);
 
   return { interaction, intents, changes, scene };
 }
@@ -359,4 +359,37 @@ describe("operating a device on the canvas", () => {
       id: CONTACTOR,
     });
   });
+});
+
+describe("operating Stage 14 contacts on the canvas", () => {
+  it.each([
+    ["limit_switch", true, ["press", "release"]],
+    ["emergency_stop", false, ["press"]],
+    ["key_switch", false, ["toggle"]],
+  ] as const)(
+    "operates a rotated %s at its actuator",
+    (typeId, captured, actions) => {
+      const drawing = {
+        ...schematic,
+        components: [component(typeId, SWITCH, 5, 90)],
+      };
+      const { interaction, intents } = setUp(true, drawing);
+      const [target] = operatingTargets(drawing, symbols);
+      expect(target?.center.x).toBeCloseTo(5.7);
+      expect(target?.center.y).toBeCloseTo(0);
+      const screen = toScreen(target!.center, interaction.view);
+      const pointer = { ...screen, button: 0, pointerId: 1 };
+
+      expect(interaction.pointerDown(pointer)).toBe(captured);
+      interaction.pointerUp(pointer);
+      expect(operations(intents)).toEqual(
+        actions.map((action) => [SWITCH, action]),
+      );
+
+      const idle = setUp(false, drawing);
+      idle.interaction.pointerDown(pointer);
+      idle.interaction.pointerUp(pointer);
+      expect(operations(idle.intents)).toEqual([]);
+    },
+  );
 });

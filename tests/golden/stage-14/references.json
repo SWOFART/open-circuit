@@ -1,0 +1,1452 @@
+{
+  "ngspice": {
+    "version": "ngspice-47",
+    "archiveSha256": "59225971bd68cdd1199443649aa4615a9e6d684933f205ab49006a3942518f5a",
+    "options": "reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27"
+  },
+  "node": "24.19.0",
+  "cases": {
+    "limit_switch-released": {
+      "device": "limit_switch",
+      "step": null,
+      "state": {
+        "position": "released"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0
+      },
+      "netlistSha256": "b071f6bbf91f7fae160637a55ec93f6f07aaba185f77b8570bf6cc95d4d5b418"
+    },
+    "limit_switch-pressed": {
+      "device": "limit_switch",
+      "step": null,
+      "state": {
+        "position": "pressed"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 2400
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 2400
+      },
+      "netlistSha256": "d245ef4d185bc377a934ebbb76c155155b7265355015f6efdf20c4ec7683c492"
+    },
+    "emergency_stop-armed": {
+      "device": "emergency_stop",
+      "step": null,
+      "state": {
+        "position": "armed"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 2400
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 2400
+      },
+      "netlistSha256": "1a474ccecad73260ce1aaef7d7c598ad474976c7c3242fbb674a0034d78ed3a1"
+    },
+    "emergency_stop-latched": {
+      "device": "emergency_stop",
+      "step": null,
+      "state": {
+        "position": "latched"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0
+      },
+      "netlistSha256": "0890b0ac56e2b22e15da5590be58617ad432a64712f55ef784786c5b28670952"
+    },
+    "key_switch-off": {
+      "device": "key_switch",
+      "step": null,
+      "state": {
+        "position": "off"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0
+      },
+      "netlistSha256": "90a5086e51aaf42f47b67acadc62434e2e73fdcf2b024c3625110f8f02f796fc"
+    },
+    "key_switch-on": {
+      "device": "key_switch",
+      "step": null,
+      "state": {
+        "position": "on"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 2400
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 2400
+      },
+      "netlistSha256": "0af44d0cd2da3b8405b4bf54d3167664534c2fe06129cc16a1cb0fe666c5d142"
+    },
+    "selector-left": {
+      "device": "selector_switch",
+      "step": null,
+      "state": {
+        "position": "left"
+      },
+      "analytical": {
+        "throw1VoltageVolts": 0.00199983334722,
+        "throw1CurrentAmps": 0.199983334722,
+        "throw2VoltageVolts": 24,
+        "throw2CurrentAmps": 0
+      },
+      "ngspice": {
+        "throw1VoltageVolts": 0.00199983334722,
+        "throw1CurrentAmps": 0.199983334722,
+        "throw2VoltageVolts": 24,
+        "throw2CurrentAmps": 0
+      },
+      "netlistSha256": "6d97ffd13127182e689a3d63c6a9283f54323c891422ec9a00e430f1afdf27f0"
+    },
+    "selector-center": {
+      "device": "selector_switch",
+      "step": null,
+      "state": {
+        "position": "center"
+      },
+      "analytical": {
+        "throw1VoltageVolts": 24,
+        "throw1CurrentAmps": 0,
+        "throw2VoltageVolts": 24,
+        "throw2CurrentAmps": 0
+      },
+      "ngspice": {
+        "throw1VoltageVolts": 24,
+        "throw1CurrentAmps": 0,
+        "throw2VoltageVolts": 24,
+        "throw2CurrentAmps": 0
+      },
+      "netlistSha256": "43abe5b8af332a107aa1e150203975eb2045147a38395fabcec0f1324e8f5e66"
+    },
+    "selector-right": {
+      "device": "selector_switch",
+      "step": null,
+      "state": {
+        "position": "right"
+      },
+      "analytical": {
+        "throw1VoltageVolts": 24,
+        "throw1CurrentAmps": 0,
+        "throw2VoltageVolts": 0.00199983334722,
+        "throw2CurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "throw1VoltageVolts": 24,
+        "throw1CurrentAmps": 0,
+        "throw2VoltageVolts": 0.00199983334722,
+        "throw2CurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "7877789c1c15cdfd0bde7f996ff51093b871eeb49c26d0c300e65a0246ff987f"
+    },
+    "relay-on-zero": {
+      "device": "relay_on_delay",
+      "step": 0,
+      "state": {
+        "energized": true,
+        "outputOn": true,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 0,
+        "delayMs": 0,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "ngspice": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "netlistSha256": "a19b23ea919124b48d67cf8db56409b7a76442bf016406de9ee4e68998ea6b88"
+    },
+    "relay-on-pending": {
+      "device": "relay_on_delay",
+      "step": 4,
+      "state": {
+        "energized": true,
+        "outputOn": false,
+        "timing": true,
+        "timerElapsedSeconds": 0.002,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "adfe368ed812b80a08548d74cf6752c684c6d31817722a7d5bdd4ee9edf6c3dd"
+    },
+    "relay-on-deadline": {
+      "device": "relay_on_delay",
+      "step": 5,
+      "state": {
+        "energized": true,
+        "outputOn": true,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "ngspice": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "netlistSha256": "f483e254e7589035d5a1a8e5c0046aee5535deed9dacbb16698d116bc4938f73"
+    },
+    "relay-on-fractional-pending": {
+      "device": "relay_on_delay",
+      "step": 5,
+      "state": {
+        "energized": true,
+        "outputOn": false,
+        "timing": true,
+        "timerElapsedSeconds": 0.003,
+        "edgeStep": 2,
+        "delayMs": 3.5,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "09b975236849d1f0e347ac2a63bab71718ee7dc53909944e879eb67a21b38aa8"
+    },
+    "relay-on-fractional-deadline": {
+      "device": "relay_on_delay",
+      "step": 6,
+      "state": {
+        "energized": true,
+        "outputOn": true,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3.5,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "ngspice": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "netlistSha256": "de29db165c7e627b04ca024f800e3a89c59e5c9875f84892e307b5822a32349f"
+    },
+    "relay-on-cancel-before": {
+      "device": "relay_on_delay",
+      "step": 4,
+      "state": {
+        "energized": false,
+        "outputOn": false,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": true
+      },
+      "analytical": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "f4eb02a48e9762b2ed762dc3cc8f619f004aa6bb290d54d55d0c801a592a9554"
+    },
+    "relay-on-cancel-at-deadline": {
+      "device": "relay_on_delay",
+      "step": 5,
+      "state": {
+        "energized": false,
+        "outputOn": false,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": true
+      },
+      "analytical": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "54fb79a2866d29885ef4e46a49f1d5af2dda3454a13f78fa5f758d363732b8a0"
+    },
+    "relay-off-zero": {
+      "device": "relay_off_delay",
+      "step": 0,
+      "state": {
+        "energized": false,
+        "outputOn": false,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 0,
+        "delayMs": 0,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "a0b8dfcbbaafcf59bf8b2f5d02df015ff6ab745f7181015bbc8225bb34f900b5"
+    },
+    "relay-off-pending": {
+      "device": "relay_off_delay",
+      "step": 4,
+      "state": {
+        "energized": false,
+        "outputOn": true,
+        "timing": true,
+        "timerElapsedSeconds": 0.002,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "ngspice": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "netlistSha256": "eb7b50c0ef9f272d5c70be2f316339cf60d851b8916066d6fbd6b5715f5138c9"
+    },
+    "relay-off-deadline": {
+      "device": "relay_off_delay",
+      "step": 5,
+      "state": {
+        "energized": false,
+        "outputOn": false,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "43cea41c71918b4bb855e21fd2c8c596e45169e6fa453014d30bdba57e33a87d"
+    },
+    "relay-off-fractional-pending": {
+      "device": "relay_off_delay",
+      "step": 5,
+      "state": {
+        "energized": false,
+        "outputOn": true,
+        "timing": true,
+        "timerElapsedSeconds": 0.003,
+        "edgeStep": 2,
+        "delayMs": 3.5,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "ngspice": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "netlistSha256": "db8c65411184f15a2ed067812d907b913e5100da7a138dccea74cd4045628bcb"
+    },
+    "relay-off-fractional-deadline": {
+      "device": "relay_off_delay",
+      "step": 6,
+      "state": {
+        "energized": false,
+        "outputOn": false,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3.5,
+        "oppositeEdgeAtSample": false
+      },
+      "analytical": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "ngspice": {
+        "coilVoltageVolts": 0,
+        "coilCurrentAmps": 0,
+        "noVoltageVolts": 24,
+        "noCurrentAmps": 0,
+        "ncVoltageVolts": 0.00199983334722,
+        "ncCurrentAmps": 0.199983334722
+      },
+      "netlistSha256": "a7dd0ab4bbe5300b57a07b0b58eadf65f9d1e2c90b5676964ad5bdfe3b2b824b"
+    },
+    "relay-off-cancel-before": {
+      "device": "relay_off_delay",
+      "step": 4,
+      "state": {
+        "energized": true,
+        "outputOn": true,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": true
+      },
+      "analytical": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "ngspice": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "netlistSha256": "a7e676d0a17d690cfffbd6d50c8096687fc8f4418cc843a2c748114694212cfd"
+    },
+    "relay-off-cancel-at-deadline": {
+      "device": "relay_off_delay",
+      "step": 5,
+      "state": {
+        "energized": true,
+        "outputOn": true,
+        "timing": false,
+        "timerElapsedSeconds": 0,
+        "edgeStep": 2,
+        "delayMs": 3,
+        "oppositeEdgeAtSample": true
+      },
+      "analytical": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "ngspice": {
+        "coilVoltageVolts": 24,
+        "coilCurrentAmps": 0.1,
+        "noVoltageVolts": 0.00199983334722,
+        "noCurrentAmps": 0.199983334722,
+        "ncVoltageVolts": 24,
+        "ncCurrentAmps": 0
+      },
+      "netlistSha256": "aeebe888826758dda3d3042c3ab61f9a12449400e6f8e39f2492e1fa8f164480"
+    },
+    "lamp-3": {
+      "device": "lamp",
+      "step": null,
+      "state": {
+        "lit": false
+      },
+      "analytical": {
+        "voltageVolts": 3,
+        "currentAmps": 0.025,
+        "powerWatts": 0.075
+      },
+      "ngspice": {
+        "voltageVolts": 3,
+        "currentAmps": 0.025,
+        "powerWatts": 0.075
+      },
+      "netlistSha256": "c3c58ccd1060b9adc709ee6751e9fdfc5c08b3a3d9387c8eb1e06bcad234a587"
+    },
+    "indicator-3": {
+      "device": "indicator",
+      "step": null,
+      "state": {
+        "lit": false
+      },
+      "analytical": {
+        "voltageVolts": -3,
+        "currentAmps": -0.00125
+      },
+      "ngspice": {
+        "voltageVolts": -3,
+        "currentAmps": -0.00125
+      },
+      "netlistSha256": "0be1172597b847d344634c4da3fb1ef602f2865a7e90bc53d4ee68daa1761dca"
+    },
+    "buzzer-3": {
+      "device": "buzzer",
+      "step": null,
+      "state": {
+        "active": false
+      },
+      "analytical": {
+        "voltageVolts": 3,
+        "currentAmps": 0.0125
+      },
+      "ngspice": {
+        "voltageVolts": 3,
+        "currentAmps": 0.0125
+      },
+      "netlistSha256": "468899c0a89b781ca3ee39021b32ec621923f5fc0fb52c4e3b73478311b9a97e"
+    },
+    "lamp-6": {
+      "device": "lamp",
+      "step": null,
+      "state": {
+        "lit": true
+      },
+      "analytical": {
+        "voltageVolts": 6,
+        "currentAmps": 0.05,
+        "powerWatts": 0.3
+      },
+      "ngspice": {
+        "voltageVolts": 6,
+        "currentAmps": 0.05,
+        "powerWatts": 0.3
+      },
+      "netlistSha256": "55c7303823e77d7c8de561ae9c335d66fc3c3a782742e43fbbb49e7d97571fb1"
+    },
+    "indicator-6": {
+      "device": "indicator",
+      "step": null,
+      "state": {
+        "lit": false
+      },
+      "analytical": {
+        "voltageVolts": -6,
+        "currentAmps": -0.0025
+      },
+      "ngspice": {
+        "voltageVolts": -6,
+        "currentAmps": -0.0025
+      },
+      "netlistSha256": "9e53b1aac37b82759081d2293320c36abb8d80740d59a975783ec998c7109ee6"
+    },
+    "buzzer-6": {
+      "device": "buzzer",
+      "step": null,
+      "state": {
+        "active": true
+      },
+      "analytical": {
+        "voltageVolts": 6,
+        "currentAmps": 0.025
+      },
+      "ngspice": {
+        "voltageVolts": 6,
+        "currentAmps": 0.025
+      },
+      "netlistSha256": "3a4f981ddc03af3df96cefe98b3bb3c2a62817d3987ef61bf9ba30685038ecdb"
+    },
+    "lamp-12": {
+      "device": "lamp",
+      "step": null,
+      "state": {
+        "lit": true
+      },
+      "analytical": {
+        "voltageVolts": 12,
+        "currentAmps": 0.1,
+        "powerWatts": 1.2
+      },
+      "ngspice": {
+        "voltageVolts": 12,
+        "currentAmps": 0.1,
+        "powerWatts": 1.2
+      },
+      "netlistSha256": "597c9e0206a0f98690e814f255eb27f8f870b81e6c47863058b52b689de96f8d"
+    },
+    "indicator-12": {
+      "device": "indicator",
+      "step": null,
+      "state": {
+        "lit": true
+      },
+      "analytical": {
+        "voltageVolts": -12,
+        "currentAmps": -0.005
+      },
+      "ngspice": {
+        "voltageVolts": -12,
+        "currentAmps": -0.005
+      },
+      "netlistSha256": "16154bd556454e3394f7f8989f597940484384ecc83988c2d52994a6e835d235"
+    },
+    "buzzer-12": {
+      "device": "buzzer",
+      "step": null,
+      "state": {
+        "active": true
+      },
+      "analytical": {
+        "voltageVolts": 12,
+        "currentAmps": 0.05
+      },
+      "ngspice": {
+        "voltageVolts": 12,
+        "currentAmps": 0.05
+      },
+      "netlistSha256": "220c61a5b9c6ff207071dee1a9286cbe4258011af89c2255c178695247db1a25"
+    },
+    "lamp-24": {
+      "device": "lamp",
+      "step": null,
+      "state": {
+        "lit": true
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.2,
+        "powerWatts": 4.8
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.2,
+        "powerWatts": 4.8
+      },
+      "netlistSha256": "4eb663f5ac28b75669f0488268177a7f5d922fdd364186920d6d80a72f015d6f"
+    },
+    "indicator-24": {
+      "device": "indicator",
+      "step": null,
+      "state": {
+        "lit": true
+      },
+      "analytical": {
+        "voltageVolts": -24,
+        "currentAmps": -0.01
+      },
+      "ngspice": {
+        "voltageVolts": -24,
+        "currentAmps": -0.01
+      },
+      "netlistSha256": "e76fa5906390979b7edbdf911198869e45de2104e9dd02a39fa5ef0f67872945"
+    },
+    "buzzer-24": {
+      "device": "buzzer",
+      "step": null,
+      "state": {
+        "active": true
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.1
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.1
+      },
+      "netlistSha256": "2ac05fb5612062c7bc8008f07b49ef2673f541d9443c3938c939426185c3c3cd"
+    },
+    "solenoid-dc-0": {
+      "device": "solenoid",
+      "step": null,
+      "state": {
+        "energized": false
+      },
+      "analytical": {
+        "voltageVolts": 0,
+        "currentAmps": 0
+      },
+      "ngspice": {
+        "voltageVolts": 0,
+        "currentAmps": 0
+      },
+      "netlistSha256": "c3e7ee0f99fe39fb80f2d17b8b176c242776a571a45e1707061ac13ec80f2ce7"
+    },
+    "solenoid-dc-4_8": {
+      "device": "solenoid",
+      "step": null,
+      "state": {
+        "energized": false
+      },
+      "analytical": {
+        "voltageVolts": 4.8,
+        "currentAmps": 0.2
+      },
+      "ngspice": {
+        "voltageVolts": 4.8,
+        "currentAmps": 0.2
+      },
+      "netlistSha256": "f869d9acc5e737b418285318a1cd1223398e03400f484b691bdb391f2b8e8157"
+    },
+    "solenoid-dc-9_6": {
+      "device": "solenoid",
+      "step": null,
+      "state": {
+        "energized": true
+      },
+      "analytical": {
+        "voltageVolts": 9.6,
+        "currentAmps": 0.4
+      },
+      "ngspice": {
+        "voltageVolts": 9.6,
+        "currentAmps": 0.4
+      },
+      "netlistSha256": "1e8ce01e04d15040ab15643403298bd2ba9b41ae92d507f802df6196b438aecf"
+    },
+    "solenoid-dc-24": {
+      "device": "solenoid",
+      "step": null,
+      "state": {
+        "energized": true
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 1
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 1
+      },
+      "netlistSha256": "623944383b95a74b7dad2beb8b39710d3ebc10f2568d027f2a5b9758e1596f7f"
+    },
+    "solenoid-rise-1": {
+      "device": "solenoid",
+      "step": 1,
+      "state": {
+        "energized": false
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.381216608194
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.381216613878
+      },
+      "netlistSha256": "8aaa4cf015688dc8297c5a86e7f937b77db45552f271cb22dc33ee50e76ce87a"
+    },
+    "solenoid-rise-2": {
+      "device": "solenoid",
+      "step": 2,
+      "state": {
+        "energized": true
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.617107114025
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.617107121071
+      },
+      "netlistSha256": "3ea0b20905c032527302b94a39adf698733c1d33ae175a6fc9048ddcfd67243b"
+    },
+    "solenoid-rise-3": {
+      "device": "solenoid",
+      "step": 3,
+      "state": {
+        "energized": true
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.763072241318
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.763072247862
+      },
+      "netlistSha256": "963c157ea6402d35ce1a386476983b8cd6b33399cf2f6ed0aa3ee864fc4865a2"
+    },
+    "solenoid-rise-5": {
+      "device": "solenoid",
+      "step": 5,
+      "state": {
+        "energized": true
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.909282046711
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.909282050889
+      },
+      "netlistSha256": "4b3357c2bf40f4d22bfa3d28d4495bc690b13ba8bc457d7fb22c278905f82d5b"
+    },
+    "solenoid-rise-20": {
+      "device": "solenoid",
+      "step": 20,
+      "state": {
+        "energized": true
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.999932271264
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.999932271277
+      },
+      "netlistSha256": "47d2b63e6380cd73135f0be3121f062ff0247472eace8e3f7770aaca6e3b804f"
+    },
+    "valve-dc-0": {
+      "device": "valve",
+      "step": null,
+      "state": {
+        "position": "closed"
+      },
+      "analytical": {
+        "voltageVolts": 0,
+        "currentAmps": 0
+      },
+      "ngspice": {
+        "voltageVolts": 0,
+        "currentAmps": 0
+      },
+      "netlistSha256": "7ec3c0378b8ab38bf030f3126021c0c03d9224a1179bf0f2c98df607e0dcd5cc"
+    },
+    "valve-dc-4_8": {
+      "device": "valve",
+      "step": null,
+      "state": {
+        "position": "closed"
+      },
+      "analytical": {
+        "voltageVolts": 4.8,
+        "currentAmps": 0.2
+      },
+      "ngspice": {
+        "voltageVolts": 4.8,
+        "currentAmps": 0.2
+      },
+      "netlistSha256": "0218e38cea75e2b1dabae7b6f886d1260d7975abc6d58559261089128b4f253d"
+    },
+    "valve-dc-9_6": {
+      "device": "valve",
+      "step": null,
+      "state": {
+        "position": "open"
+      },
+      "analytical": {
+        "voltageVolts": 9.6,
+        "currentAmps": 0.4
+      },
+      "ngspice": {
+        "voltageVolts": 9.6,
+        "currentAmps": 0.4
+      },
+      "netlistSha256": "c80e8bbf61635183082a8ed28400f5b91b66a01e919b109553d4c841e93d0205"
+    },
+    "valve-dc-24": {
+      "device": "valve",
+      "step": null,
+      "state": {
+        "position": "open"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 1
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 1
+      },
+      "netlistSha256": "9270e2b9d7c1cb6e28c074da2b76ca0449cadb29cffb603827f9a4603a0332df"
+    },
+    "valve-rise-1": {
+      "device": "valve",
+      "step": 1,
+      "state": {
+        "position": "closed"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.381216608194
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.381216613878
+      },
+      "netlistSha256": "82979c099e7d7c265bb477dd5f2bb8c7bae2412af18bb781da36b7c0dae2fbf6"
+    },
+    "valve-rise-2": {
+      "device": "valve",
+      "step": 2,
+      "state": {
+        "position": "open"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.617107114025
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.617107121071
+      },
+      "netlistSha256": "09b783429e341108af674b90ab8b2c3b5768efee70982b01558ea1948c28c817"
+    },
+    "valve-rise-3": {
+      "device": "valve",
+      "step": 3,
+      "state": {
+        "position": "open"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.763072241318
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.763072247862
+      },
+      "netlistSha256": "fb870d24063085dd6a13244be046ccbb12092b85a9f0602463c312eca4c64e3f"
+    },
+    "valve-rise-5": {
+      "device": "valve",
+      "step": 5,
+      "state": {
+        "position": "open"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.909282046711
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.909282050889
+      },
+      "netlistSha256": "e5c39c58fc357b3b07e2b58a2fa48d9def9b372650b04e0861850b7303e48704"
+    },
+    "valve-rise-20": {
+      "device": "valve",
+      "step": 20,
+      "state": {
+        "position": "open"
+      },
+      "analytical": {
+        "voltageVolts": 24,
+        "currentAmps": 0.999932271264
+      },
+      "ngspice": {
+        "voltageVolts": 24,
+        "currentAmps": 0.999932271277
+      },
+      "netlistSha256": "558267109152504786445dc5049adc1a80c043794dc78c82eeadf1ba058140f1"
+    },
+    "led-0": {
+      "device": "led",
+      "step": null,
+      "state": {
+        "lit": false
+      },
+      "analytical": {
+        "voltageVolts": -2,
+        "currentAmps": -1e-14
+      },
+      "ngspice": {
+        "voltageVolts": -2,
+        "currentAmps": -2.0099997674e-12
+      },
+      "netlistSha256": "7074c56060f5a60c6b554dc051d7812a4f11d495703b4307cf17eb45408bc35a"
+    },
+    "led-1": {
+      "device": "led",
+      "step": null,
+      "state": {
+        "lit": false
+      },
+      "analytical": {
+        "voltageVolts": 1.25,
+        "currentAmps": 0.000312097824023
+      },
+      "ngspice": {
+        "voltageVolts": 1.25,
+        "currentAmps": 0.000312100385059
+      },
+      "netlistSha256": "400be0e6b95af93148a7b71cb569a6aaa2e8522fad2a6808bdb155048f61050a"
+    },
+    "led-2": {
+      "device": "led",
+      "step": null,
+      "state": {
+        "lit": true
+      },
+      "analytical": {
+        "voltageVolts": 1.5,
+        "currentAmps": 0.0391876200744
+      },
+      "ngspice": {
+        "voltageVolts": 1.5,
+        "currentAmps": 0.0391880057704
+      },
+      "netlistSha256": "132df3b218a47aae137b4d0086dffaf1797b36b6cb51ddf46419950355528923"
+    },
+    "zener_diode-0": {
+      "device": "zener_diode",
+      "step": null,
+      "state": {
+        "inBreakdown": true
+      },
+      "analytical": {
+        "voltageVolts": -6,
+        "currentAmps": -0.18
+      },
+      "ngspice": {
+        "voltageVolts": -6,
+        "currentAmps": -0.180000000006
+      },
+      "netlistSha256": "145c89f3dd5dd21837023b9f732f3ecf076d9207799b8b3e60c048de9bd6120c"
+    },
+    "zener_diode-1": {
+      "device": "zener_diode",
+      "step": null,
+      "state": {
+        "inBreakdown": false
+      },
+      "analytical": {
+        "voltageVolts": -5.1,
+        "currentAmps": -1e-14
+      },
+      "ngspice": {
+        "voltageVolts": -5.1,
+        "currentAmps": -5.10991249314e-12
+      },
+      "netlistSha256": "f2c44b1aac9d92f677b2277c043fbf5caa6e918de8b7ffcabecd334b21348d01"
+    },
+    "zener_diode-2": {
+      "device": "zener_diode",
+      "step": null,
+      "state": {
+        "inBreakdown": false
+      },
+      "analytical": {
+        "voltageVolts": -4,
+        "currentAmps": -1e-14
+      },
+      "ngspice": {
+        "voltageVolts": -4,
+        "currentAmps": -4.00999999637e-12
+      },
+      "netlistSha256": "f98fef68f9fa36273f4fb7827b3d9438cda9bc12b7212aba67b573637a142457"
+    },
+    "zener_diode-3": {
+      "device": "zener_diode",
+      "step": null,
+      "state": {
+        "inBreakdown": false
+      },
+      "analytical": {
+        "voltageVolts": 0.7,
+        "currentAmps": 0.00567029468352
+      },
+      "ngspice": {
+        "voltageVolts": 0.7,
+        "currentAmps": 0.00567034677212
+      },
+      "netlistSha256": "0ce0febc8407b043bfea1c184a0f055043179b84d92e189d68578e5a1e13e775"
+    },
+    "mosfet-off": {
+      "device": "mosfet_n",
+      "step": null,
+      "state": {
+        "conducting": false
+      },
+      "analytical": {
+        "gateSourceVoltageVolts": 1,
+        "drainSourceVoltageVolts": 2,
+        "drainCurrentAmps": 0
+      },
+      "ngspice": {
+        "gateSourceVoltageVolts": 1,
+        "drainSourceVoltageVolts": 2,
+        "drainCurrentAmps": 2e-12
+      },
+      "netlistSha256": "d1d12da2ad36b57a1d6ba910584563c6fd9662504ff19a02f56bd5430eddc23e"
+    },
+    "mosfet-linear": {
+      "device": "mosfet_n",
+      "step": null,
+      "state": {
+        "conducting": true
+      },
+      "analytical": {
+        "gateSourceVoltageVolts": 5,
+        "drainSourceVoltageVolts": 1,
+        "drainCurrentAmps": 0.25
+      },
+      "ngspice": {
+        "gateSourceVoltageVolts": 5,
+        "drainSourceVoltageVolts": 1,
+        "drainCurrentAmps": 0.250000000001
+      },
+      "netlistSha256": "6e79c7e0b5326752c9584994bde38ec10c45071541cb1362e45e444c99047d92"
+    },
+    "mosfet-saturated": {
+      "device": "mosfet_n",
+      "step": null,
+      "state": {
+        "conducting": true
+      },
+      "analytical": {
+        "gateSourceVoltageVolts": 5,
+        "drainSourceVoltageVolts": 4,
+        "drainCurrentAmps": 0.45
+      },
+      "ngspice": {
+        "gateSourceVoltageVolts": 5,
+        "drainSourceVoltageVolts": 4,
+        "drainCurrentAmps": 0.450000000004
+      },
+      "netlistSha256": "d720513bef2c30448e5ee441f83bb47609f80318c914a6fb1ea5dbc5a10188cd"
+    },
+    "mosfet-reverse": {
+      "device": "mosfet_n",
+      "step": null,
+      "state": {
+        "conducting": true
+      },
+      "analytical": {
+        "gateSourceVoltageVolts": 4,
+        "drainSourceVoltageVolts": -1,
+        "drainCurrentAmps": -0.25
+      },
+      "ngspice": {
+        "gateSourceVoltageVolts": 4,
+        "drainSourceVoltageVolts": -1,
+        "drainCurrentAmps": -0.250000000001
+      },
+      "netlistSha256": "393a1d4db4b603dee51d02b67bba53e8dd366ae9f36a507c43ee2320c51fe396"
+    },
+    "amplifier-follower": {
+      "device": "operational_amplifier",
+      "step": null,
+      "state": {
+        "state": "linear"
+      },
+      "analytical": {
+        "differentialVoltageVolts": 0.00302694278778,
+        "outputVoltageVolts": 2.99697305721,
+        "outputCurrentAmps": -0.0299697305721
+      },
+      "ngspice": {
+        "differentialVoltageVolts": 0.00302694278778,
+        "outputVoltageVolts": 2.99697305721,
+        "outputCurrentAmps": -0.0299697305721
+      },
+      "netlistSha256": "681d112cbf3811b7373f3219e6b05324012e78983f0fa805a98161515c03ef4a"
+    },
+    "amplifier-low": {
+      "device": "operational_amplifier",
+      "step": null,
+      "state": {
+        "state": "clippedLow"
+      },
+      "analytical": {
+        "differentialVoltageVolts": -3.11881188119,
+        "outputVoltageVolts": -11.8811881188,
+        "outputCurrentAmps": 0.118811881188
+      },
+      "ngspice": {
+        "differentialVoltageVolts": -3.11881188119,
+        "outputVoltageVolts": -11.8811881188,
+        "outputCurrentAmps": 0.118811881188
+      },
+      "netlistSha256": "00264a1fb465f8b99effd2eb507e977710226f1f30fa2d1b7960faf91f5b175a"
+    },
+    "amplifier-high": {
+      "device": "operational_amplifier",
+      "step": null,
+      "state": {
+        "state": "clippedHigh"
+      },
+      "analytical": {
+        "differentialVoltageVolts": 3.11881188119,
+        "outputVoltageVolts": 11.8811881188,
+        "outputCurrentAmps": -0.118811881188
+      },
+      "ngspice": {
+        "differentialVoltageVolts": 3.11881188119,
+        "outputVoltageVolts": 11.8811881188,
+        "outputCurrentAmps": -0.118811881188
+      },
+      "netlistSha256": "daff5ee749b722e14dd16a4bd9817c83ca2dc5f444ddad418917dedcc43c4573"
+    },
+    "converter-23-1": {
+      "device": "frequency_converter",
+      "step": 1,
+      "state": {
+        "enabled": false
+      },
+      "analytical": {
+        "inputVoltageVolts": 23,
+        "inputCurrentAmps": 0.0023,
+        "uVoltageVolts": 0,
+        "uCurrentAmps": 0,
+        "vVoltageVolts": 0,
+        "vCurrentAmps": 0,
+        "wVoltageVolts": 0,
+        "wCurrentAmps": 0
+      },
+      "ngspice": {
+        "inputVoltageVolts": 23,
+        "inputCurrentAmps": 0.0023,
+        "uVoltageVolts": 0,
+        "uCurrentAmps": 0,
+        "vVoltageVolts": 0,
+        "vCurrentAmps": 0,
+        "wVoltageVolts": 0,
+        "wCurrentAmps": 0
+      },
+      "netlistSha256": "6efe2ed0549de3c5226310a79851a91af3faef1306127cdcf4ed6d21a3f124da"
+    },
+    "converter-24-1": {
+      "device": "frequency_converter",
+      "step": 1,
+      "state": {
+        "enabled": true
+      },
+      "analytical": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": 10.0688492033,
+        "uCurrentAmps": -0.419535383471,
+        "vVoltageVolts": -31.8714532522,
+        "vCurrentAmps": 1.32797721884,
+        "wVoltageVolts": 21.8026040489,
+        "wCurrentAmps": -0.908441835371
+      },
+      "ngspice": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": 10.0688492033,
+        "uCurrentAmps": -0.419535383471,
+        "vVoltageVolts": -31.8714532522,
+        "vCurrentAmps": 1.32797721884,
+        "wVoltageVolts": 21.8026040489,
+        "wCurrentAmps": -0.908441835371
+      },
+      "netlistSha256": "428604b7026b9f71a0916c203f2243de0e374b10fe5ea32f36dfc956891f849e"
+    },
+    "converter-24-5": {
+      "device": "frequency_converter",
+      "step": 5,
+      "state": {
+        "enabled": true
+      },
+      "analytical": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": 32.5834804771,
+        "uCurrentAmps": -1.35764501988,
+        "vVoltageVolts": -16.2917402385,
+        "vCurrentAmps": 0.678822509939,
+        "wVoltageVolts": -16.2917402385,
+        "wCurrentAmps": 0.678822509939
+      },
+      "ngspice": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": 32.5834804771,
+        "uCurrentAmps": -1.35764501988,
+        "vVoltageVolts": -16.2917402385,
+        "vCurrentAmps": 0.678822509939,
+        "wVoltageVolts": -16.2917402385,
+        "wCurrentAmps": 0.678822509939
+      },
+      "netlistSha256": "94387c163761f72948265bf54342da79bfa3ac5564ef9422882e6e547609a0dc"
+    },
+    "converter-24-10": {
+      "device": "frequency_converter",
+      "step": 10,
+      "state": {
+        "enabled": true
+      },
+      "analytical": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": 3.99032550713e-15,
+        "uCurrentAmps": -1.66263562797e-16,
+        "vVoltageVolts": 28.2181218369,
+        "vCurrentAmps": -1.17575507654,
+        "wVoltageVolts": -28.2181218369,
+        "wCurrentAmps": 1.17575507654
+      },
+      "ngspice": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": 3.99032550713e-15,
+        "uCurrentAmps": -1.66263562797e-16,
+        "vVoltageVolts": 28.2181218369,
+        "vCurrentAmps": -1.17575507654,
+        "wVoltageVolts": -28.2181218369,
+        "wCurrentAmps": 1.17575507654
+      },
+      "netlistSha256": "12d6bdc985c2e0b588dee9ec534911b2e9c4c1291e6d86ccfc97bbdf79c650e3"
+    },
+    "converter-24-20": {
+      "device": "frequency_converter",
+      "step": 20,
+      "state": {
+        "enabled": true
+      },
+      "analytical": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": -7.98065101427e-15,
+        "uCurrentAmps": 3.32527125594e-16,
+        "vVoltageVolts": -28.2181218369,
+        "vCurrentAmps": 1.17575507654,
+        "wVoltageVolts": 28.2181218369,
+        "wCurrentAmps": -1.17575507654
+      },
+      "ngspice": {
+        "inputVoltageVolts": 24,
+        "inputCurrentAmps": 0.0024,
+        "uVoltageVolts": -7.98065101427e-15,
+        "uCurrentAmps": 3.32527125594e-16,
+        "vVoltageVolts": -28.2181218369,
+        "vCurrentAmps": 1.17575507654,
+        "wVoltageVolts": 28.2181218369,
+        "wCurrentAmps": -1.17575507654
+      },
+      "netlistSha256": "28765d5a635bdaf181b203122c00101615808c947ba7076f0d7f30e21f9dc8c0"
+    }
+  }
+}

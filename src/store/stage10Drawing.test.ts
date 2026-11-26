@@ -131,6 +131,8 @@ class Drawing {
   private readonly ids: StableId[] = [];
   private cursor = 0;
 
+  constructor(private readonly escapes = ESCAPES) {}
+
   private apply(command: EditorCommand) {
     applyEditorCommand(this.store, command, catalog);
   }
@@ -194,7 +196,7 @@ class Drawing {
       const upperY = top - 2 * lane;
       const lowerY = bottom + 2 * lane;
       const channelX = left - 2 - 2 * lane;
-      const stub = (pin: string) => ESCAPES[pin] ?? 0;
+      const stub = (pin: string) => this.escapes[pin] ?? 0;
       const dropX = (pin: string) => this.pin(pin).x + stub(pin);
 
       for (const pin of upper) {
@@ -347,3 +349,104 @@ it.each(DRAWINGS)("pins the editor-drawn request of %s", (name, nets) => {
   if (process.env.UPDATE_GOLDEN === "1") writeFileSync(path, json);
   expect(readFileSync(path, "utf8")).toBe(json);
 });
+
+function timedStarDelta() {
+  const drawing = new Drawing({ ...ESCAPES, "8.no1": -1, "8.no2": 1 });
+  const relay = {
+    coilResistanceOhms: 240,
+    pickupCurrentAmps: 0.08,
+    dropoutCurrentAmps: 0.04,
+    closedResistanceOhms: 0.01,
+  };
+  starters["star-delta"].request.schematic.components.forEach((part, index) => {
+    if (index === 6 || index === 7) {
+      drawing.place("relay_on_delay", {
+        ...relay,
+        delaySeconds: index === 6 ? 0.09 : 0.12,
+      });
+    } else {
+      drawing.place(
+        part.typeId as ComponentTypeId,
+        part.parameters as unknown as Record<string, number>,
+      );
+    }
+  });
+  const timerPins: Record<string, string> = {
+    "7.pin1": "7.nc1",
+    "7.pin2": "7.nc2",
+    "8.pin1": "8.no1",
+    "8.pin2": "8.no2",
+  };
+  drawing.route(
+    STAR_DELTA.map((net) => [
+      ...net.map((pin) => timerPins[pin] ?? pin),
+      ...(net.includes("1.n") ? ["7.a2", "8.a2"] : []),
+      ...(net.includes("5.a1") ? ["7.a1", "8.a1"] : []),
+    ]),
+  );
+  drawing.reference(drawing.pin("1.n"));
+  return drawing.request();
+}
+
+function emergencyStopChain() {
+  const drawing = new Drawing({ "3.no1": -1, "3.no2": 1 });
+  drawing.place("dc_voltage_source", {
+    voltageVolts: 24,
+    internalResistanceOhms: 0,
+  });
+  drawing.place("emergency_stop", { closedResistanceOhms: 0.01 });
+  drawing.place("relay_on_delay", { delaySeconds: 0.003 });
+  drawing.place("lamp", { resistanceOhms: 120 });
+  drawing.route([
+    ["1.pin1", "2.p", "3.no1"],
+    ["1.pin2", "3.a2", "4.n"],
+    ["2.n", "3.a1"],
+    ["3.no2", "4.p"],
+  ]);
+  drawing.reference(drawing.pin("1.pin2"));
+  return drawing.request();
+}
+
+function ledAmplifier() {
+  const drawing = new Drawing({});
+  drawing.place("dc_voltage_source", {
+    voltageVolts: 3,
+    internalResistanceOhms: 0,
+  });
+  drawing.place("operational_amplifier", {
+    openLoopGain: 1000,
+    limitVolts: 12,
+    outputResistanceOhms: 1,
+  });
+  drawing.place("resistor", { resistanceOhms: 220 });
+  drawing.place("led", {
+    saturationCurrentAmps: 1e-14,
+    idealityFactor: 2,
+    litCurrentAmps: 0.001,
+  });
+  drawing.route([
+    ["1.pin1", "2.plus"],
+    ["1.pin2", "2.ref", "4.n"],
+    ["2.minus", "2.out", "3.pin1"],
+    ["3.pin2", "4.p"],
+  ]);
+  drawing.reference(drawing.pin("1.pin2"));
+  return drawing.request();
+}
+
+it.each([
+  ["timed-star-delta", timedStarDelta],
+  ["emergency-stop-chain", emergencyStopChain],
+  ["led-amplifier", ledAmplifier],
+] as const)(
+  "draws and pins Stage 14 %s from a blank document",
+  (name, draw) => {
+    const path = new URL(
+      "../../tests/golden/stage-14/" + name + ".request.json",
+      import.meta.url,
+    );
+    const content = JSON.stringify(draw(), null, 2) + "\n";
+    if (process.env.UPDATE_GOLDEN === "1") writeFileSync(path, content);
+    expect(readFileSync(path, "utf8")).toBe(content);
+  },
+);

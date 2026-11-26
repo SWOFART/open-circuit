@@ -1,0 +1,27 @@
+Open Circuit Stage 14: relay-on-pending
+.options reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27
+Vcoil coil 0 24
+Vcoilprobe coil cp 0
+Rcoil cp 0 240
+Vin supply 0 24
+Vno supply nop 0
+Rloadno non 0 120
+Vnc supply ncp 0
+Rloadnc ncn 0 120
+Rnc ncp ncn 0.01
+.op
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+let sample0 = v(cp)
+let sample1 = i(vcoilprobe)
+let sample2 = v(nop,non)
+let sample3 = i(vno)
+let sample4 = v(ncp,ncn)
+let sample5 = i(vnc)
+wrdata values.out sample0 sample1 sample2 sample3 sample4 sample5
+quit
+.endc
+.end
