@@ -1,0 +1,157 @@
+{
+  "schemaVersion": 2,
+  "id": "00000000-0000-4000-8000-0000000005a1",
+  "title": "Measure and step the voltage divider",
+  "instructions": "Pause the circuit, measure across R2, and advance once. Then check the starter circuit to see which requirement still needs work.",
+  "task": {
+    "kind": "build"
+  },
+  "startingCircuit": {
+    "schemaVersion": 1,
+    "components": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "typeId": "dc_voltage_source",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "voltageVolts": 5,
+          "internalResistanceOhms": 0.1
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "typeId": "resistor",
+        "position": {
+          "x": 4,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1000
+        }
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "typeId": "resistor",
+        "position": {
+          "x": 8,
+          "y": 0
+        },
+        "rotationDeg": 0,
+        "parameters": {
+          "resistanceOhms": 1000
+        }
+      }
+    ],
+    "wires": [
+      {
+        "id": "00000000-0000-4000-8000-000000000004",
+        "points": [
+          {
+            "x": -1,
+            "y": 0
+          },
+          {
+            "x": -1,
+            "y": 4
+          },
+          {
+            "x": 3,
+            "y": 4
+          },
+          {
+            "x": 3,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000005",
+        "points": [
+          {
+            "x": 5,
+            "y": 0
+          },
+          {
+            "x": 7,
+            "y": 0
+          }
+        ]
+      },
+      {
+        "id": "00000000-0000-4000-8000-000000000006",
+        "points": [
+          {
+            "x": 9,
+            "y": 0
+          },
+          {
+            "x": 9,
+            "y": -4
+          },
+          {
+            "x": 1,
+            "y": -4
+          },
+          {
+            "x": 1,
+            "y": 0
+          }
+        ]
+      }
+    ],
+    "junctions": [],
+    "referenceMarkers": [
+      {
+        "id": "00000000-0000-4000-8000-000000000007",
+        "position": {
+          "x": 1,
+          "y": 0
+        }
+      }
+    ]
+  },
+  "checks": [
+    {
+      "kind": "value",
+      "id": "00000000-0000-4000-8000-0000000000c1",
+      "label": "R2 voltage",
+      "signal": {
+        "key": "00000000-0000-4000-8000-000000000003:voltage",
+        "unit": "volt"
+      },
+      "atSeconds": 0.001,
+      "expected": 2.49987500625,
+      "toleranceAbs": 1e-06,
+      "toleranceRel": 0
+    },
+    {
+      "kind": "componentCount",
+      "id": "00000000-0000-4000-8000-0000000000c2",
+      "label": "Three resistors",
+      "typeId": "resistor",
+      "min": 3,
+      "max": 3
+    }
+  ],
+  "grading": {
+    "criteria": [
+      {
+        "criterionId": "00000000-0000-4000-8000-0000000000c1",
+        "points": 7
+      },
+      {
+        "criterionId": "00000000-0000-4000-8000-0000000000c2",
+        "points": 3,
+        "hintKey": "resistors"
+      }
+    ],
+    "hints": {
+      "resistors": "This starter circuit has two resistors. The exercise calls for three."
+    }
+  }
+}
