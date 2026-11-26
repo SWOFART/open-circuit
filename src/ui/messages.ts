@@ -436,6 +436,16 @@ const messages: Readonly<Record<string, string>> = {
     "A junction exceeds the supported model range.",
   "diagnostic.stepAccuracyLimited":
     "The circuit is too fast for the available internal step limit; simulation accuracy may be limited.",
+  "diagnostic.ambiguousProbe": "More than one conductor crosses this point.",
+  "diagnostic.unconnectedProbe": "This probe is not connected.",
+  "diagnostic.incomparableProbeReferences":
+    "The probes have different voltage references.",
+  "diagnostic.unsupportedProbeTarget":
+    "This terminal or conductor current is unavailable.",
+  "diagnostic.ambiguousConductorCurrent":
+    "Current cannot be determined on this parallel conductor path.",
+  "diagnostic.resistanceUnavailable":
+    "Resistance mode requires a source-free network of resistors.",
   "diagnostic.staleRun":
     "The result belongs to an earlier calculation and was ignored.",
   "diagnostic.staleDocumentRevision":

@@ -559,3 +559,25 @@ describe("the check result", () => {
     expect(failed).toContain("An ideal source is short-circuited.");
   });
 });
+
+it("shows the teacher scoring inputs for an opted-in assignment", () => {
+  const graded: Assignment = {
+    ...dividerAssignment,
+    schemaVersion: 2,
+    grading: {
+      criteria: dividerAssignment.checks!.map(({ id }) => ({
+        criterionId: id,
+        points: 5,
+        hintKey: "ratio",
+      })),
+      hints: { ratio: "Check the resistor ratio." },
+    },
+  };
+  const markup = panel(graded);
+  expect(markup).toContain("Enable scoring");
+  expect(markup).toContain("15 points possible.");
+  expect(markup).toContain("Points for check 1");
+  expect(markup).toContain("Hint key for check 1");
+  expect(markup).toContain("Check the resistor ratio.");
+  expect(unlabeledControls(markup)).toEqual([]);
+});

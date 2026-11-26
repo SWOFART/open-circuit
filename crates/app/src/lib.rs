@@ -5,6 +5,7 @@
 
 pub mod assignment;
 pub mod checks;
+pub mod examples;
 pub mod frame;
 pub mod project;
 pub mod simulation;

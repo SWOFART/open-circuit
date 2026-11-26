@@ -23,12 +23,14 @@ use crate::faults::FaultOverlay;
 use crate::faults::{MAX_LEAK_RESISTANCE_OHMS, MIN_LEAK_RESISTANCE_OHMS};
 use crate::slots::slot_for_key_rest;
 use crate::{
-    CheckCriterion, ComponentTypeId, DiagnosticCode, DiagnosticReference, FaultKind, FaultSpec,
-    MAX_CHECK_CRITERIA, ParameterId, PinId, Schematic, StableId, Unit, component_catalog,
+    AssignmentGrading, CheckCriterion, ComponentTypeId, DiagnosticCode, DiagnosticReference,
+    FaultKind, FaultSpec, MAX_CHECK_CRITERIA, ParameterId, PinId, Schematic, StableId, Unit,
+    component_catalog,
 };
 
-/// The only supported `schemaVersion`.
+/// The legacy ungraded assignment `schemaVersion`.
 pub const ASSIGNMENT_SCHEMA_VERSION: u64 = 1;
+const GRADED_ASSIGNMENT_SCHEMA_VERSION: u64 = 2;
 /// The largest assignment file, in bytes.
 pub const MAX_ASSIGNMENT_BYTES: usize = 4 * 1024 * 1024;
 /// The most faults of a fault-finding task, and the most entries of a diagnosis.
@@ -144,7 +146,7 @@ pub struct Restrictions {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(export, export_to = "Assignment.ts")]
 pub struct Assignment {
-    #[ts(type = "1")]
+    #[ts(type = "1 | 2")]
     pub schema_version: u32,
     pub id: StableId,
     pub title: String,
@@ -159,6 +161,9 @@ pub struct Assignment {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub checks: Option<Vec<CheckCriterion>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub grading: Option<AssignmentGrading>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub faults: Option<Vec<FaultSpec>>,
@@ -298,13 +303,24 @@ fn validate_assignment_for_format(
             "",
         )]);
     };
-    if root.get("schemaVersion").and_then(Value::as_u64) != Some(ASSIGNMENT_SCHEMA_VERSION) {
-        return Err(vec![AssignmentError::new(
-            AssignmentErrorCode::UnsupportedVersion,
-            "/schemaVersion",
-        )]);
-    }
-    report.unknown_fields(root, &ROOT_FIELDS, "");
+    let schema_version = root.get("schemaVersion").and_then(Value::as_u64);
+    let graded = match schema_version {
+        Some(ASSIGNMENT_SCHEMA_VERSION) => false,
+        Some(GRADED_ASSIGNMENT_SCHEMA_VERSION) => true,
+        _ => {
+            return Err(vec![AssignmentError::new(
+                AssignmentErrorCode::UnsupportedVersion,
+                "/schemaVersion",
+            )]);
+        }
+    };
+    // Only version 2 recognizes the last field, grading.
+    let fields = if graded {
+        &ROOT_FIELDS[..]
+    } else {
+        &ROOT_FIELDS[..ROOT_FIELDS.len() - 1]
+    };
+    report.unknown_fields(root, fields, "");
 
     if let Some(id) = root.get("id") {
         report.stable_id(id, "/id");
@@ -375,6 +391,20 @@ fn validate_assignment_for_format(
         None => {}
     }
 
+    if graded {
+        if kind != Some(TaskKind::Build) {
+            report.push(AssignmentErrorCode::TaskMismatch, "/grading");
+        } else if let Some(grading) = root
+            .get("grading")
+            .and_then(|value| AssignmentGrading::deserialize(value).ok())
+        {
+            if let Err(error) = grading.validate(authored_ids.iter().map(String::as_str)) {
+                report.push(error.code, error.path);
+            }
+        } else {
+            report.push(AssignmentErrorCode::InvalidField, "/grading");
+        }
+    }
     report.errors.extend(reference_report.errors);
     report.errors.truncate(MAX_ASSIGNMENT_ERRORS);
     if !report.errors.is_empty() {
@@ -445,7 +475,7 @@ pub fn encode_assignment_json(assignment: &Assignment) -> Result<Vec<u8>, Vec<As
     Ok(bytes)
 }
 
-const ROOT_FIELDS: [&str; 10] = [
+const ROOT_FIELDS: [&str; 11] = [
     "schemaVersion",
     "id",
     "title",
@@ -456,6 +486,7 @@ const ROOT_FIELDS: [&str; 10] = [
     "checks",
     "faults",
     "reference",
+    "grading",
 ];
 const SCHEMATIC_FIELDS: [&str; 5] = [
     "schemaVersion",

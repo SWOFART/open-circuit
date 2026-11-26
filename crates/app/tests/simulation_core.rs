@@ -7,12 +7,13 @@ use std::time::{Duration, Instant};
 
 use open_circuit_app_lib::frame::decode_frame;
 use open_circuit_app_lib::simulation::{
-    FrameSink, PHYSICS_STEP, SimulationConfig, SimulationCore, SinkClosed, TraceSink,
+    FrameSink, PHYSICS_STEP, PlaybackCommand, SimulationConfig, SimulationCore, SinkClosed,
+    TraceSink,
 };
 use open_circuit_engine::{
-    CompileRequest, CompileResult, DiagnosticCode, ParameterId, ResultSnapshot,
-    SIMULATION_TIMESTEP_SECONDS, SetParameterRequest, SetParameterResult, StableId, TraceQuery,
-    TraceRequest,
+    CompileRequest, CompileResult, DiagnosticCode, OperatorPosition, ParameterId, ResultSnapshot,
+    SIMULATION_TIMESTEP_SECONDS, SetOperatorStateRequest, SetOperatorStateResult,
+    SetParameterRequest, SetParameterResult, StableId, TraceQuery, TraceRequest,
 };
 
 const SCHEMATIC: &str = include_str!("../../../tests/golden/stage-1-divider.schematic.json");
@@ -837,4 +838,175 @@ fn a_catch_up_batch_yields_after_its_budget_between_complete_steps_and_drops_the
         second, 2,
         "the debt was dropped: one more step is due, not ten"
     );
+}
+
+#[test]
+fn playback_uses_fixed_steps_without_replaying_paused_time() {
+    let config = SimulationConfig {
+        frame_interval: PHYSICS_STEP,
+        ..fake_clock()
+    };
+    let (mut core, run) = compiled_core(config);
+    let sink = RecordingSink::default();
+    let start = Instant::now();
+    core.start(run.clone(), Box::new(SinkHandle(sink.clone())), start)
+        .unwrap();
+    let mut now = start + Duration::from_millis(10);
+    core.tick(now);
+    assert_eq!(sink.decoded()[0].metadata.simulation_step, 10);
+
+    let refused = core
+        .playback(&run, "rev-1", PlaybackCommand::Step, now)
+        .unwrap_err();
+    assert_eq!(refused[0].code, DiagnosticCode::InvalidParameter);
+    let stale = core
+        .playback(&run, "old", PlaybackCommand::Pause, now)
+        .unwrap_err();
+    assert_eq!(stale[0].code, DiagnosticCode::StaleDocumentRevision);
+    let stale = core
+        .playback(
+            &StableId::parse(RESISTOR_1).unwrap(),
+            "rev-1",
+            PlaybackCommand::Pause,
+            now,
+        )
+        .unwrap_err();
+    assert_eq!(stale[0].code, DiagnosticCode::StaleRun);
+    core.playback(&run, "rev-1", PlaybackCommand::Pause, now)
+        .unwrap();
+    assert!(core.next_deadline().is_none());
+    now += Duration::from_secs(10);
+    core.playback(&run, "rev-1", PlaybackCommand::Pause, now)
+        .unwrap();
+    core.tick(now);
+    assert_eq!(sink.count(), 1);
+
+    core.playback(&run, "rev-1", PlaybackCommand::Step, now)
+        .unwrap();
+    now += PHYSICS_STEP;
+    core.tick(now);
+    let stepped = sink.decoded().pop().unwrap();
+    assert_eq!(stepped.metadata.simulation_step, 11);
+    assert!((stepped.metadata.simulation_time_seconds - 0.011).abs() < 1e-12);
+    core.acknowledge(stepped.metadata.frame_sequence);
+
+    core.playback(&run, "rev-1", PlaybackCommand::QuarterSpeed, now)
+        .unwrap();
+    now += Duration::from_secs(10);
+    core.playback(&run, "rev-1", PlaybackCommand::Play, now)
+        .unwrap();
+    now += Duration::from_millis(3);
+    core.tick(now);
+    assert_eq!(sink.count(), 2);
+    core.playback(&run, "rev-1", PlaybackCommand::Play, now)
+        .unwrap();
+    now += Duration::from_millis(1);
+    core.tick(now);
+    assert_eq!(sink.decoded().last().unwrap().metadata.simulation_step, 12);
+    core.acknowledge(sink.decoded().last().unwrap().metadata.frame_sequence);
+
+    core.playback(&run, "rev-1", PlaybackCommand::DoubleSpeed, now)
+        .unwrap();
+    now += Duration::from_millis(2);
+    core.tick(now);
+    let last = sink.decoded().pop().unwrap();
+    assert_eq!(last.metadata.simulation_step, 16);
+    assert!((last.metadata.simulation_time_seconds - 0.016).abs() < 1e-12);
+    assert!(last.metadata.frame_sequence > stepped.metadata.frame_sequence);
+    core.acknowledge(last.metadata.frame_sequence);
+
+    core.playback(&run, "rev-1", PlaybackCommand::HalfSpeed, now)
+        .unwrap();
+    now += Duration::from_millis(6);
+    core.tick(now);
+    let half_speed = sink.decoded().pop().unwrap();
+    assert_eq!(half_speed.metadata.simulation_step, 19);
+    core.acknowledge(half_speed.metadata.frame_sequence);
+
+    core.playback(&run, "rev-1", PlaybackCommand::NormalSpeed, now)
+        .unwrap();
+    now += Duration::from_millis(3);
+    core.tick(now);
+    assert_eq!(sink.decoded().last().unwrap().metadata.simulation_step, 22);
+}
+
+#[test]
+fn paused_operator_updates_replace_the_latest_trace_sample_before_stepping() {
+    const SWITCH: &str = "00000000-0000-4000-8000-000000000002";
+    const LOAD: &str = "00000000-0000-4000-8000-000000000003";
+    let mut core = SimulationCore::new(fake_clock());
+    let mut input: CompileRequest = serde_json::from_str(include_str!(
+        "../../../tests/golden/stage-6-drawn-switch.request.json"
+    ))
+    .unwrap();
+    input.document_revision = "rev-1".into();
+    let CompileResult::Success { run_id, .. } = core.compile(input) else {
+        panic!("switch fixture must compile");
+    };
+    let sink = RecordingSink::default();
+    let start = Instant::now();
+    core.start(run_id.clone(), Box::new(SinkHandle(sink.clone())), start)
+        .unwrap();
+    let now = start + Duration::from_millis(20);
+    core.tick(now);
+    let old = sink.decoded().pop().unwrap();
+    core.acknowledge(old.metadata.frame_sequence);
+    core.playback(&run_id, "rev-1", PlaybackCommand::Pause, now)
+        .unwrap();
+    let SetOperatorStateResult::Success { snapshot, .. } =
+        core.set_operator_state(SetOperatorStateRequest {
+            run_id: run_id.clone(),
+            component_id: StableId::parse(SWITCH).unwrap(),
+            position: OperatorPosition::Closed,
+            expected_document_revision: "rev-1".into(),
+            document_revision: "rev-2".into(),
+        })
+    else {
+        panic!("the switch must close while paused");
+    };
+    assert_eq!(
+        snapshot.metadata.simulation_step,
+        old.metadata.simulation_step
+    );
+    let now = now + Duration::from_secs(1);
+    core.tick(now);
+    let updated = sink.decoded().pop().unwrap();
+    assert_eq!(updated.metadata, snapshot.metadata);
+    assert!(updated.metadata.frame_sequence > old.metadata.frame_sequence);
+    core.acknowledge(updated.metadata.frame_sequence);
+
+    core.playback(&run_id, "rev-2", PlaybackCommand::Step, now)
+        .unwrap();
+    let traces = TraceRecordingSink::default();
+    core.read_traces(
+        TraceRequest {
+            run_id,
+            layout_version: 1,
+            signal_keys: vec![format!("{LOAD}:voltage")],
+            query: TraceQuery::History {
+                start_step: 20,
+                end_step: 21,
+            },
+            max_points: 8,
+        },
+        Box::new(TraceSinkHandle(traces.clone())),
+        now,
+    )
+    .unwrap();
+    let responses = traces.responses.lock().unwrap();
+    let response = &responses[0];
+    let length = u32::from_le_bytes(response[4..8].try_into().unwrap()) as usize;
+    let header: serde_json::Value = serde_json::from_slice(&response[8..8 + length]).unwrap();
+    assert_eq!(header["pointCount"], 2);
+    assert_eq!(header["metadata"]["firstSampleStep"], "20");
+    assert_eq!(header["metadata"]["lastSampleStep"], "21");
+    let payload = (8 + length).next_multiple_of(8);
+    let step20_voltage =
+        f64::from_le_bytes(response[payload + 8..payload + 16].try_into().unwrap());
+    let step21_voltage =
+        f64::from_le_bytes(response[payload + 32..payload + 40].try_into().unwrap());
+    assert!((step20_voltage - 10.0 * 1000.0 / 2000.01).abs() < 1e-8);
+    assert_eq!(step20_voltage, step21_voltage);
+    core.tick(now + Duration::from_secs(1));
+    assert_eq!(sink.decoded().last().unwrap().metadata.simulation_step, 21);
 }

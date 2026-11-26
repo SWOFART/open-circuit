@@ -166,7 +166,7 @@ fn unreadable_unsupported_and_oversized_files_are_refused_with_one_error() {
         );
     }
     for version in [
-        json!(2),
+        json!(3),
         json!(0),
         json!("1"),
         json!(1.5),
@@ -1426,7 +1426,7 @@ fn a_diagnosis_is_refused_for_an_assignment_that_is_no_longer_valid() {
     );
 
     let mut other_version = fault_finding_assignment();
-    other_version.schema_version = 2;
+    other_version.schema_version = 3;
     assert_eq!(
         check_diagnosis(&other_version, &json!([])).unwrap_err(),
         vec![AssignmentError::new(UnsupportedVersion, "/schemaVersion")]

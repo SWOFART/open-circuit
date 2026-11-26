@@ -1,10 +1,14 @@
 import { buildGeometryEnvelope } from "../editor/geometry";
 import type { AssignmentError } from "../generated/AssignmentError";
 import type { CheckRequest } from "../generated/CheckRequest";
-import type { CheckResult } from "../generated/CheckResult";
 import type { Schematic } from "../generated/Schematic";
 import { symbols, type SymbolRegistry } from "../symbols";
-import { checkResultBelongsTo, type AssignmentPort } from "./assignmentBridge";
+import {
+  checkResultBelongsTo,
+  runAssignmentChecks,
+  type AssignmentCheck,
+  type AssignmentPort,
+} from "./assignmentBridge";
 import {
   assignmentToDraft,
   draftToAssignment,
@@ -38,7 +42,7 @@ export type ValidationOutcome =
   | { readonly status: "invalid"; readonly errors: AssignmentError[] };
 
 export type PreviewOutcome =
-  | { readonly status: "result"; readonly result: CheckResult }
+  | ({ readonly status: "result" } & AssignmentCheck)
   /** The draft changed while the Engine was working, so its answer was dropped. */
   | { readonly status: "stale" }
   | { readonly status: "notBuildTask" }
@@ -134,7 +138,7 @@ export class AssignmentAuthoring {
     if (draft.reference === null) return { status: "needsReference" };
 
     const revision = this.createRevision();
-    let result: CheckResult;
+    let checked: AssignmentCheck;
 
     try {
       const request: CheckRequest = {
@@ -145,18 +149,22 @@ export class AssignmentAuthoring {
         geometry: buildGeometryEnvelope(draft.reference, this.registry),
         documentRevision: revision,
       };
-      result = await this.port.checkAssignment(request);
+      checked = await runAssignmentChecks(
+        this.port,
+        request,
+        draft.grading ?? undefined,
+      );
     } catch (error) {
       return { status: "unavailable", reason: describe(error) };
     }
 
     if (
-      !checkResultBelongsTo(result, revision) ||
+      !checkResultBelongsTo(checked.result, revision) ||
       this.draft.getState().version !== version
     ) {
       return { status: "stale" };
     }
 
-    return { status: "result", result };
+    return { status: "result", ...checked };
   }
 }

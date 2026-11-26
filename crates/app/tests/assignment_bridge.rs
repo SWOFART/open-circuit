@@ -123,7 +123,7 @@ fn malformed_unsupported_unknown_and_inconsistent_files_are_refused_with_their_e
         ("empty", String::new(), AssignmentErrorCode::Malformed, ""),
         (
             "version 2",
-            edited(&|document| document["schemaVersion"] = json!(2)),
+            edited(&|document| document["schemaVersion"] = json!(3)),
             AssignmentErrorCode::UnsupportedVersion,
             "/schemaVersion",
         ),

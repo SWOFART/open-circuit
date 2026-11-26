@@ -3,7 +3,6 @@ import { buildGeometryEnvelope } from "../editor/geometry";
 import type { Assignment } from "../generated/Assignment";
 import type { AssignmentError } from "../generated/AssignmentError";
 import type { CheckRequest } from "../generated/CheckRequest";
-import type { CheckResult } from "../generated/CheckResult";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { DiagnosisEntry } from "../generated/DiagnosisEntry";
@@ -14,7 +13,12 @@ import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
 import { symbols, type SymbolRegistry } from "../symbols";
 import { emptySchematic } from "./assignmentAuthoring";
-import { checkResultBelongsTo, type AssignmentPort } from "./assignmentBridge";
+import {
+  checkResultBelongsTo,
+  runAssignmentChecks,
+  type AssignmentCheck,
+  type AssignmentPort,
+} from "./assignmentBridge";
 
 // The student's side of an assignment. It holds the assignment as the student's copy (the
 // teacher's reference solution is dropped the moment a file is opened), the diagnosis being
@@ -244,7 +248,7 @@ export function faultsOf(
 }
 
 export type StudentCheckOutcome =
-  | { readonly status: "result"; readonly result: CheckResult }
+  | ({ readonly status: "result" } & AssignmentCheck)
   /** The answer is not for this request, so it is not shown. */
   | { readonly status: "stale" }
   | { readonly status: "notBuildTask" }
@@ -277,7 +281,7 @@ export async function checkStudentCircuit(
   if (assignment.task.kind !== "build") return { status: "notBuildTask" };
 
   const revision = createRevision();
-  let result: CheckResult;
+  let checked: AssignmentCheck;
 
   try {
     const request: CheckRequest = {
@@ -288,13 +292,13 @@ export async function checkStudentCircuit(
       geometry: buildGeometryEnvelope(schematic, registry),
       documentRevision: revision,
     };
-    result = await port.checkAssignment(request);
+    checked = await runAssignmentChecks(port, request, assignment.grading);
   } catch (error) {
     return { status: "unavailable", reason: describe(error) };
   }
 
-  return checkResultBelongsTo(result, revision)
-    ? { status: "result", result }
+  return checkResultBelongsTo(checked.result, revision)
+    ? { status: "result", ...checked }
     : { status: "stale" };
 }
 

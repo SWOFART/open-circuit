@@ -1,6 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react";
 import type { AssignmentError } from "../../generated/AssignmentError";
-import type { CheckResult } from "../../generated/CheckResult";
+import type { AssignmentCheck } from "../../store/assignmentBridge";
 import type { ComponentCatalog } from "../../generated/ComponentCatalog";
 import type { DiagnosisResult } from "../../generated/DiagnosisResult";
 import type { Schematic } from "../../generated/Schematic";
@@ -68,7 +68,7 @@ export function StudentPanel({
   // version of the findings. Once either has changed the answer is not shown.
   const [check, setCheck] = useState<{
     key: Schematic;
-    value: CheckResult;
+    value: AssignmentCheck;
   } | null>(null);
   const [diagnosis, setDiagnosis] = useState<{
     key: number;
@@ -111,7 +111,10 @@ export function StudentPanel({
       const asked = document;
       const outcome = await checkStudentCircuit(port, assignment, asked);
       if (outcome.status === "result") {
-        setCheck({ key: asked, value: outcome.result });
+        setCheck({
+          key: asked,
+          value: { result: outcome.result, score: outcome.score },
+        });
       } else if (outcome.status === "unavailable") {
         setNotice(`The check could not be run: ${outcome.reason}`);
       }
@@ -217,7 +220,8 @@ export function StudentPanel({
               </div>
               {shownCheck !== null && (
                 <CheckResultView
-                  result={shownCheck}
+                  result={shownCheck.result}
+                  score={shownCheck.score}
                   labels={labels}
                   names={checkNames}
                 />

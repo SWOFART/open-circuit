@@ -8,7 +8,10 @@
 
 use std::sync::Mutex;
 
-use open_circuit_engine::{CheckRequest, CheckResult, MAX_CHECK_CRITERIA, evaluate_checks};
+use open_circuit_engine::{
+    CheckRequest, CheckResult, GradedCheckRequest, GradedCheckResult, MAX_CHECK_CRITERIA,
+    evaluate_checks, evaluate_graded_checks,
+};
 
 /// Runs checks one at a time.
 #[derive(Default)]
@@ -21,7 +24,22 @@ impl CheckService {
     /// caller can discard it when the document has moved on. A request over the limits is
     /// refused here and not evaluated.
     pub fn run(&self, request: CheckRequest) -> Result<CheckResult, String> {
-        if request.checks.len() > MAX_CHECK_CRITERIA {
+        self.run_one(request.checks.len(), || Ok(evaluate_checks(request)))
+    }
+
+    pub fn run_graded(&self, request: GradedCheckRequest) -> Result<GradedCheckResult, String> {
+        self.run_one(request.request.checks.len(), || {
+            evaluate_graded_checks(request)
+                .map_err(|error| format!("Invalid grading configuration at {}", error.path))
+        })
+    }
+
+    fn run_one<T>(
+        &self,
+        count: usize,
+        evaluate: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        if count > MAX_CHECK_CRITERIA {
             return Err(format!(
                 "A check can have at most {MAX_CHECK_CRITERIA} criteria."
             ));
@@ -31,6 +49,6 @@ impl CheckService {
             .running
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        Ok(evaluate_checks(request))
+        evaluate()
     }
 }

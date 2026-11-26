@@ -312,6 +312,17 @@ fn sheet_export_keeps_all_pages_or_discards_the_new_folder() {
     assert_eq!(std::fs::read_to_string(existing).unwrap(), "unchanged");
 }
 
+#[tauri::command]
+async fn list_examples() -> Result<Vec<[String; 3]>, String> {
+    run_project_blocking(open_circuit_app_lib::examples::list_examples).await
+}
+
+#[tauri::command]
+async fn read_example(id: String, assignment_open: bool) -> Result<Schematic, String> {
+    run_project_blocking(move || open_circuit_app_lib::examples::read_example(&id, assignment_open))
+        .await
+}
+
 /// Opens a native file picker and replaces the active path only after validation succeeds.
 #[tauri::command]
 async fn open_project(
@@ -540,6 +551,16 @@ async fn check_assignment(
     run_project_blocking(move || checks.run(request)).await
 }
 
+/// Evaluates a schema-2 build task with the same worker as legacy checks.
+#[tauri::command]
+async fn check_graded_assignment(
+    checks: State<'_, Arc<CheckService>>,
+    request: open_circuit_engine::GradedCheckRequest,
+) -> Result<open_circuit_engine::GradedCheckResult, String> {
+    let checks = Arc::clone(checks.inner());
+    run_project_blocking(move || checks.run_graded(request)).await
+}
+
 /// Compares a fault-finding diagnosis with the assignment's faults. No circuit is solved.
 #[tauri::command]
 async fn check_fault_diagnosis(
@@ -588,6 +609,27 @@ async fn set_operator_state(
     run_blocking(move || service.set_operator_state(request)).await
 }
 
+/// Reads the last committed Engine endpoint without advancing simulation time.
+#[tauri::command]
+async fn read_probe(
+    simulation: State<'_, Simulation>,
+    request: open_circuit_engine::ProbeRequest,
+) -> Result<open_circuit_engine::ProbeResult, String> {
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.probe(request)).await
+}
+
+/// Lists one page of clamp targets for the requested run and document revision.
+#[tauri::command]
+async fn list_conductor_spans(
+    simulation: State<'_, Simulation>,
+    request: open_circuit_engine::ConductorSpanRequest,
+) -> Result<Result<open_circuit_engine::ConductorSpanPage, open_circuit_engine::Diagnostic>, String>
+{
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.conductor_spans(request)).await
+}
+
 /// Starts delivering binary frames of the active run over `on_frame`.
 #[tauri::command]
 async fn start_simulation(
@@ -603,6 +645,35 @@ async fn start_simulation(
         let code = diagnostics.first().map(|diagnostic| diagnostic.code);
         format!("the run cannot be started: {code:?}")
     })
+}
+
+/// Controls how often the worker takes existing public physics steps.
+#[tauri::command]
+async fn control_playback(
+    simulation: State<'_, Simulation>,
+    run_id: StableId,
+    document_revision: String,
+    action: String,
+) -> Result<(), String> {
+    use open_circuit_app_lib::simulation::PlaybackCommand;
+
+    let command = match action.as_str() {
+        "play" => PlaybackCommand::Play,
+        "pause" => PlaybackCommand::Pause,
+        "step" => PlaybackCommand::Step,
+        "0.25" => PlaybackCommand::QuarterSpeed,
+        "0.5" => PlaybackCommand::HalfSpeed,
+        "1" => PlaybackCommand::NormalSpeed,
+        "2" => PlaybackCommand::DoubleSpeed,
+        _ => return Err("Unsupported playback action.".into()),
+    };
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.playback(run_id, document_revision, command))
+        .await?
+        .map_err(|diagnostics| {
+            let code = diagnostics.first().map(|diagnostic| diagnostic.code);
+            format!("Playback command refused: {code:?}")
+        })
 }
 
 /// Stops the stream of `run_id` and releases its channel. The run itself stays compiled.
@@ -674,6 +745,8 @@ fn main() {
             export_drawing,
             export_sheet_drawings,
             open_project,
+            list_examples,
+            read_example,
             save_project,
             save_project_as,
             clear_project_path,
@@ -684,11 +757,15 @@ fn main() {
             export_student_copy,
             clear_assignment_path,
             check_assignment,
+            check_graded_assignment,
             check_fault_diagnosis,
             compile_circuit,
             set_parameter,
             set_operator_state,
+            read_probe,
+            list_conductor_spans,
             start_simulation,
+            control_playback,
             stop_simulation,
             acknowledge_frame,
             read_traces,

@@ -4,6 +4,7 @@
 import "pixi.js/unsafe-eval";
 import { Application, Container, Graphics, Text } from "pixi.js";
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
+import type { GridPoint } from "../generated/GridPoint";
 import type { DeviceState } from "../generated/DeviceState";
 import type { Schematic } from "../generated/Schematic";
 import { sheetBounds } from "./sheetRules";
@@ -72,6 +73,7 @@ const PREVIEW_OWNER = {
 /** How the editor reports document operations and tool changes. */
 export interface EditorHost {
   onCommand(command: EditorCommand): void;
+  onProbe?(position: GridPoint): void;
   /** The tool, an unfinished wire route, or a refused click changed. */
   onStatusChange?(status: EditorStatus): void;
   /**
@@ -108,6 +110,7 @@ export class EditorCore {
   private deviceStates: ReadonlyMap<StableId, DeviceState> = new Map();
   private deviceStatesKey = "";
   private operable = false;
+  private probeMarkers: readonly (GridPoint | null)[] = [];
   private scene: SceneModel | null = null;
   private geometry: EditorGeometry = EMPTY_GEOMETRY;
   private contentStale = true;
@@ -254,7 +257,13 @@ export class EditorCore {
     );
   }
 
-  /** Selects the active tool: Select, placement, or a drawing tool. */
+  /** Draws session probe targets without editing the schematic. */
+  setProbeMarkers(positions: readonly (GridPoint | null)[]): void {
+    this.probeMarkers = positions;
+    this.overlayStale = true;
+  }
+
+  /** Selects the active canvas tool. */
   setTool(tool: EditorTool): void {
     this.interaction.setTool(tool);
   }
@@ -359,6 +368,11 @@ export class EditorCore {
 
   private readonly handleIntent = (intent: InteractionIntent): void => {
     if (!this.schematic) {
+      return;
+    }
+
+    if (intent.kind === "probe") {
+      this.host.onProbe?.(intent.position);
       return;
     }
 
@@ -491,6 +505,11 @@ export class EditorCore {
     const view = this.interaction.view;
     const tool = this.interaction.tool;
     const drag = this.interaction.dragPreview;
+
+    this.probeMarkers.forEach((position, index) => {
+      if (position)
+        this.traceRing(position, view, 0.5, index === 0 ? 0xfb7185 : 0xe2e8f0);
+    });
 
     if (tool.kind === "junction") {
       for (const spot of this.geometry.junctionSpots) {
