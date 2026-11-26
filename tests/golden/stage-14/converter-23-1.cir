@@ -1,0 +1,31 @@
+Open Circuit Stage 14: converter-23-1
+.options reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27
+Vin input 0 23
+Rin input 0 10000
+Vu usource 0 sin(0 33.941125496954285 50 0 0 0)
+Vprobeu uout ufeed 0
+Rloadu uout 0 24
+Vv vsource 0 sin(0 33.941125496954285 50 0 0 -120)
+Vprobev vout vfeed 0
+Rloadv vout 0 24
+Vw wsource 0 sin(0 33.941125496954285 50 0 0 120)
+Vprobew wout wfeed 0
+Rloadw wout 0 24
+.tran 1u 0.001 0 1u
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+let sample0 = v(input)
+let sample1 = -i(vin)
+let sample2 = v(uout)
+let sample3 = i(vprobeu)
+let sample4 = v(vout)
+let sample5 = i(vprobev)
+let sample6 = v(wout)
+let sample7 = i(vprobew)
+wrdata values.out sample0 sample1 sample2 sample3 sample4 sample5 sample6 sample7
+quit
+.endc
+.end

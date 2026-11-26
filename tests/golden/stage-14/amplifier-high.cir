@@ -1,0 +1,20 @@
+Open Circuit Stage 14: amplifier-high
+.options reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27
+Vin plus 0 15
+Bdrive drive 0 V=max(-12,min(12,1000*v(plus,out)))
+Rout drive feed 1
+Vsense out feed 0
+Rload out 0 100
+.op
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+let sample0 = v(plus,out)
+let sample1 = v(out)
+let sample2 = i(vsense)
+wrdata values.out sample0 sample1 sample2
+quit
+.endc
+.end

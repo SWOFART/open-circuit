@@ -1,0 +1,18 @@
+Open Circuit Stage 14: valve-rise-3
+.options reltol=1e-9 abstol=1e-13 vntol=1e-10 temp=27 tnom=27
+Vin input 0 24
+Vsense input p 0
+Rcoil p mid 24
+Lcoil mid 0 0.05 ic=0
+.tran 1u 0.003 0 1u uic
+.control
+set noaskquit
+set numdgt=16
+set wr_singlescale
+run
+let sample0 = v(p)
+let sample1 = i(vsense)
+wrdata values.out sample0 sample1
+quit
+.endc
+.end
