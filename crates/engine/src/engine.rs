@@ -1,5 +1,8 @@
 //! Stateful Engine API for compiling, updating, and advancing circuit simulations.
 
+#[path = "probe_engine.rs"]
+mod probe_engine;
+
 #[path = "measurements.rs"]
 mod measurements;
 #[path = "trace.rs"]
@@ -76,6 +79,8 @@ struct CompiledRun {
     internal_substeps: u32,
     trace_history: TraceHistory,
     stopped: Option<Vec<Diagnostic>>,
+    probe_graph:
+        std::sync::OnceLock<Result<crate::netlist::probe_geometry::ConductorGraph, DiagnosticCode>>,
 }
 
 type InitializationOutcome =
@@ -380,6 +385,7 @@ impl Engine {
             internal_substeps,
             trace_history,
             stopped: None,
+            probe_graph: std::sync::OnceLock::new(),
         });
 
         CompileResult::Success {
@@ -1367,13 +1373,14 @@ fn compute_circuit(
             continue;
         };
 
-        let additional_reference_nodes = local_reference_nodes(
+        let (additional_reference_nodes, domains) = local_reference_nodes(
             &island_specs,
             island,
             mode,
             netlist.nodes.len(),
             reference_node,
         );
+        memory.reference_domains.extend(domains);
         let variables = NodeVariables::for_island(
             netlist.nodes.len(),
             &island.node_indices,
@@ -1666,6 +1673,7 @@ fn compute_circuit(
         return Err(diagnostics);
     }
     results.extend(open_results(&netlist, open, &solved_nodes));
+    memory.probe_netlist = Some(std::sync::Arc::new(netlist));
     results.sort_by(|left, right| left.component_id.as_str().cmp(right.component_id.as_str()));
     Ok((results, diagnostics, memory))
 }
@@ -2006,9 +2014,10 @@ fn local_reference_nodes(
     mode: SolveMode<'_>,
     node_count: usize,
     primary_reference: usize,
-) -> HashSet<usize> {
+) -> (HashSet<usize>, HashMap<usize, usize>) {
     let adjacency = local_adjacency(specs, mode, node_count);
     let mut extra_references = HashSet::new();
+    let mut domains = HashMap::new();
     let mut visited = vec![false; node_count];
     for start in island.node_indices.iter().copied() {
         if visited[start] {
@@ -2026,11 +2035,16 @@ fn local_reference_nodes(
                 }
             }
         }
-        if !component.contains(&primary_reference) {
-            extra_references.insert(*component.iter().min().expect("component is nonempty"));
-        }
+        let domain = if component.contains(&primary_reference) {
+            primary_reference
+        } else {
+            let reference = *component.iter().min().expect("component is nonempty");
+            extra_references.insert(reference);
+            reference
+        };
+        domains.extend(component.into_iter().map(|node| (node, domain)));
     }
-    extra_references
+    (extra_references, domains)
 }
 
 fn build_device_specs(

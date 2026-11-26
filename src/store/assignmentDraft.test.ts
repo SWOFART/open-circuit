@@ -230,3 +230,34 @@ describe("the draft store", () => {
     expect(store.getState().draft.allowedComponentTypes).toBeNull();
   });
 });
+
+it("opts into schema two and round-trips authored points and hints", () => {
+  const store = new AssignmentDraftStore(
+    assignmentToDraft(JSON.parse(divider)),
+  );
+  const getAssignment = () => draftToAssignment(store.getState().draft);
+  expect(getAssignment().schemaVersion).toBe(1);
+  store.setGradingEnabled(true);
+  const criterionId = getAssignment().checks![0]!.id;
+  store.updateCriterionGrading({ criterionId, points: 9, hintKey: "ratio" });
+  store.setGradingHint("ratio", "Check the resistor ratio.");
+  const saved = getAssignment();
+  expect(saved.schemaVersion).toBe(2);
+  expect(saved.grading?.criteria[0]).toEqual({
+    criterionId,
+    points: 9,
+    hintKey: "ratio",
+  });
+  expect(saved.grading?.hints).toEqual({ ratio: "Check the resistor ratio." });
+  expect(draftToAssignment(assignmentToDraft(saved))).toEqual(saved);
+  store.removeCheck(criterionId);
+  expect(
+    getAssignment().grading?.criteria.some(
+      (row) => row.criterionId === criterionId,
+    ),
+  ).toBe(false);
+  expect(getAssignment().grading?.hints).toEqual({});
+  store.setGradingEnabled(false);
+  expect(getAssignment().schemaVersion).toBe(1);
+  expect(getAssignment().grading).toBeUndefined();
+});

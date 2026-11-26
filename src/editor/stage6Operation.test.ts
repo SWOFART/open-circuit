@@ -393,3 +393,14 @@ describe("operating Stage 14 contacts on the canvas", () => {
     },
   );
 });
+
+it("picks a snapped probe point without selecting, operating, or editing parts", () => {
+  const { interaction, intents } = setUp();
+  interaction.setTool({ kind: "probe" });
+  const position = { x: 4, y: 3 };
+  const screen = toScreen(position, interaction.view);
+  expect(interaction.pointerDown({ ...screen, button: 0, pointerId: 1 })).toBe(
+    false,
+  );
+  expect(intents).toEqual([{ kind: "probe", position }]);
+});

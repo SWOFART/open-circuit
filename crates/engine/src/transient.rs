@@ -1332,6 +1332,7 @@ fn estimate_transient_rate_bound(
                     netlist.nodes.len(),
                     reference_node,
                 )
+                .0
                 .into_iter()
                 .map(|node| sets.find(node)),
             );

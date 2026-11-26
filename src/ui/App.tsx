@@ -1,4 +1,6 @@
+import { playbackSpeeds } from "../store/engineAdapter";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -9,6 +11,7 @@ import {
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { EditorCommand } from "../editor/commands";
+import type { GridPoint } from "../generated/GridPoint";
 import type { AssignmentError } from "../generated/AssignmentError";
 import type { ParameterId } from "../generated/ParameterId";
 import type { Schematic } from "../generated/Schematic";
@@ -37,7 +40,11 @@ import {
   StudentSessionStore,
   type StudentOpenOutcome,
 } from "../store/studentAssignment";
-import { tauriProjectFiles, type ProjectFilePort } from "../store/projectFiles";
+import {
+  tauriProjectFiles,
+  type ExampleEntry,
+  type ProjectFilePort,
+} from "../store/projectFiles";
 import {
   ProjectWorkflow,
   resolveUnsavedAction,
@@ -57,6 +64,8 @@ import {
 import { AssignmentPanel } from "./assignment/AssignmentPanel";
 import { StudentPanel } from "./assignment/StudentPanel";
 import { DevicePanel } from "./DevicePanel";
+import { MultimeterPanel, type MultimeterHandle } from "./MultimeterPanel";
+import { tauriProbes, type ProbePort } from "../store/engineAdapter";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
 import { operatorPosition } from "./operatorPosition";
@@ -87,20 +96,30 @@ const IDLE_STATUS: EditorStatus = {
 interface AppProps {
   readonly projectFiles?: ProjectFilePort;
   readonly assignments?: AssignmentPort;
+  readonly probes?: ProbePort;
 }
 
 export function App({
   projectFiles = tauriProjectFiles,
   assignments = tauriAssignments,
+  probes = tauriProbes,
 }: AppProps = {}) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorCore | null>(null);
+  const multimeterRef = useRef<MultimeterHandle>(null);
+  const showProbeMarkers = useCallback(
+    (positions: readonly (GridPoint | null)[]) => {
+      editorRef.current?.setProbeMarkers(positions);
+    },
+    [],
+  );
   const allowNextCloseRef = useRef(false);
   const pendingActionRef = useRef<ProjectAction | "close" | null>(null);
   // The circuit a "show in the editor" request is waiting to load, while the unsaved prompt
   // is open.
   const pendingCircuitRef = useRef<Schematic | null>(null);
+  const pendingExampleRef = useRef<string | null>(null);
   const projectShortcutHandler = useRef<(shortcut: ProjectShortcut) => void>(
     () => {},
   );
@@ -126,6 +145,9 @@ export function App({
     ProjectAction | "close" | null
   >(null);
   const [documentName, setDocumentName] = useState("Example");
+  const [examples, setExamples] = useState<readonly ExampleEntry[] | null>(
+    null,
+  );
   // Which assignment panel is open: the teacher's, the student's, or none.
   const [assignmentPanel, setAssignmentPanel] = useState<
     "none" | "author" | "student"
@@ -290,6 +312,15 @@ export function App({
       // A student's assignment file is read only now, after the unsaved-changes prompt, and
       // the session starts only if the document was replaced with its starting circuit.
       const opened: { outcome: StudentOpenOutcome | null } = { outcome: null };
+      const exampleId = pendingExampleRef.current;
+      const readExample = projectFiles.readExample;
+      const exampleSource =
+        exampleId && readExample
+          ? () =>
+              readExample(exampleId, {
+                assignmentOpen: assignmentOpenRef.current,
+              })
+          : undefined;
       const performed = await projectWorkflow.perform(
         action,
         action === "assignment"
@@ -303,19 +334,19 @@ export function App({
               );
               return outcome.status === "opened" ? outcome.circuit : null;
             }
-          : (pendingCircuitRef.current ?? undefined),
+          : action === "example"
+            ? exampleSource
+            : (pendingCircuitRef.current ?? undefined),
       );
       if (performed) {
         setDocumentName(
-          action === "new"
+          action === "new" || action === "example"
             ? "Untitled"
-            : action === "example"
-              ? "Example"
-              : action === "circuit"
-                ? "Assignment circuit"
-                : action === "assignment"
-                  ? "Assignment"
-                  : "Project",
+            : action === "circuit"
+              ? "Assignment circuit"
+              : action === "assignment"
+                ? "Assignment"
+                : "Project",
         );
         editorRef.current?.setTool(IDLE_STATUS.tool);
         if (opened.outcome?.status === "opened") {
@@ -349,6 +380,24 @@ export function App({
       return;
     }
     void performProjectActionDirectly(action);
+  };
+
+  const showExamples = async (): Promise<void> => {
+    if (!projectFiles.listExamples) {
+      pendingExampleRef.current = null;
+      requestProjectAction("example");
+      return;
+    }
+    if (examples !== null) {
+      setExamples(null);
+      return;
+    }
+    setProjectError(null);
+    try {
+      setExamples(await projectFiles.listExamples());
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const showAssignmentCircuit = (schematic: Schematic): void => {
@@ -562,6 +611,7 @@ export function App({
     }
 
     const editor = new EditorCore({
+      onProbe: (position) => multimeterRef.current?.placeAt(position),
       onCommand: (command) => commandHandler.current(command),
       onOperate: (componentId, action) =>
         operateHandler.current(componentId, action),
@@ -803,6 +853,13 @@ export function App({
     void controller?.syncDocument(documentStore.getState().schematic);
   };
 
+  const playbackDisabled =
+    projectOperationLocked ||
+    state.status !== "ready" ||
+    state.updating ||
+    state.playbackPending ||
+    state.stopped !== null;
+
   return (
     <main className="workspace">
       <header className="app-header">
@@ -842,6 +899,48 @@ export function App({
           >
             Student assignment
           </button>
+          {adapter?.controlPlayback && (
+            <div role="group" aria-label="Simulation playback">
+              <button
+                type="button"
+                className="toolbar-button"
+                disabled={playbackDisabled}
+                onClick={() =>
+                  void controller?.controlPlayback(
+                    state.paused ? "play" : "pause",
+                  )
+                }
+              >
+                {state.paused ? "Play" : "Pause"}
+              </button>
+              <button
+                type="button"
+                className="toolbar-button"
+                disabled={playbackDisabled || !state.paused}
+                onClick={() => void controller?.controlPlayback("step")}
+              >
+                Step
+              </button>
+              <select
+                aria-label="Simulation speed"
+                value={state.playbackSpeed}
+                disabled={playbackDisabled}
+                onChange={(event) => {
+                  const speed = playbackSpeeds.find(
+                    (value) => value === event.target.value,
+                  );
+                  if (speed) void controller?.controlPlayback(speed);
+                }}
+              >
+                {playbackSpeeds.map((speed) => (
+                  <option key={speed} value={speed}>
+                    {speed}×
+                  </option>
+                ))}
+              </select>
+              {state.playbackError && <p role="alert">{state.playbackError}</p>}
+            </div>
+          )}
           <p className="shell-status">Desktop shell ready</p>
         </div>
       </header>
@@ -905,7 +1004,10 @@ export function App({
                   type="button"
                   className="toolbar-button"
                   disabled={projectOperationLocked}
-                  onClick={() => requestProjectAction("example")}
+                  aria-expanded={
+                    projectFiles.listExamples ? examples !== null : undefined
+                  }
+                  onClick={() => void showExamples()}
                 >
                   Open Example
                 </button>
@@ -934,6 +1036,27 @@ export function App({
                 Fit to circuit
               </button>
             </div>
+            {examples !== null && (
+              <ul className="example-list" aria-label="Circuit examples">
+                {examples.map(([id, title, description]) => (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      className="toolbar-button"
+                      disabled={projectOperationLocked}
+                      onClick={() => {
+                        pendingExampleRef.current = id;
+                        setExamples(null);
+                        requestProjectAction("example");
+                      }}
+                    >
+                      {title}
+                    </button>
+                    <p>{description}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div
             ref={stageRef}
@@ -1084,6 +1207,20 @@ export function App({
             onDelete={(id) => {
               applyRailCommand({ kind: "deleteRail", railId: id });
             }}
+          />
+          <MultimeterPanel
+            ref={multimeterRef}
+            port={probes}
+            state={state}
+            schematic={document.schematic}
+            labels={labels}
+            canvasActive={status.tool.kind === "probe"}
+            onUseCanvas={() =>
+              editorRef.current?.setTool({
+                kind: status.tool.kind === "probe" ? "select" : "probe",
+              })
+            }
+            onMarkers={showProbeMarkers}
           />
           <ResultPanel
             state={state}

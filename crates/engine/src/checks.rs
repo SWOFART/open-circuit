@@ -132,7 +132,7 @@ pub enum CheckCriterion {
 }
 
 impl CheckCriterion {
-    fn id(&self) -> &StableId {
+    pub(crate) fn id(&self) -> &StableId {
         match self {
             Self::Value { id, .. }
             | Self::Range { id, .. }
@@ -279,7 +279,7 @@ pub enum CriterionResult {
 }
 
 impl CriterionResult {
-    fn verdict(&self) -> CheckVerdict {
+    pub(crate) fn verdict(&self) -> CheckVerdict {
         match self {
             Self::Value { verdict, .. }
             | Self::Range { verdict, .. }
@@ -379,6 +379,10 @@ enum Start<'a> {
 /// The result depends only on the request. The circuit is compiled without faults in a fresh
 /// `Engine` and advanced through the public steps the criteria need, at most 60 000.
 pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
+    evaluate_checks_with_status(request).0
+}
+
+pub(crate) fn evaluate_checks_with_status(request: CheckRequest) -> (CheckResult, bool) {
     let mut unsupported_references = [&request.starting_circuit, &request.schematic]
         .into_iter()
         .flat_map(|schematic| {
@@ -407,10 +411,11 @@ pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
             crate::DiagnosticCode::UnknownComponentType,
             unsupported_references,
         );
-        let mut result = evaluate_started(request, Start::Failed(vec![diagnostic]));
+        let (mut result, compiled) =
+            evaluate_started_with_status(request, Start::Failed(vec![diagnostic]));
         result.outcome = CheckOutcome::Failed;
         result.outcome_key = result.outcome.key().to_owned();
-        return result;
+        return (result, compiled);
     }
     let offending = [&request.starting_circuit, &request.schematic]
         .into_iter()
@@ -438,10 +443,11 @@ pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
             },
             references,
         );
-        let mut result = evaluate_started(request, Start::Failed(vec![diagnostic]));
+        let (mut result, compiled) =
+            evaluate_started_with_status(request, Start::Failed(vec![diagnostic]));
         result.outcome = CheckOutcome::Failed;
         result.outcome_key = result.outcome.key().to_owned();
-        return result;
+        return (result, compiled);
     }
     if [&request.starting_circuit, &request.schematic]
         .into_iter()
@@ -451,10 +457,11 @@ pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
             crate::DiagnosticCode::UnsupportedAssignmentDocumentation,
             Vec::new(),
         );
-        let mut result = evaluate_started(request, Start::Failed(vec![diagnostic]));
+        let (mut result, compiled) =
+            evaluate_started_with_status(request, Start::Failed(vec![diagnostic]));
         result.outcome = CheckOutcome::Failed;
         result.outcome_key = result.outcome.key().to_owned();
-        return result;
+        return (result, compiled);
     }
     let mut engine = Engine::default();
     let start = match engine.compile(CompileRequest {
@@ -482,10 +489,15 @@ pub fn evaluate_checks(request: CheckRequest) -> CheckResult {
             }),
         },
     };
-    evaluate_started(request, start)
+    evaluate_started_with_status(request, start)
 }
 
+#[cfg(test)]
 fn evaluate_started(request: CheckRequest, start: Start<'_>) -> CheckResult {
+    evaluate_started_with_status(request, start).0
+}
+
+fn evaluate_started_with_status(request: CheckRequest, start: Start<'_>) -> (CheckResult, bool) {
     let locked = evaluate_locked(
         &request.starting_circuit,
         &request.schematic,
@@ -593,15 +605,18 @@ fn evaluate_started(request: CheckRequest, start: Start<'_>) -> CheckResult {
         CheckOutcome::Partial
     };
 
-    CheckResult {
-        document_revision: request.document_revision,
-        outcome,
-        counts,
-        criteria,
-        locked,
-        outcome_key: outcome.key().to_owned(),
-        diagnostics,
-    }
+    (
+        CheckResult {
+            document_revision: request.document_revision,
+            outcome,
+            counts,
+            criteria,
+            locked,
+            outcome_key: outcome.key().to_owned(),
+            diagnostics,
+        },
+        compiled,
+    )
 }
 
 /// Section 4.8: each locked component is in the student's schematic with the type and the
@@ -1150,6 +1165,38 @@ mod tests {
                 }
             }),
         }
+    }
+
+    #[test]
+    fn a_stopped_graded_run_keeps_only_the_points_already_earned() {
+        use crate::{AssignmentGrading, CriterionGrading};
+        let calls = Cell::new(0);
+        let checks = vec![value(10, 0.002, 2.0), value(11, 0.004, 4.0)];
+        let ids: Vec<_> = checks
+            .iter()
+            .map(|criterion| criterion.id().clone())
+            .collect();
+        let grading = AssignmentGrading {
+            criteria: ids
+                .iter()
+                .cloned()
+                .map(|criterion_id| CriterionGrading {
+                    criterion_id,
+                    points: 7,
+                    hint_key: Some("late".into()),
+                })
+                .collect(),
+            hints: [("late".into(), "Check the later reading.".into())].into(),
+        };
+        let (legacy, compiled) =
+            evaluate_started_with_status(request(checks), stopping_run(3, &calls));
+        let graded = crate::grading::score_result(legacy, compiled, ids, grading);
+        assert_eq!((graded.score.earned, graded.score.possible), (7, 14));
+        assert_eq!(
+            graded.result.criteria[1].verdict(),
+            CheckVerdict::NotEvaluated
+        );
+        assert!(graded.score.criteria[1].hint.is_none());
     }
 
     #[test]

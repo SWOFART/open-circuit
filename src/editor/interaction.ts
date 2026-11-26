@@ -87,7 +87,8 @@ export type EditorTool =
   | { readonly kind: "rail" }
   /** Places a text note, a documentation object, at the clicked point. */
   | { readonly kind: "note" }
-  | { readonly kind: "terminal" };
+  | { readonly kind: "terminal" }
+  | { readonly kind: "probe" };
 
 /** Why the last click of a drawing tool did nothing, until the pointer moves. */
 export type Rejection = "crossing" | "attachment";
@@ -120,6 +121,7 @@ export type InteractionIntent =
       readonly componentId: StableId;
       readonly delta: GridPoint;
     }
+  | { readonly kind: "probe"; readonly position: GridPoint }
   | { readonly kind: "rotate"; readonly componentId: StableId }
   | { readonly kind: "delete"; readonly target: SelectionTarget }
   /**
@@ -642,6 +644,9 @@ export class CanvasInteraction {
         } else {
           this.setRejected("attachment");
         }
+        return false;
+      case "probe":
+        this.onIntent({ kind: "probe", position: at });
         return false;
       case "select":
         return this.selectPress(pointer, at);

@@ -9,8 +9,9 @@ use open_circuit_app_lib::simulation::{
     FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed, TraceSink,
 };
 use open_circuit_engine::{
-    CompileRequest, CompileResult, DiagnosticCode, ParameterId, ResultSnapshot,
-    SetParameterRequest, SetParameterResult, StableId, TraceQuery, TraceRequest,
+    CompileRequest, CompileResult, ConductorSpanRequest, DiagnosticCode, GridPoint, ParameterId,
+    ProbeRequest, ProbeResult, ProbeTarget, ResultSnapshot, SetParameterRequest,
+    SetParameterResult, StableId, TraceQuery, TraceRequest, Unit,
 };
 
 const SCHEMATIC: &str = include_str!("../../../tests/golden/stage-1-divider.schematic.json");
@@ -321,4 +322,56 @@ fn dropping_the_service_stops_the_thread() {
             Err(RecvTimeoutError::Timeout) => panic!("dropping the service left the sink open"),
         }
     }
+}
+
+#[test]
+fn probes_and_span_pages_read_the_committed_worker_run() {
+    let service = SimulationService::spawn(fast_config());
+    let CompileResult::Success {
+        run_id,
+        initial_snapshot,
+        ..
+    } = service.compile(request("rev-1")).unwrap()
+    else {
+        panic!("expected the divider to compile");
+    };
+    let probe = ProbeRequest {
+        run_id: run_id.clone(),
+        document_revision: "rev-1".into(),
+        frame_sequence: initial_snapshot.metadata.frame_sequence,
+        target: ProbeTarget::Voltage {
+            positive: GridPoint { x: 6, y: 0 },
+            negative: GridPoint { x: 9, y: 0 },
+        },
+    };
+    let ProbeResult::Reading {
+        metadata,
+        unit: Unit::Volt,
+        value,
+    } = service.probe(probe.clone()).unwrap()
+    else {
+        panic!("expected a committed divider reading");
+    };
+    assert_eq!(metadata, initial_snapshot.metadata);
+    assert!((value - 5000.0 / 2000.1).abs() < 1e-6);
+    let spans = service
+        .conductor_spans(ConductorSpanRequest {
+            run_id,
+            document_revision: "rev-1".into(),
+            cursor: None,
+        })
+        .unwrap()
+        .unwrap();
+    assert!(
+        spans
+            .spans
+            .iter()
+            .any(|span| span.start == GridPoint { x: 5, y: 0 }
+                && span.end == GridPoint { x: 7, y: 0 })
+    );
+    assert!(matches!(service.probe(ProbeRequest {
+        document_revision: "old".into(), ..probe
+    }).unwrap(), ProbeResult::Unavailable { diagnostic, .. }
+        if diagnostic.code == DiagnosticCode::StaleDocumentRevision
+    ));
 }

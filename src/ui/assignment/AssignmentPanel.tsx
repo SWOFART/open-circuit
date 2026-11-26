@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AssignmentError } from "../../generated/AssignmentError";
-import type { CheckResult } from "../../generated/CheckResult";
+import type { AssignmentCheck } from "../../store/assignmentBridge";
 import type { ComponentCatalog } from "../../generated/ComponentCatalog";
 import type { Diagnostic } from "../../generated/Diagnostic";
 import type { ResultLayout } from "../../generated/ResultLayout";
@@ -39,6 +39,7 @@ import {
 import { CheckEditor } from "./CheckEditor";
 import { CheckResultView } from "./CheckResultView";
 import { FaultEditor } from "./FaultEditor";
+import { GradingEditor } from "./GradingEditor";
 
 export interface FaultView {
   /** The workspace shows the starting circuit with the draft's faults applied. */
@@ -123,7 +124,7 @@ export function AssignmentPanel({
   );
   const [preview, setPreview] = useState<{
     version: number;
-    value: CheckResult;
+    value: AssignmentCheck;
   } | null>(null);
   const disabled = busy || projectLocked;
   const errors = answerFor(problems, version) ?? [];
@@ -232,7 +233,10 @@ export function AssignmentPanel({
       const outcome = await authoring.previewChecks();
       switch (outcome.status) {
         case "result":
-          setPreview({ version: askedFor, value: outcome.result });
+          setPreview({
+            version: askedFor,
+            value: { result: outcome.result, score: outcome.score },
+          });
           break;
         case "needsReference":
           setNotice("Set the reference solution first.");
@@ -588,6 +592,14 @@ export function AssignmentPanel({
 
       {!findFault && (
         <Section title="Checks">
+          <GradingEditor
+            grading={draft.grading}
+            checks={draft.checks}
+            disabled={disabled}
+            onEnable={(enabled) => draftStore.setGradingEnabled(enabled)}
+            onCriterion={(row) => draftStore.updateCriterionGrading(row)}
+            onHint={(key, text) => draftStore.setGradingHint(key, text)}
+          />
           {draft.checks.map((criterion, index) => (
             <CheckEditor
               key={criterion.id}
@@ -685,7 +697,8 @@ export function AssignmentPanel({
           </div>
           {shownPreview !== null && (
             <CheckResultView
-              result={shownPreview}
+              result={shownPreview.result}
+              score={shownPreview.score}
               labels={labels}
               names={checkNames}
             />

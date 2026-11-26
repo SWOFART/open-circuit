@@ -180,6 +180,30 @@ describe("ProjectWorkflow", () => {
     expect(store.getState().isDirty).toBe(false);
     expect(store.getState().canUndo).toBe(false);
   });
+
+  it("waits for an unsaved-change decision before loading the selected example", async () => {
+    const files = createFiles();
+    const store = new SchematicDocumentStore(dividerSchematic);
+    store.moveComponent(R1, { x: 20, y: 20 });
+    const workflow = new ProjectWorkflow(store, files);
+    const read = vi.fn(async () => blankSchematic);
+    const open = () => workflow.perform("example", read);
+
+    await expect(
+      resolveUnsavedAction("cancel", () => workflow.save(), open),
+    ).resolves.toBe(false);
+    expect(read).not.toHaveBeenCalled();
+    expect(files.clearPath).not.toHaveBeenCalled();
+
+    await expect(
+      resolveUnsavedAction("discard", () => workflow.save(), open),
+    ).resolves.toBe(true);
+    expect(read).toHaveBeenCalledOnce();
+    expect(files.clearPath).toHaveBeenCalledOnce();
+    expect(store.getState().schematic).toEqual(blankSchematic);
+    expect(store.getState().canUndo).toBe(false);
+    expect(store.getState().isDirty).toBe(false);
+  });
 });
 
 describe("unsaved-change decision", () => {

@@ -1,3 +1,5 @@
+import type { AssignmentGrading } from "../generated/AssignmentGrading";
+import type { CriterionGrading } from "../generated/CriterionGrading";
 import type { Assignment } from "../generated/Assignment";
 import type { CheckCriterion } from "../generated/CheckCriterion";
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
@@ -27,6 +29,7 @@ export interface AssignmentDraft {
   readonly lockedComponents: readonly StableId[];
   /** Used by a `build` task only. */
   readonly checks: readonly CheckCriterion[];
+  readonly grading: AssignmentGrading | null;
   /** Used by a `findFault` task only. */
   readonly faults: readonly FaultSpec[];
 }
@@ -66,6 +69,7 @@ export function emptyDraft(
     allowedComponentTypes: null,
     lockedComponents: [],
     checks: [],
+    grading: null,
     faults: [],
   };
 }
@@ -79,7 +83,7 @@ export function draftToAssignment(draft: AssignmentDraft): Assignment {
   const findFault = draft.taskKind === "findFault";
 
   return {
-    schemaVersion: 1,
+    schemaVersion: !findFault && draft.grading !== null ? 2 : 1,
     id: draft.id,
     title: draft.title,
     instructions: draft.instructions,
@@ -97,7 +101,12 @@ export function draftToAssignment(draft: AssignmentDraft): Assignment {
     },
     ...(findFault
       ? { faults: structuredClone([...draft.faults]) }
-      : { checks: structuredClone([...draft.checks]) }),
+      : {
+          checks: structuredClone([...draft.checks]),
+          ...(draft.grading === null
+            ? {}
+            : { grading: structuredClone(draft.grading) }),
+        }),
     ...(draft.reference === null
       ? {}
       : { reference: structuredClone(draft.reference) }),
@@ -128,6 +137,7 @@ export function assignmentToDraft(assignment: Assignment): AssignmentDraft {
         : [...assignment.restrictions.allowedComponentTypes],
     lockedComponents: [...(assignment.restrictions?.lockedComponents ?? [])],
     checks: findFault ? [] : structuredClone(assignment.checks ?? []),
+    grading: assignment.grading ? structuredClone(assignment.grading) : null,
     faults: findFault ? structuredClone(assignment.faults ?? []) : [],
   };
 }
@@ -220,8 +230,71 @@ export class AssignmentDraftStore {
     });
   }
 
+  setGradingEnabled(enabled: boolean): void {
+    const { grading, checks } = this.state.draft;
+    if ((grading !== null) === enabled) return;
+    this.edit({
+      grading: enabled
+        ? {
+            criteria: checks.map(({ id }) => ({ criterionId: id, points: 1 })),
+            hints: {},
+          }
+        : null,
+    });
+  }
+
+  updateCriterionGrading(row: CriterionGrading): void {
+    const { grading } = this.state.draft;
+    if (grading === null) return;
+    const previousKey = grading.criteria.find(
+      (current) => current.criterionId === row.criterionId,
+    )?.hintKey;
+    const criteria = grading.criteria.map((current) =>
+      current.criterionId === row.criterionId ? row : current,
+    );
+    this.replaceGradingCriteria(grading, criteria, previousKey);
+  }
+
+  private replaceGradingCriteria(
+    grading: AssignmentGrading,
+    criteria: CriterionGrading[],
+    unusedKey: string | undefined,
+    changes: Partial<AssignmentDraft> = {},
+  ): void {
+    const hints = { ...grading.hints };
+    if (
+      unusedKey !== undefined &&
+      !criteria.some((row) => row.hintKey === unusedKey)
+    ) {
+      delete hints[unusedKey];
+    }
+    this.edit({ ...changes, grading: { criteria, hints } });
+  }
+
+  setGradingHint(key: string, text: string): void {
+    const { grading } = this.state.draft;
+    if (grading === null) return;
+    this.edit({
+      grading: { ...grading, hints: { ...grading.hints, [key]: text } },
+    });
+  }
+
   addCheck(criterion: CheckCriterion): void {
-    this.edit({ checks: [...this.state.draft.checks, criterion] });
+    const { grading, checks } = this.state.draft;
+    this.edit({
+      checks: [...checks, criterion],
+      ...(grading === null
+        ? {}
+        : {
+            grading: {
+              ...grading,
+              criteria: [
+                ...grading.criteria,
+                { criterionId: criterion.id, points: 1 },
+              ],
+            },
+          }),
+    });
   }
 
   replaceCheck(criterion: CheckCriterion): void {
@@ -233,9 +306,19 @@ export class AssignmentDraftStore {
   }
 
   removeCheck(id: StableId): void {
-    this.edit({
-      checks: this.state.draft.checks.filter((existing) => existing.id !== id),
-    });
+    const { grading, checks } = this.state.draft;
+    const nextChecks = checks.filter((existing) => existing.id !== id);
+    if (grading === null) {
+      this.edit({ checks: nextChecks });
+      return;
+    }
+    const removed = grading.criteria.find((row) => row.criterionId === id);
+    this.replaceGradingCriteria(
+      grading,
+      grading.criteria.filter((row) => row.criterionId !== id),
+      removed?.hintKey,
+      { checks: nextChecks },
+    );
   }
 
   addFault(fault: FaultSpec): void {

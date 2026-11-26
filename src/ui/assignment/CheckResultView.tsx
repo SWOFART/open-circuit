@@ -1,3 +1,4 @@
+import type { GradingScore } from "../../generated/GradingScore";
 import type { CheckResult } from "../../generated/CheckResult";
 import type { CheckVerdict } from "../../generated/CheckVerdict";
 import type { CriterionResult } from "../../generated/CriterionResult";
@@ -99,6 +100,7 @@ function details(
 
 export interface CheckResultViewProps {
   readonly result: CheckResult;
+  readonly score?: GradingScore;
   readonly labels: ReadonlyMap<StableId, string>;
   /** The authored names of the criteria, by ID. */
   readonly names?: ReadonlyMap<StableId, string>;
@@ -110,9 +112,13 @@ export interface CheckResultViewProps {
  */
 export function CheckResultView({
   result,
+  score,
   labels,
   names,
 }: CheckResultViewProps) {
+  const scoresById = new Map(
+    score?.criteria.map((row) => [row.criterionId, row]),
+  );
   return (
     <section className="check-result" aria-label="Check result">
       <p
@@ -125,6 +131,11 @@ export function CheckResultView({
           {result.counts.notEvaluated} not checked.
         </span>
       </p>
+      {score && (
+        <p className="check-detail">
+          Score {score.earned} / {score.possible} points
+        </p>
+      )}
       <ul className="check-result-list">
         <li className={`check-row check-row-${result.locked.verdict}`}>
           <strong>Locked parts: {verdictWords[result.locked.verdict]}.</strong>{" "}
@@ -132,25 +143,37 @@ export function CheckResultView({
           {partNames(result.locked.references, labels) !== "" &&
             ` (${partNames(result.locked.references, labels)})`}
         </li>
-        {result.criteria.map((criterion, index) => (
-          <li
-            key={criterion.id}
-            className={`check-row check-row-${criterion.verdict}`}
-          >
-            <strong>
-              Check {index + 1}
-              {names?.get(criterion.id)
-                ? ` (${names.get(criterion.id)})`
-                : ""}: {verdictWords[criterion.verdict]}.
-            </strong>{" "}
-            {message(criterion.messageKey)}
-            {details(criterion, labels).map((line) => (
-              <span key={line} className="check-detail">
-                {line}
-              </span>
-            ))}
-          </li>
-        ))}
+        {result.criteria.map((criterion, index) => {
+          const scoreRow = scoresById.get(criterion.id);
+          return (
+            <li
+              key={criterion.id}
+              className={`check-row check-row-${criterion.verdict}`}
+            >
+              <strong>
+                Check {index + 1}
+                {names?.get(criterion.id)
+                  ? ` (${names.get(criterion.id)})`
+                  : ""}
+                : {verdictWords[criterion.verdict]}.
+              </strong>{" "}
+              {message(criterion.messageKey)}
+              {scoreRow && (
+                <span className="check-detail">
+                  {scoreRow.earned} / {scoreRow.possible} points
+                </span>
+              )}
+              {scoreRow?.hint && (
+                <span className="check-detail">Hint {scoreRow.hint.text}</span>
+              )}
+              {details(criterion, labels).map((line) => (
+                <span key={line} className="check-detail">
+                  {line}
+                </span>
+              ))}
+            </li>
+          );
+        })}
       </ul>
       {result.diagnostics.length > 0 && (
         <ul className="field-error-list" aria-label="Circuit problems">

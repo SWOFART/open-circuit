@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::{PinId, StableId};
+use crate::{GridPoint, PinId, StableId};
 
 /// Stable machine-readable diagnostic codes. The UI resolves localization keys to prose.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -52,6 +52,12 @@ pub enum DiagnosticCode {
     InvalidFault,
     StaleRun,
     StaleDocumentRevision,
+    AmbiguousProbe,
+    UnconnectedProbe,
+    IncomparableProbeReferences,
+    UnsupportedProbeTarget,
+    AmbiguousConductorCurrent,
+    ResistanceUnavailable,
 }
 
 impl DiagnosticCode {
@@ -103,6 +109,12 @@ impl DiagnosticCode {
             Self::InvalidFault => "diagnostic.invalidFault",
             Self::StaleRun => "diagnostic.staleRun",
             Self::StaleDocumentRevision => "diagnostic.staleDocumentRevision",
+            Self::AmbiguousProbe => "diagnostic.ambiguousProbe",
+            Self::UnconnectedProbe => "diagnostic.unconnectedProbe",
+            Self::IncomparableProbeReferences => "diagnostic.incomparableProbeReferences",
+            Self::UnsupportedProbeTarget => "diagnostic.unsupportedProbeTarget",
+            Self::AmbiguousConductorCurrent => "diagnostic.ambiguousConductorCurrent",
+            Self::ResistanceUnavailable => "diagnostic.resistanceUnavailable",
         }
     }
 }
@@ -156,6 +168,9 @@ pub enum DiagnosticReference {
     Sheet {
         sheet_id: StableId,
     },
+    Point {
+        position: GridPoint,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, TS)]
@@ -206,6 +221,7 @@ impl DiagnosticReference {
             Self::Terminal { terminal_id } => (terminal_id.as_str(), 7, ""),
             Self::Note { note_id } => (note_id.as_str(), 8, ""),
             Self::Sheet { sheet_id } => (sheet_id.as_str(), 9, ""),
+            Self::Point { .. } => ("", 10, ""),
         }
     }
     pub fn pin(component_id: StableId, pin_id: PinId) -> Self {

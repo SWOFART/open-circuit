@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import catalogFixture from "../../tests/golden/stage-1-catalog.json";
 import divider from "../../tests/golden/stage-5-divider-build.ocassignment?raw";
 import faultFinding from "../../tests/golden/stage-5-fault-finding.ocassignment?raw";
@@ -7,6 +7,7 @@ import type { Assignment } from "../generated/Assignment";
 import type { AssignmentDecoded } from "../generated/AssignmentDecoded";
 import type { AssignmentError } from "../generated/AssignmentError";
 import type { CheckRequest } from "../generated/CheckRequest";
+import type { GradedCheckRequest } from "../generated/GradedCheckRequest";
 import type { CheckResult } from "../generated/CheckResult";
 import type { ComponentCatalog } from "../generated/ComponentCatalog";
 import type { DiagnosisChecked } from "../generated/DiagnosisChecked";
@@ -563,4 +564,34 @@ describe("answers are shown only for what they were asked for", () => {
     expect(answerForKey({ key: 3, value: "x" }, 3)).toBe("x");
     expect(answerForKey({ key: 3, value: "x" }, 4)).toBeNull();
   });
+});
+
+it("requests schema-two grading and presents the Engine score", async () => {
+  const criterionId = teacherFile.checks![0]!.id;
+  const grading = {
+    criteria: [{ criterionId, points: 5 }],
+    hints: {},
+  };
+  const assignment: Assignment = { ...teacherFile, schemaVersion: 2, grading };
+  const score = {
+    earned: 5,
+    possible: 5,
+    criteria: [{ criterionId, earned: 5, possible: 5 }],
+  };
+  const checkGradedAssignment = vi.fn(
+    async ({ request }: GradedCheckRequest) => ({
+      schemaVersion: 2 as const,
+      result: resultFor(request.documentRevision),
+      score,
+    }),
+  );
+  const port = Object.assign(new FakePort(), { checkGradedAssignment });
+
+  await expect(
+    checkStudentCircuit(port, assignment, teacherFile.startingCircuit!),
+  ).resolves.toMatchObject({ status: "result", score });
+  expect(checkGradedAssignment).toHaveBeenCalledWith(
+    expect.objectContaining({ grading }),
+  );
+  expect(port.checkRequests).toEqual([]);
 });

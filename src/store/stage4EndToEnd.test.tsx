@@ -17,6 +17,7 @@ import { ResultPanel } from "../ui/ResultPanel";
 import { TauriEngineAdapter } from "./engineAdapter";
 import { componentLabels } from "./fixtures";
 import {
+  initialSimulationState,
   readSlot,
   SimulationController,
   type SimulationState,
@@ -610,18 +611,7 @@ describe.skipIf(!recorded)("the meters on the real Engine", () => {
     const schematic = session.voltmeter.request.schematic;
     const html = renderToStaticMarkup(
       <DevicePanel
-        state={{
-          status: "loading",
-          catalog: null,
-          run: null,
-          snapshot: null,
-          diagnostics: [],
-          error: null,
-          updating: false,
-          discardedFrames: 0,
-          stopped: null,
-          refusedUpdate: false,
-        }}
+        state={{ ...initialSimulationState(), status: "loading" }}
         schematic={schematic}
         labels={componentLabels(schematic)}
       />,

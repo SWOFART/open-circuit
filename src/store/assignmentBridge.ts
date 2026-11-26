@@ -4,6 +4,10 @@ import type { AssignmentDecoded } from "../generated/AssignmentDecoded";
 import type { AssignmentSaveOutcome } from "../generated/AssignmentSaveOutcome";
 import type { CheckRequest } from "../generated/CheckRequest";
 import type { CheckResult } from "../generated/CheckResult";
+import type { AssignmentGrading } from "../generated/AssignmentGrading";
+import type { GradedCheckRequest } from "../generated/GradedCheckRequest";
+import type { GradedCheckResult } from "../generated/GradedCheckResult";
+import type { GradingScore } from "../generated/GradingScore";
 import type { DiagnosisChecked } from "../generated/DiagnosisChecked";
 import type { DiagnosisEntry } from "../generated/DiagnosisEntry";
 
@@ -33,6 +37,9 @@ export interface AssignmentPort {
    * away from the live run. The result carries the request's `documentRevision`.
    */
   checkAssignment(request: CheckRequest): Promise<CheckResult>;
+  checkGradedAssignment?(
+    request: GradedCheckRequest,
+  ): Promise<GradedCheckResult>;
   /** Compares a diagnosis with the faults of a fault-finding assignment. */
   checkDiagnosis(
     assignment: Assignment,
@@ -77,12 +84,34 @@ export const tauriAssignments: AssignmentPort = {
   clearPath: () => invokeAssignment<void>("clear_assignment_path"),
   checkAssignment: (request) =>
     invokeAssignment<CheckResult>("check_assignment", { request }),
+  checkGradedAssignment: (request) =>
+    invokeAssignment<GradedCheckResult>("check_graded_assignment", { request }),
   checkDiagnosis: (assignment, diagnosis) =>
     invokeAssignment<DiagnosisChecked>("check_fault_diagnosis", {
       assignment,
       diagnosis,
     }),
 };
+
+export interface AssignmentCheck {
+  readonly result: CheckResult;
+  readonly score?: GradingScore;
+}
+
+export async function runAssignmentChecks(
+  port: AssignmentPort,
+  request: CheckRequest,
+  grading?: AssignmentGrading,
+): Promise<AssignmentCheck> {
+  if (grading === undefined)
+    return { result: await port.checkAssignment(request) };
+  if (!port.checkGradedAssignment)
+    throw new Error("Scored checks are unavailable.");
+  const reply = await port.checkGradedAssignment({ request, grading });
+  if (reply.schemaVersion !== 2)
+    throw new Error("Unexpected scored check version.");
+  return { result: reply.result, score: reply.score };
+}
 
 /**
  * A check result is shown only while the document it was made for is the current one; any
