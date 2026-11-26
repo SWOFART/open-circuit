@@ -119,6 +119,8 @@ export function commandForIntent(
     schematic.components.find((component) => component.id === id);
 
   switch (intent.kind) {
+    case "probe":
+      return null;
     case "place":
       return {
         kind: "placeComponent",

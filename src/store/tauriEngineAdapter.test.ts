@@ -45,6 +45,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 import {
   EngineUnavailableError,
   TauriEngineAdapter,
+  tauriProbes,
   TRACE_DELIVERY_TIMEOUT_MS,
 } from "./engineAdapter";
 
@@ -611,5 +612,50 @@ describe("trace reads", () => {
       new TauriEngineAdapter().readTraces(traceRequest),
     ).rejects.toThrow(/desktop app/);
     expect(tauri.state.calls).toEqual([]);
+  });
+});
+
+describe("native multimeter commands", () => {
+  it("encodes the observed frame number and normalizes the reply counters", async () => {
+    const request = {
+      runId: RUN_ID,
+      documentRevision: "rev-1",
+      frameSequence: 4n,
+      target: {
+        mode: "voltage",
+        positive: { x: 1, y: 1 },
+        negative: { x: 2, y: 2 },
+      },
+    } as const;
+    tauri.state.answer = () => ({
+      status: "reading",
+      unit: "volt",
+      value: 2.5,
+      metadata: snapshotJson(7, 8).metadata,
+    });
+    expect(await tauriProbes.read(request)).toMatchObject({
+      status: "reading",
+      value: 2.5,
+      metadata: { simulationStep: 7n, frameSequence: 8n },
+    });
+    expect(tauri.state.calls.at(-1)).toEqual({
+      command: "read_probe",
+      args: { request: { ...request, frameSequence: 4 } },
+    });
+  });
+
+  it("requests a bounded conductor page from the native run", async () => {
+    const request = {
+      runId: RUN_ID,
+      documentRevision: "rev-1",
+      cursor: "cursor",
+    };
+    const reply = { Ok: { spans: [], nextCursor: null } };
+    tauri.state.answer = () => reply;
+    expect(await tauriProbes.spans(request)).toEqual(reply);
+    expect(tauri.state.calls.at(-1)).toEqual({
+      command: "list_conductor_spans",
+      args: { request },
+    });
   });
 });

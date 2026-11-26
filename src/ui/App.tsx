@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useReducer,
@@ -9,6 +10,7 @@ import {
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { EditorCommand } from "../editor/commands";
+import type { GridPoint } from "../generated/GridPoint";
 import type { AssignmentError } from "../generated/AssignmentError";
 import type { ParameterId } from "../generated/ParameterId";
 import type { Schematic } from "../generated/Schematic";
@@ -57,6 +59,8 @@ import {
 import { AssignmentPanel } from "./assignment/AssignmentPanel";
 import { StudentPanel } from "./assignment/StudentPanel";
 import { DevicePanel } from "./DevicePanel";
+import { MultimeterPanel, type MultimeterHandle } from "./MultimeterPanel";
+import { tauriProbes, type ProbePort } from "../store/engineAdapter";
 import { Inspector } from "./Inspector";
 import { Oscilloscope } from "./Oscilloscope";
 import { operatorPosition } from "./operatorPosition";
@@ -87,15 +91,24 @@ const IDLE_STATUS: EditorStatus = {
 interface AppProps {
   readonly projectFiles?: ProjectFilePort;
   readonly assignments?: AssignmentPort;
+  readonly probes?: ProbePort;
 }
 
 export function App({
   projectFiles = tauriProjectFiles,
   assignments = tauriAssignments,
+  probes = tauriProbes,
 }: AppProps = {}) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<EditorCore | null>(null);
+  const multimeterRef = useRef<MultimeterHandle>(null);
+  const showProbeMarkers = useCallback(
+    (positions: readonly (GridPoint | null)[]) => {
+      editorRef.current?.setProbeMarkers(positions);
+    },
+    [],
+  );
   const allowNextCloseRef = useRef(false);
   const pendingActionRef = useRef<ProjectAction | "close" | null>(null);
   // The circuit a "show in the editor" request is waiting to load, while the unsaved prompt
@@ -562,6 +575,7 @@ export function App({
     }
 
     const editor = new EditorCore({
+      onProbe: (position) => multimeterRef.current?.placeAt(position),
       onCommand: (command) => commandHandler.current(command),
       onOperate: (componentId, action) =>
         operateHandler.current(componentId, action),
@@ -1084,6 +1098,20 @@ export function App({
             onDelete={(id) => {
               applyRailCommand({ kind: "deleteRail", railId: id });
             }}
+          />
+          <MultimeterPanel
+            ref={multimeterRef}
+            port={probes}
+            state={state}
+            schematic={document.schematic}
+            labels={labels}
+            canvasActive={status.tool.kind === "probe"}
+            onUseCanvas={() =>
+              editorRef.current?.setTool({
+                kind: status.tool.kind === "probe" ? "select" : "probe",
+              })
+            }
+            onMarkers={showProbeMarkers}
           />
           <ResultPanel
             state={state}

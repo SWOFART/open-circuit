@@ -588,6 +588,27 @@ async fn set_operator_state(
     run_blocking(move || service.set_operator_state(request)).await
 }
 
+/// Reads the last committed Engine endpoint without advancing simulation time.
+#[tauri::command]
+async fn read_probe(
+    simulation: State<'_, Simulation>,
+    request: open_circuit_engine::ProbeRequest,
+) -> Result<open_circuit_engine::ProbeResult, String> {
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.probe(request)).await
+}
+
+/// Lists one page of clamp targets for the requested run and document revision.
+#[tauri::command]
+async fn list_conductor_spans(
+    simulation: State<'_, Simulation>,
+    request: open_circuit_engine::ConductorSpanRequest,
+) -> Result<Result<open_circuit_engine::ConductorSpanPage, open_circuit_engine::Diagnostic>, String>
+{
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.conductor_spans(request)).await
+}
+
 /// Starts delivering binary frames of the active run over `on_frame`.
 #[tauri::command]
 async fn start_simulation(
@@ -688,6 +709,8 @@ fn main() {
             compile_circuit,
             set_parameter,
             set_operator_state,
+            read_probe,
+            list_conductor_spans,
             start_simulation,
             stop_simulation,
             acknowledge_frame,

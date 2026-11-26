@@ -20,9 +20,10 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use open_circuit_engine::{
-    AdvanceRequest, CompileRequest, CompileResult, Diagnostic, DiagnosticCode, Engine,
-    SetOperatorStateRequest, SetOperatorStateResult, SetParameterRequest, SetParameterResult,
-    StableId, StreamNotice, TraceRequest,
+    AdvanceRequest, CompileRequest, CompileResult, ConductorSpanPage, ConductorSpanRequest,
+    Diagnostic, DiagnosticCode, Engine, ProbeRequest, ProbeResult, SetOperatorStateRequest,
+    SetOperatorStateResult, SetParameterRequest, SetParameterResult, StableId, StreamNotice,
+    TraceRequest,
 };
 
 use crate::frame::{MAX_REVISION_BYTES, encode_frame};
@@ -187,6 +188,34 @@ impl SimulationCore {
         }
 
         self.engine.set_operator_state(request)
+    }
+
+    pub fn probe(&self, request: ProbeRequest) -> ProbeResult {
+        if revision_too_long(&request.document_revision) {
+            return ProbeResult::Unavailable {
+                metadata: None,
+                diagnostic: Diagnostic::error(DiagnosticCode::InvalidParameter, Vec::new()),
+            };
+        }
+        self.engine.probe(request)
+    }
+
+    pub fn conductor_spans(
+        &self,
+        request: ConductorSpanRequest,
+    ) -> Result<ConductorSpanPage, Diagnostic> {
+        if revision_too_long(&request.document_revision)
+            || request
+                .cursor
+                .as_ref()
+                .is_some_and(|cursor| cursor.len() > MAX_REVISION_BYTES + 64)
+        {
+            return Err(Diagnostic::error(
+                DiagnosticCode::InvalidParameter,
+                Vec::new(),
+            ));
+        }
+        self.engine.conductor_spans(request)
     }
 
     /// Begins delivering frames of the active run to `sink`, replacing any earlier stream.
@@ -444,6 +473,11 @@ enum Message {
     Compile(Box<CompileRequest>, Sender<CompileResult>),
     SetParameter(SetParameterRequest, Sender<SetParameterResult>),
     SetOperatorState(SetOperatorStateRequest, Sender<SetOperatorStateResult>),
+    Probe(ProbeRequest, Sender<ProbeResult>),
+    ConductorSpans(
+        ConductorSpanRequest,
+        Sender<Result<ConductorSpanPage, Diagnostic>>,
+    ),
     Start(
         StableId,
         Box<dyn FrameSink>,
@@ -521,6 +555,17 @@ impl SimulationService {
         request: SetOperatorStateRequest,
     ) -> Result<SetOperatorStateResult, ServiceError> {
         self.request(|reply| Message::SetOperatorState(request, reply))
+    }
+
+    pub fn probe(&self, request: ProbeRequest) -> Result<ProbeResult, ServiceError> {
+        self.request(|reply| Message::Probe(request, reply))
+    }
+
+    pub fn conductor_spans(
+        &self,
+        request: ConductorSpanRequest,
+    ) -> Result<Result<ConductorSpanPage, Diagnostic>, ServiceError> {
+        self.request(|reply| Message::ConductorSpans(request, reply))
     }
 
     pub fn start(
@@ -732,6 +777,12 @@ fn run_worker(mut core: SimulationCore, receiver: Receiver<Message>) {
             }
             Ok(Message::SetOperatorState(request, reply)) => {
                 let _ = reply.send(core.set_operator_state(request));
+            }
+            Ok(Message::Probe(request, reply)) => {
+                let _ = reply.send(core.probe(request));
+            }
+            Ok(Message::ConductorSpans(request, reply)) => {
+                let _ = reply.send(core.conductor_spans(request));
             }
             Ok(Message::Start(run_id, sink, reply)) => {
                 let _ = reply.send(core.start(run_id, sink, Instant::now()));

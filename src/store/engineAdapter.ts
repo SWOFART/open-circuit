@@ -1,3 +1,8 @@
+import type { FrameMetadata } from "../generated/FrameMetadata";
+import type { ConductorSpanPage } from "../generated/ConductorSpanPage";
+import type { ConductorSpanRequest } from "../generated/ConductorSpanRequest";
+import type { ProbeRequest } from "../generated/ProbeRequest";
+import type { ProbeResult } from "../generated/ProbeResult";
 import { Channel, invoke, isTauri } from "@tauri-apps/api/core";
 import type { BillOfMaterials } from "../generated/BillOfMaterials";
 import type { CompileRequest } from "../generated/CompileRequest";
@@ -134,21 +139,16 @@ function toCounter(value: unknown, field: string): bigint {
   throw new EngineUnavailableError(`The engine sent an invalid ${field}.`);
 }
 
-function normalizeSnapshot(snapshot: ResultSnapshot): ResultSnapshot {
+function normalizeMetadata(metadata: FrameMetadata): FrameMetadata {
   return {
-    ...snapshot,
-    metadata: {
-      ...snapshot.metadata,
-      simulationStep: toCounter(
-        snapshot.metadata.simulationStep,
-        "simulation step",
-      ),
-      frameSequence: toCounter(
-        snapshot.metadata.frameSequence,
-        "frame sequence",
-      ),
-    },
+    ...metadata,
+    simulationStep: toCounter(metadata.simulationStep, "simulation step"),
+    frameSequence: toCounter(metadata.frameSequence, "frame sequence"),
   };
+}
+
+function normalizeSnapshot(snapshot: ResultSnapshot): ResultSnapshot {
+  return { ...snapshot, metadata: normalizeMetadata(snapshot.metadata) };
 }
 
 function normalizeCompileResult(result: CompileResult): CompileResult {
@@ -194,6 +194,33 @@ async function call<T>(
     throw new EngineUnavailableError(describeError(error));
   }
 }
+
+export interface ProbePort {
+  read(request: ProbeRequest): Promise<ProbeResult>;
+  spans(
+    request: ConductorSpanRequest,
+  ): Promise<{ Ok: ConductorSpanPage } | { Err: Diagnostic }>;
+}
+
+export const tauriProbes: ProbePort = {
+  async read(request) {
+    const frameSequence = Number(request.frameSequence);
+    if (!Number.isSafeInteger(frameSequence) || frameSequence < 0) {
+      throw new EngineUnavailableError(
+        "The probe frame sequence cannot be encoded.",
+      );
+    }
+    const result = await call<ProbeResult>("read_probe", {
+      request: { ...request, frameSequence },
+    });
+    return result.metadata === undefined
+      ? result
+      : { ...result, metadata: normalizeMetadata(result.metadata) };
+  },
+  spans(request) {
+    return call("list_conductor_spans", { request });
+  },
+};
 
 type DocumentationReply<T> = { Ok: T } | { Err: Diagnostic[] };
 

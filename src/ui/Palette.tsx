@@ -137,6 +137,11 @@ export function toolHint(status: EditorStatus): {
   const { tool } = status;
 
   switch (tool.kind) {
+    case "probe":
+      return {
+        text: "Click a probe target on the circuit. Esc returns to Select.",
+        warning: false,
+      };
     case "terminal":
       return {
         text: "Click a pin or wire to place a terminal.",

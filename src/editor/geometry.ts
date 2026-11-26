@@ -1,6 +1,7 @@
 import type { ComponentSpec } from "../generated/ComponentSpec";
 import type { GeometryEnvelope } from "../generated/GeometryEnvelope";
 import type { GridPoint } from "../generated/GridPoint";
+import type { PinId } from "../generated/PinId";
 import type { ResolvedPinPosition } from "../generated/ResolvedPinPosition";
 import type { Schematic } from "../generated/Schematic";
 import { symbolFor, type LocalPoint, type SymbolRegistry } from "../symbols";
@@ -56,7 +57,7 @@ function toGridPoint(point: LocalPoint, description: string): GridPoint {
 export function resolvePinPositions(
   component: ComponentSpec,
   registry: SymbolRegistry,
-): ResolvedPinPosition[] {
+): (ResolvedPinPosition & { pinId: PinId })[] {
   const symbol = symbolFor(component.typeId, registry);
 
   return symbol.pins.map((pin) => ({

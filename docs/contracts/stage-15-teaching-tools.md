@@ -136,6 +136,13 @@ bounded; show its model time. No previous reading is shown while
 compiling a replacement run. Test placement, keyboard selection,
 polarity, range equality, refusals and out-of-order replies.
 
+In the **Multimeter** panel, choose Voltage or Resistance, then select
+the probe and use **Place on canvas**. Use the X and Y fields and the
+corresponding Place button for keyboard placement. Current clamp offers
+a terminal or conductor-span selector. **More conductors** loads the
+next page, and **Reverse clamp direction** exchanges the span endpoints.
+Escape returns to the Select tool.
+
 ## Playback and single step (#220)
 
 The native playback state is scoped to the active run. New runs begin
