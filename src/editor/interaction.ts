@@ -5,6 +5,7 @@ import { EMPTY_GEOMETRY, type EditorGeometry } from "./connectivity";
 import type { Rotation } from "./geometry";
 import {
   hitTest,
+  objectsInBox,
   railHandleAt,
   sceneContains,
   type RailHandle,
@@ -101,8 +102,10 @@ export interface EditorStatus {
   /** The first click of a rail is made and the second is awaited. */
   readonly railStarted: boolean;
   readonly rejected: Rejection | null;
-  /** The selected object, so a panel can follow it. */
+  /** The selected object when exactly one is selected, so a panel can follow it. */
   readonly selection: SelectionTarget | null;
+  /** Every selected object, in the order they were added; the last is the primary one. */
+  readonly selections: readonly SelectionTarget[];
 }
 
 /**
@@ -124,6 +127,17 @@ export type InteractionIntent =
   | { readonly kind: "probe"; readonly position: GridPoint }
   | { readonly kind: "rotate"; readonly componentId: StableId }
   | { readonly kind: "delete"; readonly target: SelectionTarget }
+  /** Several selected objects move together, as one history entry. */
+  | {
+      readonly kind: "moveSelection";
+      readonly targets: readonly SelectionTarget[];
+      readonly delta: GridPoint;
+    }
+  /** Several selected objects are deleted together, as one history entry. */
+  | {
+      readonly kind: "deleteSelection";
+      readonly targets: readonly SelectionTarget[];
+    }
   /**
    * A switch is toggled, or a push button is pressed and later released. The host sends
    * the position to the Engine; nothing here decides what conducts.
@@ -187,6 +201,12 @@ export type OperateAction =
 /** What an uncommitted drag shows. Nothing is committed until release. */
 export type DragPreview =
   | {
+      /** Every selected object moving by `delta` (a selection of several). */
+      readonly kind: "group";
+      readonly targets: readonly SelectionTarget[];
+      readonly delta: GridPoint;
+    }
+  | {
       readonly kind: "component";
       readonly componentId: StableId;
       readonly delta: GridPoint;
@@ -225,6 +245,12 @@ export type DragPreview =
 
 type DragTarget =
   | {
+      /** Every member of a selection of several; `pressed` is the one the press landed on. */
+      readonly kind: "group";
+      readonly targets: readonly SelectionTarget[];
+      readonly pressed: SelectionTarget;
+    }
+  | {
       readonly kind: "rail";
       readonly id: StableId;
       readonly handle: RailHandle;
@@ -248,6 +274,14 @@ type DragTarget =
 type Gesture =
   | { readonly kind: "idle" }
   | {
+      // A rectangle drawn from empty canvas; on release it selects what is entirely inside.
+      readonly kind: "boxing";
+      readonly pointerId: number;
+      readonly start: ScenePoint;
+      readonly current: ScenePoint;
+      readonly additive: boolean;
+    }
+  | {
       // A push button is held; releasing, leaving, or canceling releases it.
       readonly kind: "operating";
       readonly pointerId: number;
@@ -270,6 +304,10 @@ type Gesture =
 
 function samePoint(a: GridPoint, b: GridPoint): boolean {
   return a.x === b.x && a.y === b.y;
+}
+
+function sameTarget(a: SelectionTarget, b: SelectionTarget): boolean {
+  return a.kind === b.kind && a.id === b.id;
 }
 
 type RailDragTarget = Extract<DragTarget, { readonly kind: "rail" }>;
@@ -309,7 +347,8 @@ export class CanvasInteraction {
   private geometry: EditorGeometry = EMPTY_GEOMETRY;
   // The switches and push buttons a press operates; empty unless a run is on screen.
   private operable: readonly OperatingTarget[] = [];
-  private selected: SelectionTarget | null = null;
+  // The selection: an ordered set with no duplicates. The last member is the primary one.
+  private selectedSet: SelectionTarget[] = [];
   private gesture: Gesture = { kind: "idle" };
   private panModifier = false;
   private pointer: GridPoint | null = null;
@@ -342,13 +381,41 @@ export class CanvasInteraction {
     return this.currentTool;
   }
 
+  /** The primary selected object: the last one added. */
+  private get selected(): SelectionTarget | null {
+    return this.selectedSet[this.selectedSet.length - 1] ?? null;
+  }
+
   get status(): EditorStatus {
     return {
       tool: this.currentTool,
       routing: this.route !== null,
       railStarted: this.railStart !== null,
       rejected: this.rejected,
-      selection: this.selected,
+      selection: this.selectedSet.length === 1 ? this.selectedSet[0]! : null,
+      selections: this.selectedSet,
+    };
+  }
+
+  /**
+   * The rectangle being drawn, in grid units, or null. Nothing is selected until release.
+   */
+  get boxPreview(): {
+    readonly minX: number;
+    readonly minY: number;
+    readonly maxX: number;
+    readonly maxY: number;
+  } | null {
+    const gesture = this.gesture;
+    if (gesture.kind !== "boxing") {
+      return null;
+    }
+
+    return {
+      minX: Math.min(gesture.start.x, gesture.current.x),
+      minY: Math.min(gesture.start.y, gesture.current.y),
+      maxX: Math.max(gesture.start.x, gesture.current.x),
+      maxY: Math.max(gesture.start.y, gesture.current.y),
     };
   }
 
@@ -360,6 +427,9 @@ export class CanvasInteraction {
     }
 
     const { target, delta } = gesture;
+    if (target.kind === "group") {
+      return { kind: "group", targets: target.targets, delta };
+    }
     if (target.kind === "component") {
       return { kind: "component", componentId: target.id, delta };
     }
@@ -443,8 +513,14 @@ export class CanvasInteraction {
     return this.currentView;
   }
 
+  /** The primary selected object, or null. */
   get selection(): SelectionTarget | null {
     return this.selected;
+  }
+
+  /** Every selected object, in the order they were added. */
+  get selections(): readonly SelectionTarget[] {
+    return this.selectedSet;
   }
 
   /** The snapped grid point under the pointer, or null off the canvas. */
@@ -481,8 +557,12 @@ export class CanvasInteraction {
       this.fit();
     }
 
-    if (this.selected && !sceneContains(scene, this.selected)) {
-      this.selected = null;
+    // A selection never refers to an object that is gone.
+    const present = this.selectedSet.filter((target) =>
+      sceneContains(scene, target),
+    );
+    if (present.length !== this.selectedSet.length) {
+      this.selectedSet = present;
       this.onChange("selection");
     }
   }
@@ -529,14 +609,68 @@ export class CanvasInteraction {
   select(target: SelectionTarget | null): void {
     const next =
       target && this.scene && sceneContains(this.scene, target)
-        ? { kind: target.kind, id: target.id }
-        : null;
+        ? [{ kind: target.kind, id: target.id }]
+        : [];
 
-    if (next?.kind === this.selected?.kind && next?.id === this.selected?.id) {
+    this.setSelection(next);
+  }
+
+  /** Adds `target` to the selection, or removes it when it is already a member (Shift-click). */
+  toggleSelection(target: SelectionTarget): void {
+    if (!this.scene || !sceneContains(this.scene, target)) {
       return;
     }
 
-    this.selected = next;
+    const member = this.selectedSet.some((item) => sameTarget(item, target));
+    this.setSelection(
+      member
+        ? this.selectedSet.filter((item) => !sameTarget(item, target))
+        : [...this.selectedSet, { kind: target.kind, id: target.id }],
+    );
+  }
+
+  /**
+   * Selects `targets` (the objects that are drawn, once each), replacing the selection or, with
+   * `add`, joining it.
+   */
+  selectMany(targets: readonly SelectionTarget[], add = false): void {
+    const next: SelectionTarget[] = add ? [...this.selectedSet] : [];
+    for (const target of targets) {
+      if (
+        this.scene &&
+        sceneContains(this.scene, target) &&
+        !next.some((item) => sameTarget(item, target))
+      ) {
+        next.push({ kind: target.kind, id: target.id });
+      }
+    }
+
+    this.setSelection(next);
+  }
+
+  /** Ctrl+A: every object that a rectangle could select. */
+  selectAll(): void {
+    if (this.scene) {
+      this.selectMany(
+        objectsInBox(this.scene, {
+          minX: -Infinity,
+          minY: -Infinity,
+          maxX: Infinity,
+          maxY: Infinity,
+        }),
+      );
+    }
+  }
+
+  private setSelection(next: readonly SelectionTarget[]): void {
+    if (
+      next.length === this.selectedSet.length &&
+      next.every((item, index) => sameTarget(item, this.selectedSet[index]!))
+    ) {
+      return;
+    }
+
+    this.selectedSet = [...next];
     this.onChange("selection");
   }
 
@@ -684,6 +818,33 @@ export class CanvasInteraction {
     }
 
     const hit = this.scene ? hitTest(this.scene, exact, tolerance) : null;
+
+    // Shift toggles an object in or out of the selection, and starts no drag. On empty canvas
+    // it starts an additive rectangle.
+    if (pointer.shiftKey === true) {
+      this.lastPress = null;
+      if (hit) {
+        this.toggleSelection(hit);
+        return false;
+      }
+      return this.startBox(pointer, exact, true);
+    }
+
+    // A press on a member of a selection of several keeps the selection and arms a drag of the
+    // whole group; a click that does not drag then selects that one object.
+    if (
+      hit &&
+      this.selectedSet.length > 1 &&
+      this.selectedSet.some((item) => sameTarget(item, hit))
+    ) {
+      this.lastPress = null;
+      return this.armDrag(pointer, at, {
+        kind: "group",
+        targets: [...this.selectedSet],
+        pressed: hit,
+      });
+    }
+
     const hitKey = hit ? `${hit.kind}:${hit.id}` : null;
     const double =
       hit !== null &&
@@ -704,6 +865,11 @@ export class CanvasInteraction {
       this.rememberPress(pointer, hitKey);
     } else {
       this.lastPress = null;
+    }
+
+    if (hit === null) {
+      // Empty canvas: the selection is cleared by the press above; a drag draws a rectangle.
+      return this.startBox(pointer, exact, false);
     }
 
     if (hit?.kind === "component") {
@@ -734,6 +900,21 @@ export class CanvasInteraction {
     }
 
     return false;
+  }
+
+  private startBox(
+    pointer: CanvasPointer,
+    exact: ScenePoint,
+    additive: boolean,
+  ): boolean {
+    this.gesture = {
+      kind: "boxing",
+      pointerId: pointer.pointerId,
+      start: exact,
+      current: exact,
+      additive,
+    };
+    return true;
   }
 
   private rememberPress(pointer: CanvasPointer, key: string): void {
@@ -994,6 +1175,18 @@ export class CanvasInteraction {
     this.updatePointer(pointer);
 
     if (
+      this.gesture.kind === "boxing" &&
+      this.gesture.pointerId === pointer.pointerId
+    ) {
+      this.gesture = {
+        ...this.gesture,
+        current: toGrid(pointer, this.currentView),
+      };
+      this.onChange("preview");
+      return;
+    }
+
+    if (
       this.gesture.kind === "operating" &&
       this.gesture.pointerId === pointer.pointerId
     ) {
@@ -1039,7 +1232,32 @@ export class CanvasInteraction {
 
     const gesture = this.gesture;
     const preview = this.dragPreview;
+    const box = this.boxPreview;
     this.endGesture(pointer.pointerId);
+
+    if (
+      gesture.kind === "boxing" &&
+      gesture.pointerId === pointer.pointerId &&
+      box &&
+      this.scene
+    ) {
+      const tolerance = HIT_TOLERANCE_PX / this.currentView.scale;
+      // A rectangle no bigger than a click selects nothing more than the click did.
+      if (box.maxX - box.minX > tolerance || box.maxY - box.minY > tolerance) {
+        this.selectMany(objectsInBox(this.scene, box), gesture.additive);
+      }
+      return;
+    }
+
+    if (
+      gesture.kind === "pressing" &&
+      gesture.pointerId === pointer.pointerId &&
+      gesture.target.kind === "group"
+    ) {
+      // A click on a member of a selection of several, with no drag: just that object.
+      this.select(gesture.target.pressed);
+      return;
+    }
 
     if (
       gesture.kind === "dragging" &&
@@ -1053,6 +1271,13 @@ export class CanvasInteraction {
 
   private commitDrag(preview: DragPreview): void {
     switch (preview.kind) {
+      case "group":
+        this.onIntent({
+          kind: "moveSelection",
+          targets: preview.targets,
+          delta: preview.delta,
+        });
+        return;
       case "component":
         this.onIntent({
           kind: "move",
@@ -1131,9 +1356,15 @@ export class CanvasInteraction {
    * a placement or drawing tool to Select mode.
    */
   escape(): void {
-    if (!this.cancelGesture() && this.currentTool.kind !== "select") {
-      this.setTool({ kind: "select" });
+    if (this.cancelGesture()) {
+      return;
     }
+    if (this.currentTool.kind !== "select") {
+      this.setTool({ kind: "select" });
+      return;
+    }
+    // Last, and only when nothing else was in the way: the selection.
+    this.select(null);
   }
 
   /** R: rotates the placement preview or the selected component clockwise. */
@@ -1156,10 +1387,34 @@ export class CanvasInteraction {
     }
   }
 
-  /** Delete or Backspace: removes the selected object. */
+  /** Delete or Backspace: removes the selected objects, as one history entry. */
   deleteSelection(): void {
-    if (this.gesture.kind === "idle" && !this.route && this.selected) {
-      this.onIntent({ kind: "delete", target: this.selected });
+    if (this.gesture.kind !== "idle" || this.route || this.selected === null) {
+      return;
+    }
+
+    this.onIntent(
+      this.selectedSet.length === 1
+        ? { kind: "delete", target: this.selected }
+        : { kind: "deleteSelection", targets: [...this.selectedSet] },
+    );
+  }
+
+  /**
+   * An arrow key: moves the selection by `delta` grid units, as one history entry. Does nothing
+   * while a gesture or a route is in progress.
+   */
+  moveSelectionBy(delta: GridPoint): void {
+    if (
+      this.gesture.kind === "idle" &&
+      !this.route &&
+      this.selectedSet.length > 0
+    ) {
+      this.onIntent({
+        kind: "moveSelection",
+        targets: [...this.selectedSet],
+        delta,
+      });
     }
   }
 
@@ -1238,7 +1493,7 @@ export class CanvasInteraction {
         action: "release",
       });
     }
-    if (previous.kind === "dragging") {
+    if (previous.kind === "dragging" || previous.kind === "boxing") {
       this.onChange("preview");
     }
     this.onChange("pointer");

@@ -244,16 +244,36 @@ export function followingWireEdits(
     }
   }
 
+  return rerouteEnds(schematic, (point) => targets.get(key(point)), obstacle);
+}
+
+/** A point that holds nothing: a rubber band that has no part to avoid. */
+const NO_OBSTACLE: Obstacle = {
+  body: { minX: 0, minY: 0, maxX: 0, maxY: 0 },
+  pins: [],
+};
+
+/**
+ * Re-routes the wires whose first or last point `targetFor` moves, as an L-shaped rubber band
+ * (the endpoint follows, the other end stays). Wires in `skip` are left alone. A wire that
+ * would collapse to a single point is left unchanged.
+ */
+function rerouteEnds(
+  schematic: Schematic,
+  targetFor: (point: GridPoint) => GridPoint | undefined,
+  obstacle: Obstacle,
+  skip: ReadonlySet<StableId> = new Set(),
+): WireEdit[] {
   const edits: WireEdit[] = [];
   for (const wire of schematic.wires) {
     const first = wire.points[0];
     const last = wire.points[wire.points.length - 1];
-    if (!first || !last) {
+    if (!first || !last || skip.has(wire.id)) {
       continue;
     }
 
-    const startTarget = targets.get(key(first));
-    const endTarget = targets.get(key(last));
+    const startTarget = targetFor(first);
+    const endTarget = targetFor(last);
     if (!startTarget && !endTarget) {
       continue;
     }
@@ -269,6 +289,118 @@ export function followingWireEdits(
     // Adjacent points are distinct here, so two points make a valid path.
     if (path.length >= 2) {
       edits.push({ id: wire.id, points: path });
+    }
+  }
+
+  return edits;
+}
+
+/** One component of a group move, and where it goes. */
+export interface GroupComponentMove {
+  readonly componentId: StableId;
+  readonly placement: ComponentPlacement;
+}
+
+/**
+ * Re-routes, once each, the wires that end on a pin of a moved component or on a point that
+ * `extraTarget` moves (a junction, a place on a moved rail), for a move of several things at
+ * once. Every wire end is matched against the **original** drawing, so a wire that is also
+ * translated or re-routed for another part is never matched a second time by a pin it only
+ * happens to land on. Wires in `skip` (the ones moved whole) are left alone. Each edit names the
+ * component whose pin its first matched end sat on (nothing for an end that follows a junction
+ * or a rail), so the caller can apply it in that component's own transaction.
+ */
+export function followingGroupWireEdits(
+  schematic: Schematic,
+  moves: readonly GroupComponentMove[],
+  registry: SymbolRegistry,
+  extraTarget: (point: GridPoint) => GridPoint | undefined,
+  skip: ReadonlySet<StableId>,
+): { id: StableId; points: GridPoint[]; owner: StableId | null }[] {
+  interface EndTarget {
+    readonly to: GridPoint;
+    readonly obstacle: Obstacle;
+    readonly owner: StableId | null;
+  }
+  const pinTargets = new Map<string, EndTarget>();
+  for (const { componentId, placement } of moves) {
+    const component = schematic.components.find(
+      (item) => item.id === componentId,
+    );
+    if (!component) {
+      continue;
+    }
+
+    const moved = { ...component, ...placement } as ComponentSpec;
+    const movedPins = resolvePinPositions(moved, registry);
+    const after = new Map(movedPins.map((pin) => [pin.pinId, pin.position]));
+    const obstacle: Obstacle = {
+      body: bodyBounds(moved, registry),
+      pins: movedPins.map((pin) => pin.position),
+    };
+    for (const pin of resolvePinPositions(component, registry)) {
+      const to = after.get(pin.pinId);
+      // Pins on one point move together; the first part to claim the point keeps it.
+      if (
+        to &&
+        !samePoint(to, pin.position) &&
+        !pinTargets.has(key(pin.position))
+      ) {
+        pinTargets.set(key(pin.position), { to, obstacle, owner: componentId });
+      }
+    }
+  }
+
+  const targetFor = (point: GridPoint): EndTarget | undefined => {
+    const pin = pinTargets.get(key(point));
+    if (pin) {
+      return pin;
+    }
+    const to = extraTarget(point);
+    return to ? { to, obstacle: NO_OBSTACLE, owner: null } : undefined;
+  };
+
+  const edits: { id: StableId; points: GridPoint[]; owner: StableId | null }[] =
+    [];
+  for (const wire of schematic.wires) {
+    const first = wire.points[0];
+    const last = wire.points[wire.points.length - 1];
+    if (!first || !last || skip.has(wire.id)) {
+      continue;
+    }
+
+    const start = targetFor(first);
+    const end = targetFor(last);
+    if (!start && !end) {
+      continue;
+    }
+
+    let path: GridPoint[] = [...wire.points];
+    if (start) {
+      path = moveStart(path, start.to, start.obstacle);
+    }
+    if (end) {
+      // The first move can collapse a short wire onto the old place of its other end, which is
+      // itself moving: then the wire is simply re-drawn between the two new places.
+      path =
+        path.length >= 2
+          ? moveStart(path.reverse(), end.to, end.obstacle).reverse()
+          : simplifyPath([
+              start?.to ?? first,
+              ...(start && start.to.x !== end.to.x && start.to.y !== end.to.y
+                ? [{ x: end.to.x, y: start.to.y }]
+                : []),
+              end.to,
+            ]);
+    }
+
+    // Adjacent points are distinct here, so two points make a valid path.
+    if (path.length >= 2) {
+      edits.push({
+        id: wire.id,
+        points: path,
+        owner: start?.owner ?? end?.owner ?? null,
+      });
     }
   }
 

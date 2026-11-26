@@ -124,6 +124,29 @@ export function commandVerdict(
             allowed: false,
             reason: "The assignment does not allow adding that kind of part.",
           };
+    case "batch": {
+      // A group is all or nothing: one refused part refuses the whole group, so a press never
+      // leaves half of a selection deleted (stage 16 contract, section 3).
+      const refused = command.commands
+        .map((part) => commandVerdict(part, restrictions))
+        .filter((verdict) => !verdict.allowed);
+      const locked = command.commands.filter(
+        (part) =>
+          part.kind === "deleteComponent" &&
+          restrictions.locked.has(part.componentId),
+      ).length;
+
+      if (refused.length === 0) return ALLOWED;
+      return locked > 0
+        ? {
+            allowed: false,
+            reason:
+              locked === 1
+                ? "1 selected part is locked by the assignment, so nothing was deleted."
+                : `${locked} selected parts are locked by the assignment, so nothing was deleted.`,
+          }
+        : refused[0]!;
+    }
     case "addRail":
       // Rails are not part of assignments (docs/contracts/stage-8-supply-rails.md section 8).
       return {

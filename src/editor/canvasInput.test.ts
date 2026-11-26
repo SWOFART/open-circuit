@@ -627,3 +627,78 @@ describe("drawing shortcuts", () => {
     expect(canvas.style.cursor).toBe("crosshair");
   });
 });
+
+describe("selection shortcuts", () => {
+  const R2 = "00000000-0000-4000-8000-000000000003";
+
+  it("selects everything with Ctrl+A and never while typing", () => {
+    const { keyboard, interaction } = setup();
+    const press = domEvent("keydown", { code: "KeyA", ctrlKey: true });
+
+    keyboard.dispatchEvent(press);
+
+    expect(press.defaultPrevented).toBe(true);
+    expect(interaction.selections).toHaveLength(7);
+
+    interaction.select(null);
+    const input = { tagName: "INPUT", type: "text" };
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyA", ctrlKey: true }, input),
+    );
+    expect(interaction.selections).toEqual([]);
+  });
+
+  it("moves the selection by an arrow key, ten with Shift, and ignores auto-repeat", () => {
+    const intents: InteractionIntent[] = [];
+    const canvas = new FakeCanvas();
+    const keyboard = new EventTarget();
+    const interaction = new CanvasInteraction(
+      () => {},
+      (intent) => intents.push(intent),
+    );
+    interaction.setViewport({ width: 800, height: 600 });
+    interaction.setScene(buildScene(schematicFixture as Schematic, symbols));
+    bindCanvasInput(canvas, interaction, keyboard);
+    interaction.selectMany([
+      { kind: "component", id: R1 },
+      { kind: "component", id: R2 },
+    ]);
+
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "ArrowLeft", key: "ArrowLeft" }),
+    );
+    keyboard.dispatchEvent(
+      domEvent("keydown", {
+        code: "ArrowDown",
+        key: "ArrowDown",
+        shiftKey: true,
+      }),
+    );
+    // A held key repeats: only the first press counts.
+    keyboard.dispatchEvent(
+      domEvent("keydown", {
+        code: "ArrowRight",
+        key: "ArrowRight",
+        repeat: true,
+      }),
+    );
+
+    expect(
+      intents.map((intent) =>
+        intent.kind === "moveSelection" ? intent.delta : intent,
+      ),
+    ).toEqual([
+      { x: -1, y: 0 },
+      { x: 0, y: 10 },
+    ]);
+  });
+
+  it("leaves the arrow keys alone when nothing is selected", () => {
+    const { keyboard } = setup();
+    const press = domEvent("keydown", { code: "ArrowLeft", key: "ArrowLeft" });
+
+    keyboard.dispatchEvent(press);
+
+    expect(press.defaultPrevented).toBe(false);
+  });
+});
