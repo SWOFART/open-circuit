@@ -212,6 +212,14 @@ export function applyEditorCommand(
     case "deleteRail":
       store.removeRail(command.railId);
       return;
+    case "batch":
+      // One history entry for the whole group, and none if any part is refused.
+      store.transact(() => {
+        for (const part of command.commands) {
+          applyEditorCommand(store, part, catalog, designate);
+        }
+      });
+      return;
     case "undo":
       store.undo();
       return;

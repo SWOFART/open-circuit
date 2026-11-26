@@ -1004,3 +1004,15 @@ input {
   white-space: nowrap;
   border: 0;
 }
+
+/* The count of a selection of several objects; empty (and so invisible) otherwise. */
+.selection-summary {
+  margin: 0;
+  padding: 0 var(--space-3, 12px);
+  font-size: 0.85rem;
+  color: var(--text-muted, inherit);
+}
+
+.selection-summary:empty {
+  display: none;
+}

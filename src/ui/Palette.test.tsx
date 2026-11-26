@@ -94,6 +94,7 @@ describe("tool hint", () => {
     railStarted: false,
     rejected: null,
     selection: null,
+    selections: [],
     ...partial,
   });
 

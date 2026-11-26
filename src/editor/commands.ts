@@ -16,6 +16,7 @@ import {
   type WireEdit,
 } from "./transform";
 import { emptyDocumentation } from "./documentation";
+import { moveSelection } from "./selectionOps";
 
 /**
  * A document operation requested by the canvas. The host applies it to the
@@ -85,6 +86,11 @@ export type EditorCommand =
       };
     }
   | { readonly kind: "deleteRail"; readonly railId: StableId }
+  /**
+   * Several commands applied as **one history entry**: a group move, a group delete
+   * (docs/contracts/stage-16-editor-improvements.md section 3). If one fails, none is applied.
+   */
+  | { readonly kind: "batch"; readonly commands: readonly EditorCommand[] }
   | { readonly kind: "undo" }
   | { readonly kind: "redo" };
 
@@ -159,6 +165,21 @@ export function commandForIntent(
     }
     case "delete":
       return deleteCommand(intent.target, schematic);
+    case "moveSelection": {
+      const move = moveSelection(
+        schematic,
+        intent.targets,
+        intent.delta,
+        registry,
+      );
+      return move ? { kind: "batch", commands: move.commands } : null;
+    }
+    case "deleteSelection": {
+      const commands = intent.targets
+        .map((target) => deleteCommand(target, schematic))
+        .filter((command): command is EditorCommand => command !== null);
+      return commands.length > 0 ? { kind: "batch", commands } : null;
+    }
     case "addWire":
       return { kind: "addWire", points: intent.points };
     case "editWire":
@@ -270,6 +291,11 @@ export function dragPreviewSchematic(
   registry: SymbolRegistry,
 ): Schematic {
   switch (drag.kind) {
+    case "group":
+      return (
+        moveSelection(schematic, drag.targets, drag.delta, registry)
+          ?.schematic ?? schematic
+      );
     case "component": {
       const command = commandForIntent(
         { kind: "move", componentId: drag.componentId, delta: drag.delta },

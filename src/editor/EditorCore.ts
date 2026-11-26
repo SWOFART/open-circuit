@@ -420,6 +420,7 @@ export class EditorCore {
     const { width, height } = this.application.screen;
     const view = this.interaction.view;
     const selection = this.interaction.selection;
+    const selections = this.interaction.selections;
     const drag = this.interaction.dragPreview;
 
     // During a drag the drawing shows where the release would leave it.
@@ -454,10 +455,11 @@ export class EditorCore {
 
     if (scene) {
       for (const shape of scene.shapes) {
-        const selected =
-          selection !== null &&
-          shape.owner.kind === selection.kind &&
-          shape.owner.id === selection.id;
+        // Every member of the selection is highlighted; only the primary one has handles.
+        const selected = selections.some(
+          (member) =>
+            shape.owner.kind === member.kind && shape.owner.id === member.id,
+        );
         this.content.addChild(this.drawShape(shape, view, selected));
       }
 
@@ -499,6 +501,17 @@ export class EditorCore {
     const route = this.interaction.routePreview;
     if (route) {
       this.traceRoute(route, view);
+    }
+
+    // The rectangle of a box selection; nothing is selected until it is released.
+    const box = this.interaction.boxPreview;
+    if (box) {
+      const first = toScreen({ x: box.minX, y: box.minY }, view);
+      const last = toScreen({ x: box.maxX, y: box.maxY }, view);
+      this.overlay
+        .rect(first.x, first.y, last.x - first.x, last.y - first.y)
+        .fill({ color: COLORS.preview, alpha: 0.12 })
+        .stroke({ color: COLORS.preview, width: 1, alpha: 0.8 });
     }
 
     // The rail the next click would draw; red when a click would not commit it.

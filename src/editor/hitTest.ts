@@ -11,7 +11,7 @@ import {
   type SelectableKind,
 } from "./scene";
 
-/** The one selected schematic object. Multi-selection is deferred. */
+/** One selectable schematic object. A selection is an ordered set of these. */
 export type SelectionTarget = SceneOwner;
 
 // Lower wins: point markers, then components, rails, and ordinary wires
@@ -186,4 +186,60 @@ export function sceneContains(
   return scene.shapes.some(
     (shape) => shape.owner.kind === target.kind && shape.owner.id === target.id,
   );
+}
+
+/** The kinds a rectangle selects: documentation entries with no body of their own are not. */
+const BOX_KINDS: ReadonlySet<SelectableKind> = new Set([
+  "component",
+  "wire",
+  "junction",
+  "referenceMarker",
+  "rail",
+  "note",
+]);
+
+/**
+ * The objects entirely inside `box` (docs/contracts/stage-16-editor-improvements.md section 2):
+ * a component's body and pins, every point of a wire or a rail, a marker's point, a note's box.
+ * The name label of a part, a wire or a rail does not count, so a long label cannot keep a part
+ * out. Objects keep the order in which the scene draws them.
+ */
+export function objectsInBox(
+  scene: SceneModel,
+  box: Bounds,
+): SelectionTarget[] {
+  const shapesByOwner = new Map<
+    string,
+    { owner: SceneOwner; shapes: SceneShape[] }
+  >();
+
+  for (const shape of scene.shapes) {
+    const { owner } = shape;
+    if (!BOX_KINDS.has(owner.kind)) {
+      continue;
+    }
+    if (shape.kind === "label" && owner.kind !== "note") {
+      continue;
+    }
+
+    const key = `${owner.kind}:${owner.id}`;
+    const entry = shapesByOwner.get(key) ?? { owner, shapes: [] };
+    entry.shapes.push(shape);
+    shapesByOwner.set(key, entry);
+  }
+
+  const inside: SelectionTarget[] = [];
+  for (const { owner, shapes } of shapesByOwner.values()) {
+    const bounds = boundsOf(shapes);
+    if (
+      bounds.minX >= box.minX &&
+      bounds.maxX <= box.maxX &&
+      bounds.minY >= box.minY &&
+      bounds.maxY <= box.maxY
+    ) {
+      inside.push({ kind: owner.kind, id: owner.id });
+    }
+  }
+
+  return inside;
 }

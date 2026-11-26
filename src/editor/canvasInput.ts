@@ -1,6 +1,13 @@
 import type { CanvasInteraction, CanvasPointer } from "./interaction";
 
 /** The parts of the canvas element the input binding uses. */
+const ARROW_DELTAS: Readonly<Record<string, { x: number; y: number }>> = {
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+};
+
 export interface CanvasInputSurface extends EventTarget {
   getBoundingClientRect(): { readonly left: number; readonly top: number };
   setPointerCapture(pointerId: number): void;
@@ -161,8 +168,23 @@ export function bindCanvasInput(
       }
       return true;
     }
+    if (command && !event.altKey && !event.shiftKey && event.code === "KeyA") {
+      interaction.selectAll();
+      return true;
+    }
     if (command || event.altKey) {
       return false;
+    }
+
+    // Arrow keys move the selection by one grid unit, or ten with Shift. A held key must not
+    // flood the history, so auto-repeat is ignored (stage 16 contract, section 2).
+    const arrow = ARROW_DELTAS[event.key];
+    if (arrow && interaction.selections.length > 0) {
+      if (!event.repeat) {
+        const step = event.shiftKey ? 10 : 1;
+        interaction.moveSelectionBy({ x: arrow.x * step, y: arrow.y * step });
+      }
+      return true;
     }
 
     switch (event.key) {

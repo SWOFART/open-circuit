@@ -58,6 +58,7 @@ import { AssignmentPanel } from "./assignment/AssignmentPanel";
 import { StudentPanel } from "./assignment/StudentPanel";
 import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
+import { SelectionSummary } from "./SelectionSummary";
 import { Oscilloscope } from "./Oscilloscope";
 import { operatorPosition } from "./operatorPosition";
 import { ComponentEditor } from "./ComponentEditor";
@@ -82,6 +83,7 @@ const IDLE_STATUS: EditorStatus = {
   railStarted: false,
   rejected: null,
   selection: null,
+  selections: [],
 };
 
 interface AppProps {
@@ -1047,6 +1049,7 @@ export function App({
               disabled={projectOperationLocked}
             />
           )}
+          <SelectionSummary selections={status.selections} />
           <Inspector
             state={state}
             schematic={document.schematic}

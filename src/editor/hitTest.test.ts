@@ -3,7 +3,7 @@ import schematicFixture from "../../tests/golden/stage-1-divider.schematic.json"
 import type { Schematic } from "../generated/Schematic";
 import { componentLabels } from "../store/fixtures";
 import { symbols } from "../symbols";
-import { hitTest, sceneContains } from "./hitTest";
+import { hitTest, objectsInBox, sceneContains } from "./hitTest";
 import { buildScene } from "./scene";
 
 const schematic = schematicFixture as Schematic;
@@ -126,5 +126,48 @@ describe("scene membership", () => {
     expect(sceneContains(scene, { kind: "junction", id: JUNCTION })).toBe(
       false,
     );
+  });
+});
+
+describe("selecting by a rectangle", () => {
+  const ids = (box: Parameters<typeof objectsInBox>[1]) =>
+    objectsInBox(scene, box)
+      .map(({ id }) => id)
+      .sort();
+
+  it("takes what is entirely inside and nothing it only touches", () => {
+    // R1, R2 and the wire between them; the long wires and V1 reach outside.
+    expect(ids({ minX: 2.4, minY: -1.6, maxX: 9.6, maxY: 1.6 })).toEqual(
+      [R1, R2, MIDDLE_WIRE].sort(),
+    );
+    expect(ids({ minX: 2.4, minY: -1.6, maxX: 8.2, maxY: 1.6 })).not.toContain(
+      R2,
+    );
+  });
+
+  it("takes a wire only when every point of it is inside", () => {
+    // The loop wire runs from x = -1 to x = 3 and from y = 0 to y = 4.
+    expect(ids({ minX: -1.5, minY: -0.5, maxX: 2, maxY: 4.5 })).not.toContain(
+      LOOP_WIRE,
+    );
+    expect(ids({ minX: -1.5, minY: -0.5, maxX: 3.5, maxY: 4.5 })).toContain(
+      LOOP_WIRE,
+    );
+  });
+
+  it("is not kept out by a part's name label", () => {
+    // The body of V1 and its pins fit in this box; its label sits above it.
+    expect(ids({ minX: -1.6, minY: -1.2, maxX: 1.6, maxY: 1.2 })).toContain(V1);
+  });
+
+  it("takes everything with an unbounded rectangle", () => {
+    expect(
+      objectsInBox(scene, {
+        minX: -Infinity,
+        minY: -Infinity,
+        maxX: Infinity,
+        maxY: Infinity,
+      }).length,
+    ).toBeGreaterThanOrEqual(7);
   });
 });

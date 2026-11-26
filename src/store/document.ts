@@ -332,6 +332,12 @@ export class SchematicDocumentStore {
   private savedSchematic: Schematic;
   private readonly undoStack: HistoryEntry[] = [];
   private readonly redoStack: HistoryEntry[] = [];
+  // While a transaction runs, its edits collect here and become one history entry.
+  private batch: {
+    patches: Patch[];
+    inversePatches: Patch[];
+    topology: boolean;
+  } | null = null;
   private readonly listeners = new Set<() => void>();
   private readonly issuedIds = new Set<StableId>();
   private readonly labels = new ComponentLabels();
@@ -582,44 +588,53 @@ export class SchematicDocumentStore {
     return null;
   }
 
+  /**
+   * Re-attaches every documentation terminal to the pin or wire it sat on in `before`, in the
+   * drawing `draft` now holds. Throws when two terminals would share a point.
+   */
+  private followTerminals(draft: Draft<Schematic>, before: Schematic): void {
+    if (draft.documentation.terminals.length === 0) return;
+    const occupied = new Set<string>();
+    draft.documentation.terminals = draft.documentation.terminals.filter(
+      (terminal) => {
+        const attachment = this.terminalAttachment(before, terminal.position);
+        let position: GridPoint | undefined = terminal.position;
+        if (attachment?.kind === "pin") {
+          const component = draft.components.find(
+            (entry) => entry.id === attachment.id,
+          );
+          position =
+            component &&
+            resolvePinPositions(component, symbols).find(
+              (pin) => pin.pinId === attachment.pinId,
+            )?.position;
+        } else if (attachment?.kind === "wire") {
+          const wire = draft.wires.find((entry) => entry.id === attachment.id);
+          position = wire && pointAtWireOffset(wire.points, attachment.offset);
+        }
+        if (!position) return false;
+        const key = `${position.x},${position.y}`;
+        if (occupied.has(key))
+          throw new Error("This move would put two terminals at one point.");
+        occupied.add(key);
+        if (!samePoint(position, terminal.position))
+          terminal.position = position;
+        return true;
+      },
+    );
+  }
+
   private commitTopology(recipe: (draft: Draft<Schematic>) => void): void {
+    if (this.batch) {
+      // Inside a transaction the terminals follow once, after the last edit, so an
+      // intermediate drawing never raises a collision the finished one does not have.
+      this.batch.topology = true;
+      this.commit(recipe);
+      return;
+    }
     this.commit((draft) => {
       recipe(draft);
-      if (draft.documentation.terminals.length === 0) return;
-      const occupied = new Set<string>();
-      draft.documentation.terminals = draft.documentation.terminals.filter(
-        (terminal) => {
-          const attachment = this.terminalAttachment(
-            this.schematic,
-            terminal.position,
-          );
-          let position: GridPoint | undefined = terminal.position;
-          if (attachment?.kind === "pin") {
-            const component = draft.components.find(
-              (entry) => entry.id === attachment.id,
-            );
-            position =
-              component &&
-              resolvePinPositions(component, symbols).find(
-                (pin) => pin.pinId === attachment.pinId,
-              )?.position;
-          } else if (attachment?.kind === "wire") {
-            const wire = draft.wires.find(
-              (entry) => entry.id === attachment.id,
-            );
-            position =
-              wire && pointAtWireOffset(wire.points, attachment.offset);
-          }
-          if (!position) return false;
-          const key = `${position.x},${position.y}`;
-          if (occupied.has(key))
-            throw new Error("This move would put two terminals at one point.");
-          occupied.add(key);
-          if (!samePoint(position, terminal.position))
-            terminal.position = position;
-          return true;
-        },
-      );
+      this.followTerminals(draft, this.schematic);
     });
   }
 
@@ -1094,6 +1109,47 @@ export class SchematicDocumentStore {
     return id;
   }
 
+  /**
+   * Runs several edits as **one history entry**: one undo restores the document as it was, and
+   * one redo repeats them all (docs/contracts/stage-16-editor-improvements.md section 3). If an
+   * edit throws, the document is restored exactly, nothing is recorded, and the error is
+   * rethrown. Nothing is published to listeners until the whole transaction has succeeded.
+   * A transaction inside a transaction joins the outer one.
+   */
+  transact<T>(edits: () => T): T {
+    if (this.batch) return edits();
+
+    const start = this.schematic;
+    const batch = {
+      patches: [] as Patch[],
+      inversePatches: [] as Patch[],
+      topology: false,
+    };
+    this.batch = batch;
+    let result: T;
+    try {
+      result = edits();
+      if (batch.topology) {
+        this.commit((draft) => this.followTerminals(draft, start));
+      }
+    } catch (error) {
+      this.batch = null;
+      this.schematic = start;
+      throw error;
+    }
+    this.batch = null;
+
+    if (batch.patches.length > 0) {
+      this.undoStack.push({
+        patches: batch.patches,
+        inversePatches: batch.inversePatches,
+      });
+      this.redoStack.length = 0;
+      this.publish();
+    }
+    return result;
+  }
+
   private commit(recipe: (draft: Draft<Schematic>) => void): void {
     const [next, patches, inversePatches] = produceWithPatches(
       this.schematic,
@@ -1101,6 +1157,12 @@ export class SchematicDocumentStore {
     );
     if (patches.length === 0) return;
     this.schematic = next;
+    if (this.batch) {
+      // Patches apply in order, and their inverses in the reverse order.
+      this.batch.patches.push(...patches);
+      this.batch.inversePatches.unshift(...inversePatches);
+      return;
+    }
     this.undoStack.push({ patches, inversePatches });
     this.redoStack.length = 0;
     this.publish();
