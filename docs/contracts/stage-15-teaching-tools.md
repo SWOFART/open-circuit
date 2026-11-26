@@ -1,9 +1,8 @@
-# Stage 15 teaching tools contract proposal
+# Stage 15 teaching tools contract
 
-For [#217](https://github.com/SWOFART/open-circuit/issues/217), under
-[#160](https://github.com/SWOFART/open-circuit/issues/160). Engine and
-Application approval is required before implementation. Gate A checks this
-proposal against the issues and architecture.
+The project owner approved the Engine and Application contract for
+implementation, as recorded in [#217](https://github.com/SWOFART/open-circuit/issues/217)
+under [#160](https://github.com/SWOFART/open-circuit/issues/160).
 
 ## Boundaries
 
@@ -166,6 +165,12 @@ current-step snapshot and updates that step's trace according to the
 existing update rules. It does not advance a step or silently resume.
 A live parameter update follows the existing same-step behavior.
 A compile-only edit produces a new run and uses the new-run defaults.
+
+The Tauri command `control_playback` takes `runId`, `documentRevision`,
+and `action` as strings. Supported actions are `play`, `pause`, `step`,
+`0.25`, `0.5`, `1`, and `2`. The command acknowledges success or
+returns an error. Result frames continue on the existing frame channel.
+
 Tests use a fake clock and real Engine to cover paused wall time,
 deterministic single/batched advances, pause-time actions, stale commands,
 speed changes, and trace/stream ordering.

@@ -659,3 +659,11 @@ describe("native multimeter commands", () => {
     });
   });
 });
+
+it("sends playback with the active run and document revision", async () => {
+  await new TauriEngineAdapter().controlPlayback(RUN_ID, "rev-1", "step");
+  expect(tauri.state.calls.at(-1)).toEqual({
+    command: "control_playback",
+    args: { runId: RUN_ID, documentRevision: "rev-1", action: "step" },
+  });
+});

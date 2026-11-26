@@ -89,6 +89,17 @@ fn revision_too_long(revision: &str) -> bool {
     revision.len() > MAX_REVISION_BYTES
 }
 
+#[derive(Clone, Copy)]
+pub enum PlaybackCommand {
+    Play,
+    Pause,
+    Step,
+    QuarterSpeed,
+    HalfSpeed,
+    NormalSpeed,
+    DoubleSpeed,
+}
+
 struct Stream {
     run_id: StableId,
     sink: Box<dyn FrameSink>,
@@ -117,6 +128,8 @@ pub struct SimulationCore {
     engine: Engine,
     config: SimulationConfig,
     stream: Option<Stream>,
+    paused: bool,
+    step_interval: Duration,
     pending_trace: Option<PendingTrace>,
     next_trace_sequence: u64,
 }
@@ -127,6 +140,8 @@ impl SimulationCore {
             engine: Engine::default(),
             config,
             stream: None,
+            paused: false,
+            step_interval: PHYSICS_STEP,
             pending_trace: None,
             next_trace_sequence: 1,
         }
@@ -149,6 +164,8 @@ impl SimulationCore {
 
         if matches!(result, CompileResult::Success { .. }) {
             self.stream = None;
+            self.paused = false;
+            self.step_interval = PHYSICS_STEP;
             self.pending_trace = None;
             self.next_trace_sequence = 1;
         }
@@ -339,9 +356,94 @@ impl SimulationCore {
         }
     }
 
+    /// Updates scheduling for the active stream at its last committed endpoint.
+    pub fn playback(
+        &mut self,
+        run_id: &StableId,
+        revision: &str,
+        command: PlaybackCommand,
+        now: Instant,
+    ) -> Result<(), Vec<Diagnostic>> {
+        let invalid = |code| vec![Diagnostic::error(code, Vec::new())];
+        let active = self
+            .stream
+            .as_mut()
+            .filter(|stream| &stream.run_id == run_id)
+            .ok_or_else(|| invalid(DiagnosticCode::StaleRun))?;
+        let snapshot = self
+            .engine
+            .latest_snapshot()
+            .ok_or_else(|| invalid(DiagnosticCode::StaleRun))?;
+        if revision_too_long(revision) {
+            return Err(invalid(DiagnosticCode::InvalidParameter));
+        }
+        if snapshot.metadata.document_revision != revision {
+            return Err(invalid(DiagnosticCode::StaleDocumentRevision));
+        }
+
+        let interval = match command {
+            PlaybackCommand::Play => {
+                if self.paused {
+                    self.paused = false;
+                    active.advanced_to = now;
+                }
+                return Ok(());
+            }
+            PlaybackCommand::Pause => {
+                self.paused = true;
+                return Ok(());
+            }
+            PlaybackCommand::Step => {
+                if !self.paused {
+                    return Err(invalid(DiagnosticCode::InvalidParameter));
+                }
+                if let Err(diagnostics) = self.engine.advance(AdvanceRequest {
+                    run_id: run_id.clone(),
+                    step_count: 1,
+                }) {
+                    self.stop_on_engine_error(diagnostics.clone());
+                    return Err(diagnostics);
+                }
+                self.tick(now);
+                return Ok(());
+            }
+            PlaybackCommand::QuarterSpeed => PHYSICS_STEP * 4,
+            PlaybackCommand::HalfSpeed => PHYSICS_STEP * 2,
+            PlaybackCommand::NormalSpeed => PHYSICS_STEP,
+            PlaybackCommand::DoubleSpeed => PHYSICS_STEP / 2,
+        };
+        if self.step_interval != interval {
+            self.step_interval = interval;
+            active.advanced_to = now;
+        }
+        Ok(())
+    }
+
+    fn stop_on_engine_error(&mut self, diagnostics: Vec<Diagnostic>) {
+        if let Some(mut active) = self.stream.take()
+            && let Some(snapshot) = self.engine.latest_snapshot()
+            && snapshot.metadata.run_id == active.run_id
+        {
+            let _ = active.sink.notice(&StreamNotice::RunStopped {
+                run_id: snapshot.metadata.run_id.clone(),
+                document_revision: snapshot.metadata.document_revision.clone(),
+                simulation_step: snapshot.metadata.simulation_step,
+                diagnostics,
+            });
+        }
+    }
+
     /// When `tick` next needs to run, or `None` when there is nothing to do.
     pub fn next_deadline(&self) -> Option<Instant> {
-        self.stream.as_ref().map(|stream| stream.next_frame_at)
+        let active = self.stream.as_ref()?;
+        if self.paused
+            && self.engine.latest_snapshot().is_some_and(|snapshot| {
+                active.last_sent_sequence == Some(snapshot.metadata.frame_sequence)
+            })
+        {
+            return None;
+        }
+        Some(active.next_frame_at)
     }
 
     /// Advances physics to `now` and delivers the latest snapshot if one is due.
@@ -350,6 +452,8 @@ impl SimulationCore {
             engine,
             config,
             stream,
+            paused,
+            step_interval,
             ..
         } = self;
         let Some(active) = stream.as_mut() else {
@@ -357,9 +461,9 @@ impl SimulationCore {
         };
 
         let elapsed = now.saturating_duration_since(active.advanced_to);
-        let due = elapsed.as_nanos() / PHYSICS_STEP.as_nanos();
+        let due = elapsed.as_nanos() / step_interval.as_nanos();
 
-        if due > 0 {
+        if !*paused && due > 0 {
             let steps = due.min(u128::from(config.max_steps_per_tick)) as u32;
             // A stiff control circuit can take longer than real time. Do not let a
             // growing catch-up batch starve operator commands (including release).
@@ -373,20 +477,7 @@ impl SimulationCore {
                     step_count: 1,
                 };
                 if let Err(diagnostics) = engine.advance(advance) {
-                    // The run stopped on an Engine error. Tell the interface which run, which
-                    // revision, and which step the last committed snapshot is, and why. Without
-                    // this the stream would end silently and the screen would look frozen.
-                    if let Some(snapshot) = engine.latest_snapshot()
-                        && snapshot.metadata.run_id == active.run_id
-                    {
-                        let _ = active.sink.notice(&StreamNotice::RunStopped {
-                            run_id: snapshot.metadata.run_id.clone(),
-                            document_revision: snapshot.metadata.document_revision.clone(),
-                            simulation_step: snapshot.metadata.simulation_step,
-                            diagnostics,
-                        });
-                    }
-                    *stream = None;
+                    self.stop_on_engine_error(diagnostics);
                     return;
                 }
                 advanced += 1;
@@ -399,7 +490,7 @@ impl SimulationCore {
             active.advanced_to = if u128::from(advanced) < due {
                 now
             } else {
-                active.advanced_to + PHYSICS_STEP * advanced
+                active.advanced_to + *step_interval * advanced
             };
         }
 
@@ -481,6 +572,12 @@ enum Message {
     Start(
         StableId,
         Box<dyn FrameSink>,
+        Sender<Result<(), Vec<Diagnostic>>>,
+    ),
+    Playback(
+        StableId,
+        String,
+        PlaybackCommand,
         Sender<Result<(), Vec<Diagnostic>>>,
     ),
     Stop(Option<StableId>),
@@ -574,6 +671,15 @@ impl SimulationService {
         sink: Box<dyn FrameSink>,
     ) -> Result<Result<(), Vec<Diagnostic>>, ServiceError> {
         self.request(|reply| Message::Start(run_id, sink, reply))
+    }
+
+    pub fn playback(
+        &self,
+        run_id: StableId,
+        revision: String,
+        command: PlaybackCommand,
+    ) -> Result<Result<(), Vec<Diagnostic>>, ServiceError> {
+        self.request(|reply| Message::Playback(run_id, revision, command, reply))
     }
 
     /// Ends the stream of `run_id`, or any stream when `None`.
@@ -786,6 +892,9 @@ fn run_worker(mut core: SimulationCore, receiver: Receiver<Message>) {
             }
             Ok(Message::Start(run_id, sink, reply)) => {
                 let _ = reply.send(core.start(run_id, sink, Instant::now()));
+            }
+            Ok(Message::Playback(run_id, revision, command, reply)) => {
+                let _ = reply.send(core.playback(&run_id, &revision, command, Instant::now()));
             }
             Ok(Message::Stop(run_id)) => core.stop(run_id.as_ref()),
             Ok(Message::Acknowledge(frame_sequence)) => core.acknowledge(frame_sequence),

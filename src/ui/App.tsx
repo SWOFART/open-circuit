@@ -1,3 +1,4 @@
+import { playbackSpeeds } from "../store/engineAdapter";
 import {
   useCallback,
   useEffect,
@@ -817,6 +818,13 @@ export function App({
     void controller?.syncDocument(documentStore.getState().schematic);
   };
 
+  const playbackDisabled =
+    projectOperationLocked ||
+    state.status !== "ready" ||
+    state.updating ||
+    state.playbackPending ||
+    state.stopped !== null;
+
   return (
     <main className="workspace">
       <header className="app-header">
@@ -856,6 +864,48 @@ export function App({
           >
             Student assignment
           </button>
+          {adapter?.controlPlayback && (
+            <div role="group" aria-label="Simulation playback">
+              <button
+                type="button"
+                className="toolbar-button"
+                disabled={playbackDisabled}
+                onClick={() =>
+                  void controller?.controlPlayback(
+                    state.paused ? "play" : "pause",
+                  )
+                }
+              >
+                {state.paused ? "Play" : "Pause"}
+              </button>
+              <button
+                type="button"
+                className="toolbar-button"
+                disabled={playbackDisabled || !state.paused}
+                onClick={() => void controller?.controlPlayback("step")}
+              >
+                Step
+              </button>
+              <select
+                aria-label="Simulation speed"
+                value={state.playbackSpeed}
+                disabled={playbackDisabled}
+                onChange={(event) => {
+                  const speed = playbackSpeeds.find(
+                    (value) => value === event.target.value,
+                  );
+                  if (speed) void controller?.controlPlayback(speed);
+                }}
+              >
+                {playbackSpeeds.map((speed) => (
+                  <option key={speed} value={speed}>
+                    {speed}×
+                  </option>
+                ))}
+              </select>
+              {state.playbackError && <p role="alert">{state.playbackError}</p>}
+            </div>
+          )}
           <p className="shell-status">Desktop shell ready</p>
         </div>
       </header>

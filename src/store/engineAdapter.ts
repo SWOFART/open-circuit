@@ -74,6 +74,10 @@ export function parseStreamNotice(message: unknown): StreamNotice {
   };
 }
 
+export const playbackSpeeds = ["0.25", "0.5", "1", "2"] as const;
+export type PlaybackSpeed = (typeof playbackSpeeds)[number];
+export type PlaybackAction = "play" | "pause" | "step" | PlaybackSpeed;
+
 /**
  * The UI's only view of the Rust Engine. Requests and results are the
  * generated contract types; the UI never calculates physics itself.
@@ -89,6 +93,12 @@ export interface EngineAdapter {
   setOperatorState(
     request: SetOperatorStateRequest,
   ): Promise<SetOperatorStateResult>;
+  controlPlayback?(
+    runId: StableId,
+    documentRevision: string,
+    action: PlaybackAction,
+  ): Promise<void>;
+
   /**
    * Starts live frames of the compiled run. Resolves once the stream is open and
    * returns a function that stops it. Frames are an optimisation over the results
@@ -281,6 +291,14 @@ export class TauriEngineAdapter implements EngineAdapter {
     return normalizeSetOperatorStateResult(
       await call<SetOperatorStateResult>("set_operator_state", { request }),
     );
+  }
+
+  controlPlayback(
+    runId: StableId,
+    documentRevision: string,
+    action: PlaybackAction,
+  ): Promise<void> {
+    return call("control_playback", { runId, documentRevision, action });
   }
 
   async startFrames(

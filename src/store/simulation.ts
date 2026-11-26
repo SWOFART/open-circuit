@@ -15,7 +15,11 @@ import type { SetParameterResult } from "../generated/SetParameterResult";
 import type { StableId } from "../generated/StableId";
 import type { StreamNotice } from "../generated/StreamNotice";
 import { symbols, type SymbolRegistry } from "../symbols";
-import type { EngineAdapter } from "./engineAdapter";
+import type {
+  EngineAdapter,
+  PlaybackAction,
+  PlaybackSpeed,
+} from "./engineAdapter";
 
 /**
  * - `idle`: not started.
@@ -47,6 +51,10 @@ export interface SimulationState {
   readonly error: string | null;
   /** A parameter update or a recompile of an edit is waiting for the engine. */
   readonly updating: boolean;
+  readonly paused: boolean;
+  readonly playbackSpeed: PlaybackSpeed;
+  readonly playbackPending: boolean;
+  readonly playbackError: string | null;
   /** Frames rejected by `isSnapshotCurrent`. */
   readonly discardedFrames: number;
   /**
@@ -71,6 +79,10 @@ export function initialSimulationState(): SimulationState {
     diagnostics: [],
     error: null,
     updating: false,
+    paused: false,
+    playbackSpeed: "1",
+    playbackPending: false,
+    playbackError: null,
     discardedFrames: 0,
     stopped: null,
     refusedUpdate: false,
@@ -427,6 +439,43 @@ export class SimulationController {
     };
   };
 
+  async controlPlayback(action: PlaybackAction): Promise<void> {
+    const { run, status, updating, stopped, playbackPending } = this.state;
+    if (
+      this.disposed ||
+      !run ||
+      status !== "ready" ||
+      updating ||
+      stopped ||
+      playbackPending ||
+      !this.adapter.controlPlayback
+    ) {
+      return;
+    }
+    this.setState({ playbackPending: true, playbackError: null });
+    try {
+      await this.adapter.controlPlayback(
+        run.runId,
+        run.documentRevision,
+        action,
+      );
+      if (this.disposed || this.state.run?.runId !== run.runId) return;
+      if (action === "play" || action === "pause") {
+        this.setState({ paused: action === "pause" });
+      } else if (action !== "step") {
+        this.setState({ playbackSpeed: action });
+      }
+    } catch (error) {
+      if (!this.disposed && this.state.run?.runId === run.runId) {
+        this.setState({ playbackError: describeError(error) });
+      }
+    } finally {
+      if (!this.disposed && this.state.run?.runId === run.runId) {
+        this.setState({ playbackPending: false });
+      }
+    }
+  }
+
   /** Loads the catalog and compiles the document. Safe to call once. */
   async start(schematic: Schematic): Promise<void> {
     if (this.started || this.disposed) {
@@ -696,6 +745,10 @@ export class SimulationController {
       this.ambiguousRevisions = null;
       this.setState({
         status: "ready",
+        paused: false,
+        playbackSpeed: "1",
+        playbackPending: false,
+        playbackError: null,
         run,
         snapshot: result.initialSnapshot,
         diagnostics: result.diagnostics,

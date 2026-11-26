@@ -626,6 +626,35 @@ async fn start_simulation(
     })
 }
 
+/// Controls how often the worker takes existing public physics steps.
+#[tauri::command]
+async fn control_playback(
+    simulation: State<'_, Simulation>,
+    run_id: StableId,
+    document_revision: String,
+    action: String,
+) -> Result<(), String> {
+    use open_circuit_app_lib::simulation::PlaybackCommand;
+
+    let command = match action.as_str() {
+        "play" => PlaybackCommand::Play,
+        "pause" => PlaybackCommand::Pause,
+        "step" => PlaybackCommand::Step,
+        "0.25" => PlaybackCommand::QuarterSpeed,
+        "0.5" => PlaybackCommand::HalfSpeed,
+        "1" => PlaybackCommand::NormalSpeed,
+        "2" => PlaybackCommand::DoubleSpeed,
+        _ => return Err("Unsupported playback action.".into()),
+    };
+    let service = Arc::clone(&simulation.0);
+    run_blocking(move || service.playback(run_id, document_revision, command))
+        .await?
+        .map_err(|diagnostics| {
+            let code = diagnostics.first().map(|diagnostic| diagnostic.code);
+            format!("Playback command refused: {code:?}")
+        })
+}
+
 /// Stops the stream of `run_id` and releases its channel. The run itself stays compiled.
 /// A stop for a run that is no longer streaming is ignored.
 #[tauri::command]
@@ -712,6 +741,7 @@ fn main() {
             read_probe,
             list_conductor_spans,
             start_simulation,
+            control_playback,
             stop_simulation,
             acknowledge_frame,
             read_traces,
