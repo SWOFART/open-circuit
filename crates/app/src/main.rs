@@ -551,6 +551,16 @@ async fn check_assignment(
     run_project_blocking(move || checks.run(request)).await
 }
 
+/// Evaluates a schema-2 build task with the same worker as legacy checks.
+#[tauri::command]
+async fn check_graded_assignment(
+    checks: State<'_, Arc<CheckService>>,
+    request: open_circuit_engine::GradedCheckRequest,
+) -> Result<open_circuit_engine::GradedCheckResult, String> {
+    let checks = Arc::clone(checks.inner());
+    run_project_blocking(move || checks.run_graded(request)).await
+}
+
 /// Compares a fault-finding diagnosis with the assignment's faults. No circuit is solved.
 #[tauri::command]
 async fn check_fault_diagnosis(
@@ -747,6 +757,7 @@ fn main() {
             export_student_copy,
             clear_assignment_path,
             check_assignment,
+            check_graded_assignment,
             check_fault_diagnosis,
             compile_circuit,
             set_parameter,

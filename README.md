@@ -15,6 +15,11 @@ to a timed three-phase starter. Opening one follows the unsaved-changes
 prompt and starts an untitled document. Use **Save As** to keep a copy.
 The bundled manifest and schema-3 drawings are in `crates/app/examples`.
 
+Teachers can enable **Scoring and hints** in a build assignment, set how
+many points each check is worth, and attach a hint to a failed check.
+Students see their score and applicable hints after **Check my circuit**.
+Build assignments without scoring keep their original file format.
+
 Projects now save schematic schema v2, including the `rails` drawing-input
 array. Existing v1 projects open through a lossless Rust migration; opening
 does not rewrite them, and an explicit Save writes v2. Assignment files keep

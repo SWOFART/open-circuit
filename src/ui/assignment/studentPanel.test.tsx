@@ -10,6 +10,7 @@ import type { DiagnosisEntry } from "../../generated/DiagnosisEntry";
 import type { DiagnosisResult } from "../../generated/DiagnosisResult";
 import type { AssignmentPort } from "../../store/assignmentBridge";
 import { StudentSessionStore } from "../../store/studentAssignment";
+import { CheckResultView } from "./CheckResultView";
 import { DiagnosisEditor } from "./DiagnosisEditor";
 import { DiagnosisResultView } from "./DiagnosisResultView";
 import { StudentPanel, type StudentPanelProps } from "./StudentPanel";
@@ -351,4 +352,51 @@ describe("the diagnosis result", () => {
     expect(markup).toContain("R2");
     expect(markup).toContain("Open (no current flows)");
   });
+});
+
+it("renders score rows and literal hint text from the Engine", () => {
+  const id = buildFile.checks![0]!.id;
+  const markup = renderToStaticMarkup(
+    <CheckResultView
+      labels={labels}
+      result={{
+        documentRevision: "check-1",
+        outcome: "failed",
+        outcomeKey: "check.outcome.failed",
+        counts: { pass: 0, fail: 1, notEvaluated: 0 },
+        locked: {
+          verdict: "pass",
+          messageKey: "check.locked.pass",
+          references: [],
+        },
+        diagnostics: [],
+        criteria: [
+          {
+            kind: "componentCount",
+            id,
+            verdict: "fail",
+            messageKey: "check.componentCount.fail",
+            min: 2,
+            measured: 1,
+            references: [],
+          },
+        ],
+      }}
+      score={{
+        earned: 0,
+        possible: 5,
+        criteria: [
+          {
+            criterionId: id,
+            earned: 0,
+            possible: 5,
+            hint: { key: "ratio", text: "<b>Add one resistor.</b>" },
+          },
+        ],
+      }}
+    />,
+  );
+  expect(markup).toContain("Score 0 / 5 points");
+  expect(markup).toContain("Hint &lt;b&gt;Add one resistor.&lt;/b&gt;");
+  expect(markup).not.toContain("<b>Add one resistor.</b>");
 });

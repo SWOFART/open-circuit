@@ -9,6 +9,7 @@ pub mod diagnostics;
 mod documentation;
 pub mod engine;
 pub mod faults;
+mod grading;
 pub mod ids;
 mod mna;
 pub mod netlist;
@@ -54,6 +55,10 @@ pub use documentation::{
 };
 pub use engine::Engine;
 pub use faults::{FaultKind, FaultSpec, SHORT_FAULT_RESISTANCE_OHMS, supported_fault_kinds};
+pub use grading::{
+    AssignmentGrading, CriterionGrading, CriterionScore, GradedCheckRequest, GradedCheckResult,
+    GradingScore, ScoreHint, evaluate_graded_checks,
+};
 pub use ids::{InvalidStableId, StableId};
 pub use probes::*;
 pub use project::{ProjectDocumentError, decode_project_json, validate_project_schematic};

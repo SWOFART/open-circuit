@@ -245,6 +245,11 @@ verdicts, version/limit/reference rejection, mixed verdicts, locked and
 compile failure, stopped runs, repeated deterministic evaluation and
 teacher/student UI.
 
+The `check_graded_assignment` command accepts a `GradedCheckRequest`
+containing the existing check request and the assignment's grading
+configuration. It returns a `GradedCheckResult`. Schema-2 assignment
+files reuse the schema-1 embedded drawing format.
+
 ## Acceptance (#223)
 
 Draw a canonical circuit using the editor and demonstrate the student
