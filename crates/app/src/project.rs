@@ -61,20 +61,7 @@ impl ProjectSession {
     /// stage-12-cabinet-documentation.md section 2.4), and a refused document must not move the
     /// project location.
     pub fn load_with(&self, path: &Path, assignment_open: bool) -> Result<Schematic, String> {
-        let mut schematic = read_project_file(path)?;
-        if assignment_open {
-            if !schematic.rails.is_empty() {
-                return Err(RAILS_IN_ASSIGNMENT.to_owned());
-            }
-            // Documentation holding only designators opens with them dropped; anything more is
-            // refused (docs/contracts/stage-12-cabinet-documentation.md section 2.4).
-            if !schematic.documentation.is_empty() {
-                if !schematic.documentation.holds_only_designators() {
-                    return Err(DOCUMENTATION_IN_ASSIGNMENT.to_owned());
-                }
-                schematic.documentation = Default::default();
-            }
-        }
+        let schematic = prepare_open_project(read_project_file(path)?, assignment_open)?;
         let mut active_path = self
             .path
             .lock()
@@ -93,6 +80,25 @@ impl ProjectSession {
         *active_path = Some(saved_path.clone());
         Ok(saved_path)
     }
+}
+
+/// Applies the same assignment restrictions to every replacement project.
+pub(crate) fn prepare_open_project(
+    mut schematic: Schematic,
+    assignment_open: bool,
+) -> Result<Schematic, String> {
+    if assignment_open {
+        if !schematic.rails.is_empty() {
+            return Err(RAILS_IN_ASSIGNMENT.to_owned());
+        }
+        if !schematic.documentation.is_empty() {
+            if !schematic.documentation.holds_only_designators() {
+                return Err(DOCUMENTATION_IN_ASSIGNMENT.to_owned());
+            }
+            schematic.documentation = Default::default();
+        }
+    }
+    Ok(schematic)
 }
 
 /// Why a project with documentation is not opened while an assignment is open.
@@ -123,11 +129,15 @@ pub fn read_project_file(path: &Path) -> Result<Schematic, String> {
     file.take(MAX_PROJECT_BYTES + 1)
         .read_to_end(&mut bytes)
         .map_err(|error| format!("Could not read project file: {error}"))?;
+    decode_project_bytes(&bytes)
+}
+
+pub(crate) fn decode_project_bytes(bytes: &[u8]) -> Result<Schematic, String> {
     if bytes.len() as u64 > MAX_PROJECT_BYTES {
         return Err("Project file exceeds the 16 MiB size limit.".to_owned());
     }
 
-    decode_project_json(&bytes).map_err(|error| error.to_string())
+    decode_project_json(bytes).map_err(|error| error.to_string())
 }
 
 /// Writes a readable, deterministic JSON schematic by atomically replacing the

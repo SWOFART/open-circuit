@@ -312,6 +312,17 @@ fn sheet_export_keeps_all_pages_or_discards_the_new_folder() {
     assert_eq!(std::fs::read_to_string(existing).unwrap(), "unchanged");
 }
 
+#[tauri::command]
+async fn list_examples() -> Result<Vec<[String; 3]>, String> {
+    run_project_blocking(open_circuit_app_lib::examples::list_examples).await
+}
+
+#[tauri::command]
+async fn read_example(id: String, assignment_open: bool) -> Result<Schematic, String> {
+    run_project_blocking(move || open_circuit_app_lib::examples::read_example(&id, assignment_open))
+        .await
+}
+
 /// Opens a native file picker and replaces the active path only after validation succeeds.
 #[tauri::command]
 async fn open_project(
@@ -724,6 +735,8 @@ fn main() {
             export_drawing,
             export_sheet_drawings,
             open_project,
+            list_examples,
+            read_example,
             save_project,
             save_project_as,
             clear_project_path,

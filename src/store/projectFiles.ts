@@ -12,7 +12,15 @@ export interface OpenOptions {
   readonly assignmentOpen?: boolean;
 }
 
+export type ExampleEntry = readonly [
+  id: string,
+  title: string,
+  description: string,
+];
+
 export interface ProjectFilePort {
+  listExamples?(): Promise<readonly ExampleEntry[]>;
+  readExample?(id: string, options?: OpenOptions): Promise<Schematic>;
   open(options?: OpenOptions): Promise<Schematic | null>;
   save(schematic: Schematic): Promise<boolean>;
   saveAs(schematic: Schematic): Promise<boolean>;
@@ -38,6 +46,12 @@ async function invokeProject<T>(
 
 /** Calls the native project commands exposed by `crates/app`. */
 export const tauriProjectFiles: ProjectFilePort = {
+  listExamples: () => invokeProject("list_examples"),
+  readExample: (id, options) =>
+    invokeProject("read_example", {
+      id,
+      assignmentOpen: options?.assignmentOpen ?? false,
+    }),
   open: (options) =>
     invokeProject<Schematic | null>("open_project", {
       assignmentOpen: options?.assignmentOpen ?? false,

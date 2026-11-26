@@ -40,7 +40,11 @@ import {
   StudentSessionStore,
   type StudentOpenOutcome,
 } from "../store/studentAssignment";
-import { tauriProjectFiles, type ProjectFilePort } from "../store/projectFiles";
+import {
+  tauriProjectFiles,
+  type ExampleEntry,
+  type ProjectFilePort,
+} from "../store/projectFiles";
 import {
   ProjectWorkflow,
   resolveUnsavedAction,
@@ -115,6 +119,7 @@ export function App({
   // The circuit a "show in the editor" request is waiting to load, while the unsaved prompt
   // is open.
   const pendingCircuitRef = useRef<Schematic | null>(null);
+  const pendingExampleRef = useRef<string | null>(null);
   const projectShortcutHandler = useRef<(shortcut: ProjectShortcut) => void>(
     () => {},
   );
@@ -140,6 +145,9 @@ export function App({
     ProjectAction | "close" | null
   >(null);
   const [documentName, setDocumentName] = useState("Example");
+  const [examples, setExamples] = useState<readonly ExampleEntry[] | null>(
+    null,
+  );
   // Which assignment panel is open: the teacher's, the student's, or none.
   const [assignmentPanel, setAssignmentPanel] = useState<
     "none" | "author" | "student"
@@ -304,6 +312,15 @@ export function App({
       // A student's assignment file is read only now, after the unsaved-changes prompt, and
       // the session starts only if the document was replaced with its starting circuit.
       const opened: { outcome: StudentOpenOutcome | null } = { outcome: null };
+      const exampleId = pendingExampleRef.current;
+      const readExample = projectFiles.readExample;
+      const exampleSource =
+        exampleId && readExample
+          ? () =>
+              readExample(exampleId, {
+                assignmentOpen: assignmentOpenRef.current,
+              })
+          : undefined;
       const performed = await projectWorkflow.perform(
         action,
         action === "assignment"
@@ -317,19 +334,19 @@ export function App({
               );
               return outcome.status === "opened" ? outcome.circuit : null;
             }
-          : (pendingCircuitRef.current ?? undefined),
+          : action === "example"
+            ? exampleSource
+            : (pendingCircuitRef.current ?? undefined),
       );
       if (performed) {
         setDocumentName(
-          action === "new"
+          action === "new" || action === "example"
             ? "Untitled"
-            : action === "example"
-              ? "Example"
-              : action === "circuit"
-                ? "Assignment circuit"
-                : action === "assignment"
-                  ? "Assignment"
-                  : "Project",
+            : action === "circuit"
+              ? "Assignment circuit"
+              : action === "assignment"
+                ? "Assignment"
+                : "Project",
         );
         editorRef.current?.setTool(IDLE_STATUS.tool);
         if (opened.outcome?.status === "opened") {
@@ -363,6 +380,24 @@ export function App({
       return;
     }
     void performProjectActionDirectly(action);
+  };
+
+  const showExamples = async (): Promise<void> => {
+    if (!projectFiles.listExamples) {
+      pendingExampleRef.current = null;
+      requestProjectAction("example");
+      return;
+    }
+    if (examples !== null) {
+      setExamples(null);
+      return;
+    }
+    setProjectError(null);
+    try {
+      setExamples(await projectFiles.listExamples());
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : String(error));
+    }
   };
 
   const showAssignmentCircuit = (schematic: Schematic): void => {
@@ -969,7 +1004,10 @@ export function App({
                   type="button"
                   className="toolbar-button"
                   disabled={projectOperationLocked}
-                  onClick={() => requestProjectAction("example")}
+                  aria-expanded={
+                    projectFiles.listExamples ? examples !== null : undefined
+                  }
+                  onClick={() => void showExamples()}
                 >
                   Open Example
                 </button>
@@ -998,6 +1036,27 @@ export function App({
                 Fit to circuit
               </button>
             </div>
+            {examples !== null && (
+              <ul className="example-list" aria-label="Circuit examples">
+                {examples.map(([id, title, description]) => (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      className="toolbar-button"
+                      disabled={projectOperationLocked}
+                      onClick={() => {
+                        pendingExampleRef.current = id;
+                        setExamples(null);
+                        requestProjectAction("example");
+                      }}
+                    >
+                      {title}
+                    </button>
+                    <p>{description}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
           <div
             ref={stageRef}

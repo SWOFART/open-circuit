@@ -197,6 +197,11 @@ Engine. At least one assertion per example checks a known circuit result
 or milestone. Assignment restrictions on opening other documents still
 apply.
 
+The desktop embeds the manifest and drawings in the application binary.
+`list_examples` returns ordered triples of ID, title and description.
+`read_example` accepts a catalog ID and the existing assignment-open flag,
+then returns the project reader's validated schematic.
+
 ## Assignment hints and scoring (#222)
 
 Assignment schema 1 and its existing evaluation results retain their

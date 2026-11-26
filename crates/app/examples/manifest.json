@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "id": "divider",
+      "title": "Voltage divider",
+      "description": "Measure the midpoint voltage of two equal resistors.",
+      "path": "divider.ocircuit"
+    },
+    {
+      "id": "rc",
+      "title": "RC charging",
+      "description": "Watch a capacitor charge from zero through a resistor.",
+      "path": "rc.ocircuit"
+    },
+    {
+      "id": "relay-latch",
+      "title": "Relay latch",
+      "description": "Follow the relay contact that maintains its coil current.",
+      "path": "relay-latch.ocircuit"
+    },
+    {
+      "id": "start-stop",
+      "title": "Start and stop",
+      "description": "Use the Start and Stop push buttons to control a latched contactor.",
+      "path": "start-stop.ocircuit"
+    },
+    {
+      "id": "rail-circuit",
+      "title": "DC rail circuit",
+      "description": "Trace power from a wired source through two named rails.",
+      "path": "rail-circuit.ocircuit"
+    },
+    {
+      "id": "three-phase-starter",
+      "title": "Timed three-phase starter",
+      "description": "Close the start switch and follow the timed change from star to delta.",
+      "path": "three-phase-starter.ocircuit"
+    }
+  ]
+}

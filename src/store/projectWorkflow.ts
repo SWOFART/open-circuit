@@ -56,12 +56,12 @@ export class ProjectWorkflow {
         this.document.replaceDocument(blankSchematic);
         return true;
       case "example":
-        await this.files.clearPath();
-        this.document.replaceDocument(dividerSchematic);
-        return true;
       case "circuit":
       case "assignment": {
-        const circuit = typeof source === "function" ? await source() : source;
+        const circuit =
+          typeof source === "function"
+            ? await source()
+            : (source ?? (action === "example" ? dividerSchematic : undefined));
         if (circuit === undefined || circuit === null) return false;
         await this.files.clearPath();
         this.document.replaceDocument(circuit);

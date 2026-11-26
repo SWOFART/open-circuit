@@ -10,6 +10,11 @@ offers 0.25x, 0.5x, 1x, and 2x playback. Operator controls and live
 parameter edits still apply while paused at the current simulation time.
 A newly compiled circuit starts playing at 1x.
 
+**Open Example** offers six editable circuits, from a voltage divider
+to a timed three-phase starter. Opening one follows the unsaved-changes
+prompt and starts an untitled document. Use **Save As** to keep a copy.
+The bundled manifest and schema-3 drawings are in `crates/app/examples`.
+
 Projects now save schematic schema v2, including the `rails` drawing-input
 array. Existing v1 projects open through a lossless Rust migration; opening
 does not rewrite them, and an explicit Save writes v2. Assignment files keep
