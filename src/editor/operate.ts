@@ -5,7 +5,7 @@ import { toWorld } from "./geometry";
 import type { ScenePoint } from "./scene";
 
 /** A device the user operates while a simulation runs. */
-export type OperableKind = "switch" | "pushButton";
+export type OperableKind = "switch" | "pushButton" | "emergencyStop";
 
 /**
  * The lever or actuator of one switch or push button, in grid units (docs/contracts/
@@ -35,7 +35,12 @@ export function operatingTargets(
 
     targets.push({
       componentId: component.id,
-      kind: component.typeId === "switch_spst" ? "switch" : "pushButton",
+      kind:
+        component.typeId === "switch_spst" || component.typeId === "key_switch"
+          ? "switch"
+          : component.typeId === "emergency_stop"
+            ? "emergencyStop"
+            : "pushButton",
       center: toWorld(area.center, component),
       radius: area.radius,
     });

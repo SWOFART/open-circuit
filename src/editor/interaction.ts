@@ -782,11 +782,11 @@ export class CanvasInteraction {
   private operate(pointer: CanvasPointer, target: OperatingTarget): boolean {
     this.select({ kind: "component", id: target.componentId });
 
-    if (target.kind === "switch") {
+    if (target.kind !== "pushButton") {
       this.onIntent({
         kind: "operate",
         componentId: target.componentId,
-        action: "toggle",
+        action: target.kind === "switch" ? "toggle" : "press",
       });
       return false;
     }

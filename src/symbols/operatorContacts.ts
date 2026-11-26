@@ -54,6 +54,7 @@ function contact(
       { id: "p", local: { x: -1, y: 0 } },
       { id: "n", local: { x: 1, y: 0 } },
     ],
+    operatingArea: { center: { x: 0, y: -0.7 }, radius: 0.55 },
     primitives: drawn(undefined),
     drawn,
   };

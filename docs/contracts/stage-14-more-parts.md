@@ -59,6 +59,12 @@ and `closed` (on). Other device/action pairs use the existing invalid-position
 rejection path. Existing devices keep their valid actions. The optional
 saved parameter for selector and key switch is `initialPosition`.
 
+While a run is ready, press the limit switch actuator on the canvas to hold
+it, click the key switch actuator to toggle it, or press the emergency-stop
+actuator to latch it. Use **Devices** to choose a selector position or
+reset a latched emergency stop. The panel exposes all four controls with
+keyboard access and displays the position reported by the Engine.
+
 ## Indicators and actuators
 
 | Type and pins | Model and inputs | Extra results and state | Omitted |

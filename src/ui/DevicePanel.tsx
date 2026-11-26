@@ -176,34 +176,38 @@ function describe(
       const position =
         contact && "position" in contact ? contact.position : undefined;
       const actions =
-        kind === "selectorSwitch"
-          ? (["left", "center", "right"] as const).map((positionName) => ({
-              action: positionName,
-              label: positionName,
-              selected: position === positionName,
-            }))
-          : kind === "emergencyStop"
-            ? [
-                { action: "press" as const, label: "Latch" },
-                { action: "reset" as const, label: "Reset" },
-              ]
-            : undefined;
+        position === undefined
+          ? undefined
+          : kind === "selectorSwitch"
+            ? (["left", "center", "right"] as const).map((positionName) => ({
+                action: positionName,
+                label: positionName,
+                selected: position === positionName,
+              }))
+            : kind === "emergencyStop"
+              ? [
+                  { action: "press" as const, label: "Latch" },
+                  { action: "reset" as const, label: "Reset" },
+                ]
+              : undefined;
       return {
         id,
         title: `${name} ${message(`component.${kind}.name`)}`,
         badge: position ? { text: position, tone: "off" } : undefined,
         actions,
         control:
-          kind === "limitSwitch"
-            ? { kind: "pushButton", name, actuated: position === "pressed" }
-            : kind === "keySwitch"
-              ? {
-                  kind: "switch",
-                  name,
-                  noun: "key switch",
-                  actuated: position === "on",
-                }
-              : undefined,
+          position === undefined
+            ? undefined
+            : kind === "limitSwitch"
+              ? { kind: "pushButton", name, actuated: position === "pressed" }
+              : kind === "keySwitch"
+                ? {
+                    kind: "switch",
+                    name,
+                    noun: "key switch",
+                    actuated: position === "on",
+                  }
+                : undefined,
         rows:
           kind === "selectorSwitch"
             ? [
