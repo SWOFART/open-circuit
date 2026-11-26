@@ -16,6 +16,7 @@ import {
   type WireEdit,
 } from "./transform";
 import { emptyDocumentation } from "./documentation";
+import type { ClipboardSchematic } from "./clipboard";
 import { moveSelection } from "./selectionOps";
 
 /**
@@ -37,6 +38,12 @@ export type EditorCommand =
       readonly wires: readonly WireEdit[];
     }
   | { readonly kind: "deleteComponent"; readonly componentId: StableId }
+  /** Adds a copy, moved by `delta`, with fresh IDs, as one history entry. */
+  | {
+      readonly kind: "paste";
+      readonly schematic: ClipboardSchematic;
+      readonly delta: GridPoint;
+    }
   | { readonly kind: "addWire"; readonly points: readonly GridPoint[] }
   | {
       readonly kind: "editWire";
@@ -176,6 +183,15 @@ export function commandForIntent(
       );
       return move ? { kind: "batch", commands: move.commands } : null;
     }
+    case "paste":
+      return {
+        kind: "paste",
+        schematic: intent.schematic,
+        delta: intent.delta,
+      };
+    case "clipboard":
+      // The host runs these: the system clipboard is its to read and write.
+      return null;
     case "deleteSelection": {
       const commands = intent.targets
         .map((target) => deleteCommand(target, schematic))

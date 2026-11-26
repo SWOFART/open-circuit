@@ -12,6 +12,13 @@ import type { StableId } from "../generated/StableId";
 import { symbols, type SymbolRegistry } from "../symbols";
 import { bindCanvasInput, type CanvasInputBinding } from "./canvasInput";
 import {
+  clipboardBounds,
+  clipboardDrawing,
+  PASTE_OFFSET,
+  translateClipboard,
+  type ClipboardSchematic,
+} from "./clipboard";
+import {
   commandForIntent,
   dragPreviewSchematic,
   placementPreviewSchematic,
@@ -26,6 +33,7 @@ import type { SelectionTarget } from "./hitTest";
 import { operatingTargets } from "./operate";
 import {
   CanvasInteraction,
+  type ClipboardAction,
   type EditorStatus,
   type EditorTool,
   type InteractionChange,
@@ -74,6 +82,14 @@ const PREVIEW_OWNER = {
 export interface EditorHost {
   onCommand(command: EditorCommand): void;
   onProbe?(position: GridPoint): void;
+  /**
+   * Copy, cut, paste or duplicate was asked for, with the selection at that moment. The host
+   * owns the system clipboard and answers with `startPaste` or a command.
+   */
+  onClipboard?(
+    action: ClipboardAction,
+    targets: readonly SelectionTarget[],
+  ): void;
   /** The tool, an unfinished wire route, or a refused click changed. */
   onStatusChange?(status: EditorStatus): void;
   /**
@@ -117,7 +133,7 @@ export class EditorCore {
   private overlayStale = true;
   private input: CanvasInputBinding | null = null;
   // A selection asked for before the scene contained the object; applied by the next scene.
-  private pendingSelection: SelectionTarget | null = null;
+  private pendingSelection: readonly SelectionTarget[] | null = null;
 
   constructor(
     private readonly host: EditorHost,
@@ -185,7 +201,7 @@ export class EditorCore {
     if (this.pendingSelection) {
       const pending = this.pendingSelection;
       this.pendingSelection = null;
-      this.interaction.select(pending);
+      this.interaction.selectMany(pending);
     }
     this.syncOperable();
     this.contentStale = true;
@@ -321,8 +337,69 @@ export class EditorCore {
       target !== null &&
       (this.interaction.selection?.kind !== target.kind ||
         this.interaction.selection?.id !== target.id)
-        ? target
+        ? [target]
         : null;
+  }
+
+  /** Selects several objects, such as the ones a paste just added; null clears. */
+  selectMany(targets: readonly SelectionTarget[]): void {
+    this.interaction.selectMany(targets);
+
+    // Objects added by the command of this same turn join the selection with the next scene.
+    this.pendingSelection =
+      targets.length > this.interaction.selections.length ? targets : null;
+  }
+
+  /** Whether the document still holds an object with each of these IDs. */
+  private holdsAll(schematic: ClipboardSchematic): boolean {
+    const here = this.schematic;
+    if (!here) return false;
+    const has = (list: readonly { readonly id: StableId }[], id: StableId) =>
+      list.some((item) => item.id === id);
+    return (
+      schematic.components.every(({ id }) => has(here.components, id)) &&
+      schematic.wires.every(({ id }) => has(here.wires, id)) &&
+      schematic.junctions.every(({ id }) => has(here.junctions, id)) &&
+      schematic.referenceMarkers.every(({ id }) =>
+        has(here.referenceMarkers, id),
+      ) &&
+      schematic.rails.every(({ id }) => has(here.rails, id)) &&
+      schematic.notes.every(({ id }) => has(here.documentation.notes, id))
+    );
+  }
+
+  /**
+   * Starts placing a paste (contract section 4.4): a translucent preview whose top-left corner
+   * follows the pointer; a click or Enter commits it, Escape cancels. It first shows offset
+   * (+2, +2) from its source when the source is still in the document, and centered in the view
+   * otherwise. Returns false when there is nothing to place.
+   */
+  startPaste(schematic: ClipboardSchematic): boolean {
+    const bounds = clipboardBounds(schematic, this.registry);
+    if (!this.initialized || this.destroyed || !bounds) {
+      return false;
+    }
+
+    let delta: GridPoint = PASTE_OFFSET;
+    if (!this.holdsAll(schematic)) {
+      const { width, height } = this.application.screen;
+      const center = screenToGridPoint(
+        { x: width / 2, y: height / 2 },
+        this.interaction.view,
+      );
+      delta = {
+        x: center.x - Math.round((bounds.minX + bounds.maxX) / 2),
+        y: center.y - Math.round((bounds.minY + bounds.maxY) / 2),
+      };
+    }
+
+    this.interaction.startPaste({
+      schematic,
+      anchor: { x: bounds.minX, y: bounds.minY },
+      delta,
+    });
+    this.focusCanvas();
+    return true;
   }
 
   fitToCircuit(): void {
@@ -390,6 +467,11 @@ export class EditorCore {
         intent.target,
         component ? toScreen(component.position, this.interaction.view) : null,
       );
+      return;
+    }
+
+    if (intent.kind === "clipboard") {
+      this.host.onClipboard?.(intent.action, intent.targets);
       return;
     }
 
@@ -544,6 +626,17 @@ export class EditorCore {
         view,
         rail.valid ? COLORS.preview : COLORS.detached,
       );
+    }
+
+    // The paste being placed, translucent, where a click would put it.
+    const pasting = this.interaction.pastePreview;
+    if (pasting) {
+      for (const shape of buildScene(
+        clipboardDrawing(translateClipboard(pasting.schematic, pasting.delta)),
+        this.registry,
+      ).shapes) {
+        this.tracePreviewShape(shape, view);
+      }
     }
 
     const point = this.interaction.pointerGridPoint;
