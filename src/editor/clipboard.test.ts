@@ -358,3 +358,35 @@ describe("placing a copy", () => {
     expect(addedObjects(divider, divider)).toEqual([]);
   });
 });
+
+describe("the mirror flag in the clipboard text", () => {
+  const mirrored = (flag: unknown) => {
+    const body = JSON.parse(
+      clipboardText(copyOf(divider, [component(R1)])),
+    ) as { schematic: { components: Record<string, unknown>[] } };
+    body.schematic.components[0]!.mirrored = flag;
+    return parseClipboardText(JSON.stringify(body), catalog);
+  };
+
+  it("is read when it is true, and the part comes out mirrored", () => {
+    const result = mirrored(true);
+
+    expect(result.ok && result.payload.schematic.components[0]).toMatchObject({
+      mirrored: true,
+    });
+  });
+
+  it("is dropped when it is false, so an unmirrored part has no field", () => {
+    const result = mirrored(false);
+
+    expect(result.ok).toBe(true);
+    expect(
+      result.ok && "mirrored" in result.payload.schematic.components[0]!,
+    ).toBe(false);
+  });
+
+  it("refuses a flag that is not a boolean", () => {
+    expect(mirrored("yes")).toMatchObject({ ok: false });
+    expect(mirrored(1)).toMatchObject({ ok: false });
+  });
+});

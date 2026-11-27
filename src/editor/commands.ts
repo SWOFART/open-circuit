@@ -17,7 +17,7 @@ import {
 } from "./transform";
 import { emptyDocumentation } from "./documentation";
 import type { ClipboardSchematic } from "./clipboard";
-import { moveSelection } from "./selectionOps";
+import { moveSelection, turnSelection } from "./selectionOps";
 
 /**
  * A document operation requested by the canvas. The host applies it to the
@@ -36,7 +36,11 @@ export type EditorCommand =
       readonly position: GridPoint;
       readonly rotationDeg: Rotation;
       readonly wires: readonly WireEdit[];
+      /** Whether the part is mirrored afterwards; left out to keep it as it is. */
+      readonly mirrored?: boolean;
     }
+  /** A turn or mirror the document refuses; applying it reports `reason` and changes nothing. */
+  | { readonly kind: "refuse"; readonly reason: string }
   | { readonly kind: "deleteComponent"; readonly componentId: StableId }
   /** Adds a copy, moved by `delta`, with fresh IDs, as one history entry. */
   | {
@@ -192,6 +196,20 @@ export function commandForIntent(
     case "clipboard":
       // The host runs these: the system clipboard is its to read and write.
       return null;
+    case "turnSelection": {
+      const turned = turnSelection(
+        schematic,
+        intent.targets,
+        intent.turn,
+        registry,
+      );
+      if (!turned) {
+        return null;
+      }
+      return "refusal" in turned
+        ? { kind: "refuse", reason: turned.refusal }
+        : { kind: "batch", commands: turned.commands };
+    }
     case "deleteSelection": {
       const commands = intent.targets
         .map((target) => deleteCommand(target, schematic))

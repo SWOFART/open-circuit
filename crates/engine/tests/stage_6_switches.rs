@@ -51,6 +51,7 @@ fn resistor(component_id: &str, ohms: f64, pin1: GridPoint, pin2: GridPoint) -> 
             id: id(component_id),
             position: pin1,
             rotation_deg: 0,
+            mirrored: None,
             parameters: ResistorParameters {
                 resistance_ohms: ohms,
             },
@@ -66,6 +67,7 @@ fn source(volts: f64, pin1: GridPoint, pin2: GridPoint) -> Part {
             id: id(SOURCE),
             position: pin1,
             rotation_deg: 0,
+            mirrored: None,
             parameters: DcVoltageSourceParameters {
                 voltage_volts: volts,
                 internal_resistance_ohms: 0.0,
@@ -82,6 +84,7 @@ fn switch(initial_closed: Option<f64>, pin1: GridPoint, pin2: GridPoint) -> Part
             id: id(CONTACT),
             position: pin1,
             rotation_deg: 0,
+            mirrored: None,
             parameters: SwitchParameters {
                 closed_resistance_ohms: 0.01,
                 initial_closed,
@@ -101,6 +104,7 @@ fn button(normally_closed: bool, pin1: GridPoint, pin2: GridPoint) -> Part {
             id: id(CONTACT),
             position: pin1,
             rotation_deg: 0,
+            mirrored: None,
             parameters,
         }
     } else {
@@ -108,6 +112,7 @@ fn button(normally_closed: bool, pin1: GridPoint, pin2: GridPoint) -> Part {
             id: id(CONTACT),
             position: pin1,
             rotation_deg: 0,
+            mirrored: None,
             parameters,
         }
     };
@@ -761,6 +766,7 @@ fn a_relay_coil_behind_a_button_picks_and_drops_out() {
             id: id(R1),
             position: point(4, 0),
             rotation_deg: 0,
+            mirrored: None,
             parameters: RelayParameters {
                 coil_resistance_ohms: 100.0,
                 coil_inductance_henries: 0.01,

@@ -26,6 +26,7 @@ fn fixture(trip_i2t_ampere_squared_seconds: f64) -> (Schematic, GeometryEnvelope
                 id: id(SOURCE),
                 position: point(0, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: DcVoltageSourceParameters {
                     voltage_volts: 2.02,
                     internal_resistance_ohms: 0.0,
@@ -35,6 +36,7 @@ fn fixture(trip_i2t_ampere_squared_seconds: f64) -> (Schematic, GeometryEnvelope
                 id: id(FUSE),
                 position: point(2, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: FuseParameters {
                     intact_resistance_ohms: 0.01,
                     trip_i2t_ampere_squared_seconds,
@@ -44,6 +46,7 @@ fn fixture(trip_i2t_ampere_squared_seconds: f64) -> (Schematic, GeometryEnvelope
                 id: id(LOAD),
                 position: point(4, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: ResistorParameters {
                     resistance_ohms: 1.0,
                 },

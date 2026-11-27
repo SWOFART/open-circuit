@@ -285,6 +285,7 @@ impl FaultOverlay {
                             id: fault.id.clone(),
                             position: pin_position,
                             rotation_deg: 0,
+                            mirrored: None,
                             parameters: ResistorParameters {
                                 resistance_ohms: value,
                             },
@@ -391,6 +392,8 @@ fn shorted(component: &ComponentSpec) -> ComponentSpec {
         id: component.id().clone(),
         position: component.position(),
         rotation_deg: component.rotation_deg(),
+        // The fault replaces the part on the same pins, which come from the sent geometry.
+        mirrored: component.mirrored().then_some(true),
         parameters: ResistorParameters {
             resistance_ohms: SHORT_FAULT_RESISTANCE_OHMS,
         },

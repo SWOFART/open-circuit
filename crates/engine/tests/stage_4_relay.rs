@@ -30,6 +30,7 @@ fn fixture() -> (Schematic, GeometryEnvelope) {
                 id: id(SOURCE),
                 position: point(0, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: DcVoltageSourceParameters {
                     voltage_volts: 5.0,
                     internal_resistance_ohms: 0.0,
@@ -39,6 +40,7 @@ fn fixture() -> (Schematic, GeometryEnvelope) {
                 id: id(START_RESISTOR),
                 position: point(4, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: ResistorParameters {
                     resistance_ohms: 1.0,
                 },
@@ -47,6 +49,7 @@ fn fixture() -> (Schematic, GeometryEnvelope) {
                 id: id(RELAY),
                 position: point(8, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: RelayParameters {
                     coil_resistance_ohms: 100.0,
                     coil_inductance_henries: 0.01,
@@ -382,6 +385,7 @@ fn explicit_capacitor_initial_state_does_not_ground_an_unconnected_relay_coil_te
         id: id("00000000-0000-4000-8000-000000000005"),
         position: GridPoint { x: 20, y: 20 },
         rotation_deg: 0,
+        mirrored: None,
         parameters: CapacitorParameters {
             capacitance_farads: 1e-5,
             initial_voltage_volts: Some(1.0),
