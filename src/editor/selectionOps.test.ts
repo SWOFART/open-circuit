@@ -311,6 +311,7 @@ describe("the commands a group becomes", () => {
         { kind: "deleteComponent", componentId: R1 },
         { kind: "deleteWire", wireId: WIRE_5 },
       ],
+      label: { key: "history.deleteSelection", values: { count: 3 } },
     });
   });
 

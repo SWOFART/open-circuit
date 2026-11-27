@@ -10,6 +10,8 @@ import type {
   SchematicDocumentStore,
 } from "../store/document";
 import type { ParameterUpdate } from "../store/simulation";
+import type { HistoryLabel } from "../editor/historyLabel";
+import { message } from "./messages";
 import {
   commandVerdict,
   parameterVerdict,
@@ -105,6 +107,75 @@ export function liveParameterUpdate(
     : undefined;
 }
 
+/** What the history panel shows for the entry a command records. */
+function historyLabelOf(
+  command: EditorCommand,
+  catalog: ComponentCatalog | null,
+): HistoryLabel | null {
+  switch (command.kind) {
+    case "placeComponent": {
+      const entry = catalog?.componentTypes.find(
+        (item) => item.typeId === command.typeId,
+      );
+      return {
+        key: "history.place",
+        values: {
+          name: entry ? message(entry.displayNameKey) : command.typeId,
+        },
+      };
+    }
+    case "transformComponent":
+      return { key: "history.transform" };
+    case "deleteComponent":
+    case "deleteWire":
+    case "deleteJunction":
+    case "deleteReferenceMarker":
+    case "deleteNote":
+    case "deleteTerminal":
+    case "deleteRail":
+      return { key: "history.delete" };
+    case "paste": {
+      const { schematic } = command;
+      return {
+        key: "history.paste",
+        values: {
+          count:
+            schematic.components.length +
+            schematic.wires.length +
+            schematic.junctions.length +
+            schematic.referenceMarkers.length +
+            schematic.rails.length +
+            schematic.notes.length,
+        },
+      };
+    }
+    case "addWire":
+      return { key: "history.drawWire" };
+    case "editWire":
+      return { key: "history.editWire" };
+    case "addJunction":
+      return { key: "history.addJunction" };
+    case "addReferenceMarker":
+      return { key: "history.addMarker" };
+    case "addNote":
+      return { key: "history.addNote" };
+    case "addTerminal":
+      return { key: "history.addTerminal" };
+    case "moveJunction":
+    case "moveReferenceMarker":
+    case "moveNote":
+      return { key: "history.moveObject" };
+    case "addRail":
+      return { key: "history.addRail" };
+    case "editRail":
+      return { key: "history.editRail" };
+    case "batch":
+      return command.label ?? null;
+    default:
+      return null;
+  }
+}
+
 /**
  * Applies a canvas command to the document store as one history entry. The
  * store validates it against the catalog and throws, leaving the document
@@ -116,6 +187,22 @@ export function applyEditorCommand(
   command: EditorCommand,
   catalog: ComponentCatalog | null,
   designate = false,
+): void {
+  const label = historyLabelOf(command, catalog);
+  if (label) {
+    store.labelled(label, () =>
+      applyLabelledCommand(store, command, catalog, designate),
+    );
+    return;
+  }
+  applyLabelledCommand(store, command, catalog, designate);
+}
+
+function applyLabelledCommand(
+  store: SchematicDocumentStore,
+  command: EditorCommand,
+  catalog: ComponentCatalog | null,
+  designate: boolean,
 ): void {
   switch (command.kind) {
     case "placeComponent": {
@@ -275,7 +362,16 @@ export function setRestrictedParameter(
   const verdict = parameterVerdict(componentId, restrictions);
 
   if (verdict.allowed) {
-    store.setParameter(componentId, parameterId, value, catalog);
+    store.labelled(
+      {
+        key: "history.setParameter",
+        values: {
+          part: store.getState().labels.get(componentId) ?? "part",
+          parameter: parameterId,
+        },
+      },
+      () => store.setParameter(componentId, parameterId, value, catalog),
+    );
   }
 
   return verdict;
@@ -292,7 +388,16 @@ export function clearRestrictedParameter(
   const verdict = parameterVerdict(componentId, restrictions);
 
   if (verdict.allowed) {
-    store.clearParameter(componentId, parameterId, catalog);
+    store.labelled(
+      {
+        key: "history.clearParameter",
+        values: {
+          part: store.getState().labels.get(componentId) ?? "part",
+          parameter: parameterId,
+        },
+      },
+      () => store.clearParameter(componentId, parameterId, catalog),
+    );
   }
 
   return verdict;

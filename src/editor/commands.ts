@@ -17,6 +17,7 @@ import {
 } from "./transform";
 import { emptyDocumentation } from "./documentation";
 import type { ClipboardSchematic } from "./clipboard";
+import type { HistoryLabel } from "./historyLabel";
 import { moveSelection, turnSelection } from "./selectionOps";
 
 /**
@@ -101,7 +102,12 @@ export type EditorCommand =
    * Several commands applied as **one history entry**: a group move, a group delete
    * (docs/contracts/stage-16-editor-improvements.md section 3). If one fails, none is applied.
    */
-  | { readonly kind: "batch"; readonly commands: readonly EditorCommand[] }
+  | {
+      readonly kind: "batch";
+      readonly commands: readonly EditorCommand[];
+      /** What the history panel shows for the one entry the group records. */
+      readonly label?: HistoryLabel;
+    }
   | { readonly kind: "undo" }
   | { readonly kind: "redo" };
 
@@ -185,7 +191,16 @@ export function commandForIntent(
         intent.delta,
         registry,
       );
-      return move ? { kind: "batch", commands: move.commands } : null;
+      return move
+        ? {
+            kind: "batch",
+            commands: move.commands,
+            label: {
+              key: "history.move",
+              values: { count: intent.targets.length },
+            },
+          }
+        : null;
     }
     case "paste":
       return {
@@ -208,13 +223,29 @@ export function commandForIntent(
       }
       return "refusal" in turned
         ? { kind: "refuse", reason: turned.refusal }
-        : { kind: "batch", commands: turned.commands };
+        : {
+            kind: "batch",
+            commands: turned.commands,
+            label: {
+              key: intent.turn === "mirror" ? "history.mirror" : "history.turn",
+              values: { count: intent.targets.length },
+            },
+          };
     }
     case "deleteSelection": {
       const commands = intent.targets
         .map((target) => deleteCommand(target, schematic))
         .filter((command): command is EditorCommand => command !== null);
-      return commands.length > 0 ? { kind: "batch", commands } : null;
+      return commands.length > 0
+        ? {
+            kind: "batch",
+            commands,
+            label: {
+              key: "history.deleteSelection",
+              values: { count: intent.targets.length },
+            },
+          }
+        : null;
     }
     case "addWire":
       return { kind: "addWire", points: intent.points };

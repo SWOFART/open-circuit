@@ -28,7 +28,10 @@ import type {
   OperateAction,
 } from "../editor/interaction";
 import { symbols } from "../symbols";
+import { CanvasSearch } from "./CanvasSearch";
 import { runClipboardAction } from "./clipboardActions";
+import { HistoryPanel } from "./HistoryPanel";
+import { message } from "./messages";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
   dividerSchematic,
@@ -469,6 +472,25 @@ export function App({
       }
     };
   });
+
+  // Ctrl/Cmd+F opens the search field of the canvas (stage 16 contract, section 7).
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const onFind = (event: KeyboardEvent): void => {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.code === "KeyF"
+      ) {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", onFind);
+    return () => window.removeEventListener("keydown", onFind);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -1014,6 +1036,28 @@ export function App({
         }
       >
         <section className="editor-panel" aria-label="Circuit editor">
+          {searchOpen && (
+            <CanvasSearch
+              schematic={document.schematic}
+              labels={labels}
+              typeName={(typeId) => {
+                const entry = state.catalog?.componentTypes.find(
+                  (item) => item.typeId === typeId,
+                );
+                return entry ? message(entry.displayNameKey) : typeId;
+              }}
+              onChoose={(result) =>
+                editorRef.current?.reveal({
+                  kind: result.kind,
+                  id: result.id,
+                })
+              }
+              onClose={() => {
+                setSearchOpen(false);
+                editorRef.current?.focusCanvas();
+              }}
+            />
+          )}
           <div className="editor-toolbar">
             <Palette
               tool={status.tool}
@@ -1297,6 +1341,11 @@ export function App({
             onOperate={(componentId, action) =>
               operateHandler.current(componentId, action)
             }
+          />
+          <HistoryPanel
+            history={document.history}
+            disabled={projectOperationLocked}
+            onGo={(index) => documentStore.goToHistory(index)}
           />
         </aside>
 

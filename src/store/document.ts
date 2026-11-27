@@ -18,6 +18,7 @@ import type { SheetSpec } from "../generated/SheetSpec";
 import type { StableId } from "../generated/StableId";
 import type { TitleBlock } from "../generated/TitleBlock";
 import type { ClipboardSchematic } from "../editor/clipboard";
+import { HISTORY_LIMIT, type HistoryLabel } from "../editor/historyLabel";
 import { sheetsOverlap } from "../editor/sheetRules";
 import type { WireSpec } from "../generated/WireSpec";
 import type { WireNumberEntry } from "../generated/WireNumberEntry";
@@ -106,11 +107,24 @@ export interface SchematicDocumentState {
   readonly canUndo: boolean;
   readonly canRedo: boolean;
   readonly isDirty: boolean;
+  readonly history: HistorySummary;
+}
+
+/**
+ * The labels of the history, for its panel. `past` runs from the oldest entry to the newest, and
+ * `future` holds the undone entries, the next redo first. A null label is an edit without one.
+ */
+export interface HistorySummary {
+  readonly past: readonly (HistoryLabel | null)[];
+  readonly future: readonly (HistoryLabel | null)[];
+  /** The history is full and its oldest entries were dropped. */
+  readonly dropped: boolean;
 }
 
 interface HistoryEntry {
   readonly patches: Patch[];
   readonly inversePatches: Patch[];
+  readonly label: HistoryLabel | null;
 }
 
 export type StableIdFactory = () => StableId;
@@ -350,6 +364,10 @@ export class SchematicDocumentStore {
     inversePatches: Patch[];
     topology: boolean;
   } | null = null;
+  // The label the next entry gets; set around an edit by `labelled`.
+  private nextLabel: HistoryLabel | null = null;
+  // Entries were dropped because the history is bounded; a fresh document forgets it.
+  private historyDropped = false;
   private readonly listeners = new Set<() => void>();
   private readonly issuedIds = new Set<StableId>();
   private readonly labels = new ComponentLabels();
@@ -447,19 +465,23 @@ export class SchematicDocumentStore {
     if (problem !== null) {
       throw new Error(DESIGNATOR_MESSAGES[problem]);
     }
-    this.commit((draft) => {
-      const entry = draft.documentation.designators.find(
-        (item) => item.componentId === id,
-      );
-      if (entry) {
-        entry.designator = text;
-      } else {
-        draft.documentation.designators.push({
-          componentId: id,
-          designator: text,
-        });
-      }
-    });
+    this.labelled(
+      { key: "history.setDesignator", values: { part: text } },
+      () =>
+        this.commit((draft) => {
+          const entry = draft.documentation.designators.find(
+            (item) => item.componentId === id,
+          );
+          if (entry) {
+            entry.designator = text;
+          } else {
+            draft.documentation.designators.push({
+              componentId: id,
+              designator: text,
+            });
+          }
+        }),
+    );
   }
 
   /**
@@ -1139,6 +1161,7 @@ export class SchematicDocumentStore {
     this.savedSchematic = this.schematic;
     this.undoStack.length = 0;
     this.redoStack.length = 0;
+    this.historyDropped = false;
     allIds(this.schematic).forEach((id) => this.issuedIds.add(id));
     // A different document is numbered from scratch, in file order.
     this.labels.reset();
@@ -1207,6 +1230,7 @@ export class SchematicDocumentStore {
     if (this.batch) return edits();
 
     const start = this.schematic;
+    const label = this.nextLabel;
     const batch = {
       patches: [] as Patch[],
       inversePatches: [] as Patch[],
@@ -1227,11 +1251,11 @@ export class SchematicDocumentStore {
     this.batch = null;
 
     if (batch.patches.length > 0) {
-      this.undoStack.push({
+      this.record({
         patches: batch.patches,
         inversePatches: batch.inversePatches,
+        label,
       });
-      this.redoStack.length = 0;
       this.publish();
     }
     return result;
@@ -1250,9 +1274,51 @@ export class SchematicDocumentStore {
       this.batch.inversePatches.unshift(...inversePatches);
       return;
     }
-    this.undoStack.push({ patches, inversePatches });
-    this.redoStack.length = 0;
+    this.record({ patches, inversePatches, label: this.nextLabel });
     this.publish();
+  }
+
+  /** Adds an entry, forgetting the redo entries, and drops the oldest past the bound. */
+  private record(entry: HistoryEntry): void {
+    this.undoStack.push(entry);
+    this.redoStack.length = 0;
+    if (this.undoStack.length > HISTORY_LIMIT) {
+      this.undoStack.shift();
+      this.historyDropped = true;
+    }
+  }
+
+  /**
+   * Runs `edits` with `label` on the entry they record: one entry when they are a transaction or
+   * a single edit. A nested label does not replace the outer one.
+   */
+  labelled<T>(label: HistoryLabel, edits: () => T): T {
+    const outer = this.nextLabel;
+    this.nextLabel = outer ?? label;
+    try {
+      return edits();
+    } finally {
+      this.nextLabel = outer;
+    }
+  }
+
+  /**
+   * Moves through the history to the state just after the entry at `index` of the panel's list
+   * (the past oldest first, then the undone entries, the next redo first), by ordinary undo and
+   * redo steps. The entry that is already current does nothing. Returns false for an index that
+   * is not in the list.
+   */
+  goToHistory(index: number): boolean {
+    const past = this.undoStack.length;
+    const total = past + this.redoStack.length;
+    if (!Number.isInteger(index) || index < 0 || index >= total) return false;
+
+    if (index < past) {
+      for (let steps = past - 1 - index; steps > 0; steps -= 1) this.undo();
+    } else {
+      for (let steps = index - past + 1; steps > 0; steps -= 1) this.redo();
+    }
+    return true;
   }
 
   private makeState(): SchematicDocumentState {
@@ -1262,6 +1328,11 @@ export class SchematicDocumentStore {
       canUndo: this.undoStack.length > 0,
       canRedo: this.redoStack.length > 0,
       isDirty: !sameSerializedDocument(this.schematic, this.savedSchematic),
+      history: Object.freeze({
+        past: this.undoStack.map((entry) => entry.label),
+        future: [...this.redoStack].reverse().map((entry) => entry.label),
+        dropped: this.historyDropped,
+      }),
     });
   }
 
