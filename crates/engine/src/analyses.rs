@@ -7,6 +7,12 @@ pub use frequency::{
     frequency_response,
 };
 
+#[path = "analyses/spectrum.rs"]
+mod spectrum;
+pub use spectrum::{
+    SpectrumBin, SpectrumCapture, SpectrumRequest, SpectrumResult, harmonic_spectrum,
+};
+
 use std::collections::HashSet;
 
 use crate::{
@@ -25,6 +31,9 @@ pub enum AnalysisError {
     Cancelled,
     InvalidRequest(Vec<Diagnostic>),
     UnsupportedCircuit(Vec<StableId>),
+    UnsupportedSignal,
+    StaleInput(DiagnosticCode),
+    UnavailableHistory,
     SolveFailed {
         point_index: usize,
         diagnostics: Vec<Diagnostic>,

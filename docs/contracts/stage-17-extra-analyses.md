@@ -150,3 +150,8 @@ The Engine frequency entry point is `engine::analyses::frequency_response`.
 It solves the excitation island and uses the existing dense LU solver on the
 real block representation of its complex MNA system. The request validates
 the whole drawing and identifies the output by two ordered pins.
+
+`Engine::capture_spectrum` copies the bounded window from the active run.
+`engine::analyses::harmonic_spectrum` processes that immutable capture with
+a radix-2 FFT and a cancellation check. The application can move the capture
+to its analysis worker without giving the worker access to the active Engine.
