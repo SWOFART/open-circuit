@@ -13,7 +13,7 @@ import {
   initialSimulationState,
   SimulationController,
 } from "../store/simulation";
-import { initialScopeState } from "../store/traces";
+import { initialScopeState, scopeRequestKeys } from "../store/traces";
 import { symbols } from "../symbols";
 import { DevicePanel } from "./DevicePanel";
 import { Inspector } from "./Inspector";
@@ -298,6 +298,67 @@ describe("Stage 9 editor", () => {
     expect(html).toContain("-12 W");
     expect(html).toContain("5 var");
     expect(html).toContain("-30°");
+  });
+
+  it("shows and traces lamp power while wattmeter power waits for a valid window", () => {
+    const { schematic, labels } = drawn("wattmeter", "lamp").getState();
+    const lamp = schematic.components[1]!.id;
+    const wattKey = `${meter}/real_power`;
+    const lampKey = `${lamp}/powerWatts`;
+    const validKey = `${meter}/valid`;
+    const powerLayout: ResultLayout = {
+      layoutVersion: 1,
+      valueCount: 3,
+      slots: [
+        {
+          key: wattKey,
+          componentId: meter,
+          quantity: "realPower",
+          unit: "watt",
+          signConvention: "loadConvention",
+          offset: 0,
+        },
+        {
+          key: lampKey,
+          componentId: lamp,
+          quantity: "realPower",
+          unit: "watt",
+          signConvention: "loadConvention",
+          offset: 1,
+        },
+        { ...layout.slots[3]!, offset: 2 },
+      ],
+    };
+
+    function render(valid: number) {
+      return renderToStaticMarkup(
+        <ResultPanel
+          state={{
+            ...initialSimulationState(),
+            status: "ready",
+            run: {
+              runId: runA,
+              layout: powerLayout,
+              documentRevision: "rev-1",
+            },
+            snapshot: result(runA, "rev-1", [12, 4.8, valid]).initialSnapshot,
+          }}
+          labels={labels}
+        />,
+      );
+    }
+
+    const waiting = render(0);
+    expect(waiting).toContain("4.8 W");
+    expect(waiting.match(/Not yet valid/g)).toHaveLength(1);
+    expect(waiting).not.toContain("12 W");
+    expect(render(1)).toContain("12 W");
+    expect(scopeRequestKeys(powerLayout, [lampKey])).toEqual([lampKey]);
+    expect(scopeRequestKeys(powerLayout, [lampKey, wattKey])).toEqual([
+      lampKey,
+      wattKey,
+      validKey,
+    ]);
   });
 
   it("offers the AC trace and a labeled window with several 50 Hz periods", () => {

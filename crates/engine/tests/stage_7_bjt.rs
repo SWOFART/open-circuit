@@ -70,6 +70,41 @@ fn active() -> Value {
 }
 
 #[test]
+fn stage_17_base_supply_sweep_matches_npn_and_pnp_reference_operating_points() {
+    use engine::analyses::{DcSweepRequest, dc_sweep};
+
+    let refs = references();
+    let cases = refs["cases"].as_array().unwrap();
+    for (cutoff, active) in [("npn-cutoff", "npn-active"), ("pnp-cutoff", "pnp-active")] {
+        let cutoff = cases.iter().find(|case| case["id"] == cutoff).unwrap();
+        let active = cases.iter().find(|case| case["id"] == active).unwrap();
+        let request = circuit(&cutoff["circuit"]);
+        let result = dc_sweep(
+            DcSweepRequest {
+                schematic: &request.schematic,
+                geometry: &request.geometry,
+                document_revision: &request.document_revision,
+                source_id: request.schematic.components[1].id(),
+                signal_key: &format!("{}/collector/current", id(5)),
+                start_volts: num(&cutoff["circuit"]["vbb"]),
+                stop_volts: num(&active["circuit"]["vbb"]),
+                point_count: 2,
+            },
+            || false,
+        )
+        .unwrap();
+        for (point, expected) in result.points.iter().zip([cutoff, active]) {
+            close(
+                point.reading,
+                num(&expected["contract"]["collectorCurrentAmps"]),
+                1e-4,
+                1e-8,
+            );
+        }
+    }
+}
+
+#[test]
 fn all_bias_regions_and_pnp_mirrors_match_independent_fixtures_with_five_named_slots() {
     let refs = references();
     let manifest = manifest();

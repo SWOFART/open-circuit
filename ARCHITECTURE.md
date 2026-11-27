@@ -595,6 +595,16 @@ Stages 6 to 18 each need a contract (a `docs/contracts/` document) before implem
 - **Stage 18, distribution.** The [proposed contract](docs/contracts/stage-18-distribution.md) (issue #240) covers Windows only: a per-user NSIS installer built by a release workflow from a protected `v*` tag, Semantic Versioning with `Cargo.toml` as the single source, two independent signatures (Windows code signing through a key that never leaves a signing service or the protected `release` environment, and the updater's minisign signature with the public key committed), updates by the Tauri updater plugin run from `crates/app` against a static `latest.json` on stable GitHub Releases (the web view gains no network access, and no telemetry is added), no downgrades, and a person who publishes every release. It changes no file format. The decisions in the proposal require owner acceptance, and several (a certificate, the update key, the privacy default) are the owner's alone.
 - **Platforms.** CI keeps running on Windows, Ubuntu and macOS. Native desktop observations on macOS and Linux, and their installers, wait until the project reaches Stage 18; until then an acceptance record says honestly that only CI ran there.
 
+### Stage 17 analyses
+
+The [Stage 17 contract](docs/contracts/stage-17-extra-analyses.md)
+defines independent, bounded jobs for DC operating-point sweeps, linear
+small-signal frequency response and spectra from recorded public-step
+samples. The Engine owns validation, calculations and diagnostics. The
+application captures inputs, schedules jobs and carries complete outcomes
+through dedicated commands. The fixed-step simulation, its frame and trace
+formats, and project persistence keep their existing contracts.
+
 ### Editor features outside the stages
 
 - **Editable part names.** The names `R1`, `K1` are today numbered by the editor and are not saved (`src/store/labels.ts`). Letting the user rename a part (for example by double-clicking it) means saving the name, so it is a change to the project format (an optional field or a new version, to be decided by a contract), with rules for duplicates and for how assignments refer to parts (they use stable IDs, not names). It is part of Stage 12 (cabinet documentation). The contract is [`docs/contracts/stage-12-cabinet-documentation.md`](docs/contracts/stage-12-cabinet-documentation.md) (issue #188): names are saved as designators in schema version 3, with identification letters from the owner's table carried by the Rust catalog.

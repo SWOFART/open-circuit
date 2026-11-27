@@ -176,6 +176,27 @@ impl TraceHistory {
         (0..self.len).find(|&logical| self.step_at(logical) == Some(step))
     }
 
+    pub(super) fn copy_spectrum_samples(
+        &self,
+        first_step: u64,
+        count: usize,
+        revision: &str,
+        offset: usize,
+    ) -> Option<Vec<f64>> {
+        let first = self.logical_index_of_step(first_step)?;
+        (0..count)
+            .map(|index| {
+                let row = first + index;
+                if self.step_at(row)? != first_step.checked_add(index as u64)?
+                    || self.revision_at(row)? != revision
+                {
+                    return None;
+                }
+                self.value_at(row, offset)
+            })
+            .collect()
+    }
+
     pub(super) fn read(
         &self,
         request: &TraceRequest,
@@ -376,6 +397,20 @@ mod tests {
                 .is_err()
         );
         assert_eq!(history.len, 0);
+    }
+
+    #[test]
+    fn spectrum_copy_rejects_evicted_or_gapped_windows_and_preserves_sample_order() {
+        let mut history = TraceHistory::with_capacity(1, 3).unwrap();
+        for step in [0, 1, 3, 4] {
+            history.append(step, "rev", &[step as f64]).unwrap();
+        }
+        assert_eq!(history.copy_spectrum_samples(0, 2, "rev", 0), None);
+        assert_eq!(history.copy_spectrum_samples(1, 2, "rev", 0), None);
+        assert_eq!(
+            history.copy_spectrum_samples(3, 2, "rev", 0),
+            Some(vec![3.0, 4.0])
+        );
     }
 
     #[test]

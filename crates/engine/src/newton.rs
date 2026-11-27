@@ -25,6 +25,8 @@ pub(crate) struct SolverMemory {
     pub reference_domains: std::collections::HashMap<usize, usize>,
     pub probe_netlist: Option<std::sync::Arc<crate::netlist::Netlist>>,
     pub junctions: std::collections::HashMap<StableId, Vec<f64>>,
+    /// Operating-point branch unknowns retained only for DC sweep continuation.
+    pub sweep_branch_currents: std::collections::HashMap<String, f64>,
     pub induction_motors: std::collections::HashMap<StableId, crate::devices::MotorHistory>,
     pub windings: std::collections::HashMap<StableId, crate::devices::WindingHistory>,
 }
