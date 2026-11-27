@@ -17,6 +17,7 @@ import type { Schematic } from "../generated/Schematic";
 import type { SheetSpec } from "../generated/SheetSpec";
 import type { StableId } from "../generated/StableId";
 import type { TitleBlock } from "../generated/TitleBlock";
+import { emptyDocumentation } from "../editor/documentation";
 import type { ClipboardSchematic } from "../editor/clipboard";
 import { HISTORY_LIMIT, type HistoryLabel } from "../editor/historyLabel";
 import { sheetsOverlap } from "../editor/sheetRules";
@@ -1154,11 +1155,31 @@ export class SchematicDocumentStore {
     this.publish();
   }
 
-  /** Replaces the open document and starts a fresh, clean history. */
-  replaceDocument(schematic: Schematic): void {
+  /**
+   * Replaces the open document and starts a fresh history. The new document is clean (it equals
+   * the saved one) unless `unsaved` is set, as for a document restored from a recovery file:
+   * it is then compared with an empty drawing, so it counts as having changes to save.
+   */
+  replaceDocument(
+    schematic: Schematic,
+    options: { readonly unsaved?: boolean } = {},
+  ): void {
     assertSchematicShape(schematic);
     this.schematic = freeze(structuredClone(schematic), true) as Schematic;
-    this.savedSchematic = this.schematic;
+    this.savedSchematic = options.unsaved
+      ? (freeze(
+          {
+            schemaVersion: 3,
+            components: [],
+            wires: [],
+            junctions: [],
+            referenceMarkers: [],
+            rails: [],
+            documentation: emptyDocumentation(),
+          } satisfies Schematic,
+          true,
+        ) as Schematic)
+      : this.schematic;
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     this.historyDropped = false;

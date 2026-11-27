@@ -1169,3 +1169,7 @@ input {
   color: var(--text);
   font: inherit;
 }
+
+.autosave-notice {
+  color: var(--text-warning);
+}

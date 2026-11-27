@@ -9,6 +9,7 @@ use open_circuit_app_lib::assignment::{
 };
 use open_circuit_app_lib::checks::CheckService;
 use open_circuit_app_lib::project::ProjectSession;
+use open_circuit_app_lib::recovery::{RecoveryProbe, RecoveryStore};
 use open_circuit_app_lib::simulation::{
     FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed, TraceSink,
 };
@@ -389,6 +390,52 @@ async fn save_project_as(
     Ok(true)
 }
 
+/// The one recovery file's folder: `recovery/` in the application's local data directory, never
+/// the project's folder (docs/contracts/stage-16-editor-improvements.md section 9).
+fn recovery_store(app: &tauri::AppHandle) -> Result<RecoveryStore, String> {
+    app.path()
+        .app_local_data_dir()
+        .map(|directory| RecoveryStore::new(directory.join("recovery")))
+        .map_err(|error| format!("Could not find the application data folder: {error}"))
+}
+
+/// Autosave: writes the drawn document to the recovery file, replacing the previous one
+/// atomically. It never writes the project file. A failure is a reason for the interface to show,
+/// and the previous recovery file stays.
+#[tauri::command]
+async fn write_recovery(
+    app: tauri::AppHandle,
+    session: State<'_, ProjectSession>,
+    schematic: Schematic,
+) -> Result<(), String> {
+    let store = recovery_store(&app)?;
+    let source = session.current_path()?;
+    run_project_blocking(move || {
+        store.write(&schematic, source.as_deref(), env!("CARGO_PKG_VERSION"))
+    })
+    .await
+}
+
+/// At start: removes recovery files older than 30 days, then says what is left to offer. A file
+/// that cannot be read is reported with the reason, so the application always starts.
+#[tauri::command]
+async fn probe_recovery(app: tauri::AppHandle) -> Result<RecoveryProbe, String> {
+    let store = recovery_store(&app)?;
+    run_project_blocking(move || {
+        store.clean_old(std::time::SystemTime::now());
+        Ok(store.probe())
+    })
+    .await
+}
+
+/// Deletes the recovery file: after an explicit save, a discarded New or Open, or a Discard at
+/// the offer.
+#[tauri::command]
+async fn discard_recovery(app: tauri::AppHandle) -> Result<(), String> {
+    let store = recovery_store(&app)?;
+    run_project_blocking(move || store.discard()).await
+}
+
 /// Clears the Rust-owned file location after New or Open Example succeeds.
 #[tauri::command]
 fn clear_project_path(session: State<'_, ProjectSession>) -> Result<(), String> {
@@ -750,6 +797,9 @@ fn main() {
             save_project,
             save_project_as,
             clear_project_path,
+            write_recovery,
+            probe_recovery,
+            discard_recovery,
             open_assignment,
             validate_assignment,
             save_assignment,

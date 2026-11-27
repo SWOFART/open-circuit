@@ -29,9 +29,14 @@ import type {
 } from "../editor/interaction";
 import { symbols } from "../symbols";
 import { THEMES } from "../theme/tokens";
+import { tauriRecoveryFiles, type RecoveryPort } from "../store/recoveryFiles";
+import { restoreRecovery } from "../store/recoveryFlow";
 import { CanvasSearch } from "./CanvasSearch";
 import { runClipboardAction } from "./clipboardActions";
 import { HistoryPanel } from "./HistoryPanel";
+import { RecoveryDialog } from "./RecoveryDialog";
+import { useAutosave } from "./useAutosave";
+import { useRecovery } from "./useRecovery";
 import { ThemeSwitch } from "./ThemeSwitch";
 import { useTheme } from "./useTheme";
 import { message } from "./messages";
@@ -114,12 +119,14 @@ interface AppProps {
   readonly projectFiles?: ProjectFilePort;
   readonly assignments?: AssignmentPort;
   readonly probes?: ProbePort;
+  readonly recoveryFiles?: RecoveryPort;
 }
 
 export function App({
   projectFiles = tauriProjectFiles,
   assignments = tauriAssignments,
   probes = tauriProbes,
+  recoveryFiles = tauriRecoveryFiles,
 }: AppProps = {}) {
   const canvasHost = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -261,6 +268,19 @@ export function App({
   // Assignments hold no documentation (contract section 2.4): while one is open, parts are not
   // named and the designator field is not offered.
   const documentationAvailable = railUnavailable === null;
+  // The offer to restore unsaved work comes first (stage 16 contract, section 9); autosave starts
+  // once it is answered, and is off while an assignment is open.
+  const recovery = useRecovery(recoveryFiles, async (offer) => {
+    await restoreRecovery(offer, documentStore, projectFiles);
+    setDocumentName("Recovered document");
+    editorRef.current?.setTool(IDLE_STATUS.tool);
+  });
+  const autosave = useAutosave(
+    documentStore,
+    recoveryFiles,
+    recovery.resolved && railUnavailable === null,
+    projectOperationLocked,
+  );
   const noteUnavailable = documentationAvailable
     ? null
     : "Notes are not available in an assignment. Leave assignment mode to edit notes.";
@@ -303,7 +323,11 @@ export function App({
     setProjectError(null);
     try {
       const saved = await projectWorkflow.save(saveAs);
-      if (saved) setDocumentName("Project");
+      if (saved) {
+        setDocumentName("Project");
+        // The work is on disk: the recovery file has done its job.
+        void autosave.discard().catch(() => {});
+      }
       return saved;
     } catch (error) {
       setProjectError(error instanceof Error ? error.message : String(error));
@@ -356,6 +380,8 @@ export function App({
             : (pendingCircuitRef.current ?? undefined),
       );
       if (performed) {
+        // A new or opened document replaced the one that had changes: nothing is left to recover.
+        void autosave.discard().catch(() => {});
         setDocumentName(
           action === "new" || action === "example"
             ? "Untitled"
@@ -445,8 +471,14 @@ export function App({
       await resolveUnsavedAction(
         choice,
         () => saveProject(),
-        () =>
-          action === "close" ? closeWindow() : performProjectAction(action),
+        async () => {
+          if (action !== "close") return performProjectAction(action);
+          if (choice === "discard") {
+            // The changes were given up, so the recovery file is not offered at the next start.
+            await autosave.discard().catch(() => {});
+          }
+          return closeWindow();
+        },
       );
     } catch (error) {
       setProjectError(error instanceof Error ? error.message : String(error));
@@ -1085,6 +1117,11 @@ export function App({
               <span className="editor-hint">
                 {document.isDirty ? "Unsaved changes" : documentName}
               </span>
+              {autosave.notice && (
+                <span className="editor-hint autosave-notice" role="status">
+                  {autosave.notice}
+                </span>
+              )}
               <div className="project-actions" aria-label="Project actions">
                 <button
                   type="button"
@@ -1431,6 +1468,15 @@ export function App({
           <span>Values come from the Rust engine only.</span>
         )}
       </footer>
+      {recovery.pending !== null && (
+        <RecoveryDialog
+          recovery={recovery.pending}
+          disabled={recovery.busy}
+          error={recovery.error}
+          onRestore={recovery.restore}
+          onDiscard={recovery.discard}
+        />
+      )}
       {pendingAction !== null && (
         <UnsavedChangesDialog
           closing={pendingAction === "close"}
