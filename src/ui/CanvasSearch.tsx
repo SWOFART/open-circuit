@@ -53,7 +53,7 @@ export function CanvasSearch({
   }, []);
 
   const onKeyDown = (event: React.KeyboardEvent): void => {
-    const step = searchKeyAction(event.key, current, results.length);
+    const step = searchKeyAction(event, current, results.length);
     if (!step) {
       return;
     }

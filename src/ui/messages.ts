@@ -450,6 +450,39 @@ const messages: Readonly<Record<string, string>> = {
     "The result belongs to an earlier calculation and was ignored.",
   "diagnostic.staleDocumentRevision":
     "The circuit changed while this update was in progress, so it was ignored.",
+  "shortcut.file.new": "New document",
+  "shortcut.file.open": "Open a project",
+  "shortcut.file.save": "Save",
+  "shortcut.file.saveAs": "Save as",
+  "shortcut.edit.undo": "Undo",
+  "shortcut.edit.redo": "Redo",
+  "shortcut.edit.cut": "Cut the selection",
+  "shortcut.edit.copy": "Copy the selection",
+  "shortcut.edit.paste": "Paste",
+  "shortcut.edit.duplicate": "Duplicate the selection",
+  "shortcut.edit.selectAll": "Select all",
+  "shortcut.edit.delete": "Delete the selection",
+  "shortcut.edit.escape":
+    "Cancel a gesture, then stop the tool, then clear the selection (one per press)",
+  "shortcut.edit.enter":
+    "Open the editor of the selected part, finish a route, or place a paste",
+  "shortcut.edit.move": "Move the selection by 1 grid unit",
+  "shortcut.edit.moveTen": "Move the selection by 10 grid units",
+  "shortcut.transform.rotate": "Turn the selection a quarter clockwise",
+  "shortcut.transform.half": "Turn the selection a half turn",
+  "shortcut.transform.mirror": "Mirror the selection",
+  "shortcut.find.open": "Search the drawing",
+  "shortcut.search.next": "Next search result",
+  "shortcut.search.previous": "Previous search result",
+  "shortcut.search.choose":
+    "Select the chosen result and center the view on it",
+  "shortcut.search.close": "Close the search field",
+  "shortcut.parts.drawer": "Open the parts drawer and search it",
+  "shortcut.wiring.vertical": "Route the vertical leg first",
+  "shortcut.view.pan": "Pan the view",
+  "shortcut.help.shortcuts": "Show the keyboard shortcuts",
+  "shortcut.dialog.close": "Close a dialog",
+  "shortcut.dialog.focus": "Move between the controls of a dialog",
 };
 
 /** Looks up a localization key, falling back to the key itself. */

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isTextEntryTarget } from "../../editor/canvasInput";
 import type { EditorCore } from "../../editor/EditorCore";
+import { matchesShortcut } from "../../editor/shortcuts";
 import type { EditorStatus } from "../../editor/interaction";
 import type { ComponentCatalog } from "../../generated/ComponentCatalog";
 import type { ComponentTypeId } from "../../generated/ComponentTypeId";
@@ -103,10 +104,7 @@ export function usePartsDrawer({
     // `/` reaches the search field unless the user is typing somewhere.
     const onKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key !== "/" ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.altKey ||
+        !matchesShortcut(event, "parts.drawer") ||
         isTextEntryTarget(event.target)
       ) {
         return;
@@ -124,7 +122,7 @@ export function usePartsDrawer({
         status: state,
       } = latest.current;
       if (
-        event.key === "Escape" &&
+        matchesShortcut(event, "edit.escape") &&
         isOpen &&
         !current.docked &&
         !isTextEntryTarget(event.target) &&

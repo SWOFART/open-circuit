@@ -1,3 +1,5 @@
+import { matchShortcut } from "../editor/shortcuts";
+
 export type ProjectShortcut = "new" | "open" | "save" | "saveAs";
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -25,12 +27,19 @@ export function projectShortcutFromEvent(
   >,
   isMacPlatform: boolean,
 ): ProjectShortcut | null {
-  if (event.altKey || isEditableTarget(event.target)) return null;
-  if (isMacPlatform ? !event.metaKey : !event.ctrlKey) return null;
+  if (isEditableTarget(event.target)) return null;
 
-  const key = event.key.toLowerCase();
-  if (key === "n" && !event.shiftKey) return "new";
-  if (key === "o" && !event.shiftKey) return "open";
-  if (key === "s") return event.shiftKey ? "saveAs" : "save";
-  return null;
+  // The keys are the table's (src/editor/shortcuts.ts); only this machine's own Ctrl or Cmd counts.
+  switch (matchShortcut(event, "anywhere", isMacPlatform ? "mac" : "other")) {
+    case "file.new":
+      return "new";
+    case "file.open":
+      return "open";
+    case "file.save":
+      return "save";
+    case "file.saveAs":
+      return "saveAs";
+    default:
+      return null;
+  }
 }
