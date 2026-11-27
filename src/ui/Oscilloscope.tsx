@@ -3,6 +3,7 @@ import type { StableId } from "../generated/StableId";
 import type { Unit } from "../generated/Unit";
 import { measurementValidityKey } from "../store/measurementValidity";
 import type { SimulationState } from "../store/simulation";
+import { traceVariable } from "../theme/tokens";
 import {
   MAX_SCOPE_SIGNALS,
   SCOPE_WINDOWS_SECONDS,
@@ -33,16 +34,6 @@ export interface OscilloscopeProps {
 }
 
 /** One colour per selected signal, in selection order. */
-const SIGNAL_COLORS = [
-  "#60a5fa",
-  "#f59e0b",
-  "#34d399",
-  "#f472b6",
-  "#a78bfa",
-  "#f87171",
-  "#22d3ee",
-  "#a3e635",
-] as const;
 
 const LANE_WIDTH = 640;
 const LANE_HEIGHT = 150;
@@ -50,8 +41,9 @@ const MARGIN_LEFT = 72;
 const MARGIN_RIGHT = 14;
 const MARGIN_TOP = 10;
 
+/** The trace color of a signal as a `var()` of the theme, so a switch recolors it. */
 function colorAt(index: number): string {
-  return SIGNAL_COLORS[index % SIGNAL_COLORS.length] ?? SIGNAL_COLORS[0];
+  return traceVariable(index);
 }
 
 function formatSeconds(seconds: number): string {
@@ -150,7 +142,7 @@ function ScopeLane({
       ))}
       {signals.flatMap((signal) => {
         return pointSegmentsInWindow(signal, window).map((points) => {
-          const color = colors.get(signal.key) ?? SIGNAL_COLORS[0];
+          const color = colors.get(signal.key) ?? colorAt(0);
 
           if (points.length === 1) {
             const [point] = points;

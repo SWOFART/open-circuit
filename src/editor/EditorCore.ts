@@ -10,6 +10,7 @@ import type { Schematic } from "../generated/Schematic";
 import { sheetBounds } from "./sheetRules";
 import type { StableId } from "../generated/StableId";
 import { symbols, type SymbolRegistry } from "../symbols";
+import { colorNumber, THEMES, type ThemeTokens } from "../theme/tokens";
 import { bindCanvasInput, type CanvasInputBinding } from "./canvasInput";
 import {
   clipboardBounds,
@@ -50,21 +51,44 @@ import {
 } from "./scene";
 import { screenToGridPoint, toScreen, type ViewTransform } from "./view";
 
-const COLORS = {
-  background: "#111827",
-  grid: 0x263244,
-  wire: 0x60a5fa,
-  rail: 0x34d399,
-  symbol: 0xe5e7eb,
-  reference: 0x94a3b8,
-  junction: 0x60a5fa,
-  label: "#cbd5e1",
-  selected: 0xfbbf24,
-  selectedLabel: "#fbbf24",
-  detached: 0xf87171,
-  cursor: 0x94a3b8,
-  preview: 0x93c5fd,
-} as const;
+/** The canvas colors, from the theme's tokens: numbers for strokes, strings for text. */
+interface CanvasColors {
+  readonly background: string;
+  readonly grid: number;
+  readonly wire: number;
+  readonly rail: number;
+  readonly symbol: number;
+  readonly reference: number;
+  readonly junction: number;
+  readonly label: string;
+  readonly selected: number;
+  readonly selectedLabel: string;
+  readonly detached: number;
+  readonly cursor: number;
+  readonly preview: number;
+  readonly probeFirst: number;
+  readonly probeSecond: number;
+}
+
+function canvasColors(tokens: ThemeTokens): CanvasColors {
+  return {
+    background: tokens["canvas-background"],
+    grid: colorNumber(tokens["canvas-grid"]),
+    wire: colorNumber(tokens["canvas-wire"]),
+    rail: colorNumber(tokens["canvas-rail"]),
+    symbol: colorNumber(tokens["canvas-symbol"]),
+    reference: colorNumber(tokens["canvas-reference"]),
+    junction: colorNumber(tokens["canvas-junction"]),
+    label: tokens["canvas-label"],
+    selected: colorNumber(tokens["canvas-selected"]),
+    selectedLabel: tokens["canvas-selected-label"],
+    detached: colorNumber(tokens["canvas-detached"]),
+    cursor: colorNumber(tokens["canvas-cursor"]),
+    preview: colorNumber(tokens["canvas-preview"]),
+    probeFirst: colorNumber(tokens["canvas-probe-first"]),
+    probeSecond: colorNumber(tokens["canvas-probe-second"]),
+  };
+}
 
 const STROKE_WIDTH_PX = 2;
 const SELECTED_STROKE_WIDTH_PX = 3;
@@ -135,6 +159,8 @@ export class EditorCore {
   private input: CanvasInputBinding | null = null;
   // A selection asked for before the scene contained the object; applied by the next scene.
   private pendingSelection: readonly SelectionTarget[] | null = null;
+  // The colors of the theme in force; the dark theme until the host says otherwise.
+  private colors: CanvasColors = canvasColors(THEMES.dark);
 
   constructor(
     private readonly host: EditorHost,
@@ -151,7 +177,7 @@ export class EditorCore {
       await this.application.init({
         antialias: true,
         autoDensity: true,
-        background: COLORS.background,
+        background: this.colors.background,
         resolution: window.devicePixelRatio || 1,
         resizeTo: container,
       });
@@ -205,6 +231,19 @@ export class EditorCore {
       this.interaction.selectMany(pending);
     }
     this.syncOperable();
+    this.contentStale = true;
+    this.overlayStale = true;
+  }
+
+  /**
+   * Draws with the colors of a theme (stage 16 contract, section 8). Switching redraws what is
+   * on screen; it changes no document and restarts nothing.
+   */
+  setTheme(tokens: ThemeTokens): void {
+    this.colors = canvasColors(tokens);
+    if (this.initialized && !this.destroyed) {
+      this.application.renderer.background.color = this.colors.background;
+    }
     this.contentStale = true;
     this.overlayStale = true;
   }
@@ -563,7 +602,7 @@ export class EditorCore {
         const last = toScreen({ x: bounds.maxX, y: bounds.maxY }, view);
         frames
           .rect(first.x, first.y, last.x - first.x, last.y - first.y)
-          .stroke({ color: COLORS.preview, width: 1, alpha: 0.65 });
+          .stroke({ color: this.colors.preview, width: 1, alpha: 0.65 });
       }
       this.content.addChild(frames);
     }
@@ -609,7 +648,12 @@ export class EditorCore {
 
     this.probeMarkers.forEach((position, index) => {
       if (position)
-        this.traceRing(position, view, 0.5, index === 0 ? 0xfb7185 : 0xe2e8f0);
+        this.traceRing(
+          position,
+          view,
+          0.5,
+          index === 0 ? this.colors.probeFirst : this.colors.probeSecond,
+        );
     });
 
     if (tool.kind === "junction") {
@@ -630,8 +674,8 @@ export class EditorCore {
       const last = toScreen({ x: box.maxX, y: box.maxY }, view);
       this.overlay
         .rect(first.x, first.y, last.x - first.x, last.y - first.y)
-        .fill({ color: COLORS.preview, alpha: 0.12 })
-        .stroke({ color: COLORS.preview, width: 1, alpha: 0.8 });
+        .fill({ color: this.colors.preview, alpha: 0.12 })
+        .stroke({ color: this.colors.preview, width: 1, alpha: 0.8 });
     }
 
     // The rail the next click would draw; red when a click would not commit it.
@@ -643,7 +687,7 @@ export class EditorCore {
           { x: rail.x, y: rail.bottom },
         ],
         view,
-        rail.valid ? COLORS.preview : COLORS.detached,
+        rail.valid ? this.colors.preview : this.colors.detached,
       );
     }
 
@@ -660,7 +704,7 @@ export class EditorCore {
 
     const point = this.interaction.pointerGridPoint;
     if (drag?.kind === "marker" && !drag.valid && point) {
-      this.traceRing(point, view, 1, COLORS.detached);
+      this.traceRing(point, view, 1, this.colors.detached);
     }
 
     if (point === null || this.interaction.isPanning) {
@@ -681,7 +725,7 @@ export class EditorCore {
           const { x, y } = toScreen(point, view);
           this.overlay
             .circle(x, y, JUNCTION_RADIUS * view.scale * 1.6)
-            .fill({ color: COLORS.preview, alpha: PREVIEW_ALPHA });
+            .fill({ color: this.colors.preview, alpha: PREVIEW_ALPHA });
         }
         break;
       case "reference":
@@ -710,14 +754,14 @@ export class EditorCore {
       .lineTo(x + CURSOR_ARM_PX, y)
       .moveTo(x, y - CURSOR_ARM_PX)
       .lineTo(x, y + CURSOR_ARM_PX)
-      .stroke({ color: COLORS.cursor, width: 1 });
+      .stroke({ color: this.colors.cursor, width: 1 });
   }
 
   private traceRing(
     point: { readonly x: number; readonly y: number },
     view: ViewTransform,
     alpha: number,
-    color: number = COLORS.preview,
+    color: number = this.colors.preview,
   ): void {
     const { x, y } = toScreen(point, view);
     this.overlay
@@ -728,7 +772,7 @@ export class EditorCore {
   private traceRoute(
     route: readonly { readonly x: number; readonly y: number }[],
     view: ViewTransform,
-    color: number = COLORS.preview,
+    color: number = this.colors.preview,
   ): void {
     const [first, ...rest] = route.map((point) => toScreen(point, view));
     if (!first) {
@@ -751,7 +795,7 @@ export class EditorCore {
     for (const point of [route[0], anchor]) {
       if (point) {
         const { x, y } = toScreen(point, view);
-        this.overlay.circle(x, y, 3).fill(COLORS.preview);
+        this.overlay.circle(x, y, 3).fill(this.colors.preview);
       }
     }
   }
@@ -774,7 +818,7 @@ export class EditorCore {
     }
 
     this.overlay.stroke({
-      color: COLORS.preview,
+      color: this.colors.preview,
       alpha: PREVIEW_ALPHA,
       width: STROKE_WIDTH_PX,
       join: "round",
@@ -805,7 +849,7 @@ export class EditorCore {
         grid.moveTo(0, y).lineTo(width, y);
       }
 
-      grid.stroke({ color: COLORS.grid, width: 1, alpha: 0.65 });
+      grid.stroke({ color: this.colors.grid, width: 1, alpha: 0.65 });
     }
 
     return grid;
@@ -820,7 +864,7 @@ export class EditorCore {
 
     return new Graphics()
       .circle(x, y, JUNCTION_RADIUS * view.scale)
-      .fill(COLORS.junction);
+      .fill(this.colors.junction);
   }
 
   private drawHandles(
@@ -838,8 +882,8 @@ export class EditorCore {
           2 * HANDLE_HALF_PX,
           2 * HANDLE_HALF_PX,
         )
-        .fill(COLORS.selected)
-        .stroke({ color: COLORS.background, width: 1 });
+        .fill(this.colors.selected)
+        .stroke({ color: this.colors.background, width: 1 });
     }
 
     return handles;
@@ -857,7 +901,7 @@ export class EditorCore {
       const label = new Text({
         text: shape.text,
         style: {
-          fill: selected ? COLORS.selectedLabel : COLORS.label,
+          fill: selected ? this.colors.selectedLabel : this.colors.label,
           fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
           fontSize: 13,
         },
@@ -871,9 +915,9 @@ export class EditorCore {
     // A marker with nothing under it, or a rail that a diagnostic names, is drawn as a
     // warning, not hidden.
     const color = selected
-      ? COLORS.selected
+      ? this.colors.selected
       : shape.detached || shape.flagged
-        ? COLORS.detached
+        ? this.colors.detached
         : null;
 
     if (shape.kind === "polyline") {
@@ -887,7 +931,7 @@ export class EditorCore {
           graphics.lineTo(point.x, point.y);
         }
         graphics.stroke({
-          color: color ?? COLORS[shape.role],
+          color: color ?? this.colors[shape.role],
           width: strokeWidth,
           join: "round",
           cap: "round",
@@ -902,12 +946,12 @@ export class EditorCore {
     graphics.circle(center.x, center.y, radius);
 
     if (shape.role === "junction") {
-      graphics.fill(color ?? COLORS.junction);
+      graphics.fill(color ?? this.colors.junction);
     } else if (shape.role === "railEnd") {
-      graphics.fill(color ?? COLORS.rail);
+      graphics.fill(color ?? this.colors.rail);
     } else {
       graphics.stroke({
-        color: color ?? COLORS.symbol,
+        color: color ?? this.colors.symbol,
         width: strokeWidth,
       });
     }

@@ -28,9 +28,12 @@ import type {
   OperateAction,
 } from "../editor/interaction";
 import { symbols } from "../symbols";
+import { THEMES } from "../theme/tokens";
 import { CanvasSearch } from "./CanvasSearch";
 import { runClipboardAction } from "./clipboardActions";
 import { HistoryPanel } from "./HistoryPanel";
+import { ThemeSwitch } from "./ThemeSwitch";
+import { useTheme } from "./useTheme";
 import { message } from "./messages";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
@@ -535,6 +538,9 @@ export function App({
     };
   }, [documentStore]);
 
+  const theme = useTheme();
+  const themeRef = useRef(theme.theme);
+  themeRef.current = theme.theme;
   // The editor is created once; commands always use the latest catalog.
   const commandHandler = useRef<(command: EditorCommand) => void>(() => {});
   // Moves a switch or a push button of the run on screen. It reads the position the
@@ -703,6 +709,7 @@ export function App({
         openEditorHandler.current(target, anchor),
     });
     editorRef.current = editor;
+    editor.setTheme(THEMES[themeRef.current]);
     void editor.mount(host).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       setEditorError(message);
@@ -717,6 +724,11 @@ export function App({
   useEffect(() => {
     editorRef.current?.setSchematic(document.schematic, labels);
   }, [document.schematic, labels]);
+
+  // The canvas draws with the colors of the theme in force; a switch only redraws.
+  useEffect(() => {
+    editorRef.current?.setTheme(THEMES[theme.theme]);
+  }, [theme.theme]);
 
   // The symbols show the states of the run on screen, and a press operates a device only
   // while there is a run. Without a run every part is drawn at rest.
@@ -1024,6 +1036,7 @@ export function App({
               {state.playbackError && <p role="alert">{state.playbackError}</p>}
             </div>
           )}
+          <ThemeSwitch mode={theme.mode} onChange={theme.setMode} />
           <p className="shell-status">Desktop shell ready</p>
         </div>
       </header>

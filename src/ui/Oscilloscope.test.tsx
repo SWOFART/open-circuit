@@ -160,8 +160,8 @@ describe("signal selection", () => {
   it("gives each selected signal its own colour, in the list and the legend", () => {
     const html = render(readySimulation(), tracing());
 
-    expect(html).toContain("#60a5fa");
-    expect(html).toContain("#f59e0b");
+    expect(html).toContain("var(--trace-1)");
+    expect(html).toContain("var(--trace-2)");
   });
 
   it("offers every window of the contract and shows the chosen one", () => {
