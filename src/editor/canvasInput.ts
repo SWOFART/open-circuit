@@ -1,4 +1,15 @@
-import type { CanvasInteraction, CanvasPointer } from "./interaction";
+import type {
+  CanvasInteraction,
+  CanvasPointer,
+  ClipboardAction,
+} from "./interaction";
+
+const CLIPBOARD_KEYS: Readonly<Record<string, ClipboardAction>> = {
+  KeyC: "copy",
+  KeyX: "cut",
+  KeyV: "paste",
+  KeyD: "duplicate",
+};
 
 /** The parts of the canvas element the input binding uses. */
 const ARROW_DELTAS: Readonly<Record<string, { x: number; y: number }>> = {
@@ -172,6 +183,13 @@ export function bindCanvasInput(
       interaction.selectAll();
       return true;
     }
+    if (command && !event.altKey && !event.shiftKey) {
+      const action = CLIPBOARD_KEYS[event.code];
+      if (action) {
+        interaction.clipboard(action);
+        return true;
+      }
+    }
     if (command || event.altKey) {
       return false;
     }
@@ -194,6 +212,9 @@ export function bindCanvasInput(
       case "Enter":
         if (interaction.status.routing) {
           interaction.finishRoute();
+          return true;
+        }
+        if (interaction.commitPaste()) {
           return true;
         }
         // The editor opens only for an Enter aimed at the canvas itself; otherwise Enter

@@ -147,6 +147,37 @@ export function commandVerdict(
           }
         : refused[0]!;
     }
+    case "paste": {
+      // Whole or nothing (stage 16 contract, section 4.5): the first thing the assignment does
+      // not allow refuses the paste. Pasted parts are the student's own, never locked.
+      const { schematic } = command;
+      const refused = schematic.components.find(
+        ({ typeId }) =>
+          !assignmentSupports(typeId, restrictions.findFault) ||
+          (restrictions.allowedTypes !== null &&
+            !restrictions.allowedTypes.includes(typeId)),
+      );
+      if (refused) {
+        return {
+          allowed: false,
+          reason: `This assignment does not allow ${refused.typeId}`,
+        };
+      }
+      if (schematic.rails.length > 0) {
+        return {
+          allowed: false,
+          reason:
+            "DC rails are not available in an assignment. Leave assignment mode to edit DC rails.",
+        };
+      }
+      return schematic.notes.length > 0
+        ? {
+            allowed: false,
+            reason:
+              "Notes are not available in an assignment. Leave assignment mode to edit notes.",
+          }
+        : ALLOWED;
+    }
     case "addRail":
       // Rails are not part of assignments (docs/contracts/stage-8-supply-rails.md section 8).
       return {

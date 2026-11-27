@@ -20,7 +20,15 @@ import { EditorCore } from "../editor/EditorCore";
 import { WireDocumentationPanel } from "./WireDocumentationPanel";
 import { DrawingDocumentationPanel } from "./DrawingDocumentationPanel";
 import { sheetBounds } from "../editor/sheetRules";
-import type { EditorStatus, OperateAction } from "../editor/interaction";
+import { addedObjects } from "../editor/clipboard";
+import type { SelectionTarget } from "../editor/hitTest";
+import type {
+  ClipboardAction,
+  EditorStatus,
+  OperateAction,
+} from "../editor/interaction";
+import { symbols } from "../symbols";
+import { runClipboardAction } from "./clipboardActions";
 import {
   DIVIDER_OUTPUT_COMPONENT_ID,
   dividerSchematic,
@@ -34,6 +42,7 @@ import {
 import { AssignmentDraftStore } from "../store/assignmentDraft";
 import {
   allowedCatalog,
+  commandVerdict,
   faultsOf,
   openStudentAssignment,
   restrictionsOf,
@@ -567,6 +576,7 @@ export function App({
         setEditError("Terminals are not available in an assignment.");
         return;
       }
+      const beforePaste = documentStore.getState().schematic;
       const knownNotes = new Set(
         documentStore
           .getState()
@@ -592,6 +602,12 @@ export function App({
           if (created)
             editorRef.current?.select({ kind: "note", id: created.id });
         }
+        if (verdict.allowed && command.kind === "paste") {
+          // The pasted objects become the selection.
+          editorRef.current?.selectMany(
+            addedObjects(beforePaste, documentStore.getState().schematic),
+          );
+        }
         if (verdict.allowed && command.kind === "addTerminal") {
           const terminal = documentStore
             .getState()
@@ -605,6 +621,47 @@ export function App({
     };
   });
 
+  // Copy, cut, paste and duplicate (stage 16 contract, section 4): the system clipboard is
+  // read and written here, never by the editor.
+  const clipboardHandler = useRef<
+    (action: ClipboardAction, targets: readonly SelectionTarget[]) => void
+  >(() => {});
+  useEffect(() => {
+    clipboardHandler.current = (action, targets) => {
+      if (projectBusy || pendingActionRef.current !== null) return;
+      const reason = (error: unknown): string =>
+        error instanceof Error ? error.message : String(error);
+      void runClipboardAction(action, targets, {
+        schematic: () => documentStore.getState().schematic,
+        registry: symbols,
+        catalog: () => state.catalog,
+        readText: () => navigator.clipboard.readText(),
+        writeText: (text) => navigator.clipboard.writeText(text),
+        refusal: (command) => {
+          const verdict = commandVerdict(command, restrictions);
+          return verdict.allowed ? null : verdict.reason;
+        },
+        apply: (command) => {
+          try {
+            const verdict = applyRestrictedCommand(
+              documentStore,
+              command,
+              state.catalog,
+              restrictions,
+              documentationAvailable,
+            );
+            return verdict.allowed ? null : verdict.reason;
+          } catch (error) {
+            return reason(error);
+          }
+        },
+        startPaste: (schematic) =>
+          editorRef.current?.startPaste(schematic) ?? false,
+        select: (selected) => editorRef.current?.selectMany(selected),
+      }).then(setEditError, (error: unknown) => setEditError(reason(error)));
+    };
+  });
+
   useEffect(() => {
     const host = canvasHost.current;
 
@@ -615,6 +672,8 @@ export function App({
     const editor = new EditorCore({
       onProbe: (position) => multimeterRef.current?.placeAt(position),
       onCommand: (command) => commandHandler.current(command),
+      onClipboard: (action, targets) =>
+        clipboardHandler.current(action, targets),
       onOperate: (componentId, action) =>
         operateHandler.current(componentId, action),
       onStatusChange: setStatus,

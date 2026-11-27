@@ -702,3 +702,79 @@ describe("selection shortcuts", () => {
     expect(press.defaultPrevented).toBe(false);
   });
 });
+
+describe("clipboard shortcuts", () => {
+  const R2 = "00000000-0000-4000-8000-000000000003";
+
+  function withClipboard() {
+    const canvas = new FakeCanvas();
+    const keyboard = new EventTarget();
+    const intents: InteractionIntent[] = [];
+    const interaction = new CanvasInteraction(
+      () => {},
+      (intent) => intents.push(intent),
+    );
+    interaction.setViewport({ width: 800, height: 600 });
+    interaction.setScene(buildScene(schematicFixture as Schematic, symbols));
+    bindCanvasInput(canvas, interaction, keyboard);
+    interaction.selectMany([
+      { kind: "component", id: R1 },
+      { kind: "component", id: R2 },
+    ]);
+    return { keyboard, interaction, intents };
+  }
+
+  it("asks for copy, cut, paste and duplicate with Ctrl or Cmd", () => {
+    const { keyboard, intents } = withClipboard();
+
+    for (const code of ["KeyC", "KeyX", "KeyV", "KeyD"]) {
+      const press = domEvent("keydown", { code, ctrlKey: true });
+      keyboard.dispatchEvent(press);
+      expect(press.defaultPrevented).toBe(true);
+    }
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyC", metaKey: true }),
+    );
+
+    expect(
+      intents.map((intent) =>
+        intent.kind === "clipboard" ? intent.action : intent.kind,
+      ),
+    ).toEqual(["copy", "cut", "paste", "duplicate", "copy"]);
+    const copy = intents[0];
+    expect(copy?.kind === "clipboard" ? copy.targets : []).toHaveLength(2);
+  });
+
+  it("pastes with nothing selected, and does not copy nothing", () => {
+    const { keyboard, interaction, intents } = withClipboard();
+    interaction.select(null);
+
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyC", ctrlKey: true }),
+    );
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyV", ctrlKey: true }),
+    );
+
+    expect(intents).toEqual([
+      { kind: "clipboard", action: "paste", targets: [] },
+    ]);
+  });
+
+  it("leaves the shortcuts to a text field while typing, and ignores Shift and Alt", () => {
+    const { keyboard, intents } = withClipboard();
+    const input = { tagName: "INPUT", type: "text" };
+
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyC", ctrlKey: true }, input),
+    );
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyC", ctrlKey: true, shiftKey: true }),
+    );
+    keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyC", ctrlKey: true, altKey: true }),
+    );
+
+    expect(intents).toEqual([]);
+  });
+});

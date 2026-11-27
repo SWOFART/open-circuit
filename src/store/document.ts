@@ -17,6 +17,7 @@ import type { Schematic } from "../generated/Schematic";
 import type { SheetSpec } from "../generated/SheetSpec";
 import type { StableId } from "../generated/StableId";
 import type { TitleBlock } from "../generated/TitleBlock";
+import type { ClipboardSchematic } from "../editor/clipboard";
 import { sheetsOverlap } from "../editor/sheetRules";
 import type { WireSpec } from "../generated/WireSpec";
 import type { WireNumberEntry } from "../generated/WireNumberEntry";
@@ -976,6 +977,69 @@ export class SchematicDocumentStore {
       draft.rails.push(created);
     });
     return id;
+  }
+
+  /**
+   * Pastes a copy as **one history entry** (docs/contracts/stage-16-editor-improvements.md
+   * section 4): every object is added moved by `delta` with a **fresh stable ID**, so a pasted
+   * object never keeps an ID of its source, and an undo removes exactly the pasted objects.
+   * Parts are named by the automatic numbering when `designate` is set. A rail keeps its name
+   * unless another rail has it, and then takes the next free one. Everything the store checks
+   * for an added object (catalog and parameter domains, wire geometry, note text, limits) is
+   * checked here, and the first refusal undoes the whole paste.
+   */
+  pasteClipboard(
+    schematic: ClipboardSchematic,
+    delta: GridPoint,
+    catalog: ComponentCatalog,
+    options: { readonly designate?: boolean } = {},
+  ): void {
+    assertPoint(delta);
+    const move = (point: GridPoint): GridPoint => ({
+      x: point.x + delta.x,
+      y: point.y + delta.y,
+    });
+
+    this.transact(() => {
+      for (const component of schematic.components) {
+        // The source ID is dropped: the store issues a fresh one.
+        const fresh = { ...component } as Partial<ComponentSpec>;
+        delete fresh.id;
+        this.addComponent(
+          {
+            ...fresh,
+            position: move(component.position),
+          } as NewComponentSpec,
+          catalog,
+          options,
+        );
+      }
+      for (const wire of schematic.wires) {
+        this.addWire({ points: wire.points.map(move) });
+      }
+      for (const junction of schematic.junctions) {
+        this.addJunction(move(junction.position));
+      }
+      for (const marker of schematic.referenceMarkers) {
+        this.addReferenceMarker(move(marker.position));
+      }
+      for (const rail of schematic.rails) {
+        const taken = this.schematic.rails.some(
+          (other) => other.name === rail.name,
+        );
+        const start = move(rail.start);
+        const end = move(rail.end);
+        this.addRail({
+          ...(taken ? {} : { name: rail.name }),
+          x: start.x,
+          top: start.y,
+          bottom: end.y,
+        });
+      }
+      for (const note of schematic.notes) {
+        this.addNote(move(note.position), note.text);
+      }
+    });
   }
 
   /**

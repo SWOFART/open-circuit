@@ -1,6 +1,7 @@
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { GridPoint } from "../generated/GridPoint";
 import type { StableId } from "../generated/StableId";
+import type { ClipboardSchematic } from "./clipboard";
 import { EMPTY_GEOMETRY, type EditorGeometry } from "./connectivity";
 import type { Rotation } from "./geometry";
 import {
@@ -89,7 +90,9 @@ export type EditorTool =
   /** Places a text note, a documentation object, at the clicked point. */
   | { readonly kind: "note" }
   | { readonly kind: "terminal" }
-  | { readonly kind: "probe" };
+  | { readonly kind: "probe" }
+  /** A paste is being placed: its preview follows the pointer until a click commits it. */
+  | { readonly kind: "paste" };
 
 /** Why the last click of a drawing tool did nothing, until the pointer moves. */
 export type Rejection = "crossing" | "attachment";
@@ -152,6 +155,21 @@ export type InteractionIntent =
    * parameters, or a rail's properties. The host shows it; nothing here changes the document.
    */
   | { readonly kind: "openEditor"; readonly target: SelectionTarget }
+  /**
+   * Copy, cut, paste or duplicate was asked for. The host owns the system clipboard, so it does
+   * the work; `targets` is the selection at that moment (unused by a paste).
+   */
+  | {
+      readonly kind: "clipboard";
+      readonly action: ClipboardAction;
+      readonly targets: readonly SelectionTarget[];
+    }
+  /** A placed paste: the copy moved by `delta`, committed as one history entry. */
+  | {
+      readonly kind: "paste";
+      readonly schematic: ClipboardSchematic;
+      readonly delta: GridPoint;
+    }
   | { readonly kind: "undo" }
   | { readonly kind: "redo" }
   | { readonly kind: "addWire"; readonly points: readonly GridPoint[] }
@@ -193,6 +211,17 @@ export type InteractionIntent =
       readonly id: StableId;
       readonly position: GridPoint;
     };
+
+export type ClipboardAction = "copy" | "cut" | "paste" | "duplicate";
+
+/** A paste being placed: the copy, the corner of its bounds, and the move from the source. */
+export interface PastePlacement {
+  readonly schematic: ClipboardSchematic;
+  /** The top-left corner of the copy's bounds as it was copied. */
+  readonly anchor: GridPoint;
+  /** Where the preview starts: the move applied to the copy until the pointer moves. */
+  readonly delta: GridPoint;
+}
 
 /** What a press on a switch or a push button asks for. */
 export type OperateAction =
@@ -362,6 +391,8 @@ export class CanvasInteraction {
   // The first click of the rail tool: the x and one y of the rail being drawn.
   private railStart: GridPoint | null = null;
   private rejected: Rejection | null = null;
+  // The paste being placed; set exactly while the Paste tool is active.
+  private pasting: PastePlacement | null = null;
   // The last press of the Select tool, to recognize a double press. Cleared by a drag, a tool
   // change and any press that is not a press of the Select tool.
   private lastPress: {
@@ -417,6 +448,16 @@ export class CanvasInteraction {
       maxX: Math.max(gesture.start.x, gesture.current.x),
       maxY: Math.max(gesture.start.y, gesture.current.y),
     };
+  }
+
+  /** The paste being placed, with the move its preview shows now, or null. */
+  get pastePreview(): {
+    readonly schematic: ClipboardSchematic;
+    readonly delta: GridPoint;
+  } | null {
+    return this.pasting
+      ? { schematic: this.pasting.schematic, delta: this.pasting.delta }
+      : null;
   }
 
   /** The drag in progress, or null. */
@@ -680,10 +721,58 @@ export class CanvasInteraction {
     this.currentTool = tool;
     this.lastPress = null;
     this.rejected = null;
+    if (tool.kind !== "paste") {
+      this.pasting = null;
+    }
     if (tool.kind !== "select") {
       this.select(null);
     }
     this.onChange("tool");
+  }
+
+  /**
+   * Starts placing a paste: the copy is drawn translucent, its top-left corner follows the
+   * pointer once it moves, and a click or Enter commits it. Escape cancels it.
+   */
+  startPaste(placement: PastePlacement): void {
+    this.setTool({ kind: "paste" });
+    this.pasting = placement;
+    this.onChange("preview");
+  }
+
+  /** Enter: commits the paste where its preview is now. */
+  commitPaste(): boolean {
+    const pasting = this.pasting;
+    if (this.currentTool.kind !== "paste" || !pasting) {
+      return false;
+    }
+
+    this.pasting = null;
+    this.setTool({ kind: "select" });
+    this.onIntent({
+      kind: "paste",
+      schematic: pasting.schematic,
+      delta: pasting.delta,
+    });
+    return true;
+  }
+
+  /** Ctrl+C, Ctrl+X, Ctrl+V and Ctrl+D; the host does the work (see `InteractionIntent`). */
+  clipboard(action: ClipboardAction): void {
+    if (this.gesture.kind !== "idle" || this.route) {
+      return;
+    }
+    if (action === "paste") {
+      this.onIntent({ kind: "clipboard", action, targets: [] });
+      return;
+    }
+    if (this.selectedSet.length > 0) {
+      this.onIntent({
+        kind: "clipboard",
+        action,
+        targets: [...this.selectedSet],
+      });
+    }
   }
 
   /** Shift: new bends go vertical-first instead of horizontal-first. */
@@ -782,8 +871,28 @@ export class CanvasInteraction {
       case "probe":
         this.onIntent({ kind: "probe", position: at });
         return false;
+      case "paste":
+        this.followPaste(at);
+        this.commitPaste();
+        return false;
       case "select":
         return this.selectPress(pointer, at);
+    }
+  }
+
+  /** The paste's top-left corner goes to the pointer's grid point. */
+  private followPaste(at: GridPoint): void {
+    const pasting = this.pasting;
+    if (
+      pasting &&
+      (pasting.delta.x !== at.x - pasting.anchor.x ||
+        pasting.delta.y !== at.y - pasting.anchor.y)
+    ) {
+      this.pasting = {
+        ...pasting,
+        delta: { x: at.x - pasting.anchor.x, y: at.y - pasting.anchor.y },
+      };
+      this.onChange("preview");
     }
   }
 
@@ -1173,6 +1282,10 @@ export class CanvasInteraction {
     }
 
     this.updatePointer(pointer);
+
+    if (this.currentTool.kind === "paste" && this.pointer) {
+      this.followPaste(this.pointer);
+    }
 
     if (
       this.gesture.kind === "boxing" &&

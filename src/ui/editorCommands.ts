@@ -134,6 +134,15 @@ export function applyEditorCommand(
       );
       return;
     }
+    case "paste": {
+      if (!catalog) {
+        throw new Error("The component catalog has not loaded yet.");
+      }
+      store.pasteClipboard(command.schematic, command.delta, catalog, {
+        designate,
+      });
+      return;
+    }
     case "transformComponent":
       store.transformComponent(
         command.componentId,
