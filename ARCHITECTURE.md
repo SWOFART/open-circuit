@@ -597,14 +597,13 @@ Stages 6 to 18 each need a contract (a `docs/contracts/` document) before implem
 
 ### Stage 17 analyses
 
-The [proposed Stage 17 contract](docs/contracts/stage-17-extra-analyses.md)
+The [Stage 17 contract](docs/contracts/stage-17-extra-analyses.md)
 defines independent, bounded jobs for DC operating-point sweeps, linear
 small-signal frequency response and spectra from recorded public-step
 samples. The Engine owns validation, calculations and diagnostics. The
 application captures inputs, schedules jobs and carries complete outcomes
 through dedicated commands. The fixed-step simulation, its frame and trace
-formats, and project persistence keep their existing contracts. Both Engine
-and Application workstreams must approve the proposal before implementation.
+formats, and project persistence keep their existing contracts.
 
 ### Editor features outside the stages
 

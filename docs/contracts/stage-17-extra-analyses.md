@@ -1,6 +1,6 @@
 # Stage 17 contract — extra analyses
 
-Status — proposed for Engine and Application workstream approval (#233).
+Status — approved for implementation of the Stage 17 analyses (#233).
 
 DC sweep, frequency response, and spectrum are separate requests. They leave
 the fixed 1 ms public step, deterministic internal substeps, trapezoidal
@@ -15,7 +15,8 @@ Each request selects one quantity and uses SI units. DC sweep and frequency
 response take an immutable schematic snapshot with its document revision.
 They reuse ordinary schematic validation and Engine connectivity, including
 rail attachment and per-island references. They accept at most 128 components,
-512 wires, 128 rails, 128 markers and 128 matrix unknowns per solved island.
+512 wires, 128 rails, 128 markers (reference and junction combined) and 128
+matrix unknowns per solved island.
 Validate these bounds before the corresponding allocation or solve. Apply the
 device allowlists to the whole drawing. Requests use the authored schematic
 with no assignment fault overlay or live operator state.
@@ -139,3 +140,8 @@ contract's Engine implementation issues.
 
 The independent reference conventions for operating points and small-signal
 AC can be cross-checked against the [ngspice manual](https://ngspice.sourceforge.io/docs/ngspice-manual.pdf).
+
+The Engine DC sweep entry point is `engine::analyses::dc_sweep`. It takes
+borrowed schematic geometry and a cancellation check, and returns either a
+complete series or an analysis error. The application transport is tracked
+by #237.

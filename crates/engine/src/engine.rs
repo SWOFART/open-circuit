@@ -1,5 +1,8 @@
 //! Stateful Engine API for compiling, updating, and advancing circuit simulations.
 
+#[path = "analyses.rs"]
+pub mod analyses;
+
 #[path = "probe_engine.rs"]
 mod probe_engine;
 
@@ -1293,19 +1296,31 @@ fn initialize_circuit(
     Ok((results, states, diagnostics))
 }
 
-fn compute_circuit(
-    schematic: &Schematic,
-    geometry: &GeometryEnvelope,
-    open: &HashSet<StableId>,
-    mode: SolveMode<'_>,
-) -> Result<
+type CircuitSolve = Result<
     (
         Vec<DeviceResult>,
         Vec<Diagnostic>,
         crate::newton::SolverMemory,
     ),
     Vec<Diagnostic>,
-> {
+>;
+
+fn compute_circuit(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
+    mode: SolveMode<'_>,
+) -> CircuitSolve {
+    compute_circuit_with_sweep(schematic, geometry, open, mode, None)
+}
+
+fn compute_circuit_with_sweep(
+    schematic: &Schematic,
+    geometry: &GeometryEnvelope,
+    open: &HashSet<StableId>,
+    mode: SolveMode<'_>,
+    sweep_seed: Option<&crate::newton::SolverMemory>,
+) -> CircuitSolve {
     let netlist = derive_netlist_with_open(schematic, geometry, open)?;
     let mut diagnostics = netlist.diagnostics.clone();
     let device_specs = match build_device_specs(schematic, &netlist, mode) {
@@ -1350,7 +1365,7 @@ fn compute_circuit(
     let previous_memory = match mode {
         SolveMode::Transient { states, .. } => Some(&states.solver_memory),
         SolveMode::InitialState(states) => Some(&states.solver_memory),
-        _ => None,
+        SolveMode::OperatingPoint => sweep_seed,
     };
     let mut results = Vec::with_capacity(device_specs.len() + open.len());
     // Node -> (island, voltage), for the voltage across an open part's pins.
@@ -1460,6 +1475,13 @@ fn compute_circuit(
             }
         }
 
+        if sweep_seed.is_some() && next_variable > analyses::MAX_ANALYSIS_UNKNOWNS {
+            return Err(vec![diagnostic_for_island(
+                DiagnosticCode::InvalidGeometry,
+                island,
+            )]);
+        }
+
         let devices = island_specs
             .iter()
             .map(|spec| -> Box<dyn Device> {
@@ -1546,6 +1568,11 @@ fn compute_circuit(
             tolerances[*i].residual = crate::newton::NEWTON_TORQUE_ABSTOL;
         }
         let mut initial = vec![0.0; next_variable];
+        if let Some(seed) = sweep_seed {
+            for (id, &index) in &branch_variables {
+                initial[index] = seed.sweep_branch_currents.get(id).copied().unwrap_or(0.0);
+            }
+        }
         for (id, indices) in &induction_variables {
             let history = previous_memory
                 .and_then(|memory| memory.induction_motors.get(id))
@@ -1615,6 +1642,13 @@ fn compute_circuit(
         };
         for (device, junctions) in nonlinear.iter().zip(junctions) {
             memory.junctions.insert(device.id().clone(), junctions);
+        }
+        if sweep_seed.is_some() {
+            memory.sweep_branch_currents.extend(
+                branch_variables
+                    .iter()
+                    .map(|(id, &index)| (id.clone(), solution[index])),
+            );
         }
 
         let mut node_voltages = vec![0.0; netlist.nodes.len()];

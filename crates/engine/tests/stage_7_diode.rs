@@ -73,6 +73,57 @@ fn close(a: f64, b: f64, relative: f64, absolute: f64) {
 }
 
 #[test]
+fn stage_17_sweep_matches_the_independent_load_line_and_discards_failed_points() {
+    use engine::analyses::{AnalysisError, DcSweepRequest, dc_sweep};
+
+    let refs = reference();
+    let case = refs["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["id"] == "diode-sweep")
+        .unwrap();
+    let circuit = request(0.0, 1000.0, 1e-14, 1.0, false);
+    let source = circuit.schematic.components[0].id();
+    let sweep = DcSweepRequest {
+        schematic: &circuit.schematic,
+        geometry: &circuit.geometry,
+        document_revision: &circuit.document_revision,
+        source_id: source,
+        signal_key: concat!("00000000-0000-4000-8000-000000000003", ":current"),
+        start_volts: -5.0,
+        stop_volts: 5.0,
+        point_count: 11,
+    };
+    let answer = dc_sweep(DcSweepRequest { ..sweep }, || false).unwrap();
+    let reference_points = case["contract"]["points"].as_array().unwrap();
+    for (point, expected) in answer.points.iter().zip(reference_points) {
+        assert_eq!(point.source_volts, num(&expected["sourceVolts"]));
+        close(
+            point.reading,
+            num(&expected["diodeCurrentAmps"]),
+            1e-4,
+            1e-8,
+        );
+    }
+    let ideal = ideal_request(0.0);
+    assert!(matches!(
+        dc_sweep(
+            DcSweepRequest {
+                schematic: &ideal.schematic,
+                geometry: &ideal.geometry,
+                start_volts: 0.0,
+                stop_volts: 100.0,
+                point_count: 2,
+                ..sweep
+            },
+            || false
+        ),
+        Err(AnalysisError::SolveFailed { point_index: 1, .. })
+    ));
+}
+
+#[test]
 fn independent_dc_and_sweep_fixtures_match_in_both_orientations() {
     let refs = reference();
     let manifest = manifest();
