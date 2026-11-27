@@ -1,5 +1,12 @@
 //! Bounded, transport-independent analyses of immutable circuit inputs.
 
+#[path = "analyses/frequency.rs"]
+mod frequency;
+pub use frequency::{
+    FrequencyResponsePoint, FrequencyResponseRequest, FrequencyResponseResult, FrequencySpacing,
+    frequency_response,
+};
+
 use std::collections::HashSet;
 
 use crate::{

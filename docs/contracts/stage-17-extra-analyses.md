@@ -145,3 +145,8 @@ The Engine DC sweep entry point is `engine::analyses::dc_sweep`. It takes
 borrowed schematic geometry and a cancellation check, and returns either a
 complete series or an analysis error. The application transport is tracked
 by #237.
+
+The Engine frequency entry point is `engine::analyses::frequency_response`.
+It solves the excitation island and uses the existing dense LU solver on the
+real block representation of its complex MNA system. The request validates
+the whole drawing and identifies the output by two ordered pins.
