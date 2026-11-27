@@ -543,14 +543,22 @@ describe("keyboard commands", () => {
     expect(intents).toEqual([{ kind: "rotate", componentId: R1 }]);
   });
 
-  it("does not rotate a selected wire or an empty selection", () => {
+  it("turns nothing for an empty selection, and a selected wire as a selection of one", () => {
     const { interaction, intents } = withIntents();
 
     interaction.rotate();
+    expect(intents).toEqual([]);
+
     interaction.select({ kind: "wire", id: MIDDLE_WIRE });
     interaction.rotate();
 
-    expect(intents).toEqual([]);
+    expect(intents).toEqual([
+      {
+        kind: "turnSelection",
+        targets: [{ kind: "wire", id: MIDDLE_WIRE }],
+        turn: "quarter",
+      },
+    ]);
   });
 
   it("deletes the selection, but not during a drag", () => {

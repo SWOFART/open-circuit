@@ -47,6 +47,7 @@ fn fixture(
         id: id(SOURCE),
         position: point(0, 2),
         rotation_deg: 0,
+        mirrored: None,
         parameters: DcVoltageSourceParameters {
             voltage_volts: 10.0,
             internal_resistance_ohms: source_internal_resistance_ohms,
@@ -57,6 +58,7 @@ fn fixture(
             id: id(METER),
             position: point(2, 2),
             rotation_deg: 0,
+            mirrored: None,
             parameters: open_circuit_engine::VoltmeterParameters {
                 input_resistance_ohms: 10_000_000.0,
             },
@@ -65,6 +67,7 @@ fn fixture(
             id: id(METER),
             position: point(4, 2),
             rotation_deg: 0,
+            mirrored: None,
             parameters: open_circuit_engine::AmmeterParameters {
                 burden_resistance_ohms: 1.0,
             },
@@ -75,6 +78,7 @@ fn fixture(
             id: id(if index == 0 { FIRST_LOAD } else { SECOND_LOAD }),
             position: point(6 + index as i32 * 2, 2),
             rotation_deg: 0,
+            mirrored: None,
             parameters: ResistorParameters { resistance_ohms },
         });
     }

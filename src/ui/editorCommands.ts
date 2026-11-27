@@ -149,8 +149,11 @@ export function applyEditorCommand(
         command.position,
         command.rotationDeg,
         command.wires,
+        command.mirrored,
       );
       return;
+    case "refuse":
+      throw new Error(command.reason);
     case "deleteComponent":
       store.removeComponent(command.componentId);
       return;

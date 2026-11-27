@@ -226,10 +226,16 @@ export function bindCanvasInput(
         return true;
     }
 
-    if (event.code === "KeyR" && !event.shiftKey) {
+    if (event.code === "KeyR") {
       // Holding R must not keep adding rotations to the history.
       if (!event.repeat) {
-        interaction.rotate();
+        interaction.rotate(event.shiftKey ? "half" : "quarter");
+      }
+      return true;
+    }
+    if (event.code === "KeyM" && !event.shiftKey) {
+      if (!event.repeat) {
+        interaction.mirror();
       }
       return true;
     }

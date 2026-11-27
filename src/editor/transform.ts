@@ -10,6 +10,8 @@ import type { Bounds } from "./scene";
 export interface ComponentPlacement {
   readonly position: GridPoint;
   readonly rotationDeg: Rotation;
+  /** Left out when the placement does not change whether the part is mirrored. */
+  readonly mirrored?: boolean;
 }
 
 /** A replacement path for a wire, applied in the same transaction. */

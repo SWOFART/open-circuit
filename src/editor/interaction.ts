@@ -14,6 +14,7 @@ import {
 } from "./hitTest";
 import { operatingTargetAt, type OperatingTarget } from "./operate";
 import { DEFAULT_RAIL_LENGTH, isLegalRail, orderedExtent } from "./railRules";
+import type { SelectionTurn } from "./selectionOps";
 import type { SceneModel, ScenePoint } from "./scene";
 import {
   fitView,
@@ -135,6 +136,12 @@ export type InteractionIntent =
       readonly kind: "moveSelection";
       readonly targets: readonly SelectionTarget[];
       readonly delta: GridPoint;
+    }
+  /** The selection is turned a quarter or a half, or mirrored, as one history entry. */
+  | {
+      readonly kind: "turnSelection";
+      readonly targets: readonly SelectionTarget[];
+      readonly turn: SelectionTurn;
     }
   /** Several selected objects are deleted together, as one history entry. */
   | {
@@ -1480,24 +1487,54 @@ export class CanvasInteraction {
     this.select(null);
   }
 
-  /** R: rotates the placement preview or the selected component clockwise. */
-  rotate(): void {
+  /**
+   * R (a quarter turn clockwise) and Shift+R (a half turn): rotate the placement preview, or
+   * the selection as a whole about its pivot (stage 16 contract, section 5.1).
+   */
+  rotate(turn: "quarter" | "half" = "quarter"): void {
     if (this.currentTool.kind === "place") {
       this.currentTool = {
         ...this.currentTool,
-        rotationDeg: ((this.currentTool.rotationDeg + 90) % 360) as Rotation,
+        rotationDeg: ((this.currentTool.rotationDeg +
+          (turn === "half" ? 180 : 90)) %
+          360) as Rotation,
       };
       this.onChange("tool");
       return;
     }
 
+    this.turnSelection(turn);
+  }
+
+  /** M: mirrors the selection about the vertical axis of its pivot (section 5.2). */
+  mirror(): void {
+    this.turnSelection("mirror");
+  }
+
+  private turnSelection(turn: SelectionTurn): void {
     if (
-      this.gesture.kind === "idle" &&
-      !this.route &&
+      this.gesture.kind !== "idle" ||
+      this.route ||
+      this.selectedSet.length === 0
+    ) {
+      return;
+    }
+
+    // A quarter turn of one part about its own origin is the ordinary rotation of that part.
+    if (
+      turn === "quarter" &&
+      this.selectedSet.length === 1 &&
       this.selected?.kind === "component"
     ) {
       this.onIntent({ kind: "rotate", componentId: this.selected.id });
+      return;
     }
+
+    this.onIntent({
+      kind: "turnSelection",
+      targets: [...this.selectedSet],
+      turn,
+    });
   }
 
   /** Delete or Backspace: removes the selected objects, as one history entry. */

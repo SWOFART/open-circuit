@@ -30,6 +30,7 @@ fn fixture(
                 id: id(SOURCE),
                 position: point(0, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: DcVoltageSourceParameters {
                     voltage_volts: 10.0,
                     internal_resistance_ohms: 0.0,
@@ -39,6 +40,7 @@ fn fixture(
                 id: id(MOTOR),
                 position: point(2, 0),
                 rotation_deg: 0,
+                mirrored: None,
                 parameters: PmdcMotorParameters {
                     armature_resistance_ohms: 2.0,
                     armature_inductance_henries: 0.1,

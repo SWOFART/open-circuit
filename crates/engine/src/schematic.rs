@@ -618,6 +618,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: BjtParameters,
     },
     BjtPnp {
@@ -625,6 +628,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: BjtParameters,
     },
 
@@ -633,6 +639,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: DiodeParameters,
     },
     Resistor {
@@ -640,6 +649,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ResistorParameters,
     },
     DcVoltageSource {
@@ -647,6 +659,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: DcVoltageSourceParameters,
     },
     AcVoltageSource {
@@ -654,6 +669,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: AcVoltageSourceParameters,
     },
     ThreePhaseSourceStar {
@@ -661,6 +679,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ThreePhaseSourceStarParameters,
     },
     ThreePhaseSourceDelta {
@@ -668,6 +689,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ThreePhaseSourceDeltaParameters,
     },
     AcVoltmeter {
@@ -675,6 +699,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: AcVoltmeterParameters,
     },
     AcAmmeter {
@@ -682,6 +709,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: AcAmmeterParameters,
     },
     Wattmeter {
@@ -689,6 +719,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: WattmeterParameters,
     },
     Capacitor {
@@ -696,6 +729,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: CapacitorParameters,
     },
     Inductor {
@@ -703,6 +739,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: InductorParameters,
     },
     LimitSwitch {
@@ -710,6 +749,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: PushButtonParameters,
     },
     EmergencyStop {
@@ -717,6 +759,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: PushButtonParameters,
     },
     SelectorSwitch {
@@ -724,6 +769,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: PositionContactParameters,
     },
     KeySwitch {
@@ -731,6 +779,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: PositionContactParameters,
     },
     Led {
@@ -739,6 +790,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: LedParameters,
     },
     ZenerDiode {
@@ -747,6 +801,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ZenerParameters,
     },
     MosfetN {
@@ -755,6 +812,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: MosfetParameters,
     },
     OperationalAmplifier {
@@ -763,6 +823,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: OpAmpParameters,
     },
     FrequencyConverter {
@@ -771,6 +834,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: FrequencyConverterParameters,
     },
     Lamp {
@@ -779,6 +845,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: LampParameters,
     },
     Indicator {
@@ -787,6 +856,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ThresholdLoadParameters,
     },
     Solenoid {
@@ -795,6 +867,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: SolenoidParameters,
     },
     Valve {
@@ -803,6 +878,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: SolenoidParameters,
     },
     Buzzer {
@@ -811,6 +889,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ThresholdLoadParameters,
     },
     RelayOnDelay {
@@ -819,6 +900,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: TimeRelayParameters,
     },
     RelayOffDelay {
@@ -827,6 +911,9 @@ pub enum ComponentSpec {
         #[serde(rename = "rotationDeg")]
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: TimeRelayParameters,
     },
     RelaySpdt {
@@ -834,6 +921,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: RelayParameters,
     },
     Fuse {
@@ -841,6 +931,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: FuseParameters,
     },
     PmdcMotor {
@@ -848,6 +941,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: PmdcMotorParameters,
     },
     Voltmeter {
@@ -855,6 +951,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: VoltmeterParameters,
     },
     Ammeter {
@@ -862,6 +961,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: AmmeterParameters,
     },
     SwitchSpst {
@@ -869,6 +971,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: SwitchParameters,
     },
     PushButtonNo {
@@ -876,6 +981,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: PushButtonParameters,
     },
     PushButtonNc {
@@ -883,6 +991,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: PushButtonParameters,
     },
     Contactor {
@@ -890,6 +1001,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: RelayParameters,
     },
     ContactorThreePole {
@@ -897,6 +1011,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ContactorThreePoleParameters,
     },
     BreakerThreePole {
@@ -904,6 +1021,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: BreakerThreePoleParameters,
     },
     ThermalOverloadThreePole {
@@ -911,6 +1031,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ThermalOverloadThreePoleParameters,
     },
     InductionMotorThreePhase {
@@ -918,6 +1041,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: InductionMotorThreePhaseParameters,
     },
     TransformerThreePhase {
@@ -925,6 +1051,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: TransformerThreePhaseParameters,
     },
     ThreePhaseLoadStar {
@@ -932,6 +1061,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ThreePhaseLoadParameters,
     },
     ThreePhaseLoadDelta {
@@ -939,6 +1071,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ThreePhaseLoadParameters,
     },
     EarthElectrode {
@@ -946,6 +1081,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: EarthElectrodeParameters,
     },
     ExposedPart {
@@ -953,6 +1091,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: ExposedPartParameters,
     },
     RcdTwoPole {
@@ -960,6 +1101,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: RcdParameters,
     },
     RcdFourPole {
@@ -967,6 +1111,9 @@ pub enum ComponentSpec {
         position: GridPoint,
         #[ts(type = "0 | 90 | 180 | 270")]
         rotation_deg: u16,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        mirrored: Option<bool>,
         parameters: RcdParameters,
     },
 }
@@ -1131,6 +1278,63 @@ impl ComponentSpec {
             | Self::RcdTwoPole { rotation_deg, .. }
             | Self::RcdFourPole { rotation_deg, .. }
             | Self::ThreePhaseLoadDelta { rotation_deg, .. } => *rotation_deg,
+        }
+    }
+
+    /// Whether the symbol is drawn flipped about its own vertical axis before it is rotated.
+    /// The Engine takes pin positions from the geometry the editor sends, so this is drawn
+    /// input only and changes nothing about the simulation.
+    pub fn mirrored(&self) -> bool {
+        match self {
+            Self::BjtNpn { mirrored, .. }
+            | Self::BjtPnp { mirrored, .. }
+            | Self::Diode { mirrored, .. }
+            | Self::Resistor { mirrored, .. }
+            | Self::DcVoltageSource { mirrored, .. }
+            | Self::AcVoltageSource { mirrored, .. }
+            | Self::ThreePhaseSourceStar { mirrored, .. }
+            | Self::ThreePhaseSourceDelta { mirrored, .. }
+            | Self::AcVoltmeter { mirrored, .. }
+            | Self::AcAmmeter { mirrored, .. }
+            | Self::Wattmeter { mirrored, .. }
+            | Self::Capacitor { mirrored, .. }
+            | Self::Inductor { mirrored, .. }
+            | Self::LimitSwitch { mirrored, .. }
+            | Self::EmergencyStop { mirrored, .. }
+            | Self::SelectorSwitch { mirrored, .. }
+            | Self::KeySwitch { mirrored, .. }
+            | Self::FrequencyConverter { mirrored, .. }
+            | Self::Led { mirrored, .. }
+            | Self::ZenerDiode { mirrored, .. }
+            | Self::MosfetN { mirrored, .. }
+            | Self::OperationalAmplifier { mirrored, .. }
+            | Self::Lamp { mirrored, .. }
+            | Self::Indicator { mirrored, .. }
+            | Self::Solenoid { mirrored, .. }
+            | Self::Valve { mirrored, .. }
+            | Self::Buzzer { mirrored, .. }
+            | Self::RelayOnDelay { mirrored, .. }
+            | Self::RelayOffDelay { mirrored, .. }
+            | Self::RelaySpdt { mirrored, .. }
+            | Self::Fuse { mirrored, .. }
+            | Self::PmdcMotor { mirrored, .. }
+            | Self::Voltmeter { mirrored, .. }
+            | Self::Ammeter { mirrored, .. }
+            | Self::SwitchSpst { mirrored, .. }
+            | Self::PushButtonNo { mirrored, .. }
+            | Self::PushButtonNc { mirrored, .. }
+            | Self::Contactor { mirrored, .. }
+            | Self::ContactorThreePole { mirrored, .. }
+            | Self::BreakerThreePole { mirrored, .. }
+            | Self::ThermalOverloadThreePole { mirrored, .. }
+            | Self::InductionMotorThreePhase { mirrored, .. }
+            | Self::TransformerThreePhase { mirrored, .. }
+            | Self::ThreePhaseLoadStar { mirrored, .. }
+            | Self::EarthElectrode { mirrored, .. }
+            | Self::ExposedPart { mirrored, .. }
+            | Self::RcdTwoPole { mirrored, .. }
+            | Self::RcdFourPole { mirrored, .. }
+            | Self::ThreePhaseLoadDelta { mirrored, .. } => mirrored.unwrap_or(false),
         }
     }
 

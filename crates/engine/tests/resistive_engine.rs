@@ -335,6 +335,7 @@ fn ideal_source_conflicts_singular_loops_and_non_finite_values_fail_with_diagnos
         id: StableId::parse(second_source_id).unwrap(),
         position: open_circuit_engine::GridPoint { x: 0, y: 0 },
         rotation_deg: 0,
+        mirrored: None,
         parameters: open_circuit_engine::DcVoltageSourceParameters {
             voltage_volts: 10.0,
             internal_resistance_ohms: 0.0,

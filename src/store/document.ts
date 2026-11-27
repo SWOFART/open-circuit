@@ -156,6 +156,16 @@ function assertPoint(point: GridPoint): void {
   }
 }
 
+/** The optional mirror flag is a boolean when it is there (stage 16 contract, section 5.2). */
+function assertMirrorFlag(component: { readonly mirrored?: unknown }): void {
+  if (
+    component.mirrored !== undefined &&
+    typeof component.mirrored !== "boolean"
+  ) {
+    throw new Error("A component mirror flag must be true or false.");
+  }
+}
+
 function assertWirePoints(points: readonly GridPoint[]): void {
   if (points.length < 2) {
     throw new Error("A wire must contain at least two points.");
@@ -224,6 +234,7 @@ function assertSchematicShape(schematic: Schematic): void {
   assertUniqueIds(schematic);
 
   for (const component of schematic.components) {
+    assertMirrorFlag(component);
     assertPoint(component.position);
     if (!VALID_ROTATIONS.has(component.rotationDeg)) {
       throw new Error(`Component ${component.id} has an invalid rotation.`);
@@ -379,6 +390,7 @@ export class SchematicDocumentStore {
       );
     }
     assertComponentParameters(component, catalog);
+    assertMirrorFlag(component);
 
     const id = this.nextId();
     const created = {
@@ -387,6 +399,7 @@ export class SchematicDocumentStore {
       position: pointCopy(component.position),
       parameters: { ...component.parameters },
     } as ComponentSpec;
+    if (created.mirrored !== true) delete created.mirrored;
     const designator = options.designate
       ? nextDesignator(
           catalog.componentTypes.find(
@@ -686,8 +699,12 @@ export class SchematicDocumentStore {
     position: GridPoint,
     rotationDeg: ComponentSpec["rotationDeg"],
     wires: readonly { id: StableId; points: readonly GridPoint[] }[] = [],
+    mirrored?: boolean,
   ): void {
     assertPoint(position);
+    if (mirrored !== undefined && typeof mirrored !== "boolean") {
+      throw new Error("A component mirror flag must be true or false.");
+    }
     if (!VALID_ROTATIONS.has(rotationDeg)) {
       throw new Error(
         "A component rotation must be 0, 90, 180, or 270 degrees.",
@@ -700,6 +717,12 @@ export class SchematicDocumentStore {
       if (!component) throw new Error(`Component ${id} does not exist.`);
       component.position = pointCopy(position);
       component.rotationDeg = rotationDeg;
+      if (mirrored === true) {
+        component.mirrored = true;
+      } else if (mirrored === false) {
+        // An unmirrored part has no field, so an unmirrored file is as it always was.
+        delete component.mirrored;
+      }
 
       for (const edit of wires) {
         const wire = draft.wires.find((item) => item.id === edit.id);

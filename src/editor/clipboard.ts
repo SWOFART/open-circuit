@@ -74,17 +74,11 @@ export function isEmptyPayload(schematic: ClipboardSchematic): boolean {
   );
 }
 
-/**
- * What a copy holds: every selected component, wire, junction, marker, rail and note, and every
- * unselected wire whose two ends are both on copied objects (a pin of a copied part, a copied
- * junction, or a place on a copied rail), so the connection between two copied parts is kept.
- * Designators, wire numbers and terminal entries are not copied. Null when nothing is copyable.
- */
-export function copySelection(
+/** The selected objects themselves, copied by value, and nothing the selection merely touches. */
+export function selectedObjects(
   schematic: Schematic,
   targets: readonly SelectionTarget[],
-  registry: SymbolRegistry,
-): ClipboardSchematic | null {
+): ClipboardSchematic {
   const chosen = (kind: SelectionTarget["kind"]): ReadonlySet<StableId> =>
     new Set(
       targets.filter((target) => target.kind === kind).map(({ id }) => id),
@@ -96,23 +90,43 @@ export function copySelection(
   const railIds = chosen("rail");
   const noteIds = chosen("note");
 
-  const components = schematic.components.filter(({ id }) =>
-    componentIds.has(id),
-  );
-  const junctions = schematic.junctions.filter(({ id }) => junctionIds.has(id));
-  const rails = schematic.rails.filter(({ id }) => railIds.has(id));
+  return structuredClone({
+    components: schematic.components.filter(({ id }) => componentIds.has(id)),
+    wires: schematic.wires.filter(({ id }) => wireIds.has(id)),
+    junctions: schematic.junctions.filter(({ id }) => junctionIds.has(id)),
+    referenceMarkers: schematic.referenceMarkers.filter(({ id }) =>
+      markerIds.has(id),
+    ),
+    rails: schematic.rails.filter(({ id }) => railIds.has(id)),
+    notes: schematic.documentation.notes.filter(({ id }) => noteIds.has(id)),
+  });
+}
+
+/**
+ * What a copy holds: every selected component, wire, junction, marker, rail and note, and every
+ * unselected wire whose two ends are both on copied objects (a pin of a copied part, a copied
+ * junction, or a place on a copied rail), so the connection between two copied parts is kept.
+ * Designators, wire numbers and terminal entries are not copied. Null when nothing is copyable.
+ */
+export function copySelection(
+  schematic: Schematic,
+  targets: readonly SelectionTarget[],
+  registry: SymbolRegistry,
+): ClipboardSchematic | null {
+  const chosen = selectedObjects(schematic, targets);
+  const wireIds = new Set(chosen.wires.map(({ id }) => id));
 
   const anchors = new Set<string>();
-  for (const component of components) {
+  for (const component of chosen.components) {
     for (const pin of resolvePinPositions(component, registry)) {
       anchors.add(key(pin.position));
     }
   }
-  for (const junction of junctions) {
+  for (const junction of chosen.junctions) {
     anchors.add(key(junction.position));
   }
   const onCopiedRail = (point: GridPoint): boolean =>
-    rails.some(
+    chosen.rails.some(
       (rail) =>
         point.x === rail.start.x &&
         point.y >= Math.min(rail.start.y, rail.end.y) &&
@@ -121,23 +135,17 @@ export function copySelection(
   const anchored = (point: GridPoint | undefined): boolean =>
     point !== undefined && (anchors.has(key(point)) || onCopiedRail(point));
 
-  const wires = schematic.wires.filter(
-    (wire) =>
-      wireIds.has(wire.id) ||
-      (anchored(wire.points[0]) &&
-        anchored(wire.points[wire.points.length - 1])),
-  );
-
-  const copy: ClipboardSchematic = structuredClone({
-    components,
-    wires,
-    junctions,
-    referenceMarkers: schematic.referenceMarkers.filter(({ id }) =>
-      markerIds.has(id),
+  const copy: ClipboardSchematic = {
+    ...chosen,
+    wires: structuredClone(
+      schematic.wires.filter(
+        (wire) =>
+          wireIds.has(wire.id) ||
+          (anchored(wire.points[0]) &&
+            anchored(wire.points[wire.points.length - 1])),
+      ),
     ),
-    rails,
-    notes: schematic.documentation.notes.filter(({ id }) => noteIds.has(id)),
-  });
+  };
 
   return isEmptyPayload(copy) ? null : copy;
 }
@@ -158,9 +166,18 @@ function plainObject(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function hasExactKeys(value: Record<string, unknown>, keys: string[]): boolean {
-  const own = Object.keys(value);
-  return own.length === keys.length && keys.every((name) => name in value);
+/** Every required key is there and no key is there that is neither required nor optional. */
+function hasExactKeys(
+  value: Record<string, unknown>,
+  keys: string[],
+  optional: string[] = [],
+): boolean {
+  return (
+    keys.every((name) => name in value) &&
+    Object.keys(value).every(
+      (name) => keys.includes(name) || optional.includes(name),
+    )
+  );
 }
 
 function gridPoint(value: unknown): GridPoint | null {
@@ -194,12 +211,13 @@ function objectList(
   name: string,
   keys: string[],
   what: string,
+  optional: string[] = [],
 ): Record<string, unknown>[] {
   const list = schematic[name];
   if (!Array.isArray(list)) refuse(what);
   return list.map((item) => {
     const object = plainObject(item);
-    if (!object || !hasExactKeys(object, keys)) refuse(what);
+    if (!object || !hasExactKeys(object, keys, optional)) refuse(what);
     if (typeof object.id !== "string" || !UUID.test(object.id)) refuse(what);
     return object;
   });
@@ -222,6 +240,7 @@ function decodeSchematic(value: unknown, catalog: ComponentCatalog) {
     "components",
     ["typeId", "id", "position", "rotationDeg", "parameters"],
     "part",
+    ["mirrored"],
   ).map((item): ComponentSpec => {
     unique(item.id);
     const position = gridPoint(item.position);
@@ -231,6 +250,7 @@ function decodeSchematic(value: unknown, catalog: ComponentCatalog) {
       !parameters ||
       typeof item.typeId !== "string" ||
       !types.has(item.typeId as ComponentSpec["typeId"]) ||
+      (item.mirrored !== undefined && typeof item.mirrored !== "boolean") ||
       typeof item.rotationDeg !== "number" ||
       !ROTATIONS.has(item.rotationDeg) ||
       !Object.values(parameters).every(
@@ -245,6 +265,8 @@ function decodeSchematic(value: unknown, catalog: ComponentCatalog) {
       id: item.id,
       position,
       rotationDeg: item.rotationDeg,
+      // An unmirrored part has no field, whichever way the text spelled it.
+      ...(item.mirrored === true ? { mirrored: true } : {}),
       parameters: { ...parameters },
     } as ComponentSpec;
   });

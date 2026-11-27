@@ -778,3 +778,82 @@ describe("clipboard shortcuts", () => {
     expect(intents).toEqual([]);
   });
 });
+
+describe("turn and mirror shortcuts", () => {
+  const R2 = "00000000-0000-4000-8000-000000000003";
+
+  function withSelection(ids: string[]) {
+    const canvas = new FakeCanvas();
+    const keyboard = new EventTarget();
+    const intents: InteractionIntent[] = [];
+    const interaction = new CanvasInteraction(
+      () => {},
+      (intent) => intents.push(intent),
+    );
+    interaction.setViewport({ width: 800, height: 600 });
+    interaction.setScene(buildScene(schematicFixture as Schematic, symbols));
+    bindCanvasInput(canvas, interaction, keyboard);
+    interaction.selectMany(ids.map((id) => ({ kind: "component", id })));
+    return { keyboard, intents };
+  }
+
+  const press = (properties: Record<string, unknown>) =>
+    domEvent("keydown", properties);
+
+  it("turns a selection a quarter with R and a half with Shift+R, once per press", () => {
+    const { keyboard, intents } = withSelection([R1, R2]);
+
+    keyboard.dispatchEvent(press({ code: "KeyR" }));
+    keyboard.dispatchEvent(press({ code: "KeyR", shiftKey: true }));
+    keyboard.dispatchEvent(press({ code: "KeyR", repeat: true }));
+
+    expect(
+      intents.map((intent) =>
+        intent.kind === "turnSelection" ? intent.turn : intent.kind,
+      ),
+    ).toEqual(["quarter", "half"]);
+  });
+
+  it("keeps R as the ordinary rotation of a single part, and Shift+R as a half turn of it", () => {
+    const { keyboard, intents } = withSelection([R1]);
+
+    keyboard.dispatchEvent(press({ code: "KeyR" }));
+    keyboard.dispatchEvent(press({ code: "KeyR", shiftKey: true }));
+
+    expect(intents.map(({ kind }) => kind)).toEqual([
+      "rotate",
+      "turnSelection",
+    ]);
+  });
+
+  it("mirrors with M, once per press, and not with a modifier", () => {
+    const { keyboard, intents } = withSelection([R1, R2]);
+
+    const first = press({ code: "KeyM" });
+    keyboard.dispatchEvent(first);
+    keyboard.dispatchEvent(press({ code: "KeyM", repeat: true }));
+    keyboard.dispatchEvent(press({ code: "KeyM", shiftKey: true }));
+    keyboard.dispatchEvent(press({ code: "KeyM", ctrlKey: true }));
+
+    expect(first.defaultPrevented).toBe(true);
+    expect(
+      intents.map((intent) =>
+        intent.kind === "turnSelection" ? intent.turn : intent.kind,
+      ),
+    ).toEqual(["mirror"]);
+  });
+
+  it("does nothing for an empty selection or while typing", () => {
+    const { keyboard, intents } = withSelection([]);
+    keyboard.dispatchEvent(press({ code: "KeyM" }));
+    keyboard.dispatchEvent(press({ code: "KeyR" }));
+
+    const typing = withSelection([R1, R2]);
+    typing.keyboard.dispatchEvent(
+      domEvent("keydown", { code: "KeyM" }, { tagName: "INPUT", type: "text" }),
+    );
+
+    expect(intents).toEqual([]);
+    expect(typing.intents).toEqual([]);
+  });
+});

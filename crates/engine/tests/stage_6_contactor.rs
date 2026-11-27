@@ -47,6 +47,7 @@ fn source(component_id: &str, volts: f64, pin1: GridPoint, pin2: GridPoint) -> P
             id: id(component_id),
             position: pin1,
             rotation_deg: 0,
+            mirrored: None,
             parameters: DcVoltageSourceParameters {
                 voltage_volts: volts,
                 internal_resistance_ohms: 0.0,
@@ -62,6 +63,7 @@ fn resistor(component_id: &str, ohms: f64, pin1: GridPoint, pin2: GridPoint) -> 
             id: id(component_id),
             position: pin1,
             rotation_deg: 0,
+            mirrored: None,
             parameters: ResistorParameters {
                 resistance_ohms: ohms,
             },
@@ -80,6 +82,7 @@ fn button(component_id: &str, normally_closed: bool, pin1: GridPoint, pin2: Grid
             id,
             position,
             rotation_deg,
+            mirrored: None,
             parameters,
         }
     } else {
@@ -87,6 +90,7 @@ fn button(component_id: &str, normally_closed: bool, pin1: GridPoint, pin2: Grid
             id,
             position,
             rotation_deg,
+            mirrored: None,
             parameters,
         }
     };
@@ -109,6 +113,7 @@ fn contactor(
             id: id(QA),
             position: coil.0,
             rotation_deg: 0,
+            mirrored: None,
             parameters: RelayParameters {
                 coil_resistance_ohms: 100.0,
                 coil_inductance_henries,

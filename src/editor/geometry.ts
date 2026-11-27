@@ -32,12 +32,20 @@ export function rotateLocal(point: LocalPoint, rotation: Rotation): LocalPoint {
   }
 }
 
-/** Maps a symbol-local point to world coordinates for a placed component. */
+/**
+ * Maps a symbol-local point to world coordinates for a placed component. A mirrored part is
+ * flipped about the vertical axis of its symbol first, `(x, y)` to `(-x, y)`, and then rotated
+ * (docs/contracts/stage-16-editor-improvements.md section 5.2).
+ */
 export function toWorld(
   local: LocalPoint,
-  component: Pick<ComponentSpec, "position" | "rotationDeg">,
+  component: Pick<ComponentSpec, "position" | "rotationDeg" | "mirrored">,
 ): LocalPoint {
-  const rotated = rotateLocal(local, component.rotationDeg);
+  const flipped =
+    component.mirrored === true
+      ? { x: normalizeZero(-local.x), y: local.y }
+      : local;
+  const rotated = rotateLocal(flipped, component.rotationDeg);
 
   return {
     x: normalizeZero(rotated.x + component.position.x),
