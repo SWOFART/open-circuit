@@ -1,15 +1,5 @@
-import type {
-  CanvasInteraction,
-  CanvasPointer,
-  ClipboardAction,
-} from "./interaction";
-
-const CLIPBOARD_KEYS: Readonly<Record<string, ClipboardAction>> = {
-  KeyC: "copy",
-  KeyX: "cut",
-  KeyV: "paste",
-  KeyD: "duplicate",
-};
+import type { CanvasInteraction, CanvasPointer } from "./interaction";
+import { matchShortcut, matchesShortcut } from "./shortcuts";
 
 /** The parts of the canvas element the input binding uses. */
 const ARROW_DELTAS: Readonly<Record<string, { x: number; y: number }>> = {
@@ -169,47 +159,47 @@ export function bindCanvasInput(
    * Physical key codes keep them working on non-Latin keyboard layouts.
    */
   const runShortcut = (event: KeyboardEvent): boolean => {
-    const command = event.ctrlKey || event.metaKey;
-
-    if (command && !event.altKey && event.code === "KeyZ") {
-      if (event.shiftKey) {
-        interaction.redo();
-      } else {
+    // Every key is looked up in the table of src/editor/shortcuts.ts; none is matched here.
+    switch (matchShortcut(event, "canvas")) {
+      case "edit.undo":
         interaction.undo();
-      }
-      return true;
-    }
-    if (command && !event.altKey && !event.shiftKey && event.code === "KeyA") {
-      interaction.selectAll();
-      return true;
-    }
-    if (command && !event.altKey && !event.shiftKey) {
-      const action = CLIPBOARD_KEYS[event.code];
-      if (action) {
-        interaction.clipboard(action);
+        return true;
+      case "edit.redo":
+        interaction.redo();
+        return true;
+      case "edit.selectAll":
+        interaction.selectAll();
+        return true;
+      case "edit.cut":
+        interaction.clipboard("cut");
+        return true;
+      case "edit.copy":
+        interaction.clipboard("copy");
+        return true;
+      case "edit.paste":
+        interaction.clipboard("paste");
+        return true;
+      case "edit.duplicate":
+        interaction.clipboard("duplicate");
+        return true;
+      case "edit.move":
+      case "edit.moveTen": {
+        // Arrow keys move the selection by one grid unit, or ten with Shift. A held key must not
+        // flood the history, so auto-repeat is ignored (stage 16 contract, section 2).
+        const arrow = ARROW_DELTAS[event.key];
+        if (!arrow || interaction.selections.length === 0) {
+          return false;
+        }
+        if (!event.repeat) {
+          const step = event.shiftKey ? 10 : 1;
+          interaction.moveSelectionBy({ x: arrow.x * step, y: arrow.y * step });
+        }
         return true;
       }
-    }
-    if (command || event.altKey) {
-      return false;
-    }
-
-    // Arrow keys move the selection by one grid unit, or ten with Shift. A held key must not
-    // flood the history, so auto-repeat is ignored (stage 16 contract, section 2).
-    const arrow = ARROW_DELTAS[event.key];
-    if (arrow && interaction.selections.length > 0) {
-      if (!event.repeat) {
-        const step = event.shiftKey ? 10 : 1;
-        interaction.moveSelectionBy({ x: arrow.x * step, y: arrow.y * step });
-      }
-      return true;
-    }
-
-    switch (event.key) {
-      case "Escape":
+      case "edit.escape":
         interaction.escape();
         return true;
-      case "Enter":
+      case "edit.enter":
         if (interaction.status.routing) {
           interaction.finishRoute();
           return true;
@@ -220,36 +210,36 @@ export function bindCanvasInput(
         // The editor opens only for an Enter aimed at the canvas itself; otherwise Enter
         // belongs to whatever control has the focus.
         return event.target === surface && interaction.openEditorForSelection();
-      case "Delete":
-      case "Backspace":
+      case "edit.delete":
         interaction.deleteSelection();
         return true;
+      case "transform.rotate":
+      case "transform.half":
+        // Holding R must not keep adding rotations to the history.
+        if (!event.repeat) {
+          interaction.rotate(
+            matchesShortcut(event, "transform.half") ? "half" : "quarter",
+          );
+        }
+        return true;
+      case "transform.mirror":
+        if (!event.repeat) {
+          interaction.mirror();
+        }
+        return true;
+      default:
+        return false;
     }
-
-    if (event.code === "KeyR") {
-      // Holding R must not keep adding rotations to the history.
-      if (!event.repeat) {
-        interaction.rotate(event.shiftKey ? "half" : "quarter");
-      }
-      return true;
-    }
-    if (event.code === "KeyM" && !event.shiftKey) {
-      if (!event.repeat) {
-        interaction.mirror();
-      }
-      return true;
-    }
-    return false;
   };
 
   const onKey = (event: KeyboardEvent): void => {
-    if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+    if (matchesShortcut(event, "wiring.vertical")) {
       // Shift only picks the bend direction of the next route legs.
       interaction.setVerticalFirst(event.type === "keydown");
       return;
     }
 
-    if (event.code !== "Space") {
+    if (!matchesShortcut(event, "view.pan")) {
       if (
         event.type === "keydown" &&
         !isTextEntryTarget(event.target) &&

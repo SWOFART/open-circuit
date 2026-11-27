@@ -1173,3 +1173,54 @@ input {
 .autosave-notice {
   color: var(--text-warning);
 }
+
+.shortcut-window {
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+}
+
+.shortcut-groups {
+  display: grid;
+  gap: 12px;
+  max-height: 60vh;
+  margin: 12px 0;
+  padding-right: 8px;
+  overflow-y: auto;
+}
+
+.shortcut-groups h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.shortcut-groups dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.shortcut-entry {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.shortcut-entry dt {
+  color: var(--text-soft);
+}
+
+.shortcut-entry dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.shortcut-entry kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--line-control);
+  border-radius: 4px;
+  background: var(--surface-inset);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}

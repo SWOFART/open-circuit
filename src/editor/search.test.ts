@@ -139,28 +139,32 @@ describe("searching the drawing", () => {
 
 describe("the keys of the search field", () => {
   it("moves through the results and wraps round", () => {
-    expect(searchKeyAction("ArrowDown", 0, 3)).toEqual({
+    expect(searchKeyAction({ key: "ArrowDown" }, 0, 3)).toEqual({
       action: "move",
       current: 1,
     });
-    expect(searchKeyAction("ArrowDown", 2, 3)).toEqual({
+    expect(searchKeyAction({ key: "ArrowDown" }, 2, 3)).toEqual({
       action: "move",
       current: 0,
     });
-    expect(searchKeyAction("ArrowUp", 0, 3)).toEqual({
+    expect(searchKeyAction({ key: "ArrowUp" }, 0, 3)).toEqual({
       action: "move",
       current: 2,
     });
   });
 
   it("chooses with Enter only when there is a result, and closes with Escape always", () => {
-    expect(searchKeyAction("Enter", 1, 3)).toEqual({ action: "choose" });
-    expect(searchKeyAction("Enter", 0, 0)).toBeNull();
-    expect(searchKeyAction("Escape", 0, 0)).toEqual({ action: "close" });
+    expect(searchKeyAction({ key: "Enter" }, 1, 3)).toEqual({
+      action: "choose",
+    });
+    expect(searchKeyAction({ key: "Enter" }, 0, 0)).toBeNull();
+    expect(searchKeyAction({ key: "Escape" }, 0, 0)).toEqual({
+      action: "close",
+    });
   });
 
   it("ignores other keys and a move with nothing to move through", () => {
-    expect(searchKeyAction("a", 0, 3)).toBeNull();
-    expect(searchKeyAction("ArrowDown", 0, 0)).toBeNull();
+    expect(searchKeyAction({ key: "a" }, 0, 3)).toBeNull();
+    expect(searchKeyAction({ key: "ArrowDown" }, 0, 0)).toBeNull();
   });
 });

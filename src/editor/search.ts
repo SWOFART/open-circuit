@@ -1,6 +1,7 @@
 import type { ComponentTypeId } from "../generated/ComponentTypeId";
 import type { Schematic } from "../generated/Schematic";
 import type { StableId } from "../generated/StableId";
+import { matchShortcut, type ShortcutEvent } from "./shortcuts";
 
 // Canvas search (docs/contracts/stage-16-editor-improvements.md section 7). It reads the document
 // and the labels and never changes either.
@@ -94,27 +95,27 @@ export type SearchKeyAction =
   | { readonly action: "close" };
 
 /**
- * The effect of `key` with `count` results and `current` the highlighted one: Down and Up move
+ * The effect of a key press (looked up in the table of `shortcuts.ts`) with `count` results and `current` the highlighted one: Down and Up move
  * through the results and wrap round, Enter chooses (when there is a result), Escape closes.
  * Null for any other key, or for a key with nothing to act on.
  */
 export function searchKeyAction(
-  key: string,
+  event: ShortcutEvent,
   current: number,
   count: number,
 ): SearchKeyAction | null {
-  switch (key) {
-    case "Escape":
+  switch (matchShortcut(event, "search")) {
+    case "search.close":
       return { action: "close" };
-    case "ArrowDown":
+    case "search.next":
       return count > 0
         ? { action: "move", current: (current + 1) % count }
         : null;
-    case "ArrowUp":
+    case "search.previous":
       return count > 0
         ? { action: "move", current: (current - 1 + count) % count }
         : null;
-    case "Enter":
+    case "search.choose":
       return count > 0 ? { action: "choose" } : null;
     default:
       return null;

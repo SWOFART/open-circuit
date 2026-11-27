@@ -28,6 +28,8 @@ import type {
   OperateAction,
 } from "../editor/interaction";
 import { symbols } from "../symbols";
+import { isTextEntryTarget } from "../editor/canvasInput";
+import { detectPlatform, matchShortcut } from "../editor/shortcuts";
 import { THEMES } from "../theme/tokens";
 import { tauriRecoveryFiles, type RecoveryPort } from "../store/recoveryFiles";
 import { restoreRecovery } from "../store/recoveryFlow";
@@ -37,6 +39,7 @@ import { HistoryPanel } from "./HistoryPanel";
 import { RecoveryDialog } from "./RecoveryDialog";
 import { useAutosave } from "./useAutosave";
 import { useRecovery } from "./useRecovery";
+import { ShortcutWindow } from "./ShortcutWindow";
 import { ThemeSwitch } from "./ThemeSwitch";
 import { useTheme } from "./useTheme";
 import { message } from "./messages";
@@ -508,28 +511,36 @@ export function App({
     };
   });
 
-  // Ctrl/Cmd+F opens the search field of the canvas (stage 16 contract, section 7).
+  // Ctrl/Cmd+F opens the search field of the canvas (stage 16 contract, section 7), and F1 or ?
+  // the window of keyboard shortcuts (section 10). Both are bindings of the table in
+  // src/editor/shortcuts.ts, taken from a text field only if the field does not use the key.
   const [searchOpen, setSearchOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   useEffect(() => {
-    const onFind = (event: KeyboardEvent): void => {
-      if (
-        (event.ctrlKey || event.metaKey) &&
-        !event.altKey &&
-        !event.shiftKey &&
-        event.code === "KeyF"
-      ) {
+    const platform = detectPlatform();
+    const onGlobalKey = (event: KeyboardEvent): void => {
+      const id = matchShortcut(
+        event,
+        "anywhere",
+        platform,
+        isTextEntryTarget(event.target),
+      );
+      if (id === "find.open") {
         event.preventDefault();
         setSearchOpen(true);
+      } else if (id === "help.shortcuts") {
+        event.preventDefault();
+        setShortcutsOpen(true);
       }
     };
 
-    window.addEventListener("keydown", onFind);
-    return () => window.removeEventListener("keydown", onFind);
+    window.addEventListener("keydown", onGlobalKey);
+    return () => window.removeEventListener("keydown", onGlobalKey);
   }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
-      const isMacPlatform = /Mac|iPhone|iPad/.test(navigator.platform);
+      const isMacPlatform = detectPlatform() === "mac";
       const shortcut = projectShortcutFromEvent(event, isMacPlatform);
       if (shortcut === null || pendingActionRef.current !== null) return;
       event.preventDefault();
@@ -1117,6 +1128,15 @@ export function App({
               <span className="editor-hint">
                 {document.isDirty ? "Unsaved changes" : documentName}
               </span>
+              <button
+                type="button"
+                className="toolbar-button"
+                aria-haspopup="dialog"
+                title="Show the keyboard shortcuts (F1 or ?)"
+                onClick={() => setShortcutsOpen(true)}
+              >
+                Keyboard shortcuts
+              </button>
               {autosave.notice && (
                 <span className="editor-hint autosave-notice" role="status">
                   {autosave.notice}
@@ -1468,6 +1488,12 @@ export function App({
           <span>Values come from the Rust engine only.</span>
         )}
       </footer>
+      {shortcutsOpen && (
+        <ShortcutWindow
+          platform={detectPlatform()}
+          onClose={() => setShortcutsOpen(false)}
+        />
+      )}
       {recovery.pending !== null && (
         <RecoveryDialog
           recovery={recovery.pending}
