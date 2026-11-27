@@ -41,6 +41,7 @@ import {
   type OperateAction,
 } from "./interaction";
 import {
+  boundsOf,
   buildScene,
   JUNCTION_RADIUS,
   referenceMarkerShapes,
@@ -399,6 +400,24 @@ export class EditorCore {
       delta,
     });
     this.focusCanvas();
+    return true;
+  }
+
+  /**
+   * Selects one object and centers the view on it, keeping the zoom (canvas search). Returns
+   * false when the drawing has no such object.
+   */
+  reveal(target: SelectionTarget): boolean {
+    const shapes = (this.scene?.shapes ?? []).filter(
+      (shape) =>
+        shape.owner.kind === target.kind && shape.owner.id === target.id,
+    );
+    if (shapes.length === 0) {
+      return false;
+    }
+
+    this.select(target);
+    this.interaction.centerOn(boundsOf(shapes));
     return true;
   }
 

@@ -648,6 +648,21 @@ export class CanvasInteraction {
     this.fit();
   }
 
+  /** Pans so the center of `bounds` is at the center of the view; the zoom is kept. */
+  centerOn(bounds: SceneModel["bounds"]): void {
+    const { scale } = this.currentView;
+    this.changeView({
+      scale,
+      offsetX:
+        this.viewport.width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale,
+      offsetY:
+        this.viewport.height / 2 - ((bounds.minY + bounds.maxY) / 2) * scale,
+    });
+    if (this.pointerScreen) {
+      this.updatePointer(this.pointerScreen);
+    }
+  }
+
   fitToBounds(bounds: SceneModel["bounds"]): void {
     this.autoFit = false;
     this.changeView(fitView(bounds, this.viewport));
