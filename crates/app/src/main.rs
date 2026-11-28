@@ -4,6 +4,7 @@ mod drawing_pdf;
 
 use std::sync::Arc;
 
+use open_circuit_app_lib::analysis::AnalysisService;
 use open_circuit_app_lib::assignment::{
     ASSIGNMENT_EXTENSION, AssignmentSession, normalize_save_path, write_assignment_file,
 };
@@ -13,6 +14,7 @@ use open_circuit_app_lib::recovery::{RecoveryProbe, RecoveryStore};
 use open_circuit_app_lib::simulation::{
     FrameSink, ServiceError, SimulationConfig, SimulationService, SinkClosed, TraceSink,
 };
+use open_circuit_engine::engine::analyses::{AnalysisJobReport, AnalysisRequest, AnalysisStart};
 use open_circuit_engine::{
     Assignment, AssignmentDecoded, AssignmentSaveOutcome, CheckRequest, CheckResult,
     CompileRequest, CompileResult, ComponentCatalog, DiagnosisChecked, Schematic,
@@ -629,10 +631,51 @@ async fn check_fault_diagnosis(
 #[tauri::command]
 async fn compile_circuit(
     simulation: State<'_, Simulation>,
+    analysis: State<'_, Arc<AnalysisService>>,
     request: CompileRequest,
 ) -> Result<CompileResult, String> {
     let service = Arc::clone(&simulation.0);
-    run_blocking(move || service.compile(request)).await
+    let result = run_blocking(move || service.compile(request)).await?;
+    if matches!(result, CompileResult::Success { .. }) {
+        // A new run replaces the one the jobs and their results answer.
+        analysis.invalidate();
+    }
+    Ok(result)
+}
+
+/// Starts an analysis job for the calling window: a DC sweep, a frequency response or a harmonic
+/// spectrum (docs/contracts/stage-17-extra-analyses.md section 5). The job runs on its own thread,
+/// never on the simulation thread. A window with a job already pending or running gets `busy`.
+#[tauri::command]
+async fn start_analysis(
+    window: tauri::Window,
+    analysis: State<'_, Arc<AnalysisService>>,
+    request: AnalysisRequest,
+) -> Result<AnalysisStart, String> {
+    let service = Arc::clone(&analysis);
+    let label = window.label().to_owned();
+    run_blocking(move || Ok(service.start(&label, request))).await
+}
+
+/// The state of a job of the calling window; nothing for a job it does not own.
+#[tauri::command]
+async fn read_analysis(
+    window: tauri::Window,
+    analysis: State<'_, Arc<AnalysisService>>,
+    job_id: String,
+) -> Result<Option<AnalysisJobReport>, String> {
+    Ok(analysis.read(window.label(), &job_id))
+}
+
+/// Cancels a pending or running job of the calling window and returns its state. A job that has
+/// finished keeps its outcome.
+#[tauri::command]
+async fn cancel_analysis(
+    window: tauri::Window,
+    analysis: State<'_, Arc<AnalysisService>>,
+    job_id: String,
+) -> Result<Option<AnalysisJobReport>, String> {
+    Ok(analysis.cancel(window.label(), &job_id))
 }
 
 /// Recalculates one parameter of the active run through the Engine.
@@ -776,9 +819,11 @@ fn main() {
     let simulation = Simulation(Arc::new(SimulationService::spawn(
         SimulationConfig::default(),
     )));
+    let analysis = Arc::new(AnalysisService::new(Arc::clone(&simulation.0)));
 
     tauri::Builder::default()
         .manage(simulation)
+        .manage(analysis)
         .manage(ProjectSession::default())
         .manage(AssignmentSession::default())
         .manage(Arc::new(CheckService::default()))
@@ -810,6 +855,9 @@ fn main() {
             check_graded_assignment,
             check_fault_diagnosis,
             compile_circuit,
+            start_analysis,
+            read_analysis,
+            cancel_analysis,
             set_parameter,
             set_operator_state,
             read_probe,

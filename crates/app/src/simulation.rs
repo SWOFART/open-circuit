@@ -19,6 +19,7 @@ use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
+use open_circuit_engine::engine::analyses::{AnalysisError, SpectrumCapture, SpectrumRequest};
 use open_circuit_engine::{
     AdvanceRequest, CompileRequest, CompileResult, ConductorSpanPage, ConductorSpanRequest,
     Diagnostic, DiagnosticCode, Engine, ProbeRequest, ProbeResult, SetOperatorStateRequest,
@@ -31,6 +32,18 @@ use crate::trace::{MAX_TRACE_POINTS, encode_trace};
 
 /// The fixed physics step. It equals `SIMULATION_TIMESTEP_SECONDS` (checked by a test).
 pub const PHYSICS_STEP: Duration = Duration::from_millis(1);
+
+/// A spectrum capture asked of the simulation thread: the borrowed engine request, owned so it can
+/// cross to the worker.
+#[derive(Clone, Debug)]
+pub struct SpectrumCaptureRequest {
+    pub run_id: StableId,
+    pub layout_version: u32,
+    pub document_revision: String,
+    pub signal_key: String,
+    pub end_step: u64,
+    pub sample_count: usize,
+}
 
 /// How long a caller waits for the simulation thread to answer a request.
 const REPLY_TIMEOUT: Duration = Duration::from_secs(10);
@@ -215,6 +228,27 @@ impl SimulationCore {
             };
         }
         self.engine.probe(request)
+    }
+
+    /// Copies one bounded, contiguous window of the active run's history. The copy is immutable and
+    /// leaves the run, its stream and its history as they were.
+    pub fn capture_spectrum(
+        &self,
+        request: &SpectrumCaptureRequest,
+    ) -> Result<SpectrumCapture, AnalysisError> {
+        if revision_too_long(&request.document_revision) {
+            return Err(AnalysisError::StaleInput(
+                DiagnosticCode::StaleDocumentRevision,
+            ));
+        }
+        self.engine.capture_spectrum(SpectrumRequest {
+            run_id: &request.run_id,
+            layout_version: request.layout_version,
+            document_revision: &request.document_revision,
+            signal_key: &request.signal_key,
+            end_step: request.end_step,
+            sample_count: request.sample_count,
+        })
     }
 
     pub fn conductor_spans(
@@ -569,6 +603,10 @@ enum Message {
         ConductorSpanRequest,
         Sender<Result<ConductorSpanPage, Diagnostic>>,
     ),
+    CaptureSpectrum(
+        SpectrumCaptureRequest,
+        Sender<Result<SpectrumCapture, AnalysisError>>,
+    ),
     Start(
         StableId,
         Box<dyn FrameSink>,
@@ -663,6 +701,15 @@ impl SimulationService {
         request: ConductorSpanRequest,
     ) -> Result<Result<ConductorSpanPage, Diagnostic>, ServiceError> {
         self.request(|reply| Message::ConductorSpans(request, reply))
+    }
+
+    /// Asks the simulation thread for the samples of a spectrum. Only this copy happens on the
+    /// thread; the transform runs on the caller's.
+    pub fn capture_spectrum(
+        &self,
+        request: SpectrumCaptureRequest,
+    ) -> Result<Result<SpectrumCapture, AnalysisError>, ServiceError> {
+        self.request(|reply| Message::CaptureSpectrum(request, reply))
     }
 
     pub fn start(
@@ -889,6 +936,9 @@ fn run_worker(mut core: SimulationCore, receiver: Receiver<Message>) {
             }
             Ok(Message::ConductorSpans(request, reply)) => {
                 let _ = reply.send(core.conductor_spans(request));
+            }
+            Ok(Message::CaptureSpectrum(request, reply)) => {
+                let _ = reply.send(core.capture_spectrum(&request));
             }
             Ok(Message::Start(run_id, sink, reply)) => {
                 let _ = reply.send(core.start(run_id, sink, Instant::now()));
