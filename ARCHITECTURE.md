@@ -605,6 +605,15 @@ application captures inputs, schedules jobs and carries complete outcomes
 through dedicated commands. The fixed-step simulation, its frame and trace
 formats, and project persistence keep their existing contracts.
 
+The bridge (`crates/app/src/analysis.rs`, issue #237) is three JSON commands,
+`start_analysis`, `read_analysis` and `cancel_analysis`, over request and
+outcome DTOs that `ts-rs` generates from `crates/engine/src/analyses/transport.rs`.
+Each window has at most one pending or running job, which runs on its own
+thread, never on the simulation thread; only the bounded copy of a spectrum's
+samples is read there. A window keeps one terminal result, a new run replaces
+and invalidates the old jobs and results, requests and responses are bounded to
+512 KiB of JSON, and step numbers cross as decimal strings.
+
 ### Editor features outside the stages
 
 - **Editable part names.** The names `R1`, `K1` are today numbered by the editor and are not saved (`src/store/labels.ts`). Letting the user rename a part (for example by double-clicking it) means saving the name, so it is a change to the project format (an optional field or a new version, to be decided by a contract), with rules for duplicates and for how assignments refer to parts (they use stable IDs, not names). It is part of Stage 12 (cabinet documentation). The contract is [`docs/contracts/stage-12-cabinet-documentation.md`](docs/contracts/stage-12-cabinet-documentation.md) (issue #188): names are saved as designators in schema version 3, with identification letters from the owner's table carried by the Rust catalog.

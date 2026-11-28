@@ -7,6 +7,15 @@ pub use frequency::{
     frequency_response,
 };
 
+#[path = "analyses/transport.rs"]
+mod transport;
+pub use transport::{
+    AnalysisFailure, AnalysisFailureReason, AnalysisJobReport, AnalysisKind, AnalysisOutcome,
+    AnalysisRequest, AnalysisResult, AnalysisSpacing, AnalysisStart, AnalysisTerminal,
+    DcSweepPointDto, FrequencyResponsePointDto, MAX_ANALYSIS_PAYLOAD_BYTES, SpectrumBinDto,
+    failure_from, run_analysis,
+};
+
 #[path = "analyses/spectrum.rs"]
 mod spectrum;
 pub use spectrum::{
